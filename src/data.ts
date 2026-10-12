@@ -36,11 +36,11 @@ export const ELEMENT_COLORS: Record<Element, number> = {
 
 // Starter cast from GDD section 17. The prototype runs a team of five, one per element.
 export const HEROES: HeroDef[] = [
-  { id: 'marin', name: 'Marin', element: 'water', job: 'Blademaster', baseAtk: 5, baseHp: 60, range: 28, attackCooldown: 0.8, moveSpeed: 55, unlockCost: 0, upgradeBaseCost: 5, goldMult: 1 },
-  { id: 'bramble', name: 'Bramble', element: 'earth', job: 'Knight', baseAtk: 3, baseHp: 150, range: 26, attackCooldown: 1.0, moveSpeed: 45, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1 },
-  { id: 'pyra', name: 'Pyra', element: 'fire', job: 'Mage', baseAtk: 8, baseHp: 40, range: 150, attackCooldown: 1.4, moveSpeed: 45, unlockCost: 300, upgradeBaseCost: 40, goldMult: 1, splash: 40 },
-  { id: 'nox', name: 'Nox', element: 'dark', job: 'Rogue', baseAtk: 6, baseHp: 50, range: 24, attackCooldown: 0.6, moveSpeed: 80, unlockCost: 1500, upgradeBaseCost: 120, goldMult: 2 },
-  { id: 'solenne', name: 'Solenne', element: 'light', job: 'Support', baseAtk: 3, baseHp: 55, range: 130, attackCooldown: 1.2, moveSpeed: 45, unlockCost: 8000, upgradeBaseCost: 400, goldMult: 1, heals: true },
+  { id: 'marin', name: 'Marin', element: 'water', job: 'Blademaster', baseAtk: 5, baseHp: 60, range: 28, attackCooldown: 0.8, moveSpeed: 120, unlockCost: 0, upgradeBaseCost: 5, goldMult: 1 },
+  { id: 'bramble', name: 'Bramble', element: 'earth', job: 'Knight', baseAtk: 3, baseHp: 150, range: 26, attackCooldown: 1.0, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1 },
+  { id: 'pyra', name: 'Pyra', element: 'fire', job: 'Mage', baseAtk: 8, baseHp: 40, range: 150, attackCooldown: 1.4, moveSpeed: 105, unlockCost: 300, upgradeBaseCost: 40, goldMult: 1, splash: 40 },
+  { id: 'nox', name: 'Nox', element: 'dark', job: 'Rogue', baseAtk: 6, baseHp: 50, range: 24, attackCooldown: 0.6, moveSpeed: 145, unlockCost: 1500, upgradeBaseCost: 120, goldMult: 2 },
+  { id: 'solenne', name: 'Solenne', element: 'light', job: 'Support', baseAtk: 3, baseHp: 55, range: 130, attackCooldown: 1.2, moveSpeed: 105, unlockCost: 8000, upgradeBaseCost: 400, goldMult: 1, heals: true },
 ];
 
 /**
