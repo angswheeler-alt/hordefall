@@ -23,6 +23,8 @@ export class GameState {
   embers = 0;
   emberLevels: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, 0]));
   rekindles = 0;
+  /** Hero Crests (copies) per hero, for evolution. Nothing drops them yet. */
+  crests: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, 0]));
   levels: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, h.unlockCost === 0 ? 1 : 0]));
   /** False after losing to a boss: clears repeat the current stage until the player challenges again. */
   autoAdvance = true;
@@ -107,6 +109,7 @@ export class GameState {
       embers: this.embers,
       emberLevels: this.emberLevels,
       rekindles: this.rekindles,
+      crests: this.crests,
       levels: this.levels,
       autoAdvance: this.autoAdvance,
       speed2x: this.speed2x,
@@ -141,6 +144,7 @@ export class GameState {
       this.embers = d.embers ?? 0;
       this.emberLevels = { ...this.emberLevels, ...(d.emberLevels ?? {}) };
       this.rekindles = d.rekindles ?? 0;
+      this.crests = { ...this.crests, ...(d.crests ?? {}) };
       this.levels = { ...this.levels, ...(d.levels ?? {}) };
       this.autoAdvance = d.autoAdvance ?? true;
       this.speed2x = !!d.speed2x;
