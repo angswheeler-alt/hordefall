@@ -15,6 +15,7 @@
         <div class="stat"><span class="coin"></span><b id="gold">0</b></div>
         <div class="stat small"><span id="gps">0/s</span></div>
         <div class="stat small">Best <b id="best">1</b></div>
+        <div class="stat small" id="embers-stat" hidden><span class="ember"></span><b id="embers">0</b></div>
       </header>
       <div id="game"></div>
       <div id="ults"></div>
@@ -22,6 +23,7 @@
         <button id="speed" class="toggle">2x</button>
         <button id="autoult" class="toggle">Auto ult</button>
         <button id="boss" class="hot" hidden>Fight boss</button>
+        <button id="rekindle" class="ember-btn" hidden>Rekindle</button>
         <span class="spacer"></span>
         <button id="mute" class="toggle" aria-label="Sound">Sound</button>
         <button id="buyamt">Buy x1</button>
@@ -35,9 +37,12 @@
     </div>
     <div id="modal" hidden>
       <div class="card">
-        <h2>Welcome back!</h2>
+        <h2 id="modal-title">Welcome back!</h2>
         <p id="modal-body"></p>
-        <button id="modal-ok" class="hot">Collect</button>
+        <div class="modal-actions">
+          <button id="modal-cancel" hidden>Not yet</button>
+          <button id="modal-ok" class="hot">Collect</button>
+        </div>
       </div>
     </div>
     <script type="module" src="./src/main.ts"></script>

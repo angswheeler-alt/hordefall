@@ -1,3 +1,4 @@
+[hidden] { display: none !important; }
 :root {
   --bg: #1b1530;
   --panel: #2a2246;
@@ -7,6 +8,7 @@
   --gold: #ffd84a;
   --hot: #ff6680;
   --ok: #4cd97a;
+  --ember: #ff8a3d;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -51,3 +53,13 @@ button.hot { background: var(--hot); border-color: var(--hot); color: #fff; font
 #modal h2 { margin: 0 0 8px; }
 #modal p { color: var(--muted); line-height: 1.5; }
 #modal b { color: var(--gold); }
+
+.ember { width: 12px; height: 16px; border-radius: 50% 50% 45% 45% / 65% 65% 35% 35%; background: radial-gradient(circle at 50% 70%, #ffe08a 0 25%, var(--ember) 55%, #c2410c 100%); }
+#embers { color: var(--ember); }
+button.ember-btn { background: var(--ember); border-color: var(--ember); color: #2a0d00; font-weight: 700; }
+.hero .btns { display: flex; flex-direction: column; gap: 6px; }
+.hero button.ember-up { background: transparent; border-color: var(--ember); min-height: 0; padding: 4px 10px; }
+.hero button.ember-up .cost { color: var(--ember); }
+.hero .ember-lvl { color: var(--ember); }
+.modal-actions { display: flex; gap: 8px; justify-content: center; }
+.ember-text, #modal b.ember-text { color: var(--ember); }

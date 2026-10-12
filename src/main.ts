@@ -31,6 +31,13 @@ const ui = new UI(state, scene, {
     scene()?.restart();
     state.save();
   },
+  rekindle: () => {
+    const gained = state.rekindle();
+    if (gained > 0) {
+      scene()?.restart();
+      ui.showRekindled(gained);
+    }
+  },
   wipe: () => {
     GameState.wipe();
     // Skip the unload save so the wipe sticks.

@@ -280,7 +280,7 @@ export class BattleScene extends Phaser.Scene {
   /** Create units for newly recruited heroes and refresh stats after upgrades. */
   syncHeroes() {
     for (const def of HEROES) {
-      const level = this.state.levels[def.id] ?? 0;
+      const level = this.state.heroLevel(def.id);
       if (level <= 0) continue;
       let u = this.heroes.find((h) => h.def?.id === def.id);
       const atk = heroAtk(def, level);
@@ -381,9 +381,8 @@ export class BattleScene extends Phaser.Scene {
     this.gainGold(reward, ENEMY_CRYSTAL_X, LANE_TOP);
     this.state.recordStageTime(this.stageTime);
     if (isBossStage(stage)) this.state.autoAdvance = true;
-    if (this.state.autoAdvance) this.state.stage += 1;
     const prevBest = this.state.bestStage;
-    this.state.bestStage = Math.max(this.state.bestStage, this.state.stage);
+    if (this.state.autoAdvance) this.state.reachStage(this.state.stage + 1);
     if (prevBest < SPEED_UNLOCK_STAGE && this.state.bestStage >= SPEED_UNLOCK_STAGE) {
       this.time.delayedCall(1100, () => {
         this.banner('2x SPEED UNLOCKED!', '#7dff9a');
@@ -675,7 +674,7 @@ export class BattleScene extends Phaser.Scene {
 
   getUltState(heroId: string): UltState {
     const h = this.heroes.find((u) => u.def?.id === heroId);
-    const level = this.state.levels[heroId] ?? 0;
+    const level = this.state.heroLevel(heroId);
     return {
       unlocked: level >= ULT_UNLOCK_LEVEL,
       alive: !!h?.alive,

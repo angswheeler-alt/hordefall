@@ -75,6 +75,8 @@ export const ULT_MULTIPLIER = 40;
 export const OFFLINE_CAP_HOURS = 12;
 /** 2x battle speed unlocks once the player first reaches this stage. */
 export const SPEED_UNLOCK_STAGE = 25;
+/** Rekindle unlocks after first clearing this stage (GDD section 7). */
+export const REKINDLE_STAGE = 130;
 export const CRIT_CHANCE = 0.12;
 export const CRIT_MULTIPLIER = 2.5;
 
