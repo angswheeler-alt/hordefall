@@ -1,5 +1,6 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, type HeroDef } from './data';
+import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, type HeroDef } from './data';
+import { setMuted } from './sfx';
 import { bulkCost, heroAtk, heroHp, isBossStage, fmt, fmtDuration } from './formulas';
 import type { GameState, OfflineReport } from './state';
 import type { BattleScene } from './BattleScene';
@@ -87,6 +88,11 @@ export class UI {
       this.state.speed2x = !this.state.speed2x;
       this.render();
     });
+    $('mute').addEventListener('click', () => {
+      this.state.muted = !this.state.muted;
+      setMuted(this.state.muted);
+      this.render();
+    });
     $('autoult').addEventListener('click', () => {
       this.state.autoUlt = !this.state.autoUlt;
       this.render();
@@ -131,7 +137,13 @@ export class UI {
     $('gold').textContent = fmt(s.gold);
     $('gps').textContent = `${fmt(new Decimal(s.goldPerSec))}/s`;
     $('best').textContent = String(s.bestStage);
-    $('speed').classList.toggle('on', s.speed2x);
+    const speedUnlocked = s.bestStage >= SPEED_UNLOCK_STAGE;
+    const speed = $<HTMLButtonElement>('speed');
+    speed.disabled = !speedUnlocked;
+    speed.textContent = speedUnlocked ? '2x' : `2x at stage ${SPEED_UNLOCK_STAGE}`;
+    speed.classList.toggle('on', speedUnlocked && s.speed2x);
+    $('mute').classList.toggle('on', !s.muted);
+    $('mute').textContent = s.muted ? 'Sound off' : 'Sound on';
     $('autoult').classList.toggle('on', s.autoUlt);
     $('buyamt').textContent = `Buy ${s.buyAmount === 'max' ? 'max' : `x${s.buyAmount}`}`;
     const bossBtn = $('boss');

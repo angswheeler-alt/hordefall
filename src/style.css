@@ -26,7 +26,7 @@ body { -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
 .ult:disabled { cursor: default; filter: grayscale(0.7) brightness(0.6); }
 .ult .cd { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.8); font-size: 14px; }
 .ult.ready { box-shadow: 0 0 0 2px var(--gold), 0 0 12px var(--gold); }
-#controls { display: flex; gap: 8px; padding: 10px 14px; align-items: center; }
+#controls { display: flex; gap: 8px; padding: 10px 14px; align-items: center; flex-wrap: wrap; }
 .spacer { flex: 1; }
 button { font: inherit; background: var(--panel-2); color: var(--text); border: 1px solid #4a3d78; border-radius: 10px; padding: 8px 12px; cursor: pointer; }
 button:disabled { opacity: .45; cursor: default; }

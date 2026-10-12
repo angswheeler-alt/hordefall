@@ -9,6 +9,9 @@ import {
   ULT_COOLDOWN,
   ULT_MULTIPLIER,
   ULT_UNLOCK_LEVEL,
+  SPEED_UNLOCK_STAGE,
+  CRIT_CHANCE,
+  CRIT_MULTIPLIER,
   elementMultiplier,
   enemyElement,
   bossElement,
@@ -29,6 +32,7 @@ import {
   fmt,
 } from './formulas';
 import type { GameState } from './state';
+import { play } from './sfx';
 
 export const WIDTH = 480;
 export const HEIGHT = 300;
@@ -103,6 +107,8 @@ export class BattleScene extends Phaser.Scene {
   private infoText!: Phaser.GameObjects.Text;
   private bossBar!: Phaser.GameObjects.Graphics;
   private bannerText!: Phaser.GameObjects.Text;
+  /** Real seconds left in a hit-stop freeze, which sells the weight of big hits. */
+  private hitStop = 0;
 
   constructor() {
     super('battle');
@@ -343,6 +349,8 @@ export class BattleScene extends Phaser.Scene {
     if (boss) {
       this.spawnEnemy(true);
       this.banner('BOSS STAGE', '#ff6680');
+      this.cameras.main.shake(400, 0.01);
+      play('boss');
     }
     this.spawnWave();
     this.state.emit();
@@ -374,8 +382,19 @@ export class BattleScene extends Phaser.Scene {
     this.state.recordStageTime(this.stageTime);
     if (isBossStage(stage)) this.state.autoAdvance = true;
     if (this.state.autoAdvance) this.state.stage += 1;
+    const prevBest = this.state.bestStage;
     this.state.bestStage = Math.max(this.state.bestStage, this.state.stage);
+    if (prevBest < SPEED_UNLOCK_STAGE && this.state.bestStage >= SPEED_UNLOCK_STAGE) {
+      this.time.delayedCall(1100, () => {
+        this.banner('2x SPEED UNLOCKED!', '#7dff9a');
+        play('unlock');
+      });
+    }
     this.tweens.add({ targets: this.crystalView, scale: 1.6, alpha: 0, duration: 400 });
+    this.shatter(ENEMY_CRYSTAL_X, LANE_TOP + 26, 0xd04a8a);
+    this.cameras.main.shake(250, 0.012);
+    this.freeze(0.12);
+    play('clear');
     this.banner(isBossStage(stage) ? 'BOSS DOWN!' : 'STAGE CLEAR', '#ffe066');
     this.state.save();
     this.time.delayedCall(900, () => this.startStage());
@@ -391,6 +410,7 @@ export class BattleScene extends Phaser.Scene {
       this.state.autoAdvance = false;
     }
     this.banner(reason, '#ff6b6b');
+    play('defeat');
     this.state.save();
     this.time.delayedCall(1300, () => this.startStage());
   }
@@ -410,13 +430,25 @@ export class BattleScene extends Phaser.Scene {
     this.startStage();
   }
 
+  speedMultiplier() {
+    return this.state.speed2x && this.state.bestStage >= SPEED_UNLOCK_STAGE ? 2 : 1;
+  }
+
+  private freeze(seconds: number) {
+    this.hitStop = Math.max(this.hitStop, seconds);
+  }
+
   // ---------- combat ----------
 
   update(_time: number, deltaMs: number) {
     const realDt = Math.min(deltaMs / 1000, 0.1);
-    const dt = realDt * (this.state.speed2x ? 2 : 1);
-    this.clock += dt;
     this.trackIncome(realDt);
+    if (this.hitStop > 0) {
+      this.hitStop -= realDt;
+      return;
+    }
+    const dt = realDt * (this.speedMultiplier());
+    this.clock += dt;
     this.updateChests(dt);
     this.drawHud();
     if (this.transitioning) return;
@@ -535,25 +567,55 @@ export class BattleScene extends Phaser.Scene {
     const def = h.def!;
     if (def.range > 60) this.shot(h, target.x, target.y, ELEMENT_COLORS[def.element]);
     else this.lunge(h, 1);
+    const crit = Math.random() < CRIT_CHANCE;
+    const atk = crit ? h.atk.times(CRIT_MULTIPLIER) : h.atk;
     const targets = def.splash ? this.enemies.filter((e) => e.alive && Math.abs(e.x - target.x) <= def.splash!) : [target];
-    for (const t of targets) this.damageUnit(t, h.atk.times(elementMultiplier(h.element, t.element)), h);
+    for (const t of targets) this.damageUnit(t, atk.times(elementMultiplier(h.element, t.element)), h, crit);
   }
 
-  private damageUnit(target: Unit, amount: Decimal, source: Unit | null) {
+  private damageUnit(target: Unit, amount: Decimal, source: Unit | null, crit = false) {
     if (!target.alive) return;
     target.hp = target.hp.minus(amount);
     this.drawHpBar(target);
+    this.hitFeedback(target, amount, source, crit);
     target.body.setTintFill(0xffffff);
     this.time.delayedCall(60, () => {
       if (!target.body.active) return;
       if (target.side === 'enemy') target.body.setTint(ELEMENT_COLORS[target.element]);
       else target.body.clearTint();
     });
-    if (target.isBoss || amount.gt(target.maxHp.times(0.5))) this.floatText(target.x, target.y - 30, fmt(amount), '#ffffff');
     if (target.hp.lte(0)) this.kill(target, source);
   }
 
+  /** Squash, sparks, knockback, damage numbers, shake and sound for one hit. */
+  private hitFeedback(target: Unit, amount: Decimal, source: Unit | null, crit: boolean) {
+    this.tweens.add({ targets: target.body, scaleX: 1.25, scaleY: 0.8, duration: 50, yoyo: true, onComplete: () => target.body.setScale(1) });
+    if (target.side === 'hero') {
+      play('hurt');
+      return;
+    }
+    const color = source ? ELEMENT_COLORS[source.element] : 0xffffff;
+    this.sparks(target.x - 6, target.y - 4, color, crit ? 9 : 4);
+    if (crit) {
+      this.floatText(target.x, target.y - 34, `${fmt(amount)}!`, '#ffe14a', 18);
+      this.cameras.main.shake(90, 0.006);
+      this.freeze(0.05);
+      play('crit');
+    } else {
+      this.floatText(target.x + Phaser.Math.Between(-6, 6), target.y - 26, fmt(amount), '#ffffff', 11);
+      play('hit');
+    }
+    if (target.isBoss) this.cameras.main.shake(60, 0.003);
+    // Melee hits shove regular enemies back a step.
+    if (!target.isBoss && source?.def && source.def.range <= 60) {
+      target.x = Math.min(target.x + (crit ? 16 : 6), ENEMY_CRYSTAL_X - 12);
+      this.tweens.add({ targets: target.view, x: target.x, duration: 90, ease: 'Quad.out' });
+    }
+  }
+
   private heal(target: Unit, amount: Decimal) {
+    play('heal');
+    this.sparks(target.x, target.y, 0x7dff9a, 5);
     target.hp = Decimal.min(target.maxHp, target.hp.plus(amount));
     this.drawHpBar(target);
     this.floatText(target.x, target.y - 26, `+${fmt(amount)}`, '#7dff9a');
@@ -566,8 +628,15 @@ export class BattleScene extends Phaser.Scene {
         .times(u.isBoss ? 10 : 1)
         .times(source?.goldMult ?? 1);
       this.gainGold(gold, u.x, u.y);
-      this.tweens.add({ targets: u.view, alpha: 0, y: u.y + 6, duration: 250, onComplete: () => u.view.destroy() });
-      this.puff(u.x, u.y, ELEMENT_COLORS[u.element]);
+      this.tweens.add({ targets: u.view, alpha: 0, scale: 1.5, y: u.y - 8, duration: 220, onComplete: () => u.view.destroy() });
+      this.shatter(u.x, u.y, ELEMENT_COLORS[u.element]);
+      this.flyCoins(u.x, u.y, u.isBoss ? 12 : 2);
+      play('kill');
+      if (u.isBoss) {
+        this.cameras.main.shake(500, 0.02);
+        this.cameras.main.flash(150, 255, 255, 255);
+        this.freeze(0.25);
+      }
     } else {
       u.respawnAt = this.clock + RESPAWN_SECONDS;
       this.puff(u.x, u.y, 0xffffff);
@@ -577,6 +646,8 @@ export class BattleScene extends Phaser.Scene {
 
   private damageCrystal(amount: Decimal) {
     this.crystal.hp = this.crystal.hp.minus(amount);
+    this.sparks(ENEMY_CRYSTAL_X - 8, LANE_TOP + 26, 0xff8fc0, 3);
+    play('hit');
     this.crystalView.setTintFill(0xffffff);
     this.time.delayedCall(60, () => this.crystalView.clearTint());
     if (this.crystal.hp.lte(0)) {
@@ -619,6 +690,8 @@ export class BattleScene extends Phaser.Scene {
     if (!s.unlocked || s.remaining > 0) return false;
     h.ultReadyAt = this.clock + ULT_COOLDOWN;
     const color = ELEMENT_COLORS[h.element];
+    play('ult');
+    this.freeze(0.08);
     if (h.def!.heals) {
       for (const a of this.heroes) if (a.alive) this.heal(a, a.maxHp);
       this.cameras.main.flash(200, 255, 245, 180);
@@ -627,7 +700,8 @@ export class BattleScene extends Phaser.Scene {
     const radius = 170;
     const ring = this.add.circle(h.x + 60, h.y, 10, color, 0.45).setDepth(999);
     this.tweens.add({ targets: ring, radius, alpha: 0, duration: 380, onComplete: () => ring.destroy() });
-    this.cameras.main.shake(180, 0.008);
+    this.cameras.main.shake(300, 0.015);
+    this.cameras.main.flash(120, 255, 255, 255);
     const dmg = h.atk.times(ULT_MULTIPLIER);
     for (const e of this.enemies) {
       if (e.alive && e.x >= h.x - 30 && e.x <= h.x + radius + 60) this.damageUnit(e, dmg.times(elementMultiplier(h.element, e.element)), h);
@@ -665,7 +739,9 @@ export class BattleScene extends Phaser.Scene {
       drift.stop();
       const gold = goldPerKill(this.state.stage).times(kind.killsWorth);
       this.gainGold(gold, chest.x, chest.y + 10);
-      this.puff(chest.x, chest.y, 0xffe066);
+      this.shatter(chest.x, chest.y, 0xffe066);
+      this.flyCoins(chest.x, chest.y, kind.killsWorth >= 15 ? 10 : 5);
+      play('chest');
       chest.destroy();
       this.state.emit();
     });
@@ -696,9 +772,63 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  private floatText(x: number, y: number, text: string, color: string) {
-    const t = this.add.text(x, y, text, { fontFamily: 'monospace', fontSize: '11px', color, stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(990);
-    this.tweens.add({ targets: t, y: y - 22, alpha: 0, duration: 800, onComplete: () => t.destroy() });
+  private floatText(x: number, y: number, text: string, color: string, size = 11) {
+    const t = this.add
+      .text(x, y, text, { fontFamily: 'monospace', fontSize: `${size}px`, fontStyle: 'bold', color, stroke: '#000', strokeThickness: size > 12 ? 4 : 3 })
+      .setOrigin(0.5)
+      .setDepth(990);
+    if (size > 12) {
+      t.setScale(0.4);
+      this.tweens.add({ targets: t, scale: 1, duration: 140, ease: 'Back.out' });
+    }
+    this.tweens.add({ targets: t, y: y - 26, alpha: 0, delay: 250, duration: 650, onComplete: () => t.destroy() });
+  }
+
+  private sparks(x: number, y: number, color: number, count: number) {
+    for (let i = 0; i < count; i++) {
+      const p = this.add.rectangle(x, y, 3, 3, color).setDepth(960);
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Phaser.Math.Between(8, 22);
+      this.tweens.add({
+        targets: p,
+        x: x + Math.cos(angle) * dist,
+        y: y + Math.sin(angle) * dist,
+        alpha: 0,
+        duration: 200,
+        onComplete: () => p.destroy(),
+      });
+    }
+  }
+
+  /** Chunky burst for deaths and crystal breaks. */
+  private shatter(x: number, y: number, color: number) {
+    for (let i = 0; i < 12; i++) {
+      const p = this.add.rectangle(x, y, 5, 5, i % 3 === 0 ? 0xffffff : color).setDepth(960);
+      this.tweens.add({
+        targets: p,
+        x: x + Phaser.Math.Between(-30, 30),
+        y: y + Phaser.Math.Between(-34, 10),
+        angle: Phaser.Math.Between(-180, 180),
+        alpha: 0,
+        duration: Phaser.Math.Between(300, 500),
+        ease: 'Quad.out',
+        onComplete: () => p.destroy(),
+      });
+    }
+  }
+
+  /** Coins pop up and fly to the top-left, toward the gold counter. */
+  private flyCoins(x: number, y: number, count: number) {
+    for (let i = 0; i < count; i++) {
+      const c = this.add.circle(x, y, 3, 0xffd84a).setStrokeStyle(1, 0x8a6a00).setDepth(995);
+      this.tweens.chain({
+        targets: c,
+        tweens: [
+          { x: x + Phaser.Math.Between(-16, 16), y: y - Phaser.Math.Between(10, 26), duration: 180, ease: 'Quad.out' },
+          { x: 12, y: -6, duration: 420, delay: i * 25, ease: 'Quad.in', onComplete: () => { c.destroy(); play('coin'); } },
+        ],
+      });
+    }
   }
 
   private banner(text: string, color: string) {

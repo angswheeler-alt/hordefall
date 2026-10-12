@@ -73,5 +73,9 @@ export const ULT_UNLOCK_LEVEL = 30;
 export const ULT_COOLDOWN = 30;
 export const ULT_MULTIPLIER = 40;
 export const OFFLINE_CAP_HOURS = 12;
+/** 2x battle speed unlocks once the player first reaches this stage. */
+export const SPEED_UNLOCK_STAGE = 25;
+export const CRIT_CHANCE = 0.12;
+export const CRIT_MULTIPLIER = 2.5;
 
 export const BOSS_NAMES = ['Grubjaw the Glutton', 'Sir Rattlecan', 'Mother Mireling', 'Cogsworth Crusher', 'The Molten Abbot'];

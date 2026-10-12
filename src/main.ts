@@ -3,9 +3,12 @@ import './style.css';
 import { BattleScene, WIDTH, HEIGHT } from './BattleScene';
 import { GameState } from './state';
 import { UI } from './ui';
+import { initAudio, setMuted } from './sfx';
 
 const state = new GameState();
 const hadSave = state.load();
+initAudio();
+setMuted(state.muted);
 const offline = hadSave ? state.applyOffline((Date.now() - state.lastSeen) / 1000) : null;
 
 const game = new Phaser.Game({

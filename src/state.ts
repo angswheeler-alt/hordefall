@@ -22,6 +22,7 @@ export class GameState {
   autoAdvance = true;
   speed2x = false;
   autoUlt = false;
+  muted = false;
   buyAmount: 1 | 10 | 'max' = 1;
   /** Smoothed gold per second and seconds per stage, used for offline earnings. */
   goldPerSec = 0;
@@ -64,6 +65,7 @@ export class GameState {
       autoAdvance: this.autoAdvance,
       speed2x: this.speed2x,
       autoUlt: this.autoUlt,
+      muted: this.muted,
       buyAmount: this.buyAmount,
       goldPerSec: this.goldPerSec,
       secondsPerStage: this.secondsPerStage,
@@ -93,6 +95,7 @@ export class GameState {
       this.autoAdvance = d.autoAdvance ?? true;
       this.speed2x = !!d.speed2x;
       this.autoUlt = !!d.autoUlt;
+      this.muted = !!d.muted;
       this.buyAmount = d.buyAmount ?? 1;
       this.goldPerSec = d.goldPerSec ?? 0;
       this.secondsPerStage = d.secondsPerStage ?? 20;
