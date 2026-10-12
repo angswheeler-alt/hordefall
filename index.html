@@ -15,6 +15,7 @@
         <div class="stat"><span class="coin"></span><b id="gold">0</b></div>
         <div class="stat small"><span id="gps">0/s</span></div>
         <div class="stat small">Best <b id="best">1</b></div>
+        <div class="stat small"><span class="gem"></span><b id="gems">0</b></div>
         <div class="stat small" id="embers-stat" hidden><span class="ember"></span><b id="embers">0</b></div>
       </header>
       <div id="game"></div>
@@ -24,6 +25,7 @@
         <button id="autoult" class="toggle">Auto ult</button>
         <button id="boss" class="hot" hidden>Fight boss</button>
         <button id="rekindle" class="ember-btn" hidden>Rekindle</button>
+        <button id="summon" class="gem-btn">Hero Chest</button>
         <span class="spacer"></span>
         <button id="mute" class="toggle" aria-label="Sound">Sound</button>
         <button id="buyamt">Buy x1</button>
@@ -32,6 +34,7 @@
       <footer id="debug">
         <span>Prototype</span>
         <button id="sim">Simulate 1h away</button>
+        <button id="freegems">+100 Gems</button>
         <button id="wipe">Reset save</button>
       </footer>
     </div>
@@ -69,7 +72,8 @@
           <h3>Evolution</h3>
           <div class="crest-row"><span>Hero Crests</span><span id="sheet-crests"></span></div>
           <div class="crest-bar"><div id="sheet-crest-fill"></div></div>
-          <p class="meta">Collect copies of this hero as Hero Crests to evolve. Each star doubles all stats and the first four unlock new skills. Crest drops arrive with summons and Trials.</p>
+          <button id="sheet-evolve" class="hot evolve" hidden>Evolve</button>
+          <p class="meta">Hero Chests give copies of heroes as Hero Crests. Spend Crests to evolve: each star doubles all stats, and the first four unlock new skills.</p>
           <ul id="sheet-unlocks" class="abilities"></ul>
         </section>
       </div>

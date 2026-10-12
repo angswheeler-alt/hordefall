@@ -1,8 +1,9 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, STAR_CRESTS, type HeroDef } from './data';
+import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, STAR_CRESTS, CHEST_COST, ULT_STAR_BONUS, ULT_MULTIPLIER, type HeroDef } from './data';
+import { play } from './sfx';
 import { setMuted } from './sfx';
-import { bulkCost, heroAtk, heroHp, isBossStage, emberCost, fmt, fmtDuration } from './formulas';
-import type { GameState, OfflineReport } from './state';
+import { bulkCost, isBossStage, emberCost, fmt, fmtDuration } from './formulas';
+import type { GameState, OfflineReport, SummonDrop } from './state';
 import type { BattleScene } from './BattleScene';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -17,6 +18,7 @@ interface HeroRow {
   label: HTMLElement;
   cost: HTMLElement;
   ember: HTMLElement;
+  stars: HTMLElement;
 }
 
 interface UltButton {
@@ -50,7 +52,7 @@ export class UI {
       root.innerHTML = `
         <div class="face" role="button" tabindex="0" aria-label="Open ${def.name}" style="background:${hex(ELEMENT_COLORS[def.element])}">${def.name[0]}</div>
         <div class="who" role="button" tabindex="0" aria-label="Open ${def.name}">
-          <div class="name">${def.name} <span class="meta lvl"></span></div>
+          <div class="name">${def.name} <span class="stars-mini"></span> <span class="meta lvl"></span></div>
           <div class="meta">${cap(def.element)} ${def.job} <span class="ember-chip"></span></div>
           <div class="stats"></div>
         </div>
@@ -78,6 +80,7 @@ export class UI {
         label: root.querySelector('.label') as HTMLElement,
         cost: root.querySelector('.gold-up .cost') as HTMLElement,
         ember: root.querySelector('.ember-chip') as HTMLElement,
+        stars: root.querySelector('.stars-mini') as HTMLElement,
       });
     }
   }
@@ -138,6 +141,18 @@ export class UI {
     });
     $('rekindle').addEventListener('click', () => this.confirmRekindle());
 
+    $('summon').addEventListener('click', () => this.summon());
+    $('freegems').addEventListener('click', () => {
+      this.state.gems += 100;
+      this.render();
+    });
+    $('sheet-evolve').addEventListener('click', () => {
+      if (this.sheetHero && this.state.evolve(this.sheetHero)) {
+        play('unlock');
+        this.scene()?.syncHeroes();
+        this.render();
+      }
+    });
     $('sheet-close').addEventListener('click', () => this.closeSheet());
     $('sheet').addEventListener('click', (e) => {
       if (e.target === $('sheet')) this.closeSheet();
@@ -159,6 +174,33 @@ export class UI {
       const def = HEROES.find((h) => h.id === this.sheetHero);
       if (def) this.buyEmber(def);
     });
+  }
+
+  private summon() {
+    const drops = this.state.summon();
+    if (!drops) return;
+    play('chest');
+    this.scene()?.syncHeroes();
+    this.showSummon(drops);
+    this.render();
+  }
+
+  private showSummon(drops: SummonDrop[]) {
+    const cards = drops
+      .map((d) => {
+        const def = HEROES.find((h) => h.id === d.heroId)!;
+        return `<div class="drop"><div class="face" style="background:${hex(ELEMENT_COLORS[def.element])}">${def.name[0]}</div><b>${def.name}</b>${d.isNew ? '<span class="new">NEW HERO</span>' : ''}<span class="crest">+${d.crests} Crests</span></div>`;
+      })
+      .join('');
+    const canAgain = this.state.gems >= CHEST_COST;
+    this.showModal(
+      'Hero Chest',
+      `<div class="summon-grid">${cards}</div>Tap a hero to evolve them when their Crest bar is full.`,
+      canAgain ? `Open another (${CHEST_COST} Gems)` : 'Done',
+      canAgain ? () => this.summon() : null,
+      canAgain,
+    );
+    if (canAgain) $('modal-cancel').textContent = 'Done';
   }
 
   // ---------- hero page ----------
@@ -191,16 +233,17 @@ export class UI {
     const gold = s.levels[id] ?? 0;
     const ember = s.emberLevels[id] ?? 0;
     const eff = s.heroLevel(id);
-    const stars = 0; // evolution is not playable yet
+    const stars = s.stars[id] ?? 0;
     const crests = s.crests[id] ?? 0;
 
     $('sheet-stars').innerHTML = STAR_CRESTS.map((_, i) => `<span class="${i < stars ? 'on' : ''}">★</span>`).join('');
     const shownLevel = gold > 0 ? eff : 1 + ember;
+    const power = s.heroPower(def, shownLevel);
     const stat = (label: string, value: string) => `<div><small>${label}</small><b>${value}</b></div>`;
     $('sheet-stats').innerHTML = [
       stat('Level', gold > 0 ? String(eff) : 'Not recruited'),
-      stat('ATK', fmt(heroAtk(def, shownLevel))),
-      stat('HP', fmt(heroHp(def, shownLevel))),
+      stat('ATK', fmt(power.atk)),
+      stat('HP', fmt(power.hp)),
       stat('Attacks / sec', (1 / def.attackCooldown).toFixed(2)),
       stat('Range', def.range > 60 ? `Ranged (${def.range})` : 'Melee'),
       stat('Gold per kill', `${def.goldMult}x`),
@@ -236,21 +279,27 @@ export class UI {
       $('sheet-abilities').dataset.key = `${id}:${ultReady}`;
     }
 
-    const next = STAR_CRESTS[stars];
-    $('sheet-crests').textContent = `${crests} / ${next} for ${stars + 1}★`;
-    $('sheet-crest-fill').style.width = `${Math.min(100, (crests / next) * 100)}%`;
+    const next = s.evolveCost(id);
+    $('sheet-crests').textContent = next === null ? `${crests} (max stars)` : `${crests} / ${next} for ${stars + 1}★`;
+    $('sheet-crest-fill').style.width = next === null ? '100%' : `${Math.min(100, (crests / next) * 100)}%`;
+    const evolve = $<HTMLButtonElement>('sheet-evolve');
+    evolve.hidden = next === null || crests < next || gold === 0;
+    evolve.textContent = `Evolve to ${stars + 1}★ (${next} Crests)`;
     const unlocks: Array<[number, string, string]> = [
-      [1, `Skill: ${def.sp1}`, 'First special skill.'],
-      [2, `Skill: ${def.sp2}`, 'Second special skill.'],
-      [3, `Ultimate: ${def.ultimate.name}`, `In the full game the Ultimate unlocks at 3★. This prototype unlocks it at Lv ${ULT_UNLOCK_LEVEL}.`],
-      [4, `Aura: ${def.aura}`, 'A team-wide passive.'],
+      [1, `${def.sp1.name}`, def.sp1.text],
+      [2, `${def.sp2.name}`, def.sp2.text],
+      [3, `${def.ultimate.name}+`, `Ultimate hits for ${ULT_MULTIPLIER * ULT_STAR_BONUS}x instead of ${ULT_MULTIPLIER}x.`],
+      [4, `Aura: ${def.aura.name}`, def.aura.text],
       [5, '5★ to 7★', 'Each extra star doubles all stats again.'],
     ];
-    if ($('sheet-unlocks').dataset.key !== id) {
+    if ($('sheet-unlocks').dataset.key !== `${id}:${stars}`) {
       $('sheet-unlocks').innerHTML = unlocks
-        .map(([star, name, text]) => `<li class="locked"><span class="kind">${star}★</span><span class="tag">Locked</span><div><b>${name}</b></div><p>${text}</p></li>`)
+        .map(([star, name, text]) => {
+          const on = stars >= star;
+          return `<li class="${on ? '' : 'locked'}"><span class="kind">${star}★</span><span class="tag${on ? ' ready' : ''}">${on ? 'Unlocked' : 'Locked'}</span><div><b>${name}</b></div><p>${text}</p></li>`;
+        })
         .join('');
-      $('sheet-unlocks').dataset.key = id;
+      $('sheet-unlocks').dataset.key = `${id}:${stars}`;
     }
   }
 
@@ -261,6 +310,7 @@ export class UI {
     $('modal-body').innerHTML = html;
     $('modal-ok').textContent = ok;
     $('modal-cancel').hidden = !cancel;
+    $('modal-cancel').textContent = 'Not yet';
     this.modalAction = action;
     $('modal').hidden = false;
   }
@@ -315,6 +365,10 @@ export class UI {
     $('gold').textContent = fmt(s.gold);
     $('gps').textContent = `${fmt(new Decimal(s.goldPerSec))}/s`;
     $('best').textContent = String(s.bestStage);
+    $('gems').textContent = String(s.gems);
+    const summon = $<HTMLButtonElement>('summon');
+    summon.disabled = s.gems < CHEST_COST;
+    summon.textContent = `Hero Chest · ${CHEST_COST}`;
     $('embers-stat').hidden = s.embers === 0 && s.rekindles === 0;
     $('embers').textContent = String(s.embers);
     const rk = $<HTMLButtonElement>('rekindle');
@@ -341,15 +395,21 @@ export class UI {
       const locked = level === 0;
       r.root.classList.toggle('locked', locked);
       r.level.innerHTML = locked ? (emberLevel ? `<span class="ember-lvl">+${emberLevel}</span>` : '') : `Lv ${eff}${emberLevel ? ` <span class="ember-lvl">(+${emberLevel})</span>` : ''}`;
-      r.ember.textContent = s.embers >= emberCost(emberLevel) ? '· Ember upgrade ready' : '';
+      const starCount = s.stars[r.def.id] ?? 0;
+      r.stars.textContent = '★'.repeat(starCount);
+      const evolveCost = s.evolveCost(r.def.id);
+      const canEvolve = !locked && evolveCost !== null && (s.crests[r.def.id] ?? 0) >= evolveCost;
+      r.ember.textContent = canEvolve ? '· Ready to evolve!' : s.embers >= emberCost(emberLevel) ? '· Ember upgrade ready' : '';
       const { levels, cost } = bulkCost(r.def, level, s.buyAmount, s.gold);
       const shown = levels > 0 ? { levels, cost } : bulkCost(r.def, level, 1, s.gold);
       if (locked) {
-        r.stats.textContent = `ATK ${fmt(heroAtk(r.def, 1))} · HP ${fmt(heroHp(r.def, 1))}`;
+        const p1 = s.heroPower(r.def, 1);
+        r.stats.textContent = `ATK ${fmt(p1.atk)} · HP ${fmt(p1.hp)}`;
         r.label.textContent = 'Recruit';
       } else {
         const next = eff + shown.levels;
-        r.stats.innerHTML = `ATK ${fmt(heroAtk(r.def, eff))} <span class="next">→ ${fmt(heroAtk(r.def, next))}</span> · HP ${fmt(heroHp(r.def, eff))}`;
+        const now = s.heroPower(r.def, eff);
+        r.stats.innerHTML = `ATK ${fmt(now.atk)} <span class="next">→ ${fmt(s.heroPower(r.def, next).atk)}</span> · HP ${fmt(now.hp)}`;
         r.label.textContent = `Level +${shown.levels}`;
       }
       r.cost.textContent = fmt(shown.cost);
