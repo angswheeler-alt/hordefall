@@ -19,6 +19,8 @@ export interface OfflineReport {
   market: Decimal;
 }
 
+export type SaveData = Record<string, any>;
+
 export interface TrialResult {
   won: boolean;
   /** Seconds the fight lasted (capped at the time limit). */
@@ -464,7 +466,12 @@ export class GameState {
 
   save() {
     this.lastSeen = Date.now();
-    const data = {
+    GameState.writeLocal(this.toJSON());
+  }
+
+  /** Everything a save holds, as plain JSON (also what goes to the cloud). */
+  toJSON(): SaveData {
+    return {
       gold: this.gold.toString(),
       stage: this.stage,
       bestStage: this.bestStage,
@@ -493,6 +500,9 @@ export class GameState {
       secondsPerStage: this.secondsPerStage,
       lastSeen: this.lastSeen,
     };
+  }
+
+  static writeLocal(data: SaveData) {
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify(data));
     } catch {
@@ -500,16 +510,19 @@ export class GameState {
     }
   }
 
-  load(): boolean {
-    let raw: string | null = null;
+  static readLocal(): SaveData | null {
     try {
-      raw = localStorage.getItem(SAVE_KEY);
+      const raw = localStorage.getItem(SAVE_KEY);
+      return raw ? JSON.parse(raw) : null;
     } catch {
-      return false;
+      return null;
     }
-    if (!raw) return false;
+  }
+
+  load(): boolean {
+    const d = GameState.readLocal();
+    if (!d) return false;
     try {
-      const d = JSON.parse(raw);
       this.gold = new Decimal(d.gold ?? 0);
       this.stage = d.stage ?? 1;
       this.bestStage = d.bestStage ?? this.stage;

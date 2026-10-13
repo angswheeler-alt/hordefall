@@ -336,3 +336,17 @@ button.link[disabled] { display: none; }
 .trial-day small { font-size: 9px; font-weight: 600; opacity: .85; }
 .trial-day:disabled { opacity: .55; cursor: default; filter: grayscale(.5); }
 .trial-day.open:not(.today) { color: #fff; box-shadow: inset 0 0 0 1px var(--el); }
+
+/* Account card and sign-in dialog */
+.acct-card { background: linear-gradient(180deg, var(--plank), #4a2d17); border: 2px solid var(--wood-deep); border-radius: 10px; padding: 10px 14px; color: #fff4dd; margin: 0 14px 8px; }
+.acct-card p { margin: 0 0 8px; font-size: 13px; line-height: 1.4; }
+.acct-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+#acct-dialog { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 21; padding: 16px; }
+#acct-dialog[hidden] { display: none; }
+#acct-dialog .card { background: var(--panel); border-radius: 16px; padding: 20px 22px; max-width: 340px; width: 100%; text-align: center; }
+#acct-dialog h2 { margin: 0 0 8px; }
+#acct-dialog p { color: var(--muted); line-height: 1.5; }
+#acct-dialog b { color: var(--gold); }
+#acct-dialog input { display: block; width: 100%; box-sizing: border-box; margin: 0 0 8px; padding: 10px 12px; border-radius: 10px; border: 1px solid #555; background: #1b1530; color: #fff; font: inherit; font-size: 16px; }
+.acct-note { min-height: 1.2em; font-size: 13px; }
+.acct-cancel { margin-top: 10px; background: none; border: 0; color: var(--muted); text-decoration: underline; font: inherit; cursor: pointer; }

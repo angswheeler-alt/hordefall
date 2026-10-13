@@ -4,6 +4,7 @@ import { BattleScene, WIDTH, HEIGHT } from './BattleScene';
 import { GameState } from './state';
 import { UI } from './ui';
 import { initAudio, setMuted } from './sfx';
+import { Account } from './account';
 
 const state = new GameState();
 const hadSave = state.load();
@@ -41,20 +42,24 @@ const ui = new UI(state, scene, {
   wipe: () => {
     GameState.wipe();
     // Skip the unload save so the wipe sticks.
-    window.removeEventListener('pagehide', save);
+    reloading = true;
     location.reload();
   },
 });
 if (offline) ui.showOffline(offline);
 
-const save = () => state.save();
+/** Set once the page is about to reload with a different save, so nothing overwrites it. */
+let reloading = false;
+const save = () => {
+  if (!reloading) state.save();
+};
 setInterval(save, 5000);
 window.addEventListener('pagehide', save);
 
 // The browser pauses the game in a background tab, so treat hidden time as offline time.
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
-    state.save();
+    save();
     return;
   }
   const report = state.applyOffline((Date.now() - state.lastSeen) / 1000);
@@ -63,6 +68,12 @@ document.addEventListener('visibilitychange', () => {
     ui.showOffline(report);
     scene()?.restart();
   }
+});
+
+new Account(state, (data) => {
+  reloading = true;
+  GameState.writeLocal(data);
+  location.reload();
 });
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
