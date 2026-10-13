@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import Decimal from 'break_infinity.js';
-import { bulkCost, enemyHp, fmt, upgradeCost, stallBulkCost, emberYield, emberCost, keeperLevel, keeperThreshold, relicCost } from '../src/formulas';
+import { defended, bulkCost, enemyHp, fmt, upgradeCost, stallBulkCost, emberYield, emberCost, keeperLevel, keeperThreshold, relicCost } from '../src/formulas';
 import { HEROES, STALLS } from '../src/data';
 
 const hero = HEROES.find((h) => h.unlockCost !== 0)!;
@@ -78,5 +78,11 @@ describe('Ember economy', () => {
     // A stage 300 Rekindle used to buy ~5,600 levels on a single hero.
     expect(levelsFor(emberYield(300, 125))).toBeLessThan(300);
     expect(levelsFor(emberYield(1000, 125))).toBeLessThan(1300);
+  });
+
+  it('Defense equal to a hit halves it and never blocks it fully', () => {
+    expect(defended(new Decimal(100), new Decimal(100)).toNumber()).toBeCloseTo(50);
+    expect(defended(new Decimal(100), new Decimal(0)).toNumber()).toBe(100);
+    expect(defended(new Decimal(100), new Decimal(1e9)).toNumber()).toBeGreaterThan(0);
   });
 });

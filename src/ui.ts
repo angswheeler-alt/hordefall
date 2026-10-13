@@ -277,6 +277,7 @@ export class UI {
     const names: Record<string, string> = {
       atk: 'All heroes ATK',
       hp: 'All heroes HP',
+      def: 'All heroes Defense',
       speed: 'Team attack speed',
       crit: 'Crit chance',
       critDmg: 'Crit damage',
@@ -288,7 +289,8 @@ export class UI {
       cost: 'Hero level costs',
       embers: 'Embers from Rekindle',
     };
-    const effectName = (e: string) => names[e] ?? (e.endsWith('Hp') ? `${cap(e.slice(0, -2))} heroes HP` : `${cap(e)} heroes ATK`);
+    const effectName = (e: string) =>
+      names[e] ?? (e.endsWith('Hp') ? `${cap(e.slice(0, -2))} heroes HP` : e.endsWith('Def') ? `${cap(e.slice(0, -3))} heroes Defense` : `${cap(e)} heroes ATK`);
     const pct = (n: number) => `${Math.round(n * 1000) / 10}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     const effectText = (def: RelicDef, level: number) =>
       def.fx.map(([e]) => `${effectName(e)} ${e === 'cost' || e === 'stallCost' ? '−' : '+'}${pct(s.relicEffect(def, e, level))}%`).join(' · ');
@@ -696,6 +698,7 @@ export class UI {
       stat('Level', gold > 0 ? String(eff) : 'Locked'),
       stat('ATK', fmt(power.atk)),
       stat('HP', fmt(power.hp)),
+      stat('Defense', fmt(power.defense)),
       stat('Attacks / sec', (1 / def.attackCooldown).toFixed(2)),
       stat('Range', def.range > 60 ? `Ranged (${def.range})` : 'Melee'),
       stat('Gold per kill', `${def.goldMult}x`),

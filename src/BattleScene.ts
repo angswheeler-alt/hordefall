@@ -32,6 +32,7 @@ import {
   goldPerKill,
   stageClearGold,
   fmt,
+  defended,
 } from './formulas';
 import type { GameState } from './state';
 import { play } from './sfx';
@@ -96,6 +97,8 @@ interface Unit {
   hp: Decimal;
   maxHp: Decimal;
   atk: Decimal;
+  /** Defense (heroes only; enemies have none). */
+  defense: Decimal;
   range: number;
   cooldown: number;
   cooldownLeft: number;
@@ -370,6 +373,7 @@ export class BattleScene extends Phaser.Scene {
       y,
       hp: opts.hp,
       maxHp: opts.hp,
+      defense: new Decimal(0),
       atk: opts.atk,
       range: opts.range,
       cooldown: opts.cooldown,
@@ -458,7 +462,7 @@ export class BattleScene extends Phaser.Scene {
       const level = this.state.heroLevel(def.id);
       if (level <= 0) continue;
       let u = this.heroes.find((h) => h.def?.id === def.id);
-      const { atk, hp } = this.state.heroPower(def, level);
+      const { atk, hp, defense } = this.state.heroPower(def, level);
       if (!u) {
         u = this.makeUnit({
           side: 'hero',
@@ -473,12 +477,14 @@ export class BattleScene extends Phaser.Scene {
           element: def.element,
           goldMult: def.goldMult,
         });
+        u.defense = defense;
         this.heroes.push(u);
         this.puff(u.x, u.y, ELEMENT_COLORS[def.element]);
       } else {
         const ratio = u.maxHp.gt(0) ? u.hp.div(u.maxHp) : new Decimal(1);
         u.maxHp = hp;
         u.atk = atk;
+        u.defense = defense;
         if (u.alive) u.hp = hp.times(ratio);
         this.drawHpBar(u);
       }
@@ -819,7 +825,7 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     const mult = elementMultiplier(e.element, target.element) * this.mul('damageTaken', target);
-    const dmg = e.atk.times(mult);
+    const dmg = defended(e.atk.times(mult), target.defense);
     this.damageUnit(target, dmg, null);
     const reflect = this.sum('reflect', target) + signatureReflect(target.def?.signature);
     if (reflect > 0) this.damageUnit(e, dmg.times(reflect), target);

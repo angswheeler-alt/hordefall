@@ -98,6 +98,18 @@ export function heroHp(def: HeroDef, level: number): Decimal {
   return levelScale(level).times(def.baseHp);
 }
 
+/** Defense grows with level like ATK and HP. Without a baseDef it is a small share of HP, so tanky heroes defend best. */
+export const DEF_PER_HP = 0.001;
+export function heroDef(def: HeroDef, level: number): Decimal {
+  return levelScale(level).times(def.baseDef ?? def.baseHp * DEF_PER_HP);
+}
+
+/** Damage after Defense: atk² / (atk + def). Defense equal to the hit halves it; it never blocks a hit fully. */
+export function defended(amount: Decimal, def: Decimal): Decimal {
+  if (def.lte(0) || amount.lte(0)) return amount;
+  return amount.times(amount.div(amount.plus(def)));
+}
+
 /** Gold to go from `level` to `level + 1`. Level 0 means locked, so this is the recruit cost. */
 export function upgradeCost(def: HeroDef, level: number, mult = 1): Decimal {
   if (level === 0) return new Decimal(def.unlockCost).times(mult);
