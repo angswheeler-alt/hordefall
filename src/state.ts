@@ -771,6 +771,13 @@ function weighted<T>(table: Array<[T, number]>): T {
 }
 
 /** A random hero: a rarity by weight among rarities present in `heroes`, then a hero of it. Never Legendary. */
+/** Drop chance (percent) per rarity, counting only rarities some hero in `heroes` has. Matches pickByRarity. */
+export function rarityOdds(heroes: HeroDef[], weights: Partial<Record<Rarity, number>>): Array<[Rarity, number]> {
+  const present = (Object.keys(weights) as Rarity[]).filter((r) => heroes.some((h) => h.rarity === r) && (weights[r] ?? 0) > 0);
+  const total = present.reduce((t, r) => t + (weights[r] ?? 0), 0);
+  return present.map((r) => [r, total > 0 ? ((weights[r] ?? 0) / total) * 100 : 0]);
+}
+
 function pickByRarity(heroes: HeroDef[], weights: Partial<Record<Rarity, number>>): HeroDef | null {
   const present = (Object.keys(weights) as Rarity[]).filter((r) => heroes.some((h) => h.rarity === r));
   if (!present.length) return null;

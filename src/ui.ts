@@ -4,9 +4,16 @@ import { play } from './sfx';
 import { setMuted } from './sfx';
 import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
 import type { GameState, OfflineReport, SummonDrop } from './state';
+import { rarityOdds } from './state';
 import type { BattleScene } from './BattleScene';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+/** Set innerHTML only when it changed, so 5x-a-second renders don't rebuild nodes under the player's finger. */
+const setHtml = (el: HTMLElement, html: string) => {
+  if (el.dataset.html === html) return;
+  el.dataset.html = html;
+  el.innerHTML = html;
+};
 const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 /** Inline style for a hero face: their sprite's head and shoulders over their element colour. */
 const faceStyle = (def: HeroDef) => `background-color:${hex(ELEMENT_COLORS[def.element])};--art:url(heroes/${def.id}.png)`;
@@ -195,7 +202,7 @@ export class UI {
       return `${what} +${pct}%`;
     };
     $('relic-slots').textContent = `Equipped ${s.equipped.length}/${s.relicSlots}`;
-    $('relic-ess').innerHTML = TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i></i>${fmt(s.essences[e] ?? 0)}</span>`).join('');
+    setHtml($('relic-ess'), TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i></i>${fmt(s.essences[e] ?? 0)}</span>`).join(''));
     const slotCost = s.nextSlotCost();
     const slotBtn = $<HTMLButtonElement>('relic-buyslot');
     slotBtn.hidden = slotCost === null;
@@ -213,10 +220,12 @@ export class UI {
       const inTier = level - (tier - 1) * RELIC_LEVELS_PER_TIER;
       r.tier.textContent = level ? `· Tier ${['I', 'II', 'III', 'IV', 'V'][tier - 1]} Lv ${inTier}` : '';
       r.eff.textContent = level ? effectText(r.def, level) : `Crafts to: ${effectText(r.def, 1)}`;
-      r.cost.innerHTML =
+      setHtml(
+        r.cost,
         cost === null
           ? '<span>Max level</span>'
-          : r.def.essences.map((e) => `<span class="${(s.essences[e] ?? 0) < cost ? 'short' : ''}" title="${ESSENCE_NAMES[e]}"><i style="--el:${hex(ELEMENT_COLORS[e])}"></i>${fmt(cost)}</span>`).join('');
+          : r.def.essences.map((e) => `<span class="${(s.essences[e] ?? 0) < cost ? 'short' : ''}" title="${ESSENCE_NAMES[e]}"><i style="--el:${hex(ELEMENT_COLORS[e])}"></i>${fmt(cost)}</span>`).join(''),
+      );
       const nextTier = level > 0 && level % RELIC_LEVELS_PER_TIER === 0;
       r.up.textContent = level === 0 ? 'Craft' : cost === null ? 'Maxed' : nextTier ? 'Next tier' : 'Upgrade';
       r.up.disabled = !can;
@@ -458,7 +467,12 @@ export class UI {
     });
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
-      if (!$('rk').hidden) this.closeRekindle();
+      // Close the top-most overlay first. A pop-up mid-Trial (button disabled) stays open.
+      if (!$('acct-dialog').hidden) $('acct-cancel').click();
+      else if (!$('modal').hidden) {
+        if (!$<HTMLButtonElement>('modal-ok').disabled) $('modal-ok').click();
+      } else if (!$('settings').hidden) $('settings-close').click();
+      else if (!$('rk').hidden) this.closeRekindle();
       else if (this.sheetHero) this.closeSheet();
     });
     const step = (dir: number) => {
@@ -480,8 +494,9 @@ export class UI {
   /** Hero Chest pop-up: shows what's inside and asks before spending Gems. */
   private confirmChest() {
     const s = this.state;
-    const odds = (Object.keys(CHEST_RARITY_WEIGHTS) as Array<keyof typeof CHEST_RARITY_WEIGHTS>)
-      .map((r) => `<li><b>${cap(r)}</b><span>${CHEST_RARITY_WEIGHTS[r]}% · ${CREST_ROLLS[r].map(([c]) => c).join('/')} medals</span></li>`)
+    // Real odds: only rarities that have heroes can drop, so the weights are re-normalised.
+    const odds = rarityOdds(HEROES, CHEST_RARITY_WEIGHTS)
+      .map(([r, pct]) => `<li><b>${cap(r)}</b><span>${+pct.toFixed(1)}% · ${CREST_ROLLS[r as keyof typeof CREST_ROLLS].map(([c]) => c).join('/')} medals</span></li>`)
       .join('');
     const faces = HEROES.map((h) => `<span class="face art" title="${h.name}" style="${faceStyle(h)}">${h.name[0]}</span>`).join('');
     const afford = s.gems >= CHEST_COST;
@@ -561,18 +576,18 @@ export class UI {
     const crests = s.crests[id] ?? 0;
 
     // A hero is 1★ when unlocked; each evolution adds a star, up to 8★.
-    $('sheet-stars').innerHTML = [0, ...STAR_CRESTS].map((_, i) => `<span class="${gold > 0 && i <= stars ? 'on' : ''}">★</span>`).join('');
+    setHtml($('sheet-stars'), [0, ...STAR_CRESTS].map((_, i) => `<span class="${gold > 0 && i <= stars ? 'on' : ''}">★</span>`).join(''));
     const shownLevel = gold > 0 ? eff : 1 + ember;
     const power = s.heroPower(def, shownLevel);
     const stat = (label: string, value: string) => `<div><small>${label}</small><b>${value}</b></div>`;
-    $('sheet-stats').innerHTML = [
+    setHtml($('sheet-stats'), [
       stat('Level', gold > 0 ? String(eff) : 'Locked'),
       stat('ATK', fmt(power.atk)),
       stat('HP', fmt(power.hp)),
       stat('Attacks / sec', (1 / def.attackCooldown).toFixed(2)),
       stat('Range', def.range > 60 ? `Ranged (${def.range})` : 'Melee'),
       stat('Gold per kill', `${def.goldMult}x`),
-    ].join('');
+    ].join(''));
 
     $('sheet-gold-lvl').textContent = gold > 0 ? String(gold) : '(locked)';
     const { levels, cost } = bulkCost(def, gold, s.buyAmount, s.gold);
@@ -643,6 +658,8 @@ export class UI {
     $('modal-title').textContent = title;
     $('modal-body').innerHTML = html;
     $('modal-ok').textContent = ok;
+    // A Trial fight disables this while it plays; any new pop-up must be closable.
+    $<HTMLButtonElement>('modal-ok').disabled = false;
     $('modal-cancel').hidden = !cancel;
     $('modal-cancel').textContent = cancelLabel;
     this.modalAction = action;
@@ -726,11 +743,11 @@ export class UI {
     const req = level.req
       ? `<span class="${reqMet ? 'win' : 'lose'}">Needs ${level.req[0]} heroes at Ember ${level.req[1]}+ (you have ${s.heroesAtEmber(level.req[1])})</span>`
       : 'No hero requirement';
-    $('tr-odds').innerHTML = `Difficulty <b>${level.difficulty.toLocaleString()}</b> · reward <b>${fmt(level.essence)}</b> Essence · ${level.medals} medal${level.medals === 1 ? '' : 's'}<br>${req}<br>Boss HP <b>${fmt(trialHp(level))}</b> · team damage in ${TRIAL_TIME}s <b>${fmt(sim.dps.times(TRIAL_TIME))}</b> · <span class="${sim.won ? 'win' : 'lose'}">${sim.won ? 'You should win' : 'Too strong for now'}</span>`;
+    setHtml($('tr-odds'), `Difficulty <b>${level.difficulty.toLocaleString()}</b> · reward <b>${fmt(level.essence)}</b> Essence · ${level.medals} medal${level.medals === 1 ? '' : 's'}<br>${req}<br>Boss HP <b>${fmt(trialHp(level))}</b> · team damage in ${TRIAL_TIME}s <b>${fmt(sim.dps.times(TRIAL_TIME))}</b> · <span class="${sim.won ? 'win' : 'lose'}">${sim.won ? 'You should win' : 'Too strong for now'}</span>`);
     const fight = $<HTMLButtonElement>('tr-fight');
     fight.disabled = s.tickets <= 0 || !reqMet;
     fight.textContent = !reqMet ? 'Locked' : s.tickets > 0 ? 'Fight · 1 ticket' : 'No tickets';
-    $('tr-ess').innerHTML = TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i></i>${s.essences[e] ?? 0}</span>`).join('');
+    setHtml($('tr-ess'), TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i></i>${fmt(s.essences[e] ?? 0)}</span>`).join(''));
   }
 
   /** Play a Trial: the fight is simulated, then shown as two draining HP bars. */
@@ -762,6 +779,7 @@ export class UI {
       const team = 1 - t * (1 - result.teamLeft);
       const bossBar = document.getElementById('tf-boss');
       const teamBar = document.getElementById('tf-team');
+      // Another pop-up replaced the fight (e.g. Welcome back); the result is already applied.
       if (!bossBar || !teamBar) return;
       bossBar.style.width = `${boss * 100}%`;
       teamBar.style.width = `${team * 100}%`;
@@ -823,10 +841,10 @@ export class UI {
     const reached = s.roadReached();
     const roadGems = s.pendingRoadGems();
     $('rk-road-count').textContent = `${reached}/${ROAD_LENGTH}`;
-    $('rk-dots').innerHTML = Array.from({ length: ROAD_LENGTH }, (_, i) => {
+    setHtml($('rk-dots'), Array.from({ length: ROAD_LENGTH }, (_, i) => {
       const cls = i < s.roadClaimed ? 'on' : i < reached ? 'new' : i === reached ? 'next' : '';
       return `<i class="${cls}" title="Stage ${ROAD_START + i * ROAD_STEP}"></i>`;
-    }).join('');
+    }).join(''));
     $('rk-road-gems').textContent = roadGems > 0 ? `+${roadGems} Gems` : '';
     $('rk-road-next').textContent =
       reached < ROAD_LENGTH
@@ -851,7 +869,7 @@ export class UI {
           `<button class="boost" data-mult="${b.mult}" ${s.gems < b.gems ? 'disabled' : ''}><small>+${fmt(base * b.mult)} Embers</small>${b.mult}x<span class="gemcost">${b.gems} Gems</span></button>`,
       ),
     ];
-    $('rk-buttons').innerHTML = buttons.join('');
+    setHtml($('rk-buttons'), buttons.join(''));
   }
 
   showRekindled(embers: number, gems: number) {
@@ -898,13 +916,15 @@ export class UI {
   }
 
   render() {
+    // The Rekindle page stays live: the run keeps going behind it.
+    if (!$('rk').hidden) this.renderRekindle();
     const s = this.state;
     $('gold').textContent = fmt(s.gold);
     $('gps').textContent = `${fmt(new Decimal(s.goldPerSec))}/s`;
     $('gems').textContent = String(s.gems);
     const summon = $<HTMLButtonElement>('summon');
     summon.disabled = s.gems < CHEST_COST;
-    summon.innerHTML = `Open · ${CHEST_COST} <span class="gem"></span>`;
+    setHtml(summon, `Open · ${CHEST_COST} <span class="gem"></span>`);
     $<HTMLButtonElement>('chest-btn').disabled = s.gems < CHEST_COST;
     $('embers-stat').hidden = s.embers === 0 && s.rekindles === 0;
     $('embers').textContent = String(s.embers);
@@ -920,7 +940,7 @@ export class UI {
     $('mute').classList.toggle('on', !s.muted);
     $('mute').textContent = s.muted ? 'Sound off' : 'Sound on';
     $('autoult').classList.toggle('on', s.autoUlt);
-    $<HTMLButtonElement>('levelall').disabled = !HEROES.some((h) => (s.levels[h.id] ?? 0) > 0 && upgradeCost(h, s.levels[h.id]).lte(s.gold));
+    $<HTMLButtonElement>('levelall').disabled = !HEROES.some((h) => (s.levels[h.id] ?? 0) > 0 && s.inLineup(h.id) && upgradeCost(h, s.levels[h.id]).lte(s.gold));
     $('buyamt').textContent = `Buy ${s.buyAmount === 'max' ? 'max' : `x${s.buyAmount}`}`;
     const bossBtn = $('boss');
     bossBtn.hidden = s.autoAdvance;
@@ -948,12 +968,12 @@ export class UI {
       const shown = levels > 0 ? { levels, cost } : bulkCost(r.def, level, 1, s.gold);
       if (locked) {
         const p1 = s.heroPower(r.def, 1);
-        r.stats.innerHTML = `<span class="st atk">${SWORD}${fmt(p1.atk)}</span><span class="st hp">${HEART}${fmt(p1.hp)}</span>`;
+        setHtml(r.stats, `<span class="st atk">${SWORD}${fmt(p1.atk)}</span><span class="st hp">${HEART}${fmt(p1.hp)}</span>`);
         r.label.textContent = 'Unlock';
       } else {
         const next = eff + shown.levels;
         const now = s.heroPower(r.def, eff);
-        r.stats.innerHTML = `<span class="st atk">${SWORD}${fmt(now.atk)} <span class="next">→ ${fmt(s.heroPower(r.def, next).atk)}</span></span><span class="st hp">${HEART}${fmt(now.hp)}</span>`;
+        setHtml(r.stats, `<span class="st atk">${SWORD}${fmt(now.atk)} <span class="next">→ ${fmt(s.heroPower(r.def, next).atk)}</span></span><span class="st hp">${HEART}${fmt(now.hp)}</span>`);
         r.label.textContent = shown.levels === 1 ? 'Level Up' : `Level +${shown.levels}`;
       }
       if (locked) {
