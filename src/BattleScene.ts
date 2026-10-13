@@ -973,7 +973,7 @@ export class BattleScene extends Phaser.Scene {
       this.tweens.killTweensOf(chest);
       chest.destroy();
     };
-    this.tweens.add({ targets: chest, x: -30, duration: 14000, onComplete: remove });
+    this.tweens.add({ targets: chest, x: -30, duration: 11000, onComplete: remove });
     this.tweens.add({ targets: chest, y: y - 8, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     chest.once('pointerdown', () => {
       const gold = goldPerKill(this.state.stage).times(kind.killsWorth).times(1 + this.state.relicBonus('gold'));
