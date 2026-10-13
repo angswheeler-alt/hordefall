@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Decimal from 'break_infinity.js';
+import { heroProfile, heroBuildEffects } from '../src/profiles';
 import { GameState, rarityOdds } from '../src/state';
 import {
   HEROES, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, LINEUP_SIZE,
@@ -335,7 +336,7 @@ describe('relics', () => {
     const s = fresh();
     const st = s.heroStats(starter);
     expect(st.atk.value.toString()).toBe(s.heroPower(starter).atk.toString());
-    expect(st.effectRes.value).toBeCloseTo(0.2);
+    expect(st.effectRes.value).toBeCloseTo(heroProfile(starter).effectRes);
     expect(st.attacksPerSec.base).toBeCloseTo(1 / starter.attackCooldown);
     const fast = RELIC_SETS.find((set) => set.bonus.some(([e]) => e === 'speed'))!;
     for (const r of RELICS.filter((x) => x.set === fast.id)) s.relics[r.id] = 1;
@@ -344,6 +345,20 @@ describe('relics', () => {
     if (burner) expect(s.heroStats(burner).burnChance).toBe(1);
     const knight = HEROES.find((h) => h.job === 'Knight')!;
     expect(s.heroStats(knight).isKnight).toBe(true);
+  });
+
+  it('every hero has its own specialty, and builds of shared effects get stronger', () => {
+    for (const h of HEROES) expect(heroProfile(h).specialty.length, h.id).toBeGreaterThan(0);
+    const s = fresh();
+    const freezers = HEROES.filter((h) => heroBuildEffects(h).includes('freeze'));
+    expect(freezers.length).toBeGreaterThanOrEqual(3);
+    for (const h of HEROES) s.levels[h.id] = 0;
+    s.levels[freezers[0].id] = 1;
+    const solo = s.heroStats(freezers[0]);
+    for (const h of freezers.slice(0, 3)) s.levels[h.id] = 1;
+    const trio = s.heroStats(freezers[0]);
+    expect(trio.freezeTime).toBeGreaterThan(solo.freezeTime);
+    expect(trio.freezeBlast).toBeGreaterThan(solo.freezeBlast);
   });
 
   it('drops relics that are no longer in the game from old saves', () => {

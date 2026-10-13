@@ -82,6 +82,8 @@ button.icon { padding: 6px 10px; font-size: 18px; line-height: 1; }
 .sheet-stats { display: block; }
 .stat-top { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
 .stat-top b { color: var(--text); }
+.stat-spec { margin-top: 3px; color: var(--text); font-size: 13px; line-height: 1.35; }
+.stat-spec small { color: var(--muted); font-size: 12px; }
 .stat-page { background: #5c2a10; border-radius: 12px; padding: 8px 12px; }
 .sr { display: grid; grid-template-columns: minmax(0, 1fr) auto 70px; align-items: baseline; gap: 8px; padding: 4px 0; font-size: 14px; }
 .sr > span { font-weight: 800; color: #fff; text-shadow: 0 1px 0 #000; }
