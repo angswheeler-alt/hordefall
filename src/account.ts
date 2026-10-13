@@ -207,7 +207,7 @@ export class Account {
 
   private render(message?: string) {
     const signedIn = !!this.user;
-    let status = message;
+    let status = message ? escape(message) : undefined;
     if (!status) {
       if (!signedIn) status = 'Playing as a guest. Progress saves on this device only.';
       else if (this.lastUpload) status = `Signed in as ${escape(usernameOf(this.user!))}. Saved to the cloud at ${new Date(this.lastUpload).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`;
