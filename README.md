@@ -4,7 +4,7 @@ Web-first idle RPG prototype (see the game design doc). This build covers the co
 
 - Five heroes (Marin, Bramble, Pyra, Nox, Solenne) auto-fight down a lane toward the enemy crystal.
 - Gold from kills, stage clears and drifting chests; spend it to recruit and level heroes (x1 / x10 / max).
-- Stats double every 20 levels. Type chart: each element deals 2x to one element, 0.5x to another, 1x to the rest (Water > Fire > Earth > Water; Light and Dark 2x to each other, 0.5x to themselves).
+- Stats double every 20 levels. Type chart from the original game: Water > Fire > Earth > Water deal 4x; Light and Dark deal 2x to each other. Each element deals 0.5x to one element (the reverse of its matchup, or its own element for Light/Dark) and 1x to the rest.
 - A boss every 50 stages with a 30 s timer. Losing drops you back a stage to farm until you tap "Fight boss".
 - Ultimates (40x damage) unlock at level 30 as a stand-in for 3 stars. 2x speed and auto-ult toggles.
 - Offline earnings for up to 12 hours: gold at your recent rate, plus stages up to the next boss.
