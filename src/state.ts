@@ -300,7 +300,7 @@ export class GameState {
 
   evolve(id: string): boolean {
     const cost = this.evolveCost(id);
-    if (cost === null || (this.crests[id] ?? 0) < cost) return false;
+    if (cost === null || (this.levels[id] ?? 0) <= 0 || (this.crests[id] ?? 0) < cost) return false;
     this.crests[id] -= cost;
     this.stars[id] = (this.stars[id] ?? 0) + 1;
     this.addCrests(id, 0); // at 8★, leftover medals turn into Legendary medals
@@ -452,6 +452,8 @@ export class GameState {
   /** Add tickets earned since the clock started; returns seconds until the next one (0 when full). */
   refreshTickets(now = Date.now()): number {
     const period = TICKET_MINUTES * 60000;
+    // A clock set back (or a save from a device whose clock runs fast) would freeze regeneration.
+    if (this.ticketClock > now) this.ticketClock = now;
     if (this.tickets >= TICKET_CAP) {
       this.ticketClock = now;
       return 0;
@@ -609,8 +611,19 @@ export class GameState {
     this.secondsPerStage = this.secondsPerStage * 0.7 + seconds * 0.3;
   }
 
+  /**
+   * Set before the page reloads with a different save (a wipe or a cloud
+   * save), so nothing in this page writes the old state back.
+   */
+  static frozen = false;
+
   save() {
-    this.lastSeen = Date.now();
+    if (GameState.frozen) return;
+    // lastSeen marks when the game last ran. A hidden tab is paused (and paid
+    // as offline time when it comes back), so it doesn't move the mark; and the
+    // mark never moves backwards, so winding the clock back can't replay
+    // offline earnings.
+    if (typeof document === 'undefined' || !document.hidden) this.lastSeen = Math.max(this.lastSeen, Date.now());
     GameState.writeLocal(this.toJSON());
   }
 
@@ -733,6 +746,7 @@ export class GameState {
   }
 
   static wipe() {
+    GameState.frozen = true;
     try {
       localStorage.removeItem(SAVE_KEY);
     } catch {
