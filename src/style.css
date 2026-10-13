@@ -102,3 +102,20 @@ button.icon { padding: 6px 10px; font-size: 18px; line-height: 1; }
 @media (max-width: 420px) { .sheet-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .sheet-card .meta { font-size: 13px; color: var(--muted); line-height: 1.45; }
 .sheet-card p.meta { margin: 6px 0 10px; }
+
+.gem { width: 14px; height: 14px; background: linear-gradient(135deg, #b9f3ff, #3fb8e6 60%, #1d6f99); clip-path: polygon(50% 0, 100% 40%, 50% 100%, 0 40%); }
+#gems { color: #7fe3ff; }
+button.gem-btn { background: #1d6f99; border-color: #3fb8e6; color: #e6fbff; font-weight: 700; }
+button.evolve { width: 100%; margin: 4px 0 8px; }
+.hero .stars-mini { color: var(--gold); font-size: 11px; letter-spacing: 1px; }
+.summon-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0 4px; }
+.summon-grid .drop { background: var(--panel-2); border-radius: 12px; padding: 10px 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; animation: pop .35s ease-out both; }
+.summon-grid .drop:nth-child(2) { animation-delay: .12s; }
+.summon-grid .drop:nth-child(3) { animation-delay: .24s; }
+.summon-grid .face { width: 44px; height: 44px; border-radius: 10px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
+.summon-grid .new { color: var(--hot); font-weight: 800; font-size: 11px; letter-spacing: .06em; }
+.summon-grid .crest { color: var(--gold); font-size: 13px; }
+@keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .summon-grid .drop { animation: none; } }
+button.link { background: none; border: none; padding: 4px 0 0; color: var(--ember); font-size: 12px; text-decoration: underline; }
+button.link[disabled] { display: none; }

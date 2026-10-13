@@ -1,18 +1,21 @@
 import Decimal from 'break_infinity.js';
 import type { HeroDef } from './data';
 
-// Tuning from a quick economy sim: stage 50 in ~6 minutes, stage 100 in ~20,
-// the first Rekindle at stage 130 in roughly an hour, then a wall that Rekindle breaks.
-const ENEMY_GROWTH = 1.11;
-const GOLD_GROWTH = 1.115;
+// Tuning from an economy sim: the stage 100 boss falls when the lead hero is
+// around level 100 (gold + Ember levels), the first Rekindle (after stage 125)
+// comes after roughly 40 minutes, and progress walls around stage 200.
+const ENEMY_GROWTH = 1.07;
+const GOLD_GROWTH = 1.075;
 const COST_GROWTH = 1.08;
+const ENEMY_HP_BASE = 12;
+const GOLD_BASE = 0.7;
 /** Hero stats double every this many levels. */
 const MILESTONE_LEVELS = 20;
 
 export const isBossStage = (stage: number) => stage % 50 === 0;
 
 export function enemyHp(stage: number): Decimal {
-  return Decimal.pow(ENEMY_GROWTH, stage - 1).times(15);
+  return Decimal.pow(ENEMY_GROWTH, stage - 1).times(ENEMY_HP_BASE);
 }
 
 export function enemyAtk(stage: number): Decimal {
@@ -20,7 +23,7 @@ export function enemyAtk(stage: number): Decimal {
 }
 
 export function bossHp(stage: number): Decimal {
-  return enemyHp(stage).times(60);
+  return enemyHp(stage).times(140);
 }
 
 export function bossAtk(stage: number): Decimal {
@@ -32,7 +35,7 @@ export function crystalHp(stage: number): Decimal {
 }
 
 export function goldPerKill(stage: number): Decimal {
-  return Decimal.pow(GOLD_GROWTH, stage - 1).times(2);
+  return Decimal.pow(GOLD_GROWTH, stage - 1).times(GOLD_BASE);
 }
 
 export function stageClearGold(stage: number): Decimal {

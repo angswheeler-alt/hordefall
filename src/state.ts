@@ -1,8 +1,15 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE } from './data';
-import { emberYield, effectiveLevel } from './formulas';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, START_GEMS, MILESTONE_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS } from './data';
+import { emberYield, effectiveLevel, emberCost, heroAtk, heroHp } from './formulas';
+import type { HeroDef } from './data';
 
 const SAVE_KEY = 'hordefall-save-v1';
+
+export interface SummonDrop {
+  heroId: string;
+  crests: number;
+  isNew: boolean;
+}
 
 export interface OfflineReport {
   seconds: number;
@@ -25,6 +32,9 @@ export class GameState {
   rekindles = 0;
   /** Hero Crests (copies) per hero, for evolution. Nothing drops them yet. */
   crests: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, 0]));
+  /** Evolution stars per hero (0-7). Permanent. */
+  stars: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, 0]));
+  gems = START_GEMS;
   levels: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, h.unlockCost === 0 ? 1 : 0]));
   /** False after losing to a boss: clears repeat the current stage until the player challenges again. */
   autoAdvance = true;
@@ -53,9 +63,75 @@ export class GameState {
   }
 
   reachStage(stage: number) {
+    // First time past each 10-stage mark pays a few Gems.
+    const newMarks = Math.floor(stage / 10) - Math.floor(this.bestStage / 10);
+    if (newMarks > 0) this.gems += newMarks * MILESTONE_GEMS;
     this.stage = stage;
     this.bestStage = Math.max(this.bestStage, stage);
     this.runBestStage = Math.max(this.runBestStage, stage);
+  }
+
+  /** ATK and HP after levels, stars (x2 each) and team auras. `level` overrides the hero's current level. */
+  heroPower(def: HeroDef, level = this.heroLevel(def.id)): { atk: Decimal; hp: Decimal } {
+    const starMult = Math.pow(2, this.stars[def.id] ?? 0);
+    return {
+      atk: heroAtk(def, level).times(starMult * (this.hasStar('pyra', 4) ? 1.15 : 1)),
+      hp: heroHp(def, level).times(starMult * (this.hasStar('marin', 4) ? 1.2 : 1)),
+    };
+  }
+
+  /** True when the hero is recruited and has evolved to at least `star`. */
+  hasStar(id: string, star: number): boolean {
+    return (this.levels[id] ?? 0) > 0 && (this.stars[id] ?? 0) >= star;
+  }
+
+  /** Open a Hero Chest: Crests for random heroes; a drop for an unrecruited hero recruits them. */
+  summon(): SummonDrop[] | null {
+    if (this.gems < CHEST_COST) return null;
+    this.gems -= CHEST_COST;
+    const total = CREST_ROLLS.reduce((t, [, w]) => t + w, 0);
+    const drops: SummonDrop[] = [];
+    for (let i = 0; i < CHEST_DROPS; i++) {
+      const hero = HEROES[Math.floor(Math.random() * HEROES.length)];
+      let roll = Math.random() * total;
+      const crests = (CREST_ROLLS.find(([, w]) => (roll -= w) < 0) ?? CREST_ROLLS[0])[0];
+      const isNew = (this.levels[hero.id] ?? 0) === 0;
+      if (isNew) this.levels[hero.id] = 1;
+      this.crests[hero.id] = (this.crests[hero.id] ?? 0) + crests;
+      drops.push({ heroId: hero.id, crests, isNew });
+    }
+    this.save();
+    return drops;
+  }
+
+  evolveCost(id: string): number | null {
+    const stars = this.stars[id] ?? 0;
+    return stars >= MAX_STARS ? null : STAR_CRESTS[stars];
+  }
+
+  evolve(id: string): boolean {
+    const cost = this.evolveCost(id);
+    if (cost === null || (this.crests[id] ?? 0) < cost) return false;
+    this.crests[id] -= cost;
+    this.stars[id] = (this.stars[id] ?? 0) + 1;
+    this.save();
+    return true;
+  }
+
+  /** Embers spent on a hero's Ember levels. */
+  embersSpent(id: string): number {
+    let total = 0;
+    for (let l = 0; l < (this.emberLevels[id] ?? 0); l++) total += emberCost(l);
+    return total;
+  }
+
+  /** Take a hero's Ember levels back as Embers (stand-in for removing them from the lineup). */
+  refundEmbers(id: string): number {
+    const back = this.embersSpent(id);
+    this.embers += back;
+    this.emberLevels[id] = 0;
+    this.save();
+    return back;
   }
 
   canRekindle() {
@@ -110,6 +186,8 @@ export class GameState {
       emberLevels: this.emberLevels,
       rekindles: this.rekindles,
       crests: this.crests,
+      stars: this.stars,
+      gems: this.gems,
       levels: this.levels,
       autoAdvance: this.autoAdvance,
       speed2x: this.speed2x,
@@ -145,6 +223,8 @@ export class GameState {
       this.emberLevels = { ...this.emberLevels, ...(d.emberLevels ?? {}) };
       this.rekindles = d.rekindles ?? 0;
       this.crests = { ...this.crests, ...(d.crests ?? {}) };
+      this.stars = { ...this.stars, ...(d.stars ?? {}) };
+      this.gems = d.gems ?? START_GEMS;
       this.levels = { ...this.levels, ...(d.levels ?? {}) };
       this.autoAdvance = d.autoAdvance ?? true;
       this.speed2x = !!d.speed2x;
