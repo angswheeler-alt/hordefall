@@ -4,7 +4,7 @@
  * empty and the game runs with local saves only. VITE_SUPABASE_URL and
  * VITE_SUPABASE_ANON_KEY in the environment override these at build time.
  */
-export const SUPABASE_URL: string = import.meta.env.VITE_SUPABASE_URL ?? '';
+export const SUPABASE_URL: string = import.meta.env.VITE_SUPABASE_URL ?? 'https://yqsvekcxsejtjghcztha.supabase.co';
 export const SUPABASE_ANON_KEY: string = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
 
 /**
