@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, LINEUP_SIZE, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS } from './data';
-import { stallIncome, stallUpgradeCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, emberCost, heroAtk, heroHp } from './formulas';
+import { stallIncome, stallUpgradeCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp } from './formulas';
 import type { HeroDef, StallDef } from './data';
 
 const SAVE_KEY = 'hordefall-save-v1';
@@ -109,21 +109,33 @@ export class GameState {
     return HEROES.filter((h) => this.inLineup(h.id)).length;
   }
 
+  /** Gold spent raising a hero from level 1 to their current gold level. */
+  goldSpent(id: string): Decimal {
+    const def = HEROES.find((h) => h.id === id)!;
+    let total = new Decimal(0);
+    for (let l = 1; l < (this.levels[id] ?? 0); l++) total = total.plus(upgradeCost(def, l));
+    return total;
+  }
+
   /**
-   * Put a recruited hero in or out of the lineup. Taking one out returns the
-   * Embers spent on them (their Ember levels reset). Returns Embers refunded,
-   * or null when the change isn't allowed.
+   * Put a recruited hero in or out of the lineup. Taking one out drops them to
+   * gold level 1 and refunds that gold; Ember levels stay, since they also
+   * count in Trials and PvP. Returns the gold refunded, or null when the
+   * change isn't allowed.
    */
-  setInLineup(id: string, on: boolean): number | null {
+  setInLineup(id: string, on: boolean): Decimal | null {
     if ((this.levels[id] ?? 0) === 0) return null;
     if (on) {
       if (this.inLineup(id) || this.lineupCount() >= LINEUP_SIZE) return null;
       delete this.benched[id];
-      return 0;
+      return new Decimal(0);
     }
     if (!this.inLineup(id) || this.lineupCount() <= 1) return null;
+    const refund = this.goldSpent(id);
+    this.gold = this.gold.plus(refund);
+    this.levels[id] = 1;
     this.benched[id] = true;
-    return this.refundEmbers(id);
+    return refund;
   }
 
   /** Open a Hero Chest: Crests for random heroes; a drop for an unrecruited hero recruits them. */
@@ -160,22 +172,6 @@ export class GameState {
     this.stars[id] = (this.stars[id] ?? 0) + 1;
     this.save();
     return true;
-  }
-
-  /** Embers spent on a hero's Ember levels. */
-  embersSpent(id: string): number {
-    let total = 0;
-    for (let l = 0; l < (this.emberLevels[id] ?? 0); l++) total += emberCost(l);
-    return total;
-  }
-
-  /** Take a hero's Ember levels back as Embers (stand-in for removing them from the lineup). */
-  refundEmbers(id: string): number {
-    const back = this.embersSpent(id);
-    this.embers += back;
-    this.emberLevels[id] = 0;
-    this.save();
-    return back;
   }
 
   canRekindle() {

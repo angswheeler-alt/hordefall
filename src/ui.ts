@@ -126,8 +126,8 @@ export class UI {
     const rows = HEROES.map((h) => {
       const recruited = (s.levels[h.id] ?? 0) > 0;
       const on = s.inLineup(h.id);
-      const spent = s.embersSpent(h.id);
-      const label = !recruited ? 'Not recruited' : on ? (spent > 0 ? `Remove (+${spent} Embers)` : 'Remove') : 'Add';
+      const spent = s.goldSpent(h.id);
+      const label = !recruited ? 'Not recruited' : on ? (spent.gt(0) ? `Remove (+${fmt(spent)} gold)` : 'Remove') : 'Add';
       const disabled = !recruited || (on && count <= 1) || (!on && count >= LINEUP_SIZE);
       return `<li class="team-row${on ? ' on' : ''}${recruited ? '' : ' locked'}">
         <span class="face" style="background:${hex(ELEMENT_COLORS[h.element])}">${h.name[0]}</span>
@@ -137,7 +137,7 @@ export class UI {
     }).join('');
     this.showModal(
       `Team ${count}/${LINEUP_SIZE}`,
-      `${note ? `<p class="team-note">${note}</p>` : ''}<ul class="team-list">${rows}</ul><p class="team-help">Only heroes in the team fight. Taking a hero out returns the Embers spent on them, so you can move Ember levels to another hero.</p>`,
+      `${note ? `<p class="team-note">${note}</p>` : ''}<ul class="team-list">${rows}</ul><p class="team-help">Only heroes in the team fight. Taking a hero out drops them to gold level 1 and gives that gold back. Their Ember levels stay, since Embers also count in Trials and PvP.</p>`,
       'Done',
     );
   }
@@ -310,10 +310,11 @@ export class UI {
       const id = btn.dataset.lineup!;
       const refund = this.state.setInLineup(id, !this.state.inLineup(id));
       if (refund === null) return;
-      play(refund > 0 ? 'coin' : 'unlock');
+      play(refund.gt(0) ? 'coin' : 'unlock');
       this.scene()?.syncHeroes();
       this.render();
-      this.openTeam(refund > 0 ? `${HEROES.find((h) => h.id === id)!.name} left the team. ${refund} Embers came back.` : '');
+      const name = HEROES.find((h) => h.id === id)!.name;
+      this.openTeam(this.state.inLineup(id) ? '' : `${name} left the team. ${fmt(refund)} gold came back; their Embers stay.`);
     });
     for (const btn of $('tabbar').querySelectorAll<HTMLButtonElement>('button')) {
       btn.addEventListener('click', () => this.setTab(btn.dataset.tab as Tab));
@@ -469,11 +470,7 @@ export class UI {
     const emberBtn = $<HTMLButtonElement>('sheet-ember-up');
     (emberBtn.querySelector('.cost') as HTMLElement).textContent = `${ec} Ember${ec === 1 ? '' : 's'}`;
     emberBtn.disabled = ec > s.embers;
-    const benched = gold > 0 && !s.inLineup(id);
-    if (benched) emberBtn.disabled = true;
-    $('sheet-ember-note').textContent = benched
-      ? 'Benched: put this hero back in the team to give them Ember levels.'
-      : 'Embers come back if you take this hero out of the team.';
+    $('sheet-ember-note').textContent = 'Ember levels stay on this hero for good, even out of the team, and count in Trials and PvP.';
     emberBtn.title = s.rekindles === 0 ? `Earn Embers by Rekindling after stage ${REKINDLE_STAGE}` : '';
 
     const ultReady = eff >= ULT_UNLOCK_LEVEL;
@@ -628,7 +625,6 @@ export class UI {
   }
 
   private buyEmber(def: HeroDef) {
-    if ((this.state.levels[def.id] ?? 0) > 0 && !this.state.inLineup(def.id)) return;
     const level = this.state.emberLevels[def.id] ?? 0;
     const cost = emberCost(level);
     if (cost > this.state.embers) return;
