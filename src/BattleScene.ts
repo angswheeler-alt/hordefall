@@ -9,6 +9,7 @@ import {
   ULT_COOLDOWN,
   ULT_MULTIPLIER,
   ULT_STAR_BONUS,
+  ULT_PLUS_EVOLUTIONS,
   BOSS_GEMS,
   ULT_UNLOCK_LEVEL,
   SPEED_UNLOCK_STAGE,
@@ -313,7 +314,7 @@ export class BattleScene extends Phaser.Scene {
     if (opts.label) {
       parts.push(
         this.add
-          .text(0, -body.height / 2 - 18, opts.label, { fontFamily: 'monospace', fontSize: opts.isBoss ? '11px' : '9px', color: '#fff', stroke: '#000', strokeThickness: 3 })
+          .text(0, body.y - body.height - 18, opts.label, { fontFamily: 'monospace', fontSize: opts.isBoss ? '11px' : '9px', color: '#fff', stroke: '#000', strokeThickness: 3 })
           .setOrigin(0.5),
       );
     }
@@ -915,7 +916,7 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: ring, radius, alpha: 0, duration: 380, onComplete: () => ring.destroy() });
     this.cameras.main.shake(300, 0.015);
     this.cameras.main.flash(120, 255, 255, 255);
-    const dmg = h.atk.times(ULT_MULTIPLIER * (this.has(h.def!.id, 3) ? ULT_STAR_BONUS : 1));
+    const dmg = h.atk.times(ULT_MULTIPLIER * (this.has(h.def!.id, ULT_PLUS_EVOLUTIONS) ? ULT_STAR_BONUS : 1));
     for (const e of this.enemies) {
       if (e.alive && e.x >= h.x - 30 && e.x <= h.x + radius + 60) this.damageUnit(e, dmg.times(elementMultiplier(h.element, e.element)), h);
     }

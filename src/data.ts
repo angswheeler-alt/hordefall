@@ -31,7 +31,7 @@ export interface HeroDef {
   basic: Ability;
   ultimate: Ability;
   trait: Ability;
-  /** Unlocked by evolving with Hero Crests: SP1 at 1★, SP2 at 2★, the Aura at 4★. */
+  /** Unlocked by evolving with Hero Crests: SP1 at 2★, SP2 at 3★, the Aura at 4★. */
   sp1: Ability;
   sp2: Ability;
   aura: Ability;
@@ -325,11 +325,13 @@ export const CRIT_CHANCE = 0.12;
 export const CRIT_MULTIPLIER = 2.5;
 
 /**
- * Hero Crests needed for each evolution star, 1-7 (GDD section 5.3). Each star
- * doubles stats; 1, 2, 3 and 4 stars unlock SP1, SP2, the Ultimate and the Aura.
- * Crests come from the Hero Chest.
+ * Hero Crests (medals) for each evolution, from Samuel's table: a hero unlocks
+ * at 1★ and evolves up to 8★ (1★→2★ costs 10, ... 7★→8★ costs 5,000).
+ * `stars` in the save counts evolutions, so 0 means 1★. Each evolution doubles
+ * stats; 2★ and 3★ unlock SP1 and SP2, 4★ the hero's team Aura, 5★ a stronger
+ * Ultimate. At 8★ further medals turn into Legendary medals.
  */
-export const STAR_CRESTS = [10, 20, 50, 200, 500, 1000, 2000];
+export const STAR_CRESTS = [10, 50, 250, 600, 1500, 2500, 5000];
 export const MAX_STARS = STAR_CRESTS.length;
 /**
  * Hero Crests (medals) a hero needs to unlock, by rarity (Samuel's table).
@@ -338,8 +340,13 @@ export const MAX_STARS = STAR_CRESTS.length;
  * Hero Chest never drops them. The free starter (unlockCost 0) needs none.
  */
 export const UNLOCK_CRESTS: Record<Exclude<Rarity, 'legendary'>, number> = { common: 10, rare: 30, epic: 80 };
-/** From 3★ the Ultimate hits harder (the full game unlocks it at 3★; the prototype keeps Lv 30). */
+/** Evolutions needed for each star unlock (0 = 1★): the team Aura at 4★ like the original, the stronger Ultimate at 5★. */
+export const AURA_EVOLUTIONS = 3;
+export const ULT_PLUS_EVOLUTIONS = 4;
+/** From 5★ the Ultimate hits harder (the prototype unlocks the Ultimate itself at Lv 30). */
 export const ULT_STAR_BONUS = 1.5;
+/** An 8★ hero turns every this many new medals into one Legendary medal (for Legendary heroes later). */
+export const LEGENDARY_MEDAL_RATE = 10;
 
 // Gems (premium currency) and the Hero Chest summon.
 export const START_GEMS = 60;
@@ -348,12 +355,22 @@ export const BOSS_GEMS = 20;
 export const MILESTONE_GEMS = 5;
 export const CHEST_COST = 30;
 export const CHEST_DROPS = 3;
-/** Crests per drop and their weights. */
-export const CREST_ROLLS: Array<[number, number]> = [
-  [5, 60],
-  [10, 30],
-  [25, 10],
-];
+/**
+ * Hero Chest odds. Each drop first picks a rarity by weight (Legendary never
+ * drops), then a random hero of that rarity, then a medal amount for that
+ * rarity. Rarer heroes drop less often and in smaller stacks, so a first Rare
+ * unlock (30) takes about 10 chests and a first Epic (80) about 100.
+ * Rarities with no heroes yet are skipped and the rest re-weighted.
+ */
+export const CHEST_RARITY_WEIGHTS: Record<Exclude<Rarity, 'legendary'>, number> = { common: 70, rare: 22, epic: 8 };
+/** Medals per drop and their weights, by rarity. */
+export const CREST_ROLLS: Record<Exclude<Rarity, 'legendary'>, Array<[number, number]>> = {
+  common: [[5, 60], [10, 30], [20, 10]],
+  rare: [[3, 60], [6, 30], [12, 10]],
+  epic: [[2, 60], [4, 30], [8, 10]],
+};
+/** Trial medals: rarity weights for which hero of the element gets each medal. */
+export const TRIAL_RARITY_WEIGHTS: Record<Exclude<Rarity, 'legendary'>, number> = { common: 80, rare: 17, epic: 3 };
 
 export const BOSS_NAMES = ['Grubjaw the Glutton', 'Sir Rattlecan', 'Mother Mireling', 'Cogsworth Crusher', 'The Molten Abbot'];
 

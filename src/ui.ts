@@ -1,5 +1,5 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, ULT_STAR_BONUS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_LEVELS_PER_TIER, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, LEGENDARY_MEDAL_RATE, MAX_STARS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_LEVELS_PER_TIER, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
 import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
@@ -480,14 +480,15 @@ export class UI {
   /** Hero Chest pop-up: shows what's inside and asks before spending Gems. */
   private confirmChest() {
     const s = this.state;
-    const total = CREST_ROLLS.reduce((n, [, w]) => n + w, 0);
-    const odds = CREST_ROLLS.map(([c, w]) => `<li><b>${c} Crests</b><span>${Math.round((w / total) * 100)}%</span></li>`).join('');
+    const odds = (Object.keys(CHEST_RARITY_WEIGHTS) as Array<keyof typeof CHEST_RARITY_WEIGHTS>)
+      .map((r) => `<li><b>${cap(r)}</b><span>${CHEST_RARITY_WEIGHTS[r]}% · ${CREST_ROLLS[r].map(([c]) => c).join('/')} medals</span></li>`)
+      .join('');
     const faces = HEROES.map((h) => `<span class="face art" title="${h.name}" style="${faceStyle(h)}">${h.name[0]}</span>`).join('');
     const afford = s.gems >= CHEST_COST;
     this.showModal(
       'Hero Chest',
       `<div class="chest-pop"><div class="chest-art" aria-hidden="true"></div>
-        <p>${CHEST_DROPS} drops of Hero Crests. A hero you don't have yet joins your team.</p>
+        <p>${CHEST_DROPS} drops of Hero Crests (medals). Collect enough to unlock a hero, then keep collecting to evolve them. Legendary heroes never drop.</p>
         <div class="chest-heroes">${faces}</div>
         <ul class="chest-odds">${odds}</ul>
         <p class="chest-wallet">You have <b>${s.gems}</b> Gems${afford ? '' : `. You need ${CHEST_COST - s.gems} more.`}</p></div>`,
@@ -559,7 +560,8 @@ export class UI {
     const stars = s.stars[id] ?? 0;
     const crests = s.crests[id] ?? 0;
 
-    $('sheet-stars').innerHTML = STAR_CRESTS.map((_, i) => `<span class="${i < stars ? 'on' : ''}">★</span>`).join('');
+    // A hero is 1★ when unlocked; each evolution adds a star, up to 8★.
+    $('sheet-stars').innerHTML = [0, ...STAR_CRESTS].map((_, i) => `<span class="${gold > 0 && i <= stars ? 'on' : ''}">★</span>`).join('');
     const shownLevel = gold > 0 ? eff : 1 + ember;
     const power = s.heroPower(def, shownLevel);
     const stat = (label: string, value: string) => `<div><small>${label}</small><b>${value}</b></div>`;
@@ -611,23 +613,24 @@ export class UI {
     }
 
     const next = s.evolveCost(id);
-    $('sheet-crests').textContent = next === null ? `${crests} (max stars)` : `${crests} / ${next} for ${stars + 1}★`;
+    $('sheet-crests').textContent = next === null ? `Max stars · ${s.legendaryMedals} Legendary medals` : `${crests} / ${next} for ${stars + 2}★`;
     $('sheet-crest-fill').style.width = next === null ? '100%' : `${Math.min(100, (crests / next) * 100)}%`;
     const evolve = $<HTMLButtonElement>('sheet-evolve');
     evolve.hidden = next === null || crests < next || gold === 0;
-    evolve.textContent = `Evolve to ${stars + 1}★ (${next} Crests)`;
+    evolve.textContent = `Evolve to ${stars + 2}★ (${next} Crests)`;
     const unlocks: Array<[number, string, string]> = [
       [1, `${def.sp1.name}`, def.sp1.text],
       [2, `${def.sp2.name}`, def.sp2.text],
-      [3, `${def.ultimate.name}+`, `Ultimate hits for ${ULT_MULTIPLIER * ULT_STAR_BONUS}x instead of ${ULT_MULTIPLIER}x.`],
-      [4, `Aura: ${def.aura.name}`, def.aura.text],
-      [5, '5★ to 7★', 'Each extra star doubles all stats again.'],
+      [AURA_EVOLUTIONS, `Aura: ${def.aura.name}`, def.aura.text],
+      [ULT_PLUS_EVOLUTIONS, `${def.ultimate.name}+`, `Ultimate hits for ${ULT_MULTIPLIER * ULT_STAR_BONUS}x instead of ${ULT_MULTIPLIER}x.`],
+      [5, '6★ to 7★', 'Each extra star doubles all stats again.'],
+      [MAX_STARS, 'Legendary medals', `At 8★ every ${LEGENDARY_MEDAL_RATE} extra medals for this hero become a Legendary medal, used to get Legendary heroes.`],
     ];
     if ($('sheet-unlocks').dataset.key !== `${id}:${stars}`) {
       $('sheet-unlocks').innerHTML = unlocks
         .map(([star, name, text]) => {
           const on = stars >= star;
-          return `<li class="${on ? '' : 'locked'}"><span class="kind">${star}★</span><span class="tag${on ? ' ready' : ''}">${on ? 'Unlocked' : 'Locked'}</span><div><b>${name}</b></div><p>${text}</p></li>`;
+          return `<li class="${on ? '' : 'locked'}"><span class="kind">${star + 1}★</span><span class="tag${on ? ' ready' : ''}">${on ? 'Unlocked' : 'Locked'}</span><div><b>${name}</b></div><p>${text}</p></li>`;
         })
         .join('');
       $('sheet-unlocks').dataset.key = `${id}:${stars}`;
@@ -934,7 +937,7 @@ export class UI {
       r.emberBadge.textContent = emberLevel ? `+${emberLevel}` : '';
       r.emberBadge.title = emberLevel ? `${emberLevel} Ember levels` : '';
       const starCount = s.stars[r.def.id] ?? 0;
-      r.stars.textContent = '★'.repeat(starCount);
+      r.stars.textContent = locked ? '' : '★'.repeat(starCount + 1);
       const evolveCost = s.evolveCost(r.def.id);
       const canEvolve = !locked && evolveCost !== null && (s.crests[r.def.id] ?? 0) >= evolveCost;
       const benched = !locked && !s.inLineup(r.def.id);
