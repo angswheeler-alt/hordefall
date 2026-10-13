@@ -382,3 +382,6 @@ button.link[disabled] { display: none; }
 .relic-cost i { width: 10px; height: 10px; border-radius: 50%; background: var(--el); border: 1px solid #000; }
 .relic-btns { display: flex; flex-direction: column; gap: 4px; min-width: 84px; }
 .relic-btns button { font-size: 12px; padding: 6px 8px; }
+
+/* Hero faces drawn from the hero sprite: zoomed to head and shoulders, crisp pixels, letter hidden. */
+.face.art { background-image: var(--art); background-repeat: no-repeat; background-size: 180%; background-position: 52% 18%; image-rendering: pixelated; color: transparent !important; text-shadow: none !important; }
