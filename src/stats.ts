@@ -6,10 +6,8 @@ import type { HeroDef } from './data';
  * out from level, stars, star skills, Signatures and relics; battle and the hero page both read them.
  */
 
-/** Base numbers for effects every hero can roll. Times are seconds; damage is a share of the hero's ATK. */
+/** Base numbers for effects (each hero's chances, crit, dodge and resistance come from its profile, src/profiles.ts). Times are seconds; damage is a share of the hero's ATK. */
 export const STAT_BASE = {
-  effectRes: 0.2,
-  frenzy: 0.05,
   /** Frenzy: attacks twice as fast for this long. */
   frenzySeconds: 3,
   frenzyHaste: 0.5,
