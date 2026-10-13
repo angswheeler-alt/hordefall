@@ -40,6 +40,10 @@ Players sign in from the Account section in Settings (gear at the top right of t
 
 Saves are trusted from the client for now, so a determined player could edit their own save. Server-side checks come with PvP and leaderboards.
 
+## Medal drop rates
+
+Hero Chest (30 Gems, 3 drops): each drop is Common 70%, Rare 22% or Epic 8%, then a random hero of that rarity. Medals per drop are Common 5/10/20, Rare 3/6/12, Epic 2/4/8 (60/30/10% chances). Trials give each medal to a hero of the Trial's element: Common 80%, Rare 17%, Epic 3%. Legendary heroes never drop. Rarities with no heroes yet are skipped. All numbers live in `src/data.ts`.
+
 ## Unlocking heroes
 
 Marin is free. Every other hero unlocks with Hero Crests (medals) from the Hero Chest and Trials, by rarity: Common 10, Rare 30, Epic 80. Legendary heroes never unlock from Crests and never drop from the Hero Chest; they only come through special means. Unlocking spends the Crests and adds the hero at level 1; gold then levels them as before.
