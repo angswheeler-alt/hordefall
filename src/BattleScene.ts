@@ -51,6 +51,9 @@ const LANE_BOTTOM = 255;
 const REGIONS = ['tidecoast', 'dunes', 'stormcrag', 'emberwastes', 'hollowmoon'];
 /** The far layer is 180 px tall with its bottom edge on the ground line (y 170). */
 const FAR_Y = -10;
+/** Hero sprites in public/heroes are 48x48 with the feet on row 45 (bottom edge at 46). */
+const HERO_ART_SIZE = 48;
+const HERO_FEET_ROW = 46;
 const GROUND_Y = 170;
 const WAVE_INTERVAL = 7;
 const MAX_ENEMIES = 14;
@@ -265,13 +268,16 @@ export class BattleScene extends Phaser.Scene {
     const y = opts.isBoss ? LANE_TOP + 35 : Phaser.Math.Between(LANE_TOP + 5, LANE_BOTTOM);
     const body = this.add.image(0, 0, opts.texture);
     if (opts.side === 'enemy') body.setTint(ELEMENT_COLORS[opts.element]).setFlipX(true);
+    // Hero art is 48x48 with the feet on row 45: anchor it at the feet, on the same foot line as the
+    // old 30 px placeholders (15 px below the unit's y), so squash-on-hit keeps them planted.
+    if (body.height === HERO_ART_SIZE) body.setOrigin(0.5, HERO_FEET_ROW / HERO_ART_SIZE).setY(15);
     const barWidth = opts.isBoss ? 60 : 24;
     const hpBar = this.add.graphics();
     const parts: Phaser.GameObjects.GameObject[] = [body, hpBar];
     if (opts.label) {
       parts.push(
         this.add
-          .text(0, -body.height / 2 - 18, opts.label, { fontFamily: 'monospace', fontSize: opts.isBoss ? '11px' : '9px', color: '#fff', stroke: '#000', strokeThickness: 3 })
+          .text(0, body.y - body.displayOriginY - 18, opts.label, { fontFamily: 'monospace', fontSize: opts.isBoss ? '11px' : '9px', color: '#fff', stroke: '#000', strokeThickness: 3 })
           .setOrigin(0.5),
       );
     }
@@ -308,7 +314,7 @@ export class BattleScene extends Phaser.Scene {
   private drawHpBar(u: Unit) {
     const ratio = u.maxHp.gt(0) ? Math.max(0, Math.min(1, u.hp.div(u.maxHp).toNumber())) : 0;
     const w = u.barWidth;
-    const top = -u.body.height / 2 - 7;
+    const top = u.body.y - u.body.displayOriginY - (u.body.height === HERO_ART_SIZE ? 3 : 7);
     u.hpBar.clear();
     u.hpBar.fillStyle(0x000000, 0.7).fillRect(-w / 2 - 1, top - 1, w + 2, 5);
     u.hpBar.fillStyle(u.side === 'hero' ? 0x4cff7a : 0xff4c4c, 1).fillRect(-w / 2, top, w * ratio, 3);
