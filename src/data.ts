@@ -179,3 +179,33 @@ export const CREST_ROLLS: Array<[number, number]> = [
 ];
 
 export const BOSS_NAMES = ['Grubjaw the Glutton', 'Sir Rattlecan', 'Mother Mireling', 'Cogsworth Crusher', 'The Molten Abbot'];
+
+/** Market Row Stalls (GDD section 6). Each costs gold to open and makes gold on a timer. */
+export interface StallDef {
+  id: string;
+  name: string;
+  blurb: string;
+  color: number;
+  unlockCost: number;
+  /** Seconds per cycle. */
+  cycle: number;
+  /** Gold per cycle at level 1. */
+  baseIncome: number;
+}
+
+export const STALLS: StallDef[] = [
+  { id: 'bakery', name: 'Bakery', blurb: 'Warm bread for hungry heroes.', color: 0xe0a23a, unlockCost: 50, cycle: 3, baseIncome: 2 },
+  { id: 'fruit', name: 'Fruit Cart', blurb: 'Fresh from the hills.', color: 0x6abf3b, unlockCost: 1500, cycle: 6, baseIncome: 40 },
+  { id: 'smithy', name: 'Smithy', blurb: 'Blades sharpened while you wait.', color: 0x9aa4b0, unlockCost: 4e4, cycle: 12, baseIncome: 900 },
+  { id: 'tailor', name: 'Tailor', blurb: 'Capes that never tear.', color: 0xc05bd8, unlockCost: 1.2e6, cycle: 24, baseIncome: 2.5e4 },
+  { id: 'jeweler', name: 'Jeweler', blurb: 'Gems polished to a shine.', color: 0x3fb8e6, unlockCost: 4e7, cycle: 45, baseIncome: 8e5 },
+  { id: 'alchemist', name: 'Alchemist', blurb: 'Potions that bubble with gold.', color: 0xe04a7a, unlockCost: 1.5e9, cycle: 90, baseIncome: 3e7 },
+];
+/** Stalls collect themselves from this level. */
+export const STALL_AUTO_LEVEL = 50;
+/** Revenue x3 (+200%) every 50 Stall levels. */
+export const STALL_MILESTONE = 50;
+/** Each Rekindle: +25% Market Row revenue and +5 Stall levels (up to 600) for auto-collect Stalls. */
+export const STALL_REKINDLE_REVENUE = 0.25;
+export const STALL_REKINDLE_LEVELS = 5;
+export const STALL_REKINDLE_LEVELS_CAP = 600;

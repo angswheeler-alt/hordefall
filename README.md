@@ -21,3 +21,4 @@ Web-first idle RPG prototype (see the game design doc). This build covers the co
 
 Stack: Phaser 3 + TypeScript + Vite. Lane in Phaser, menus in HTML/CSS. Balance knobs live in `src/formulas.ts`.
 - Bottom tab bar like the original: Heroes (wood-styled hero rows with Level Up buttons, Manage Team, Hero Chest and Collection), Market Row, Relics, Battle (run stats and prototype tools), Shop (Hero Chest, free Gems) and Guild. Market Row, Relics and Guild are placeholders for now.
+- Market Row tab: six Stalls (Bakery to Alchemist) opened and upgraded with gold. Each fills a bar on a timer; tap to collect until level 50, then it collects itself (also while offline). Income x3 every 50 Stall levels. Stalls reset on Rekindle; each Rekindle adds +25% Stall income and +5 levels (up to 600) to auto-collect Stalls, shown on the Rekindle page.
