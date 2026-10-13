@@ -1,5 +1,5 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, ULT_STAR_BONUS, ULT_MULTIPLIER, type HeroDef } from './data';
+import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, ULT_STAR_BONUS, ULT_MULTIPLIER, type HeroDef } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
 import { bulkCost, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
@@ -158,8 +158,8 @@ export class UI {
       this.hooks.rekindle(Number(btn.dataset.mult));
     });
 
-    $('summon').addEventListener('click', () => this.summon());
-    $('chest-btn').addEventListener('click', () => this.summon());
+    $('summon').addEventListener('click', () => this.confirmChest());
+    $('chest-btn').addEventListener('click', () => this.confirmChest());
     $('collection-btn').addEventListener('click', () => this.openSheet(HEROES[0].id));
     $('team-btn').addEventListener('click', () =>
       this.showModal('Manage Team', 'Team lineups are coming soon. For now every recruited hero fights. Moving a hero out of the lineup will return their Embers.', 'Okay'),
@@ -228,6 +228,27 @@ export class UI {
     });
   }
 
+  /** Hero Chest pop-up: shows what's inside and asks before spending Gems. */
+  private confirmChest() {
+    const s = this.state;
+    const total = CREST_ROLLS.reduce((n, [, w]) => n + w, 0);
+    const odds = CREST_ROLLS.map(([c, w]) => `<li><b>${c} Crests</b><span>${Math.round((w / total) * 100)}%</span></li>`).join('');
+    const faces = HEROES.map((h) => `<span class="face" title="${h.name}" style="background:${hex(ELEMENT_COLORS[h.element])}">${h.name[0]}</span>`).join('');
+    const afford = s.gems >= CHEST_COST;
+    this.showModal(
+      'Hero Chest',
+      `<div class="chest-pop"><div class="chest-art" aria-hidden="true"></div>
+        <p>${CHEST_DROPS} drops of Hero Crests. A hero you don't have yet joins your team.</p>
+        <div class="chest-heroes">${faces}</div>
+        <ul class="chest-odds">${odds}</ul>
+        <p class="chest-wallet">You have <b>${s.gems}</b> Gems${afford ? '' : `. You need ${CHEST_COST - s.gems} more.`}</p></div>`,
+      afford ? `Buy · ${CHEST_COST} Gems` : 'Okay',
+      afford ? () => this.summon() : null,
+      afford,
+      'Cancel',
+    );
+  }
+
   private summon() {
     const drops = this.state.summon();
     if (!drops) return;
@@ -251,8 +272,8 @@ export class UI {
       canAgain ? `Open another (${CHEST_COST} Gems)` : 'Done',
       canAgain ? () => this.summon() : null,
       canAgain,
+      'Done',
     );
-    if (canAgain) $('modal-cancel').textContent = 'Done';
   }
 
   // ---------- hero page ----------
@@ -362,12 +383,12 @@ export class UI {
 
   private modalAction: (() => void) | null = null;
 
-  private showModal(title: string, html: string, ok: string, action: (() => void) | null = null, cancel = false) {
+  private showModal(title: string, html: string, ok: string, action: (() => void) | null = null, cancel = false, cancelLabel = 'Not yet') {
     $('modal-title').textContent = title;
     $('modal-body').innerHTML = html;
     $('modal-ok').textContent = ok;
     $('modal-cancel').hidden = !cancel;
-    $('modal-cancel').textContent = 'Not yet';
+    $('modal-cancel').textContent = cancelLabel;
     this.modalAction = action;
     $('modal').hidden = false;
   }
