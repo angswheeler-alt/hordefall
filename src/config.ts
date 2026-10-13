@@ -6,3 +6,10 @@
  */
 export const SUPABASE_URL: string = import.meta.env.VITE_SUPABASE_URL ?? '';
 export const SUPABASE_ANON_KEY: string = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
+
+/**
+ * Players sign in with a username, not an email. Supabase needs an email-shaped
+ * login, so each username becomes `<username>@` this domain behind the scenes.
+ * No mail is ever sent to it ("Confirm email" must be off in Supabase).
+ */
+export const USERNAME_DOMAIN = 'players.hordefall.invalid';

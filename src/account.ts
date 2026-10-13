@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, USERNAME_DOMAIN } from './config';
 import { GameState, type SaveData } from './state';
 
 /** How often a signed-in player's save goes up to the cloud. */
@@ -8,6 +8,21 @@ const UPLOAD_SECONDS = 30;
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
 const escape = (text: string) => text.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
+
+/** 3-20 letters, numbers or underscores; case doesn't matter. */
+const USERNAME_RULE = /^[a-z0-9_]{3,20}$/;
+
+const loginFor = (username: string) => `${username}@${USERNAME_DOMAIN}`;
+
+const usernameOf = (user: User) => (user.user_metadata?.username as string | undefined) ?? user.email?.split('@')[0] ?? 'player';
+
+/** Supabase's messages talk about emails; say it in username terms. */
+const friendlyError = (message: string) => {
+  if (/already registered|already exists/i.test(message)) return 'That username is taken. Try another one.';
+  if (/invalid login credentials/i.test(message)) return 'Wrong username or password.';
+  if (/email not confirmed/i.test(message)) return 'Accounts need "Confirm email" switched off in Supabase.';
+  return message;
+};
 
 const summary = (d: SaveData) => `stage ${(d.bestStage ?? d.stage ?? 1).toLocaleString()}, ${d.rekindles ?? 0} Rekindle${d.rekindles === 1 ? '' : 's'}`;
 
@@ -128,22 +143,29 @@ export class Account {
   }
 
   private async submit(create: boolean) {
-    const email = $<HTMLInputElement>('acct-email').value.trim();
+    const username = $<HTMLInputElement>('acct-name').value.trim().toLowerCase();
     const password = $<HTMLInputElement>('acct-password').value;
     const note = $('acct-note');
-    if (!email || password.length < 6) {
-      note.textContent = 'Enter your email and a password of at least 6 characters.';
+    if (!USERNAME_RULE.test(username)) {
+      note.textContent = 'Usernames are 3-20 letters, numbers or underscores.';
+      return;
+    }
+    if (password.length < 6) {
+      note.textContent = 'Passwords need at least 6 characters.';
       return;
     }
     note.textContent = create ? 'Creating your account…' : 'Signing in…';
     const auth = this.db!.auth;
-    const { data, error } = create ? await auth.signUp({ email, password }) : await auth.signInWithPassword({ email, password });
+    const email = loginFor(username);
+    const { data, error } = create
+      ? await auth.signUp({ email, password, options: { data: { username } } })
+      : await auth.signInWithPassword({ email, password });
     if (error) {
-      note.textContent = error.message;
+      note.textContent = friendlyError(error.message);
       return;
     }
     if (!data.session) {
-      note.textContent = 'Check your email for a confirmation link, then come back and sign in.';
+      note.textContent = 'Accounts need "Confirm email" switched off in Supabase.';
       return;
     }
     this.user = data.session.user;
@@ -162,14 +184,14 @@ export class Account {
   private openSignIn() {
     this.openDialog(
       'Save your progress online',
-      `<p>Sign in to keep your progress safe and play on any device.</p>
-       <input id="acct-email" type="email" autocomplete="email" placeholder="Email" required>
+      `<p>Pick a username and password to keep your progress safe and play on any device. There's no email, so keep your password somewhere safe.</p>
+       <input id="acct-name" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Username" maxlength="20" required>
        <input id="acct-password" type="password" autocomplete="current-password" placeholder="Password (6+ characters)" minlength="6" required>
        <p id="acct-note" class="acct-note"></p>
        <div class="modal-actions"><button type="submit" id="acct-create">Create account</button><button type="submit" id="acct-login" class="hot">Sign in</button></div>`,
       true,
     );
-    $<HTMLInputElement>('acct-email').focus();
+    $<HTMLInputElement>('acct-name').focus();
   }
 
   private openDialog(title: string, html: string, cancel: boolean) {
@@ -188,8 +210,8 @@ export class Account {
     let status = message;
     if (!status) {
       if (!signedIn) status = 'Playing as a guest. Progress saves on this device only.';
-      else if (this.lastUpload) status = `Signed in as ${escape(this.user!.email ?? 'player')}. Saved to the cloud at ${new Date(this.lastUpload).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`;
-      else status = `Signed in as ${escape(this.user!.email ?? 'player')}.`;
+      else if (this.lastUpload) status = `Signed in as ${escape(usernameOf(this.user!))}. Saved to the cloud at ${new Date(this.lastUpload).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`;
+      else status = `Signed in as ${escape(usernameOf(this.user!))}.`;
     }
     $('acct-status').innerHTML = status;
     $('acct-signin').hidden = signedIn || !this.db;

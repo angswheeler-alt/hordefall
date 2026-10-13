@@ -31,9 +31,9 @@ Accounts and cloud saves use [Supabase](https://supabase.com). Without keys the 
 
 1. Create a free Supabase project.
 2. In the SQL editor, run `supabase/setup.sql` once. It creates the `saves` table with row-level security, so each player can only read and write their own save.
-3. Under Authentication > URL Configuration, set the Site URL to `https://angswheeler-alt.github.io/hordefall/` so confirmation emails link back to the game.
+3. Under Authentication > Sign In / Providers > Email, switch off **Confirm email**. Players use a username, which the game turns into a placeholder login address that never receives mail.
 4. Put the project URL and the anon public key in `src/config.ts`. Both are meant to be public; the security rules do the protecting.
 
-Players sign in from the Account card on the Battle tab with an email and password. Guests keep playing locally. On the first sign-in on a device that already has progress, the player picks which save to keep. After that, the save uploads every 30 seconds and when the tab is hidden, and when the game starts the most recently played device's save wins.
+Players sign in from the Account card on the Battle tab with a username and password (no email). There is no password reset yet, since there's no email to send it to. Guests keep playing locally. On the first sign-in on a device that already has progress, the player picks which save to keep. After that, the save uploads every 30 seconds and when the tab is hidden, and when the game starts the most recently played device's save wins.
 
 Saves are trusted from the client for now, so a determined player could edit their own save. Server-side checks come with PvP and leaderboards.
