@@ -166,7 +166,7 @@ export class UI {
           const pct = need ? Math.min(100, (crests / need) * 100) : 0;
           const stars = recruited ? `<span class="ct-stars">★${(s.stars[h.id] ?? 0) + 1}</span>` : '';
           const foot = maxed ? '<span class="ct-maxed">Maxed</span>' : `<div class="ct-bar"><i style="width:${pct}%"></i></div><span class="ct-count">${crests.toLocaleString()}</span>`;
-          return `<div class="ct${recruited ? '' : ' locked'}${s.inLineup(h.id) ? ' team' : ''}"><button type="button" class="ct-tile" data-coll="${h.id}" aria-label="${h.name}" style="--el:${hex(ELEMENT_COLORS[el])}"><span class="ct-art" style="--art:${heroArt(h.id)}"></span>${stars}<span class="ct-name">${h.name}</span></button>${foot}</div>`;
+          return `<div class="ct${recruited ? '' : ' locked'}${s.canUnlock(h) ? ' ready' : ''}${s.inLineup(h.id) ? ' team' : ''}"><button type="button" class="ct-tile" data-coll="${h.id}" aria-label="${h.name}" style="--el:${hex(ELEMENT_COLORS[el])}"><span class="ct-art" style="--art:${heroArt(h.id)}"></span>${stars}<span class="ct-name">${h.name}</span></button>${foot}</div>`;
         })
         .join('');
       return `<section class="ct-group">${tiles}</section>`;
@@ -178,21 +178,10 @@ export class UI {
   private openTeam(note = '') {
     const s = this.state;
     const count = s.lineupCount();
-    // Team first, then benched heroes, then heroes ready to unlock, then the rest.
-    const rank = (h: HeroDef) => (s.inLineup(h.id) ? 0 : (s.levels[h.id] ?? 0) > 0 ? 1 : s.canUnlock(h) ? 2 : 3);
-    const rows = [...HEROES].sort((a, b) => rank(a) - rank(b)).map((h) => {
-      const recruited = (s.levels[h.id] ?? 0) > 0;
+    // Only heroes you own, team first. Locked heroes live in Collection.
+    const owned = HEROES.filter((h) => (s.levels[h.id] ?? 0) > 0);
+    const rows = [...owned].sort((a, b) => Number(s.inLineup(b.id)) - Number(s.inLineup(a.id))).map((h) => {
       const on = s.inLineup(h.id);
-      if (!recruited) {
-        const need = s.unlockCrests(h);
-        const ready = s.canUnlock(h);
-        const have = s.crests[h.id] ?? 0;
-        return `<li class="team-row locked${ready ? ' ready' : ''}">
-        <span class="face art" style="${faceStyle(h)}">${h.name[0]}</span>
-        <span class="team-who"><b>${h.name}</b><small>${cap(h.element)} ${h.job} · ${need === null ? 'Special event' : `<span class="crest-ct">${Math.min(have, need)}/${need}</span>`}</small></span>
-        <button data-unlock="${h.id}" class="${ready ? 'hot' : ''}" ${ready ? '' : 'disabled'}>${ready ? 'Unlock' : 'Locked'}</button>
-      </li>`;
-      }
       const spent = s.goldSpent(h.id);
       const label = on ? (spent.gt(0) ? `Remove (+${fmt(spent)} gold)` : 'Remove') : 'Add';
       const disabled = (on && count <= 1) || (!on && count >= LINEUP_SIZE);
@@ -204,7 +193,7 @@ export class UI {
     }).join('');
     this.showModal(
       `Team ${count}/${LINEUP_SIZE}`,
-      `${note ? `<p class="team-note">${note}</p>` : ''}<ul class="team-list">${rows}</ul><p class="team-help">Only heroes in the team fight. Taking a hero out drops them to gold level 1 and gives that gold back. Their Ember levels stay, since Embers also count in Trials and PvP.</p>`,
+      `${note ? `<p class="team-note">${note}</p>` : ''}<ul class="team-list">${rows}</ul><p class="team-help">Only heroes in the team fight. Taking a hero out drops them to gold level 1 and gives that gold back. Their Ember levels stay, since Embers also count in Trials and PvP. New heroes are unlocked in Collection.</p>`,
       'Done',
     );
   }
@@ -491,17 +480,6 @@ export class UI {
       this.openTeam(),
     );
     $('modal-body').addEventListener('click', (e) => {
-      const unlock = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-unlock]');
-      if (unlock && !unlock.disabled) {
-        const id = unlock.dataset.unlock!;
-        if (!this.state.unlockHero(id)) return;
-        play('unlock');
-        this.scene()?.syncHeroes();
-        this.render();
-        const name = HEROES.find((h) => h.id === id)!.name;
-        this.openTeam(this.state.inLineup(id) ? `${name} joined the team!` : `${name} is unlocked. The team is full, so they wait on the bench.`);
-        return;
-      }
       const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-lineup]');
       if (!btn || btn.disabled) return;
       const id = btn.dataset.lineup!;
@@ -1204,7 +1182,7 @@ export class UI {
     this.badge('relics', this.renderRelics());
     this.badge('battle', s.rekindles > 0 && s.tickets >= TICKET_CAP);
     this.badge('heroes', heroesBadge || teamReady);
-    $('team-btn').classList.toggle('ready', teamReady);
+    $('collection-btn').classList.toggle('ready', teamReady);
     this.badge('shop', s.gems >= CHEST_COST || s.rewardsWaiting());
     if (this.tab === 'shop') this.renderRewards();
     if (this.tab === 'battle') this.renderBattle();

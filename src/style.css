@@ -428,8 +428,8 @@ button.glass:disabled { opacity: .7; font-size: 11px; }
 
 /* Heroes tab: only the team is listed */
 .heroes-note { margin: 10px 4px 0; font-size: 12px; color: #e8d3b0; text-align: center; }
-#team-btn { position: relative; }
-#team-btn.ready::after { content: ''; position: absolute; top: -5px; right: -3px; width: 14px; height: 14px; border-radius: 50%; background: #e3261c; border: 2px solid #fff; }
+#collection-btn { position: relative; }
+#collection-btn.ready::after { content: ''; position: absolute; top: -5px; right: -3px; width: 14px; height: 14px; border-radius: 50%; background: #e3261c; border: 2px solid #fff; }
 .team-row.locked.ready { opacity: 1; border-color: var(--gold); }
 
 /* Collection page: every hero, grouped by element, like the original */
@@ -462,3 +462,6 @@ button.glass:disabled { opacity: .7; font-size: 11px; }
 .level-row .gold-up.unlock .cost { display: inline-flex; align-items: center; }
 .team-row .crest-ct { white-space: nowrap; }
 .team-row .crest-ct::before { width: 12px; height: 12px; margin-right: 2px; }
+.ct.ready .ct-tile { border-color: var(--gold); box-shadow: 0 0 10px var(--gold); }
+.ct.ready .ct-art { filter: brightness(0) opacity(.6); }
+.ct.ready .ct-tile::after { content: 'UNLOCK'; position: absolute; left: 0; right: 0; bottom: 3px; font-size: 10px; font-weight: 900; color: #fff; text-shadow: 0 1px 2px #000; }
