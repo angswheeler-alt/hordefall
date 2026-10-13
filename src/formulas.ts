@@ -79,9 +79,15 @@ export function keeperLevel(lifetimeEmbers: number): number {
   return level;
 }
 
-/** Embers to raise a hero's Ember level from `level` to `level + 1`. */
+/**
+ * Embers to raise a hero's Ember level from `level` to `level + 1`: 5% more
+ * per level. Rekindle pays 6% more per stage, so Ember levels keep pace with
+ * the best stage (about 1.2 levels per stage) instead of running away: a
+ * linear cost let a stage 300 Rekindle buy ~2,500 levels per hero. The first
+ * Rekindle (~90 Embers) still buys ~35 levels, as before.
+ */
 export function emberCost(level: number): number {
-  return 1 + Math.floor(level / 10);
+  return Math.ceil(Math.pow(1.05, level));
 }
 
 export function heroAtk(def: HeroDef, level: number): Decimal {

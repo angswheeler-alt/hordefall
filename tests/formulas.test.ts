@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import Decimal from 'break_infinity.js';
-import { bulkCost, enemyHp, fmt, upgradeCost, stallBulkCost, emberYield, keeperLevel, keeperThreshold, relicCost } from '../src/formulas';
+import { bulkCost, enemyHp, fmt, upgradeCost, stallBulkCost, emberYield, emberCost, keeperLevel, keeperThreshold, relicCost } from '../src/formulas';
 import { HEROES, STALLS } from '../src/data';
 
 const hero = HEROES.find((h) => h.unlockCost !== 0)!;
@@ -57,5 +57,25 @@ describe('progression curves', () => {
 
   it('relic tier steps cost three times as much', () => {
     expect(relicCost(10, 10)).toBe(Math.round(20 * Math.pow(2, 5)) * 3);
+  });
+});
+
+describe('Ember economy', () => {
+  const levelsFor = (embers: number) => {
+    let l = 0;
+    while (embers >= emberCost(l)) embers -= emberCost(l++);
+    return l;
+  };
+
+  it('a first Rekindle still buys a few dozen levels', () => {
+    const l = levelsFor(emberYield(145, 125));
+    expect(l).toBeGreaterThan(25);
+    expect(l).toBeLessThan(50);
+  });
+
+  it("late Rekindles don't run away", () => {
+    // A stage 300 Rekindle used to buy ~5,600 levels on a single hero.
+    expect(levelsFor(emberYield(300, 125))).toBeLessThan(300);
+    expect(levelsFor(emberYield(1000, 125))).toBeLessThan(1300);
   });
 });
