@@ -1,5 +1,5 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, ULT_STAR_BONUS, ULT_MULTIPLIER, type HeroDef } from './data';
+import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, ULT_STAR_BONUS, ULT_MULTIPLIER, type HeroDef } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
 import { bulkCost, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
@@ -8,11 +8,17 @@ import type { BattleScene } from './BattleScene';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
+const SWORD = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2l2 2-11 11 2 2-2 2-2-2-3 3-2-2 3-3-2-2 2-2 2 2z"/></svg>';
+const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21C5 15 2 12 2 8a5 5 0 0 1 10-1 5 5 0 0 1 10 1c0 4-3 7-10 13z"/></svg>';
+const TABS = ['heroes', 'market', 'relics', 'battle', 'shop', 'guild'] as const;
+type Tab = (typeof TABS)[number];
+const TAB_KEY = 'hordefall-tab';
 
 interface HeroRow {
   def: HeroDef;
   root: HTMLElement;
   level: HTMLElement;
+  emberBadge: HTMLElement;
   stats: HTMLElement;
   button: HTMLButtonElement;
   label: HTMLElement;
@@ -50,14 +56,14 @@ export class UI {
       const root = document.createElement('div');
       root.className = 'hero';
       root.innerHTML = `
-        <div class="face" role="button" tabindex="0" aria-label="Open ${def.name}" style="background:${hex(ELEMENT_COLORS[def.element])}">${def.name[0]}</div>
+        <div class="face" role="button" tabindex="0" aria-label="Open ${def.name}" style="background:${hex(ELEMENT_COLORS[def.element])}">${def.name[0]}<span class="pember"></span><span class="plv"></span></div>
         <div class="who" role="button" tabindex="0" aria-label="Open ${def.name}">
-          <div class="name">${def.name} <span class="stars-mini"></span> <span class="meta lvl"></span></div>
-          <div class="meta">${cap(def.element)} ${def.job} <span class="ember-chip"></span></div>
+          <div class="banner" style="--el:${hex(ELEMENT_COLORS[def.element])}"><span class="name">${def.name}</span><span class="stars-mini"></span></div>
           <div class="stats"></div>
+          <div class="meta">${cap(def.element)} ${def.job} <span class="ember-chip"></span></div>
         </div>
         <div class="btns">
-          <button class="gold-up"><span class="label"></span><span class="cost"></span></button>
+          <button class="gold-up"><span class="cost"></span><span class="label"></span></button>
         </div>`;
       host.appendChild(root);
       const button = root.querySelector('.gold-up') as HTMLButtonElement;
@@ -74,7 +80,8 @@ export class UI {
       this.rows.push({
         def,
         root,
-        level: root.querySelector('.lvl') as HTMLElement,
+        level: root.querySelector('.plv') as HTMLElement,
+        emberBadge: root.querySelector('.pember') as HTMLElement,
         stats: root.querySelector('.stats') as HTMLElement,
         button,
         label: root.querySelector('.label') as HTMLElement,
@@ -152,6 +159,21 @@ export class UI {
     });
 
     $('summon').addEventListener('click', () => this.summon());
+    $('chest-btn').addEventListener('click', () => this.summon());
+    $('collection-btn').addEventListener('click', () => this.openSheet(HEROES[0].id));
+    $('team-btn').addEventListener('click', () =>
+      this.showModal('Manage Team', 'Team lineups are coming soon. For now every recruited hero fights. Moving a hero out of the lineup will return their Embers.', 'Okay'),
+    );
+    for (const btn of $('tabbar').querySelectorAll<HTMLButtonElement>('button')) {
+      btn.addEventListener('click', () => this.setTab(btn.dataset.tab as Tab));
+    }
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem(TAB_KEY);
+    } catch {
+      // Storage blocked: start on Heroes.
+    }
+    this.setTab(TABS.includes(saved as Tab) ? (saved as Tab) : 'heroes');
     $('freegems').addEventListener('click', () => {
       this.state.gems += 100;
       this.render();
@@ -350,6 +372,41 @@ export class UI {
     $('modal').hidden = false;
   }
 
+  private tab: Tab = 'heroes';
+
+  private setTab(tab: Tab) {
+    this.tab = tab;
+    for (const panel of $('panels').querySelectorAll<HTMLElement>('.panel')) panel.hidden = panel.dataset.tab !== tab;
+    for (const btn of $('tabbar').querySelectorAll<HTMLButtonElement>('button')) {
+      const on = btn.dataset.tab === tab;
+      btn.classList.toggle('on', on);
+      btn.setAttribute('aria-current', on ? 'page' : 'false');
+    }
+    try {
+      localStorage.setItem(TAB_KEY, tab);
+    } catch {
+      // Not remembered; harmless.
+    }
+    if (tab === 'battle') this.renderBattle();
+  }
+
+  private badge(tab: Tab, on: boolean) {
+    const b = $('tabbar').querySelector<HTMLElement>(`button[data-tab="${tab}"] .badge`);
+    if (b) b.hidden = !on;
+  }
+
+  private renderBattle() {
+    const s = this.state;
+    const nextBoss = Math.ceil((s.stage + (isBossStage(s.stage) ? 0 : 1)) / BOSS_EVERY) * BOSS_EVERY;
+    $('bt-stage').textContent = s.stage.toLocaleString();
+    $('bt-boss').textContent = `Stage ${nextBoss.toLocaleString()}`;
+    $('bt-best').textContent = s.bestStage.toLocaleString();
+    $('bt-run').textContent = s.runBestStage.toLocaleString();
+    $('bt-gps').textContent = fmt(new Decimal(s.goldPerSec));
+    $('bt-pace').textContent = `${Math.round(s.secondsPerStage)}s`;
+    $('bt-rk').textContent = String(s.rekindles);
+  }
+
   /** The Rekindle rewards page: what this Rekindle pays and what it moves forward. */
   private openRekindle() {
     if (!this.state.canRekindle()) return;
@@ -446,7 +503,8 @@ export class UI {
     $('gems').textContent = String(s.gems);
     const summon = $<HTMLButtonElement>('summon');
     summon.disabled = s.gems < CHEST_COST;
-    summon.textContent = `Hero Chest · ${CHEST_COST}`;
+    summon.innerHTML = `Open · ${CHEST_COST} <span class="gem"></span>`;
+    $<HTMLButtonElement>('chest-btn').disabled = s.gems < CHEST_COST;
     $('embers-stat').hidden = s.embers === 0 && s.rekindles === 0;
     $('embers').textContent = String(s.embers);
     const rk = $<HTMLButtonElement>('rekindle');
@@ -466,34 +524,41 @@ export class UI {
     bossBtn.hidden = s.autoAdvance;
     bossBtn.textContent = isBossStage(s.stage + 1) || isBossStage(s.stage) ? 'Fight boss' : 'Resume';
 
+    let heroesBadge = false;
     for (const r of this.rows) {
       const level = s.levels[r.def.id] ?? 0;
       const emberLevel = s.emberLevels[r.def.id] ?? 0;
       const eff = s.heroLevel(r.def.id);
       const locked = level === 0;
       r.root.classList.toggle('locked', locked);
-      r.level.innerHTML = locked ? (emberLevel ? `<span class="ember-lvl">+${emberLevel}</span>` : '') : `Lv ${eff}${emberLevel ? ` <span class="ember-lvl">(+${emberLevel})</span>` : ''}`;
+      r.level.textContent = locked ? '' : `Lv ${eff}`;
+      r.emberBadge.textContent = emberLevel ? `+${emberLevel}` : '';
+      r.emberBadge.title = emberLevel ? `${emberLevel} Ember levels` : '';
       const starCount = s.stars[r.def.id] ?? 0;
       r.stars.textContent = '★'.repeat(starCount);
       const evolveCost = s.evolveCost(r.def.id);
       const canEvolve = !locked && evolveCost !== null && (s.crests[r.def.id] ?? 0) >= evolveCost;
-      r.ember.textContent = canEvolve ? '· Ready to evolve!' : s.embers >= emberCost(emberLevel) ? '· Ember upgrade ready' : '';
+      r.ember.textContent = canEvolve ? '· Ready to evolve!' : s.embers >= emberCost(emberLevel) ? '· Embers ready' : '';
+      if (canEvolve || (s.embers > 0 && s.embers >= emberCost(emberLevel))) heroesBadge = true;
       const { levels, cost } = bulkCost(r.def, level, s.buyAmount, s.gold);
       const shown = levels > 0 ? { levels, cost } : bulkCost(r.def, level, 1, s.gold);
       if (locked) {
         const p1 = s.heroPower(r.def, 1);
-        r.stats.textContent = `ATK ${fmt(p1.atk)} · HP ${fmt(p1.hp)}`;
+        r.stats.innerHTML = `<span class="st atk">${SWORD}${fmt(p1.atk)}</span><span class="st hp">${HEART}${fmt(p1.hp)}</span>`;
         r.label.textContent = 'Recruit';
       } else {
         const next = eff + shown.levels;
         const now = s.heroPower(r.def, eff);
-        r.stats.innerHTML = `ATK ${fmt(now.atk)} <span class="next">→ ${fmt(s.heroPower(r.def, next).atk)}</span> · HP ${fmt(now.hp)}`;
-        r.label.textContent = `Level +${shown.levels}`;
+        r.stats.innerHTML = `<span class="st atk">${SWORD}${fmt(now.atk)} <span class="next">→ ${fmt(s.heroPower(r.def, next).atk)}</span></span><span class="st hp">${HEART}${fmt(now.hp)}</span>`;
+        r.label.textContent = shown.levels === 1 ? 'Level Up' : `Level +${shown.levels}`;
       }
       r.cost.textContent = fmt(shown.cost);
       r.button.disabled = shown.cost.gt(s.gold);
     }
 
+    this.badge('heroes', heroesBadge);
+    this.badge('shop', s.gems >= CHEST_COST);
+    if (this.tab === 'battle') this.renderBattle();
     this.renderSheet();
 
     const scene = this.scene();
