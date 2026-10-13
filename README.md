@@ -42,4 +42,4 @@ Saves are trusted from the client for now, so a determined player could edit the
 
 ## Unlocking heroes
 
-Marin is free. Every other hero unlocks with Hero Crests (medals) from the Hero Chest and Trials, by rarity: Common 10, Rare 30, Epic 80 (Legendary is a 200 placeholder). Unlocking spends the Crests and adds the hero at level 1; gold then levels them as before.
+Marin is free. Every other hero unlocks with Hero Crests (medals) from the Hero Chest and Trials, by rarity: Common 10, Rare 30, Epic 80. Legendary heroes never unlock from Crests and never drop from the Hero Chest; they only come through special means. Unlocking spends the Crests and adds the hero at level 1; gold then levels them as before.

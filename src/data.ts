@@ -165,10 +165,11 @@ export const STAR_CRESTS = [10, 20, 50, 200, 500, 1000, 2000];
 export const MAX_STARS = STAR_CRESTS.length;
 /**
  * Hero Crests (medals) a hero needs to unlock, by rarity (Samuel's table).
- * Unlocking spends them. Legendary is a placeholder until Samuel sets it.
- * The free starter (unlockCost 0) needs none.
+ * Unlocking spends them. Legendary heroes never unlock from Crests: Samuel
+ * says they only come through special means (events and the like), and the
+ * Hero Chest never drops them. The free starter (unlockCost 0) needs none.
  */
-export const UNLOCK_CRESTS: Record<Rarity, number> = { common: 10, rare: 30, epic: 80, legendary: 200 };
+export const UNLOCK_CRESTS: Record<Exclude<Rarity, 'legendary'>, number> = { common: 10, rare: 30, epic: 80 };
 /** From 3★ the Ultimate hits harder (the full game unlocks it at 3★; the prototype keeps Lv 30). */
 export const ULT_STAR_BONUS = 1.5;
 
