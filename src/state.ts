@@ -1,5 +1,5 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, LINEUP_SIZE, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS } from './data';
 import { stallIncome, stallUpgradeCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, emberCost, heroAtk, heroHp } from './formulas';
 import type { HeroDef, StallDef } from './data';
 
@@ -38,6 +38,8 @@ export class GameState {
   embers = 0;
   emberLevels: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, 0]));
   rekindles = 0;
+  /** Recruited heroes taken out of the lineup. They keep gold levels but don't fight. */
+  benched: Record<string, boolean> = {};
   /** Market Row Stalls; level 0 means not opened. Reset on Rekindle. */
   stalls: Record<string, StallState> = Object.fromEntries(STALLS.map((s) => [s.id, { level: 0, progress: 0 }]));
   /** Every Ember ever earned; sets the Keeper level. */
@@ -96,7 +98,32 @@ export class GameState {
 
   /** True when the hero is recruited and has evolved to at least `star`. */
   hasStar(id: string, star: number): boolean {
-    return (this.levels[id] ?? 0) > 0 && (this.stars[id] ?? 0) >= star;
+    return this.inLineup(id) && (this.stars[id] ?? 0) >= star;
+  }
+
+  inLineup(id: string): boolean {
+    return (this.levels[id] ?? 0) > 0 && !this.benched[id];
+  }
+
+  lineupCount(): number {
+    return HEROES.filter((h) => this.inLineup(h.id)).length;
+  }
+
+  /**
+   * Put a recruited hero in or out of the lineup. Taking one out returns the
+   * Embers spent on them (their Ember levels reset). Returns Embers refunded,
+   * or null when the change isn't allowed.
+   */
+  setInLineup(id: string, on: boolean): number | null {
+    if ((this.levels[id] ?? 0) === 0) return null;
+    if (on) {
+      if (this.inLineup(id) || this.lineupCount() >= LINEUP_SIZE) return null;
+      delete this.benched[id];
+      return 0;
+    }
+    if (!this.inLineup(id) || this.lineupCount() <= 1) return null;
+    this.benched[id] = true;
+    return this.refundEmbers(id);
   }
 
   /** Open a Hero Chest: Crests for random heroes; a drop for an unrecruited hero recruits them. */
@@ -110,7 +137,10 @@ export class GameState {
       let roll = Math.random() * total;
       const crests = (CREST_ROLLS.find(([, w]) => (roll -= w) < 0) ?? CREST_ROLLS[0])[0];
       const isNew = (this.levels[hero.id] ?? 0) === 0;
-      if (isNew) this.levels[hero.id] = 1;
+      if (isNew) {
+        this.levels[hero.id] = 1;
+        if (this.lineupCount() > LINEUP_SIZE) this.benched[hero.id] = true;
+      }
       this.crests[hero.id] = (this.crests[hero.id] ?? 0) + crests;
       drops.push({ heroId: hero.id, crests, isNew });
     }
@@ -157,7 +187,7 @@ export class GameState {
    * level, so the team rises together. Returns how many levels were bought.
    */
   levelAll(): number {
-    const team = HEROES.filter((h) => (this.levels[h.id] ?? 0) > 0);
+    const team = HEROES.filter((h) => this.inLineup(h.id));
     let bought = 0;
     while (bought < 5000) {
       let pick: HeroDef | null = null;
@@ -334,6 +364,7 @@ export class GameState {
       lifetimeEmbers: this.lifetimeEmbers,
       roadClaimed: this.roadClaimed,
       stalls: this.stalls,
+      benched: this.benched,
       crests: this.crests,
       stars: this.stars,
       gems: this.gems,
@@ -373,6 +404,7 @@ export class GameState {
       this.rekindles = d.rekindles ?? 0;
       this.lifetimeEmbers = d.lifetimeEmbers ?? this.embers;
       this.roadClaimed = d.roadClaimed ?? 0;
+      this.benched = { ...(d.benched ?? {}) };
       for (const def of STALLS) {
         const st = d.stalls?.[def.id];
         if (st) this.stalls[def.id] = { level: st.level ?? 0, progress: st.progress ?? 0 };

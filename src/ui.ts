@@ -1,5 +1,5 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, ULT_STAR_BONUS, ULT_MULTIPLIER, ULT_COOLDOWN, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef } from './data';
+import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, ULT_STAR_BONUS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
 import { bulkCost, upgradeCost, stallUpgradeCost, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
@@ -117,6 +117,29 @@ export class UI {
         stars: root.querySelector('.stars-mini') as HTMLElement,
       });
     }
+  }
+
+  /** Manage Team: pick which recruited heroes fight. */
+  private openTeam(note = '') {
+    const s = this.state;
+    const count = s.lineupCount();
+    const rows = HEROES.map((h) => {
+      const recruited = (s.levels[h.id] ?? 0) > 0;
+      const on = s.inLineup(h.id);
+      const spent = s.embersSpent(h.id);
+      const label = !recruited ? 'Not recruited' : on ? (spent > 0 ? `Remove (+${spent} Embers)` : 'Remove') : 'Add';
+      const disabled = !recruited || (on && count <= 1) || (!on && count >= LINEUP_SIZE);
+      return `<li class="team-row${on ? ' on' : ''}${recruited ? '' : ' locked'}">
+        <span class="face" style="background:${hex(ELEMENT_COLORS[h.element])}">${h.name[0]}</span>
+        <span class="team-who"><b>${h.name}</b><small>${recruited ? `Lv ${s.heroLevel(h.id)} · ${on ? 'In team' : 'Benched'}` : `${cap(h.element)} ${h.job}`}</small></span>
+        <button data-lineup="${h.id}" class="${on ? '' : 'hot'}" ${disabled ? 'disabled' : ''}>${label}</button>
+      </li>`;
+    }).join('');
+    this.showModal(
+      `Team ${count}/${LINEUP_SIZE}`,
+      `${note ? `<p class="team-note">${note}</p>` : ''}<ul class="team-list">${rows}</ul><p class="team-help">Only heroes in the team fight. Taking a hero out returns the Embers spent on them, so you can move Ember levels to another hero.</p>`,
+      'Done',
+    );
   }
 
   private stallRows: StallRow[] = [];
@@ -279,8 +302,19 @@ export class UI {
     $('chest-btn').addEventListener('click', () => this.confirmChest());
     $('collection-btn').addEventListener('click', () => this.openSheet(HEROES[0].id));
     $('team-btn').addEventListener('click', () =>
-      this.showModal('Manage Team', 'Team lineups are coming soon. For now every recruited hero fights. Moving a hero out of the lineup will return their Embers.', 'Okay'),
+      this.openTeam(),
     );
+    $('modal-body').addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-lineup]');
+      if (!btn || btn.disabled) return;
+      const id = btn.dataset.lineup!;
+      const refund = this.state.setInLineup(id, !this.state.inLineup(id));
+      if (refund === null) return;
+      play(refund > 0 ? 'coin' : 'unlock');
+      this.scene()?.syncHeroes();
+      this.render();
+      this.openTeam(refund > 0 ? `${HEROES.find((h) => h.id === id)!.name} left the team. ${refund} Embers came back.` : '');
+    });
     for (const btn of $('tabbar').querySelectorAll<HTMLButtonElement>('button')) {
       btn.addEventListener('click', () => this.setTab(btn.dataset.tab as Tab));
     }
@@ -301,24 +335,6 @@ export class UI {
         this.scene()?.syncHeroes();
         this.render();
       }
-    });
-    // Two taps: Embers come back so they can move to another hero.
-    let backArmed = 0;
-    const back = $<HTMLButtonElement>('sheet-ember-back');
-    back.addEventListener('click', () => {
-      if (!this.sheetHero) return;
-      if (Date.now() - backArmed > 3000) {
-        backArmed = Date.now();
-        back.dataset.armed = '1';
-        setTimeout(() => delete back.dataset.armed, 3000);
-        this.renderSheet();
-        return;
-      }
-      backArmed = 0;
-      delete back.dataset.armed;
-      this.state.refundEmbers(this.sheetHero);
-      this.scene()?.syncHeroes();
-      this.render();
     });
     $('sheet-close').addEventListener('click', () => this.closeSheet());
     $('sheet').addEventListener('click', (e) => {
@@ -399,7 +415,6 @@ export class UI {
 
   openSheet(id: string) {
     this.sheetHero = id;
-    delete $('sheet-ember-back').dataset.armed;
     const def = HEROES.find((h) => h.id === id)!;
     const face = $('sheet-face');
     face.textContent = def.name[0];
@@ -454,10 +469,11 @@ export class UI {
     const emberBtn = $<HTMLButtonElement>('sheet-ember-up');
     (emberBtn.querySelector('.cost') as HTMLElement).textContent = `${ec} Ember${ec === 1 ? '' : 's'}`;
     emberBtn.disabled = ec > s.embers;
-    const back = $<HTMLButtonElement>('sheet-ember-back');
-    const spent = s.embersSpent(id);
-    back.disabled = spent === 0;
-    back.textContent = back.dataset.armed ? `Tap again to take back ${spent} Embers` : `Take back ${spent} Embers`;
+    const benched = gold > 0 && !s.inLineup(id);
+    if (benched) emberBtn.disabled = true;
+    $('sheet-ember-note').textContent = benched
+      ? 'Benched: put this hero back in the team to give them Ember levels.'
+      : 'Embers come back if you take this hero out of the team.';
     emberBtn.title = s.rekindles === 0 ? `Earn Embers by Rekindling after stage ${REKINDLE_STAGE}` : '';
 
     const ultReady = eff >= ULT_UNLOCK_LEVEL;
@@ -612,6 +628,7 @@ export class UI {
   }
 
   private buyEmber(def: HeroDef) {
+    if ((this.state.levels[def.id] ?? 0) > 0 && !this.state.inLineup(def.id)) return;
     const level = this.state.emberLevels[def.id] ?? 0;
     const cost = emberCost(level);
     if (cost > this.state.embers) return;
@@ -680,8 +697,10 @@ export class UI {
       r.stars.textContent = '★'.repeat(starCount);
       const evolveCost = s.evolveCost(r.def.id);
       const canEvolve = !locked && evolveCost !== null && (s.crests[r.def.id] ?? 0) >= evolveCost;
-      r.ember.textContent = canEvolve ? '· Ready to evolve!' : s.embers >= emberCost(emberLevel) ? '· Embers ready' : '';
-      if (canEvolve || (s.embers > 0 && s.embers >= emberCost(emberLevel))) heroesBadge = true;
+      const benched = !locked && !s.inLineup(r.def.id);
+      r.root.classList.toggle('benched', benched);
+      r.ember.textContent = benched ? '· Benched' : canEvolve ? '· Ready to evolve!' : s.embers >= emberCost(emberLevel) ? '· Embers ready' : '';
+      if (!benched && (canEvolve || (s.embers > 0 && s.embers >= emberCost(emberLevel)))) heroesBadge = true;
       const { levels, cost } = bulkCost(r.def, level, s.buyAmount, s.gold);
       const shown = levels > 0 ? { levels, cost } : bulkCost(r.def, level, 1, s.gold);
       if (locked) {
@@ -706,9 +725,9 @@ export class UI {
 
     const scene = this.scene();
     for (const u of this.ults) {
-      const level = s.heroLevel(u.def.id);
-      u.button.hidden = level === 0;
-      if (!scene || level === 0) continue;
+      const fights = this.state.inLineup(u.def.id);
+      u.button.hidden = !fights;
+      if (!scene || !fights) continue;
       const st = scene.getUltState(u.def.id);
       const ready = st.unlocked && st.alive && st.remaining <= 0;
       u.button.disabled = !ready;

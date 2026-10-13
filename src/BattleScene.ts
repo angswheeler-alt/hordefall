@@ -320,7 +320,11 @@ export class BattleScene extends Phaser.Scene {
 
   /** Create units for newly recruited heroes and refresh stats after upgrades. */
   syncHeroes() {
+    // Heroes taken out of the lineup leave the lane.
+    for (const h of this.heroes) if (h.def && !this.state.inLineup(h.def.id)) h.view.destroy();
+    this.heroes = this.heroes.filter((h) => h.def && this.state.inLineup(h.def.id));
     for (const def of HEROES) {
+      if (!this.state.inLineup(def.id)) continue;
       const level = this.state.heroLevel(def.id);
       if (level <= 0) continue;
       let u = this.heroes.find((h) => h.def?.id === def.id);
