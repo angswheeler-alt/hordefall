@@ -12,8 +12,6 @@ import {
   ULT_PLUS_EVOLUTIONS,
   ULT_UNLOCK_LEVEL,
   SPEED_UNLOCK_STAGE,
-  CRIT_CHANCE,
-  CRIT_MULTIPLIER,
   elementMultiplier,
   enemyElement,
   bossElement,
@@ -40,6 +38,7 @@ import coinSmallUrl from './assets/ui/coin-small.png';
 import { sumEffect, mulEffect, everyNth } from './skills';
 import type { EffectKind } from './data';
 import { comboMult, executeMult, signatureReflect, splitHeal } from './kits';
+import { STAT_BASE, FREEZE_BLAST_RADIUS, BOSS_STUN_CHANCE, BOSS_STUN_SECONDS, type HeroStats } from './stats';
 
 /** Visible area. The lane itself is WORLD_WIDTH long and the camera follows the heroes. */
 export const WIDTH = 480;
@@ -137,9 +136,21 @@ interface Unit {
   /** Beacon: ATK x beaconMult until beaconUntil. */
   beaconUntil: number;
   beaconMult: number;
-  /** Rogue Wave+: attack cooldown x hasteMult until hasteUntil. */
+  /** Rogue Wave+ and Frenzy: attack cooldown x hasteMult until hasteUntil. */
   hasteUntil: number;
   hasteMult: number;
+  /** Heroes: their stat sheet, refreshed with syncHeroes. */
+  stats?: HeroStats;
+  /** Frozen enemies stand still until frozenUntil, then the ice bursts for frozenBlast. */
+  frozenUntil: number;
+  frozenBlast: Decimal;
+  frozenBy?: Unit;
+  /** Poison: poisonDps per stack until poisonUntil. */
+  poisonUntil: number;
+  poisonStacks: number;
+  poisonDps: Decimal;
+  poisonTick: number;
+  poisonBy?: Unit;
 }
 
 /** Meteor's burning ground. */
@@ -404,6 +415,12 @@ export class BattleScene extends Phaser.Scene {
       beaconMult: 1,
       hasteUntil: 0,
       hasteMult: 1,
+      frozenUntil: 0,
+      frozenBlast: new Decimal(0),
+      poisonUntil: 0,
+      poisonStacks: 0,
+      poisonDps: new Decimal(0),
+      poisonTick: 0,
     };
     this.drawHpBar(unit);
     return unit;
@@ -462,7 +479,8 @@ export class BattleScene extends Phaser.Scene {
       const level = this.state.heroLevel(def.id);
       if (level <= 0) continue;
       let u = this.heroes.find((h) => h.def?.id === def.id);
-      const { atk, hp, defense } = this.state.heroPower(def, level);
+      const stats = this.state.heroStats(def, level);
+      const atk = stats.atk.value, hp = stats.hp.value, defense = stats.def.value;
       if (!u) {
         u = this.makeUnit({
           side: 'hero',
@@ -478,6 +496,8 @@ export class BattleScene extends Phaser.Scene {
           goldMult: def.goldMult,
         });
         u.defense = defense;
+        u.stats = stats;
+        this.giveKnightShield(u);
         this.heroes.push(u);
         this.puff(u.x, u.y, ELEMENT_COLORS[def.element]);
       } else {
@@ -485,6 +505,7 @@ export class BattleScene extends Phaser.Scene {
         u.maxHp = hp;
         u.atk = atk;
         u.defense = defense;
+        u.stats = stats;
         if (u.alive) u.hp = hp.times(ratio);
         this.drawHpBar(u);
       }
@@ -575,9 +596,17 @@ export class BattleScene extends Phaser.Scene {
     for (let i = 0; i < count; i++) this.spawnEnemy(false);
   }
 
+  /** Knights start each stage and each life with a shield (Knight Shield HP raises it). */
+  private giveKnightShield(h: Unit) {
+    if (!h.stats?.isKnight) return;
+    h.shield = Decimal.max(h.shield, h.maxHp.times(STAT_BASE.knightShield * (1 + h.stats.knightShield)));
+  }
+
   private reviveHero(h: Unit, x = PLAYER_CRYSTAL_X + 20 + Math.random() * 10) {
     h.alive = true;
     h.hp = h.maxHp;
+    h.rootedUntil = 0;
+    this.giveKnightShield(h);
     h.x = x;
     h.view.setPosition(h.x, h.y).setAlpha(1).setVisible(true);
     this.drawHpBar(h);
@@ -711,6 +740,7 @@ export class BattleScene extends Phaser.Scene {
     }
     for (const e of this.enemies) if (e.alive) this.stepEnemy(e, dt);
     this.tickBurns(dt);
+    this.tickStatus(dt);
 
     // Remove dead enemies after their fade finishes.
     this.enemies = this.enemies.filter((e) => e.alive || e.view.active);
@@ -735,6 +765,8 @@ export class BattleScene extends Phaser.Scene {
 
   private stepHeroAction(h: Unit, dt: number) {
     h.cooldownLeft -= dt;
+    // Stunned by a boss.
+    if (h.rootedUntil > this.clock) return;
     const def = h.def!;
 
     if (def.heals) {
@@ -775,9 +807,10 @@ export class BattleScene extends Phaser.Scene {
     h.view.x = h.x;
   }
 
-  /** Seconds until a hero's next attack: star skills, Rogue Wave+ and attack-speed relics speed it up. */
+  /** Seconds until a hero's next attack: Atk per sec from the stat sheet, sped up by Rogue Wave+ and Frenzy. */
   private cooldownFor(h: Unit) {
-    return (h.cooldown * this.mul('attackSpeed', h) * (h.hasteUntil > this.clock ? h.hasteMult : 1)) / (1 + this.state.relicBonus('speed'));
+    const base = h.stats ? 1 / h.stats.attacksPerSec.value : h.cooldown;
+    return base * (h.hasteUntil > this.clock ? h.hasteMult : 1);
   }
 
   private stepEnemy(e: Unit, dt: number) {
@@ -820,13 +853,21 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private enemyHits(e: Unit, target: Unit) {
-    if (Math.random() < this.sum('dodge', target) + (target.side === 'hero' ? this.state.relicBonus('dodge') : 0)) {
+    if (Math.random() < (target.stats ? target.stats.dodge.value : this.sum('dodge', target))) {
       this.floatText(target.x, target.y - 26, 'MISS', '#c9b8ff', 11);
       return;
     }
     const mult = elementMultiplier(e.element, target.element) * this.mul('damageTaken', target);
     const dmg = defended(e.atk.times(mult), target.defense);
     this.damageUnit(target, dmg, null);
+    // Boss hits can stun a hero; Effect Resistance is the chance to shrug it off.
+    if (e.isBoss && target.alive && Math.random() < BOSS_STUN_CHANCE) {
+      if (Math.random() < (target.stats?.effectRes.value ?? 0)) this.floatText(target.x, target.y - 26, 'RESIST', '#9effa8', 9);
+      else {
+        target.rootedUntil = this.clock + BOSS_STUN_SECONDS;
+        this.floatText(target.x, target.y - 26, 'STUNNED', '#ffd84a', 9);
+      }
+    }
     const reflect = this.sum('reflect', target) + signatureReflect(target.def?.signature);
     if (reflect > 0) this.damageUnit(e, dmg.times(reflect), target);
   }
@@ -837,8 +878,15 @@ export class BattleScene extends Phaser.Scene {
     else this.lunge(h, 1);
     if (h.anim) this.setAnim(h, 'attack');
     h.attacks++;
-    const critChance = CRIT_CHANCE + this.sum('crit', h) + this.state.relicBonus('crit');
-    const critMult = CRIT_MULTIPLIER * (1 + this.state.relicBonus('critDmg'));
+    const st = h.stats!;
+    const critChance = st.critRate;
+    const critMult = 1 + st.critDmg;
+    // Frenzy: attack twice as fast for a few seconds.
+    if (Math.random() < st.frenzy.value && !(h.hasteUntil > this.clock && h.hasteMult <= STAT_BASE.frenzyHaste)) {
+      h.hasteUntil = this.clock + STAT_BASE.frenzySeconds;
+      h.hasteMult = STAT_BASE.frenzyHaste;
+      this.floatText(h.x, h.y - 30, 'FRENZY', '#ff7ad9', 9);
+    }
     const strikes = Math.random() < this.sum('doubleStrike', h) ? 2 : 1;
     const nth = everyNth(this.state.effects(), def.id);
     const bossMult = this.mul('bossDamage', h);
@@ -856,7 +904,7 @@ export class BattleScene extends Phaser.Scene {
       const crit = Math.random() < critChance;
       let atk = (crit ? h.atk.times(critMult) : h.atk).times(beacon);
       if (nth && nth.every && h.attacks % nth.every === 0) atk = atk.times(nth.value);
-      const splash = def.splash ? def.splash * this.mul('splash', h) : 0;
+      const splash = def.splash ? def.splash * (1 + st.aoeRadius) : 0;
       let targets: Unit[];
       if (splash) targets = this.enemies.filter((e) => e.alive && Math.abs(e.x - target.x) <= splash);
       else {
@@ -871,16 +919,69 @@ export class BattleScene extends Phaser.Scene {
           (t.isBoss ? bossMult : 1) *
           (t === target ? comboMult(sig, h.streak) : 1) *
           executeMult(sig, t.maxHp.gt(0) ? t.hp.div(t.maxHp).toNumber() : 1) *
-          (t.burnUntil > this.clock ? vsBurning : 1);
+          (t.burnUntil > this.clock ? vsBurning : 1) *
+          (splash ? 1 + st.aoeDmg : 1);
         const amount = atk.times(mult);
         dealt = dealt.plus(amount);
         this.damageUnit(t, amount, h, crit);
-        if (sig?.kind === 'burn' && t.alive) this.ignite(t, amount.times(sig.share), sig.seconds, h);
+        if (t.alive) this.applyEffects(h, t, amount);
       }
     }
     if (lifesteal > 0 && h.alive && h.hp.lt(h.maxHp)) {
       h.hp = Decimal.min(h.maxHp, h.hp.plus(dealt.times(lifesteal)));
       this.drawHpBar(h);
+    }
+  }
+
+  /** Roll the hero's stun, freeze, burn and poison chances on an enemy it just hit for `amount`. */
+  private applyEffects(h: Unit, t: Unit, amount: Decimal) {
+    const st = h.stats!;
+    const sig = h.def?.signature;
+    if (st.stunChance > 0 && Math.random() < st.stunChance) {
+      t.rootedUntil = Math.max(t.rootedUntil, this.clock + STAT_BASE.stunSeconds * (1 + st.stunTime));
+      this.floatText(t.x, t.y - 30, 'STUN', '#ffd84a', 9);
+    }
+    if (st.freezeChance > 0 && t.frozenUntil <= this.clock && Math.random() < st.freezeChance) {
+      t.frozenUntil = this.clock + STAT_BASE.freezeSeconds * (1 + st.freezeTime);
+      t.rootedUntil = Math.max(t.rootedUntil, t.frozenUntil);
+      t.frozenBlast = h.atk.times(STAT_BASE.freezeBlast * (1 + st.freezeBlast));
+      t.frozenBy = h;
+      t.body.setTint(0x9fdcff);
+      this.floatText(t.x, t.y - 30, 'FROZEN', '#9fdcff', 9);
+    }
+    const burnTime = 1 + st.burnTime;
+    if (sig?.kind === 'burn') this.ignite(t, amount.times(sig.share * (1 + st.burnDmg)), sig.seconds * burnTime, h);
+    else if (st.burnChance > 0 && Math.random() < st.burnChance) this.ignite(t, h.atk.times(STAT_BASE.burnDps * (1 + st.burnDmg)), STAT_BASE.burnSeconds * burnTime, h);
+    if (st.poisonChance > 0 && Math.random() < st.poisonChance) {
+      t.poisonStacks = t.poisonUntil > this.clock ? Math.min(STAT_BASE.poisonStacks, t.poisonStacks + 1) : 1;
+      t.poisonDps = Decimal.max(t.poisonUntil > this.clock ? t.poisonDps : new Decimal(0), h.atk.times(STAT_BASE.poisonDps * (1 + st.poisonDmg)));
+      t.poisonUntil = this.clock + STAT_BASE.poisonSeconds * (1 + st.poisonTime);
+      t.poisonBy = h;
+    }
+  }
+
+  /** Frozen enemies whose ice ran out burst, hurting them and enemies close by; poisoned enemies take their ticks. */
+  private tickStatus(dt: number) {
+    for (const e of this.enemies) {
+      if (!e.alive) continue;
+      if (e.frozenUntil > 0 && e.frozenUntil <= this.clock) {
+        e.frozenUntil = 0;
+        e.body.setTint(ELEMENT_COLORS[e.element]);
+        const by = e.frozenBy;
+        this.shatter(e.x, e.y, 0x9fdcff);
+        for (const o of this.enemies) {
+          if (o.alive && Math.abs(o.x - e.x) <= FREEZE_BLAST_RADIUS) this.damageUnit(o, e.frozenBlast.times(by ? elementMultiplier(by.element, o.element) : 1), by ?? null);
+        }
+      }
+      if (!e.alive || e.poisonUntil <= this.clock) continue;
+      e.poisonTick += dt;
+      if (e.poisonTick < BURN_TICK) continue;
+      e.poisonTick -= BURN_TICK;
+      const dmg = e.poisonDps.times(e.poisonStacks * BURN_TICK);
+      this.floatText(e.x + Phaser.Math.Between(-6, 6), e.y - 22, fmt(dmg), '#8dff6a', 9);
+      e.hp = e.hp.minus(dmg);
+      this.drawHpBar(e);
+      if (e.hp.lte(0)) this.kill(e, e.poisonBy ?? null);
     }
   }
 
@@ -942,7 +1043,7 @@ export class BattleScene extends Phaser.Scene {
     target.body.setTintFill(0xffffff);
     this.time.delayedCall(60, () => {
       if (!target.body.active) return;
-      if (target.side === 'enemy') target.body.setTint(ELEMENT_COLORS[target.element]);
+      if (target.side === 'enemy') target.body.setTint(target.frozenUntil > this.clock ? 0x9fdcff : ELEMENT_COLORS[target.element]);
       else target.body.clearTint();
     });
     if (target.hp.lte(0)) this.kill(target, source);
@@ -1095,7 +1196,7 @@ export class BattleScene extends Phaser.Scene {
     this.cameras.main.flash(120, 255, 255, 255);
     // Heroes built to the hero standard get their own 5★ twist instead of the bigger hit.
     const ult = def.ult;
-    const dmg = h.atk.times(ULT_MULTIPLIER * (plus && !ult ? ULT_STAR_BONUS : 1));
+    const dmg = h.atk.times(ULT_MULTIPLIER * (plus && !ult ? ULT_STAR_BONUS : 1) * (1 + (h.stats?.ultAtk ?? 0)));
     const x0 = h.x - 30, x1 = h.x + radius + 60;
     const hit = this.enemies.filter((e) => e.alive && e.x >= x0 && e.x <= x1);
     // Marks land before the hit so the Volley itself benefits.

@@ -331,6 +331,21 @@ describe('relics', () => {
     expect(s.heroPower(other).defense.toString()).toBe(otherBefore.toString());
   });
 
+  it('hero stats: one calculation for the stat pages and battle', () => {
+    const s = fresh();
+    const st = s.heroStats(starter);
+    expect(st.atk.value.toString()).toBe(s.heroPower(starter).atk.toString());
+    expect(st.effectRes.value).toBeCloseTo(0.2);
+    expect(st.attacksPerSec.base).toBeCloseTo(1 / starter.attackCooldown);
+    const fast = RELIC_SETS.find((set) => set.bonus.some(([e]) => e === 'speed'))!;
+    for (const r of RELICS.filter((x) => x.set === fast.id)) s.relics[r.id] = 1;
+    expect(s.heroStats(starter).attacksPerSec.value).toBeGreaterThan(st.attacksPerSec.base);
+    const burner = HEROES.find((h) => h.signature?.kind === 'burn');
+    if (burner) expect(s.heroStats(burner).burnChance).toBe(1);
+    const knight = HEROES.find((h) => h.job === 'Knight')!;
+    expect(s.heroStats(knight).isKnight).toBe(true);
+  });
+
   it('drops relics that are no longer in the game from old saves', () => {
     const s = fresh();
     s.relics.sigil = 5;

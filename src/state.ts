@@ -1,10 +1,11 @@
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, CRIT_CHANCE, CRIT_MULTIPLIER } from './data';
 import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES } from './data';
-import { activeEffects, mulEffect, type ActiveEffect } from './skills';
+import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills';
+import { STAT_BASE, isKnight, type HeroStats } from './stats';
 
 const SAVE_KEY = 'hordefall-save-v1';
 
@@ -152,6 +153,50 @@ export class GameState {
       atk: heroAtk(def, level).times(starMult * mulEffect(fx, 'atk', def.id) * atkRelics),
       hp: heroHp(def, level).times(starMult * mulEffect(fx, 'hp', def.id) * hpRelics),
       defense: heroDef(def, level).times(starMult * (1 + this.relicBonus('def') + this.relicBonus(`${def.element}Def`))),
+    };
+  }
+
+  /** Every number on the hero's stat pages, as battle uses them. */
+  heroStats(def: HeroDef, level = this.heroLevel(def.id)): HeroStats {
+    const fx = this.effects();
+    const sum = (kind: Parameters<typeof sumEffect>[1]) => sumEffect(fx, kind, def.id);
+    const mul = (kind: Parameters<typeof mulEffect>[1]) => mulEffect(fx, kind, def.id);
+    const starMult = Math.pow(2, this.stars[def.id] ?? 0);
+    const power = this.heroPower(def, level);
+    const sig = def.signature;
+    const cooldown = (def.attackCooldown * mul('attackSpeed')) / (1 + this.relicBonus('speed'));
+    const splashMult = def.splash ? mul('splash') : 1;
+    return {
+      atk: { value: power.atk, base: heroAtk(def, level).times(starMult) },
+      hp: { value: power.hp, base: heroHp(def, level).times(starMult) },
+      def: { value: power.defense, base: heroDef(def, level).times(starMult) },
+      critRate: CRIT_CHANCE + sum('crit') + this.relicBonus('crit'),
+      critDmg: CRIT_MULTIPLIER * (1 + this.relicBonus('critDmg')) - 1,
+      attacksPerSec: { value: 1 / cooldown, base: 1 / def.attackCooldown },
+      range: { value: def.range, base: def.range },
+      moveSpeed: { value: def.moveSpeed, base: def.moveSpeed },
+      effectRes: { value: STAT_BASE.effectRes + sum('effectRes'), base: STAT_BASE.effectRes },
+      frenzy: { value: STAT_BASE.frenzy + sum('frenzy'), base: STAT_BASE.frenzy },
+      dodge: { value: sum('dodge') + this.relicBonus('dodge'), base: 0 },
+      stunChance: sum('stunChance'),
+      stunTime: this.relicBonus('stunTime'),
+      aoeRadius: splashMult - 1,
+      aoeDmg: def.splash ? sum('aoeDmg') : 0,
+      ultAtk: sum('ultAtk'),
+      knightShield: isKnight(def) ? this.relicBonus('knightShield') : 0,
+      bonusGold: def.goldMult * mulEffect(fx, 'gold', null) * (1 + this.relicBonus('gold')) - 1,
+      freezeChance: sum('freezeChance'),
+      freezeTime: this.relicBonus('freezeTime'),
+      freezeBlast: 0,
+      // Kindling-style Signatures burn on every hit.
+      burnChance: sig?.kind === 'burn' ? 1 : sum('burnChance'),
+      burnTime: this.relicBonus('burnTime'),
+      burnDmg: 0,
+      poisonChance: sum('poisonChance'),
+      poisonTime: this.relicBonus('poisonTime'),
+      poisonDmg: 0,
+      hasAoe: !!def.splash,
+      isKnight: isKnight(def),
     };
   }
 
