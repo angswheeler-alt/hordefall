@@ -5,23 +5,25 @@
 // be placed by column without counting dots. '.' inside a segment leaves a pixel empty.
 const { Canvas, hex } = require('../backgrounds/png');
 
-const OUTLINE = '#1a1426';
+// Warm dark-brown outline, after the chibi mobile-RPG look the art is styled on.
+const OUTLINE = '#2e1a16';
 
 // Parses { row: 'segments' } into a 2D array of material letters.
-function parse(rows, size = 32) {
+function parse(rows, size = 32, dy = 0) {
   const grid = Array.from({ length: size }, () => Array(size).fill(null));
   for (const [r, line] of Object.entries(rows)) {
     for (const seg of line.trim().split(/\s+/)) {
       const [col, letters] = seg.split(':');
-      [...letters].forEach((ch, i) => { if (ch !== '.') grid[+r][+col + i] = ch; });
+      [...letters].forEach((ch, i) => { if (ch !== '.') grid[+r + dy][+col + i] = ch; });
     }
   }
   return grid;
 }
 
 // materials: letter -> [light, base, dark] (shaded) or a single colour string (flat, e.g. eyes).
-function render(rows, materials, size = 32) {
-  const grid = parse(rows, size);
+// dy shifts every row down, so a sprite can be drawn from row 0 and then stood on row 30.
+function render(rows, materials, dy = 0, size = 32) {
+  const grid = parse(rows, size, dy);
   const at = (x, y) => (x < 0 || y < 0 || x >= size || y >= size ? null : grid[y][x]);
   const c = new Canvas(size, size);
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
