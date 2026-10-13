@@ -31,7 +31,7 @@ export interface HeroDef {
   basic: Ability;
   ultimate: Ability;
   trait: Ability;
-  /** Unlocked by evolving with Hero Crests: SP1 at 2★, SP2 at 3★, the Aura at 5★. */
+  /** Unlocked by evolving with Hero Crests: SP1 at 2★, SP2 at 3★, the Aura at 4★. */
   sp1: Ability;
   sp2: Ability;
   aura: Ability;
@@ -160,8 +160,8 @@ export const CRIT_MULTIPLIER = 2.5;
  * Hero Crests (medals) for each evolution, from Samuel's table: a hero unlocks
  * at 1★ and evolves up to 8★ (1★→2★ costs 10, ... 7★→8★ costs 5,000).
  * `stars` in the save counts evolutions, so 0 means 1★. Each evolution doubles
- * stats; the 1st, 2nd, 3rd and 4th unlock SP1, SP2, the stronger Ultimate and
- * the Aura (2★, 3★, 4★ and 5★).
+ * stats; 2★ and 3★ unlock SP1 and SP2, 4★ the hero's team Aura, 5★ a stronger
+ * Ultimate. At 8★ further medals turn into Legendary medals.
  */
 export const STAR_CRESTS = [10, 50, 250, 600, 1500, 2500, 5000];
 export const MAX_STARS = STAR_CRESTS.length;
@@ -172,8 +172,13 @@ export const MAX_STARS = STAR_CRESTS.length;
  * Hero Chest never drops them. The free starter (unlockCost 0) needs none.
  */
 export const UNLOCK_CRESTS: Record<Exclude<Rarity, 'legendary'>, number> = { common: 10, rare: 30, epic: 80 };
-/** From 4★ (3 evolutions) the Ultimate hits harder (the prototype unlocks the Ultimate itself at Lv 30). */
+/** Evolutions needed for each star unlock (0 = 1★): the team Aura at 4★ like the original, the stronger Ultimate at 5★. */
+export const AURA_EVOLUTIONS = 3;
+export const ULT_PLUS_EVOLUTIONS = 4;
+/** From 5★ the Ultimate hits harder (the prototype unlocks the Ultimate itself at Lv 30). */
 export const ULT_STAR_BONUS = 1.5;
+/** An 8★ hero turns every this many new medals into one Legendary medal (for Legendary heroes later). */
+export const LEGENDARY_MEDAL_RATE = 10;
 
 // Gems (premium currency) and the Hero Chest summon.
 export const START_GEMS = 60;
