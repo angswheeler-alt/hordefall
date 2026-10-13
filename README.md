@@ -39,3 +39,7 @@ Accounts and cloud saves use [Supabase](https://supabase.com). Without keys the 
 Players sign in from the Account section in Settings (gear at the top right of the map) with a username and password (no email). There is no password reset yet, since there's no email to send it to. Guests keep playing locally. On the first sign-in on a device that already has progress, the player picks which save to keep. After that, the save uploads every 30 seconds and when the tab is hidden, and when the game starts the most recently played device's save wins.
 
 Saves are trusted from the client for now, so a determined player could edit their own save. Server-side checks come with PvP and leaderboards.
+
+## Unlocking heroes
+
+Marin is free. Every other hero unlocks with Hero Crests (medals) from the Hero Chest and Trials, by rarity: Common 10, Rare 30, Epic 80 (Legendary is a 200 placeholder). Unlocking spends the Crests and adds the hero at level 1; gold then levels them as before.
