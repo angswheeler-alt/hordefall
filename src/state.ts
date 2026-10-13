@@ -674,10 +674,17 @@ export class GameState {
   }
 
   static readLocal(): SaveData | null {
+    let raw: string | null = null;
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
+      raw = localStorage.getItem(SAVE_KEY);
       return raw ? JSON.parse(raw) : null;
     } catch {
+      // A damaged save: set it aside rather than letting the next autosave replace it.
+      try {
+        if (raw) localStorage.setItem(`${SAVE_KEY}-unreadable-${Date.now()}`, raw);
+      } catch {
+        /* ignore */
+      }
       return null;
     }
   }
@@ -739,9 +746,48 @@ export class GameState {
       this.goldPerSec = d.goldPerSec ?? 0;
       this.secondsPerStage = d.secondsPerStage ?? 20;
       this.lastSeen = d.lastSeen ?? Date.now();
+      this.sanitize();
       return true;
     } catch {
+      // Keep the unreadable save aside so it can be recovered, instead of being overwritten by a fresh game.
+      try {
+        localStorage.setItem(`${SAVE_KEY}-unreadable-${Date.now()}`, JSON.stringify(d));
+      } catch {
+        /* ignore */
+      }
       return false;
+    }
+  }
+
+  /** Repair values a hand-edited, cloud-merged or older save could carry, so the game never runs on nonsense. */
+  private sanitize() {
+    const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
+    if (!this.gold || Number.isNaN(this.gold.mantissa) || this.gold.lt(0)) this.gold = new Decimal(0);
+    this.stage = Math.max(1, Math.floor(num(this.stage, 1)));
+    this.bestStage = Math.max(this.stage, Math.floor(num(this.bestStage, this.stage)));
+    this.runBestStage = Math.max(this.stage, Math.floor(num(this.runBestStage, this.stage)));
+    this.gems = Math.max(0, Math.floor(num(this.gems, START_GEMS)));
+    this.embers = Math.max(0, num(this.embers, 0));
+    this.tickets = Math.min(TICKET_CAP, Math.max(0, Math.floor(num(this.tickets, TICKET_CAP))));
+    this.ticketClock = num(this.ticketClock, Date.now());
+    this.lastSeen = num(this.lastSeen, Date.now());
+    for (const h of HEROES) {
+      this.levels[h.id] = Math.max(0, Math.floor(num(this.levels[h.id], 0)));
+      this.emberLevels[h.id] = Math.max(0, Math.floor(num(this.emberLevels[h.id], 0)));
+      this.crests[h.id] = Math.max(0, Math.floor(num(this.crests[h.id], 0)));
+      this.stars[h.id] = Math.min(MAX_STARS, Math.max(0, Math.floor(num(this.stars[h.id], 0))));
+    }
+    // The free starter is always recruited.
+    for (const h of HEROES) if (h.unlockCost === 0 && this.levels[h.id] === 0) this.levels[h.id] = 1;
+    // At most LINEUP_SIZE fighters (extras are benched, keeping their levels), and never none.
+    let fighting = 0;
+    for (const h of HEROES) {
+      if (this.levels[h.id] === 0 || this.benched[h.id]) continue;
+      if (++fighting > LINEUP_SIZE) this.benched[h.id] = true;
+    }
+    if (fighting === 0) {
+      const first = HEROES.find((h) => this.levels[h.id] > 0);
+      if (first) delete this.benched[first.id];
     }
   }
 

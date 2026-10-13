@@ -273,3 +273,38 @@ describe('rekindle', () => {
     expect(s.rekindles).toBe(0);
   });
 });
+
+describe('save repair', () => {
+  it('benches extra fighters beyond the lineup size and keeps their levels', () => {
+    fresh();
+    const levels = Object.fromEntries(HEROES.map((h) => [h.id, 40]));
+    localStorage.setItem('hordefall-save-v1', JSON.stringify({ gold: '0', levels, benched: {} }));
+    const s = new GameState();
+    s.load();
+    expect(s.lineupCount()).toBe(LINEUP_SIZE);
+    expect(HEROES.every((h) => s.levels[h.id] === 40)).toBe(true);
+  });
+
+  it('repairs nonsense numbers and always keeps the starter', () => {
+    fresh();
+    localStorage.setItem('hordefall-save-v1', JSON.stringify({ gold: 'NaN', stage: -4, gems: 'lots', tickets: 999, levels: { [starter.id]: 0 }, stars: { [starter.id]: 99 } }));
+    const s = new GameState();
+    s.load();
+    expect(s.gold.toString()).toBe('0');
+    expect(s.stage).toBe(1);
+    expect(s.gems).toBeGreaterThanOrEqual(0);
+    expect(s.tickets).toBe(TICKET_CAP);
+    expect(s.levels[starter.id]).toBe(1);
+    expect(s.stars[starter.id]).toBe(MAX_STARS);
+    expect(s.lineupCount()).toBe(1);
+  });
+
+  it('sets a damaged save aside instead of losing it', () => {
+    fresh();
+    localStorage.setItem('hordefall-save-v1', '{"gold": "1e10", broken');
+    expect(new GameState().load()).toBe(false);
+    const kept = (localStorage as any).keys().filter((k: string) => k.startsWith('hordefall-save-v1-unreadable-'));
+    expect(kept).toHaveLength(1);
+    expect(localStorage.getItem(kept[0])).toContain('1e10');
+  });
+});
