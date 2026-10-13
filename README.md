@@ -13,6 +13,8 @@ Web-first idle RPG prototype (see the game design doc). This build covers the co
 - Hero Chest (30 Gems) gives Hero Crests for 3 random heroes and recruits new ones. Crests evolve heroes up to 7 stars: each star doubles stats; 1★/2★ unlock two skills, 3★ boosts the Ultimate to 60x, 4★ unlocks a team aura. Gems come from a 60-Gem start, bosses (20), every 10th new stage (5) and gold chests (5).
 - Big numbers use break_infinity.js. Saves to localStorage, and signed-in players also sync to the cloud (see Online accounts).
 
+- Relics tab: ten relics crafted and upgraded with Trial Essence (two kinds each). Equipped relics boost all heroes' ATK or HP, a single element's ATK, gold from enemies, Stall income, or Trial damage. Levels 1-10 in each of five tiers; the cost doubles every two levels and the step into a new tier costs three times as much. Two slots to start, up to four more for 150 / 300 / 600 / 1,200 Gems. Relics stay through Rekindle.
+
 ## Run
 
     npm install
@@ -20,7 +22,7 @@ Web-first idle RPG prototype (see the game design doc). This build covers the co
     npm run build    # static build in dist/
 
 Stack: Phaser 3 + TypeScript + Vite. Lane in Phaser, menus in HTML/CSS. Balance knobs live in `src/formulas.ts`.
-- Bottom tab bar like the original: Heroes (wood-styled hero rows with Level Up buttons, Manage Team, Hero Chest and Collection), Market Row, Relics, Battle (Trials and run stats), Shop (Hero Chest, free Gems) and Guild. Market Row, Relics and Guild are placeholders for now.
+- Bottom tab bar like the original: Heroes (wood-styled hero rows with Level Up buttons, Manage Team, Hero Chest and Collection), Market Row, Relics, Battle (Trials and run stats), Shop (Hero Chest, free Gems) and Guild. Guild is a placeholder for now.
 - Market Row tab: ten Stalls (Bakery to Star Bazaar) opened and upgraded with gold. Each fills a bar on a timer; tap to collect until level 50, then it collects itself (also while offline). Income x3 every 50 Stall levels. Stalls reset on Rekindle; each Rekindle adds +25% Stall income and +5 levels (up to 600) to auto-collect Stalls, shown on the Rekindle page. Buy x1 / x10 / max and a Level all button that spreads gold across open Stalls, cheapest level first, like on the Heroes tab.
 - Manage Team (Heroes tab): choose which recruited heroes fight (up to 5). Taking a hero out drops them to gold level 1 and refunds that gold; their Ember levels stay (Embers also count in Trials and PvP).
 - Elemental Trials (Battle tab): one dungeon per element on a weekly schedule (Dark Mon/Fri/Sun, Light Tue/Thu/Sat, Earth Tue/Thu/Sun, Water Wed/Fri/Sun, Fire Mon/Wed/Sat), 26 levels unlocked one by one (Samuel's table: Essence 20 doubling each level, difficulty 1 to 3,600, from level 10 a requirement of N heroes at an Ember level, e.g. 2x100 up to 5x4000), up to 20 tickets at one per 30 minutes (a loss keeps the ticket). Trials use Ember levels and stars only, not gold levels. Wins drop that element's Essence (for Relics later) and a medal (1 Hero Crest) for a random hero of that element, or for two random heroes from level 16.

@@ -729,7 +729,8 @@ export class BattleScene extends Phaser.Scene {
       const gold = goldPerKill(this.state.stage)
         .times(u.isBoss ? 10 : 1)
         .times(source?.goldMult ?? 1)
-        .times(this.has('nox', 4) ? 1.25 : 1);
+        .times(this.has('nox', 4) ? 1.25 : 1)
+        .times(1 + this.state.relicBonus('gold'));
       this.gainGold(gold, u.x, u.y);
       this.tweens.add({ targets: u.view, alpha: 0, scale: 1.5, y: u.y - 8, duration: 220, onComplete: () => u.view.destroy() });
       this.shatter(u.x, u.y, ELEMENT_COLORS[u.element]);
@@ -840,7 +841,7 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: chest, y: y - 8, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     chest.once('pointerdown', () => {
       drift.stop();
-      const gold = goldPerKill(this.state.stage).times(kind.killsWorth);
+      const gold = goldPerKill(this.state.stage).times(kind.killsWorth).times(1 + this.state.relicBonus('gold'));
       const wx = chest.x + this.cameras.main.scrollX;
       this.gainGold(gold, wx, chest.y + 10);
       this.shatter(wx, chest.y, 0xffe066);

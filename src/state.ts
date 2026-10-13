@@ -1,7 +1,7 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS } from './data';
-import { trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp } from './formulas';
-import type { HeroDef, StallDef, Element } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, RELICS, RELIC_LEVELS_PER_TIER, RELIC_TIERS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS } from './data';
+import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp } from './formulas';
+import type { HeroDef, StallDef, Element, RelicDef, RelicEffect } from './data';
 
 const SAVE_KEY = 'hordefall-save-v1';
 
@@ -77,6 +77,10 @@ export class GameState {
   autoUlt = false;
   muted = false;
   buyAmount: 1 | 10 | 'max' = 1;
+  /** Relic total levels (0 = not crafted), equipped relic ids, and owned slots. */
+  relics: Record<string, number> = {};
+  equipped: string[] = [];
+  relicSlots = RELIC_START_SLOTS;
   /** Market Row's own buy amount, separate from the heroes'. */
   stallBuyAmount: 1 | 10 | 'max' = 1;
   /** Smoothed gold per second and seconds per stage, used for offline earnings. */
@@ -111,10 +115,75 @@ export class GameState {
   /** ATK and HP after levels, stars (x2 each) and team auras. `level` overrides the hero's current level. */
   heroPower(def: HeroDef, level = this.heroLevel(def.id)): { atk: Decimal; hp: Decimal } {
     const starMult = Math.pow(2, this.stars[def.id] ?? 0);
+    const atkRelics = 1 + this.relicBonus('atk') + this.relicBonus(def.element);
     return {
-      atk: heroAtk(def, level).times(starMult * (this.hasStar('pyra', 4) ? 1.15 : 1)),
-      hp: heroHp(def, level).times(starMult * (this.hasStar('marin', 4) ? 1.2 : 1)),
+      atk: heroAtk(def, level).times(starMult * (this.hasStar('pyra', 4) ? 1.15 : 1) * atkRelics),
+      hp: heroHp(def, level).times(starMult * (this.hasStar('marin', 4) ? 1.2 : 1) * (1 + this.relicBonus('hp'))),
     };
+  }
+
+  /** Total bonus (0.25 = +25%) from equipped relics with this effect. */
+  relicBonus(effect: RelicEffect): number {
+    let total = 0;
+    for (const id of this.equipped) {
+      const def = RELICS.find((r) => r.id === id);
+      if (def && def.effect === effect) total += (def.perLevel * (this.relics[id] ?? 0)) / 100;
+    }
+    return total;
+  }
+
+  relicMaxLevel() {
+    return RELIC_LEVELS_PER_TIER * RELIC_TIERS;
+  }
+
+  /** Essence of each kind for the relic's next level, or null at max. */
+  relicNextCost(def: RelicDef): number | null {
+    const level = this.relics[def.id] ?? 0;
+    return level >= this.relicMaxLevel() ? null : relicCost(level, RELIC_LEVELS_PER_TIER);
+  }
+
+  canUpgradeRelic(def: RelicDef): boolean {
+    const cost = this.relicNextCost(def);
+    return cost !== null && def.essences.every((e) => (this.essences[e] ?? 0) >= cost);
+  }
+
+  /** Craft (level 0) or upgrade a relic with Essence. A newly crafted relic goes into a free slot. */
+  upgradeRelic(id: string): boolean {
+    const def = RELICS.find((r) => r.id === id)!;
+    if (!this.canUpgradeRelic(def)) return false;
+    const cost = this.relicNextCost(def)!;
+    for (const e of def.essences) this.essences[e] -= cost;
+    const crafted = !this.relics[id];
+    this.relics[id] = (this.relics[id] ?? 0) + 1;
+    if (crafted && this.equipped.length < this.relicSlots) this.equipped.push(id);
+    this.save();
+    return true;
+  }
+
+  /** Equip or take off a crafted relic. Returns false when no slot is free. */
+  toggleRelic(id: string): boolean {
+    if (this.equipped.includes(id)) {
+      this.equipped = this.equipped.filter((e) => e !== id);
+    } else {
+      if (!this.relics[id] || this.equipped.length >= this.relicSlots) return false;
+      this.equipped.push(id);
+    }
+    this.save();
+    return true;
+  }
+
+  /** Gems for the next relic slot, or null when all are bought. */
+  nextSlotCost(): number | null {
+    return RELIC_SLOT_COSTS[this.relicSlots - RELIC_START_SLOTS] ?? null;
+  }
+
+  buyRelicSlot(): boolean {
+    const cost = this.nextSlotCost();
+    if (cost === null || this.gems < cost) return false;
+    this.gems -= cost;
+    this.relicSlots += 1;
+    this.save();
+    return true;
   }
 
   /** True when the hero is recruited and has evolved to at least `star`. */
@@ -244,7 +313,7 @@ export class GameState {
   }
 
   stallIncome(def: StallDef): Decimal {
-    return stallIncome(def, this.stallEffectiveLevel(def.id)).times(this.marketRevenueMult());
+    return stallIncome(def, this.stallEffectiveLevel(def.id)).times(this.marketRevenueMult() * (1 + this.relicBonus('stall')));
   }
 
   stallReady(id: string) {
@@ -364,7 +433,7 @@ export class GameState {
     let hp = new Decimal(0);
     let incoming = 0;
     for (const m of team) {
-      dps = dps.plus(m.atk.div(m.def.attackCooldown).times(elementMultiplier(m.def.element, element)));
+      dps = dps.plus(m.atk.div(m.def.attackCooldown).times(elementMultiplier(m.def.element, element) * (1 + this.relicBonus('trial'))));
       hp = hp.plus(m.hp);
       incoming += elementMultiplier(element, m.def.element);
     }
@@ -526,6 +595,9 @@ export class GameState {
       muted: this.muted,
       buyAmount: this.buyAmount,
       stallBuyAmount: this.stallBuyAmount,
+      relics: this.relics,
+      equipped: this.equipped,
+      relicSlots: this.relicSlots,
       goldPerSec: this.goldPerSec,
       secondsPerStage: this.secondsPerStage,
       lastSeen: this.lastSeen,
@@ -581,6 +653,9 @@ export class GameState {
       this.muted = !!d.muted;
       this.buyAmount = d.buyAmount ?? 1;
       this.stallBuyAmount = d.stallBuyAmount ?? 1;
+      this.relics = { ...(d.relics ?? {}) };
+      this.relicSlots = d.relicSlots ?? RELIC_START_SLOTS;
+      this.equipped = (d.equipped ?? []).filter((id: string) => this.relics[id]).slice(0, this.relicSlots);
       this.goldPerSec = d.goldPerSec ?? 0;
       this.secondsPerStage = d.secondsPerStage ?? 20;
       this.lastSeen = d.lastSeen ?? Date.now();

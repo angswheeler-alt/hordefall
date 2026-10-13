@@ -176,3 +176,13 @@ export function trialHp(level: { difficulty: number; req: [number, number] | nul
 export function trialDps(level: { difficulty: number; req: [number, number] | null }): Decimal {
   return trialHp(level).times(0.01);
 }
+
+/**
+ * Essence of each of a relic's two kinds to go from total level `level` to the
+ * next (0 = crafting). Doubles every 2 levels, so level 50 lines up with the
+ * top Trial's reward; the step into a new tier costs three times as much.
+ */
+export function relicCost(level: number, levelsPerTier: number): number {
+  const base = Math.round(20 * Math.pow(2, level / 2));
+  return level > 0 && level % levelsPerTier === 0 ? base * 3 : base;
+}

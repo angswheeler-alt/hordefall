@@ -265,3 +265,36 @@ export const ESSENCE_NAMES: Record<Element, string> = {
   light: 'Dawn Essence',
   dark: 'Dusk Essence',
 };
+
+/**
+ * Relics (GDD section 9): passive boosts for the whole team, crafted and
+ * upgraded with Trial Essence. Each relic takes two Essences. Levels run 1-10
+ * inside a tier, tiers I-V; the effect grows with every level across tiers.
+ */
+export type RelicEffect = 'atk' | 'hp' | 'gold' | 'stall' | 'trial' | Element;
+export interface RelicDef {
+  id: string;
+  name: string;
+  effect: RelicEffect;
+  /** Percent bonus per level. */
+  perLevel: number;
+  essences: [Element, Element];
+  blurb: string;
+}
+export const RELICS: RelicDef[] = [
+  { id: 'warbanner', name: 'Warbanner', effect: 'atk', perLevel: 5, essences: ['fire', 'dark'], blurb: 'A torn battle flag that still makes everyone swing harder.' },
+  { id: 'oakheart', name: 'Oakheart', effect: 'hp', perLevel: 5, essences: ['earth', 'water'], blurb: 'A living acorn that hardens skin like bark.' },
+  { id: 'luckycoin', name: 'Lucky Coin', effect: 'gold', perLevel: 5, essences: ['light', 'earth'], blurb: 'Always lands heads. Enemies drop more gold.' },
+  { id: 'scale', name: "Merchant's Scale", effect: 'stall', perLevel: 5, essences: ['water', 'light'], blurb: 'Tips every deal your way on Market Row.' },
+  { id: 'sigil', name: 'Trial Sigil', effect: 'trial', perLevel: 10, essences: ['dark', 'fire'], blurb: 'Glows near Trial bosses and finds their weak spots.' },
+  { id: 'pearl', name: 'Tide Pearl', effect: 'water', perLevel: 10, essences: ['water', 'light'], blurb: 'Sea-song in a shell. Water heroes hit harder.' },
+  { id: 'idol', name: 'Stone Idol', effect: 'earth', perLevel: 10, essences: ['earth', 'dark'], blurb: 'A mossy idol that steadies Earth heroes.' },
+  { id: 'fang', name: 'Cinder Fang', effect: 'fire', perLevel: 10, essences: ['fire', 'earth'], blurb: 'Still warm. Fire heroes hit harder.' },
+  { id: 'feather', name: 'Dawn Feather', effect: 'light', perLevel: 10, essences: ['light', 'water'], blurb: 'Drifts upward. Light heroes hit harder.' },
+  { id: 'mask', name: 'Dusk Mask', effect: 'dark', perLevel: 10, essences: ['dark', 'fire'], blurb: 'Smiles in the dark. Dark heroes hit harder.' },
+];
+export const RELIC_LEVELS_PER_TIER = 10;
+export const RELIC_TIERS = 5;
+/** Relic slots: 2 free, then bought with Gems at these prices. */
+export const RELIC_START_SLOTS = 2;
+export const RELIC_SLOT_COSTS = [150, 300, 600, 1200];

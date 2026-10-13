@@ -1,5 +1,5 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, ULT_STAR_BONUS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element } from './data';
+import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, ULT_STAR_BONUS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_LEVELS_PER_TIER, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
 import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
@@ -67,6 +67,7 @@ export class UI {
     this.buildUlts();
     this.bindControls();
     this.buildMarket();
+    this.buildRelics();
     let last = performance.now();
     setInterval(() => {
       const now = performance.now();
@@ -143,6 +144,87 @@ export class UI {
   }
 
   private stallRows: StallRow[] = [];
+
+  private relicRows: { def: RelicDef; root: HTMLElement; eff: HTMLElement; tier: HTMLElement; cost: HTMLElement; up: HTMLButtonElement; equip: HTMLButtonElement }[] = [];
+
+  private buildRelics() {
+    const host = $('relics');
+    for (const def of RELICS) {
+      const root = document.createElement('div');
+      root.className = 'relic';
+      const [a, b] = def.essences;
+      root.innerHTML = `
+        <div class="relic-art" style="--a:${hex(ELEMENT_COLORS[a])};--b:${hex(ELEMENT_COLORS[b])}" aria-hidden="true">${def.name[0]}</div>
+        <div class="relic-info"><b>${def.name} <small class="tier" style="display:inline"></small></b><span class="eff"></span><small>${def.blurb}</small><div class="relic-cost"></div></div>
+        <div class="relic-btns"><button class="wood-btn small up"></button><button class="wood-btn small equip"></button></div>`;
+      host.appendChild(root);
+      const up = root.querySelector('.up') as HTMLButtonElement;
+      const equip = root.querySelector('.equip') as HTMLButtonElement;
+      up.addEventListener('click', () => {
+        if (this.state.upgradeRelic(def.id)) {
+          play('unlock');
+          this.scene()?.syncHeroes();
+          this.render();
+        }
+      });
+      equip.addEventListener('click', () => {
+        if (this.state.toggleRelic(def.id)) {
+          this.scene()?.syncHeroes();
+          this.render();
+        }
+      });
+      this.relicRows.push({ def, root, eff: root.querySelector('.eff') as HTMLElement, tier: root.querySelector('.tier') as HTMLElement, cost: root.querySelector('.relic-cost') as HTMLElement, up, equip });
+    }
+    $('relic-buyslot').addEventListener('click', () => {
+      if (this.state.buyRelicSlot()) {
+        play('unlock');
+        this.render();
+      }
+    });
+  }
+
+  /** Returns true when something on the Relics tab is worth a look (an upgrade for an equipped relic, or a free slot). */
+  private renderRelics(): boolean {
+    const s = this.state;
+    let worthALook = false;
+    const effectText = (def: RelicDef, level: number) => {
+      const pct = def.perLevel * level;
+      const what = { atk: 'All heroes ATK', hp: 'All heroes HP', gold: 'Gold from enemies', stall: 'Stall income', trial: 'Damage in Trials' }[def.effect as string] ?? `${cap(def.effect)} heroes ATK`;
+      return `${what} +${pct}%`;
+    };
+    $('relic-slots').textContent = `Equipped ${s.equipped.length}/${s.relicSlots}`;
+    $('relic-ess').innerHTML = TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i></i>${fmt(s.essences[e] ?? 0)}</span>`).join('');
+    const slotCost = s.nextSlotCost();
+    const slotBtn = $<HTMLButtonElement>('relic-buyslot');
+    slotBtn.hidden = slotCost === null;
+    slotBtn.textContent = `+1 slot · ${slotCost} Gems`;
+    slotBtn.disabled = slotCost === null || s.gems < slotCost;
+    const freeSlot = s.equipped.length < s.relicSlots;
+    for (const r of this.relicRows) {
+      const level = s.relics[r.def.id] ?? 0;
+      const on = s.equipped.includes(r.def.id);
+      const cost = s.relicNextCost(r.def);
+      const can = s.canUpgradeRelic(r.def);
+      r.root.classList.toggle('on', on);
+      r.root.classList.toggle('uncrafted', level === 0);
+      const tier = Math.ceil(level / RELIC_LEVELS_PER_TIER);
+      const inTier = level - (tier - 1) * RELIC_LEVELS_PER_TIER;
+      r.tier.textContent = level ? `· Tier ${['I', 'II', 'III', 'IV', 'V'][tier - 1]} Lv ${inTier}` : '';
+      r.eff.textContent = level ? effectText(r.def, level) : `Crafts to: ${effectText(r.def, 1)}`;
+      r.cost.innerHTML =
+        cost === null
+          ? '<span>Max level</span>'
+          : r.def.essences.map((e) => `<span class="${(s.essences[e] ?? 0) < cost ? 'short' : ''}" title="${ESSENCE_NAMES[e]}"><i style="--el:${hex(ELEMENT_COLORS[e])}"></i>${fmt(cost)}</span>`).join('');
+      const nextTier = level > 0 && level % RELIC_LEVELS_PER_TIER === 0;
+      r.up.textContent = level === 0 ? 'Craft' : cost === null ? 'Maxed' : nextTier ? 'Next tier' : 'Upgrade';
+      r.up.disabled = !can;
+      r.equip.hidden = level === 0;
+      r.equip.textContent = on ? 'Take off' : 'Equip';
+      r.equip.disabled = !on && !freeSlot;
+      if ((on && can) || (level > 0 && !on && freeSlot)) worthALook = true;
+    }
+    return worthALook;
+  }
 
   private buildMarket() {
     const host = $('stalls');
@@ -858,6 +940,7 @@ export class UI {
     }
 
     this.badge('market', this.renderMarket());
+    this.badge('relics', this.renderRelics());
     this.badge('battle', s.rekindles > 0 && s.tickets >= TICKET_CAP);
     this.badge('heroes', heroesBadge);
     this.badge('shop', s.gems >= CHEST_COST);
