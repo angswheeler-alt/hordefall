@@ -322,11 +322,12 @@ export const REKINDLE_BOOSTS: Array<{ mult: number; gems: number }> = [
 export const ROAD_START = 150;
 export const ROAD_STEP = 50;
 export const ROAD_LENGTH = 16;
-export type WheelPrize = { kind: 'chest' } | { kind: 'tickets'; amount: number } | { kind: 'essence'; amount: number } | { kind: 'embers'; share: number };
+export type WheelPrize = { kind: 'chest' } | { kind: 'tickets'; amount: number } | { kind: 'essence'; amount: number } | { kind: 'stones'; amount: number } | { kind: 'embers'; share: number };
 export const WHEEL_PRIZES: Array<{ prize: WheelPrize; weight: number }> = [
   { prize: { kind: 'chest' }, weight: 30 },
   { prize: { kind: 'tickets', amount: 3 }, weight: 25 },
   { prize: { kind: 'essence', amount: 40 }, weight: 25 },
+  { prize: { kind: 'stones', amount: 2 }, weight: 15 },
   { prize: { kind: 'embers', share: 0.05 }, weight: 20 },
 ];
 /** Each player level adds this much to every Ember payout. */
@@ -468,34 +469,100 @@ export const ESSENCE_NAMES: Record<Element, string> = {
 };
 
 /**
- * Relics (GDD section 9): passive boosts for the whole team, crafted and
- * upgraded with Trial Essence. Each relic takes two Essences. Levels run 1-10
- * inside a tier, tiers I-V; the effect grows with every level across tiers.
+ * Relics, the original's artifacts: passive boosts crafted and levelled with
+ * Trial Essence. Each relic has a fixed star rating from 1★ to 6★: more stars
+ * means a bigger bonus per level and a higher price. The first 1★ relics are
+ * open from the start; each higher star opens once a relic of the star below
+ * reaches its full base level. At full level, Enhance Stones raise the cap by 5.
+ *
+ * Kinds: global (the whole team), element (heroes of one element) and economy
+ * (gold, Market Row, hero level costs, Trial rewards, offline gold).
+ * Pieces of a set give an extra bonus once every piece is crafted.
  */
-export type RelicEffect = 'atk' | 'hp' | 'gold' | 'stall' | 'trial' | Element;
+export type RelicEffect =
+  | 'atk' | 'hp' | 'power' | 'speed' | 'crit' | 'critDmg'
+  | 'gold' | 'stall' | 'cost' | 'trial' | 'essence' | 'offline'
+  | Element;
+export type RelicKind = 'global' | 'element' | 'economy';
 export interface RelicDef {
   id: string;
   name: string;
+  stars: number;
   effect: RelicEffect;
-  /** Percent bonus per level. */
+  /** Bonus per level, in percent (crit: percentage points of crit chance). */
   perLevel: number;
   essences: [Element, Element];
+  set?: string;
   blurb: string;
 }
+export const RELIC_KIND_NAMES: Record<RelicKind, string> = { global: 'Whole team', element: 'Element', economy: 'Economy' };
+export function relicKind(effect: RelicEffect): RelicKind {
+  if (effect === 'water' || effect === 'earth' || effect === 'fire' || effect === 'light' || effect === 'dark') return 'element';
+  if (['gold', 'stall', 'cost', 'trial', 'essence', 'offline'].includes(effect)) return 'economy';
+  return 'global';
+}
 export const RELICS: RelicDef[] = [
-  { id: 'warbanner', name: 'Warbanner', effect: 'atk', perLevel: 5, essences: ['fire', 'dark'], blurb: 'A torn battle flag that still makes everyone swing harder.' },
-  { id: 'oakheart', name: 'Oakheart', effect: 'hp', perLevel: 5, essences: ['earth', 'water'], blurb: 'A living acorn that hardens skin like bark.' },
-  { id: 'luckycoin', name: 'Lucky Coin', effect: 'gold', perLevel: 5, essences: ['light', 'earth'], blurb: 'Always lands heads. Enemies drop more gold.' },
-  { id: 'scale', name: "Merchant's Scale", effect: 'stall', perLevel: 5, essences: ['water', 'light'], blurb: 'Tips every deal your way on Market Row.' },
-  { id: 'sigil', name: 'Trial Sigil', effect: 'trial', perLevel: 10, essences: ['dark', 'fire'], blurb: 'Glows near Trial bosses and finds their weak spots.' },
-  { id: 'pearl', name: 'Tide Pearl', effect: 'water', perLevel: 10, essences: ['water', 'light'], blurb: 'Sea-song in a shell. Water heroes hit harder.' },
-  { id: 'idol', name: 'Stone Idol', effect: 'earth', perLevel: 10, essences: ['earth', 'dark'], blurb: 'A mossy idol that steadies Earth heroes.' },
-  { id: 'fang', name: 'Cinder Fang', effect: 'fire', perLevel: 10, essences: ['fire', 'earth'], blurb: 'Still warm. Fire heroes hit harder.' },
-  { id: 'feather', name: 'Dawn Feather', effect: 'light', perLevel: 10, essences: ['light', 'water'], blurb: 'Drifts upward. Light heroes hit harder.' },
-  { id: 'mask', name: 'Dusk Mask', effect: 'dark', perLevel: 10, essences: ['dark', 'fire'], blurb: 'Smiles in the dark. Dark heroes hit harder.' },
+  // Global
+  { id: 'warbanner', name: 'Warbanner', stars: 1, effect: 'atk', perLevel: 5, essences: ['fire', 'dark'], blurb: 'A torn battle flag that still makes everyone swing harder.' },
+  { id: 'oakheart', name: 'Oakheart', stars: 1, effect: 'hp', perLevel: 5, essences: ['earth', 'water'], blurb: 'A living acorn that hardens skin like bark.' },
+  { id: 'kingsblade', name: 'Kingsblade', stars: 3, effect: 'power', perLevel: 8, essences: ['light', 'fire'], blurb: 'Raises ATK and HP for the whole team.' },
+  { id: 'wardrum', name: 'War Drum', stars: 4, effect: 'speed', perLevel: 1, essences: ['earth', 'fire'], blurb: 'Every beat makes the team attack faster.' },
+  { id: 'titancrown', name: 'Titan Crown', stars: 5, effect: 'power', perLevel: 18, essences: ['earth', 'light'], blurb: 'Raises ATK and HP for the whole team.' },
+  { id: 'starforge', name: 'Starforged Edge', stars: 6, effect: 'power', perLevel: 30, essences: ['dark', 'light'], blurb: 'Hammered from a fallen star. Huge ATK and HP for everyone.' },
+  // Economy
+  { id: 'luckycoin', name: 'Lucky Coin', stars: 1, effect: 'gold', perLevel: 5, essences: ['light', 'earth'], blurb: 'Always lands heads. Enemies drop more gold.' },
+  { id: 'scale', name: "Merchant's Scale", stars: 1, effect: 'stall', perLevel: 5, essences: ['water', 'light'], blurb: 'Tips every deal your way on Market Row.' },
+  { id: 'ledger', name: "Haggler's Ledger", stars: 2, effect: 'cost', perLevel: 3, essences: ['earth', 'dark'], blurb: 'Hero levels cost less gold. Works without a slot.' },
+  { id: 'sigil', name: 'Trial Sigil', stars: 2, effect: 'trial', perLevel: 10, essences: ['dark', 'fire'], blurb: 'Glows near Trial bosses and finds their weak spots.' },
+  { id: 'hourglass', name: 'Sleeping Hourglass', stars: 2, effect: 'offline', perLevel: 5, essences: ['water', 'dark'], blurb: 'More gold while you are away.' },
+  { id: 'satchel', name: "Delver's Satchel", stars: 3, effect: 'essence', perLevel: 4, essences: ['fire', 'water'], blurb: 'More Essence from every Trial win.' },
+  // Tidecaller set (Water)
+  { id: 'pearl', name: 'Tide Pearl', stars: 2, effect: 'water', perLevel: 10, essences: ['water', 'light'], set: 'tide', blurb: 'Sea-song in a shell. Water heroes hit harder.' },
+  { id: 'trident', name: 'Tidecaller Trident', stars: 3, effect: 'speed', perLevel: 1, essences: ['water', 'earth'], set: 'tide', blurb: 'The team attacks faster.' },
+  { id: 'coral', name: 'Coral Crown', stars: 4, effect: 'water', perLevel: 25, essences: ['water', 'dark'], set: 'tide', blurb: 'Water heroes hit much harder.' },
+  // Ashwing set (Fire)
+  { id: 'fang', name: 'Cinder Fang', stars: 2, effect: 'fire', perLevel: 10, essences: ['fire', 'earth'], set: 'ash', blurb: 'Still warm. Fire heroes hit harder.' },
+  { id: 'plume', name: 'Ashwing Plume', stars: 3, effect: 'crit', perLevel: 0.5, essences: ['fire', 'light'], set: 'ash', blurb: 'More critical hits for the team.' },
+  { id: 'emberheart', name: 'Ember Heart', stars: 4, effect: 'fire', perLevel: 25, essences: ['fire', 'dark'], set: 'ash', blurb: 'Fire heroes hit much harder.' },
+  // Mountain set (Earth)
+  { id: 'idol', name: 'Stone Idol', stars: 2, effect: 'earth', perLevel: 10, essences: ['earth', 'dark'], set: 'mountain', blurb: 'A mossy idol that steadies Earth heroes.' },
+  { id: 'gauntlet', name: 'Granite Gauntlet', stars: 3, effect: 'hp', perLevel: 8, essences: ['earth', 'fire'], set: 'mountain', blurb: 'The whole team gets tougher.' },
+  { id: 'rootcrown', name: 'Root Crown', stars: 4, effect: 'earth', perLevel: 25, essences: ['earth', 'water'], set: 'mountain', blurb: 'Earth heroes hit much harder.' },
+  // Sunspire set (Light)
+  { id: 'feather', name: 'Dawn Feather', stars: 2, effect: 'light', perLevel: 10, essences: ['light', 'water'], set: 'sun', blurb: 'Drifts upward. Light heroes hit harder.' },
+  { id: 'sundisc', name: 'Sun Disc', stars: 3, effect: 'gold', perLevel: 8, essences: ['light', 'fire'], set: 'sun', blurb: 'Enemies drop more gold.' },
+  { id: 'halo', name: 'Halo of Dawn', stars: 4, effect: 'light', perLevel: 25, essences: ['light', 'earth'], set: 'sun', blurb: 'Light heroes hit much harder.' },
+  // Nightveil set (Dark)
+  { id: 'mask', name: 'Dusk Mask', stars: 2, effect: 'dark', perLevel: 10, essences: ['dark', 'fire'], set: 'night', blurb: 'Smiles in the dark. Dark heroes hit harder.' },
+  { id: 'cloak', name: 'Shadow Cloak', stars: 3, effect: 'critDmg', perLevel: 3, essences: ['dark', 'water'], set: 'night', blurb: 'Critical hits deal more damage.' },
+  { id: 'lantern', name: 'Void Lantern', stars: 4, effect: 'dark', perLevel: 25, essences: ['dark', 'light'], set: 'night', blurb: 'Dark heroes hit much harder.' },
 ];
-export const RELIC_LEVELS_PER_TIER = 10;
-export const RELIC_TIERS = 5;
-/** Relic slots: 2 free, then bought with Gems at these prices. */
+export interface RelicSetDef {
+  id: string;
+  name: string;
+  element: Element;
+  /** Bonuses (same units as RelicDef.perLevel totals) once every piece is crafted. */
+  bonus: Array<[RelicEffect, number]>;
+  text: string;
+}
+export const RELIC_SETS: RelicSetDef[] = [
+  { id: 'tide', name: 'Tidecaller', element: 'water', bonus: [['water', 50], ['speed', 10]], text: 'Water heroes +50% ATK, team attacks 10% faster' },
+  { id: 'ash', name: 'Ashwing', element: 'fire', bonus: [['fire', 50], ['crit', 5]], text: 'Fire heroes +50% ATK, +5% crit chance' },
+  { id: 'mountain', name: 'Mountain', element: 'earth', bonus: [['earth', 50], ['hp', 30]], text: 'Earth heroes +50% ATK, team +30% HP' },
+  { id: 'sun', name: 'Sunspire', element: 'light', bonus: [['light', 50], ['gold', 30]], text: 'Light heroes +50% ATK, +30% gold' },
+  { id: 'night', name: 'Nightveil', element: 'dark', bonus: [['dark', 50], ['critDmg', 50]], text: 'Dark heroes +50% ATK, crits deal +50% damage' },
+];
+/** Levels a relic reaches before Enhance Stones; reaching it on an N★ relic opens (N+1)★ relics. */
+export const RELIC_BASE_MAX = 20;
+/** Each Enhance raises the cap by this many levels, up to RELIC_ENHANCE_COSTS.length times. */
+export const RELIC_ENHANCE_LEVELS = 5;
+export const RELIC_ENHANCE_COSTS = [5, 10, 20, 40];
+/** Essence price multiplier by star (index 0 = 1★). */
+export const RELIC_STAR_COST = [1, 2, 4, 8, 16, 32];
+export const RELIC_MAX_STARS = 6;
+/** Hero level cost reduction from relics never goes past this. */
+export const RELIC_COST_CAP = 0.75;
+/** Relic slots: 2 free, then bought with Gems once your best stage reaches the gate. */
 export const RELIC_START_SLOTS = 2;
 export const RELIC_SLOT_COSTS = [150, 300, 600, 1200];
+export const RELIC_SLOT_STAGES = [25, 100, 250, 500];

@@ -1,5 +1,5 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, LEGENDARY_MEDAL_RATE, MAX_STARS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_LEVELS_PER_TIER, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, LEGENDARY_MEDAL_RATE, MAX_STARS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, relicKind, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
 import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
@@ -201,22 +201,30 @@ export class UI {
   private stallRows: StallRow[] = [];
 
   private relicRows: { def: RelicDef; root: HTMLElement; eff: HTMLElement; tier: HTMLElement; cost: HTMLElement; up: HTMLButtonElement; equip: HTMLButtonElement }[] = [];
+  private setHeads: { id: string; root: HTMLElement; count: HTMLElement }[] = [];
 
   private buildRelics() {
     const host = $('relics');
-    for (const def of RELICS) {
+    const section = (title: string) => {
+      const h = document.createElement('h3');
+      h.className = 'relic-section';
+      h.textContent = title;
+      host.appendChild(h);
+    };
+    const row = (def: RelicDef) => {
       const root = document.createElement('div');
       root.className = 'relic';
       const [a, b] = def.essences;
       root.innerHTML = `
-        <div class="relic-art" style="--a:${hex(ELEMENT_COLORS[a])};--b:${hex(ELEMENT_COLORS[b])}" aria-hidden="true">${def.name[0]}</div>
+        <div class="relic-art" style="--a:${hex(ELEMENT_COLORS[a])};--b:${hex(ELEMENT_COLORS[b])}" aria-hidden="true">${def.name[0]}<span class="relic-stars">${'★'.repeat(def.stars)}</span></div>
         <div class="relic-info"><b>${def.name} <small class="tier" style="display:inline"></small></b><span class="eff"></span><small>${def.blurb}</small><div class="relic-cost"></div></div>
         <div class="relic-btns"><button class="wood-btn small up"></button><button class="wood-btn small equip"></button></div>`;
       host.appendChild(root);
       const up = root.querySelector('.up') as HTMLButtonElement;
       const equip = root.querySelector('.equip') as HTMLButtonElement;
       up.addEventListener('click', () => {
-        if (this.state.upgradeRelic(def.id)) {
+        const ok = this.state.relicNextCost(def) === null ? this.state.enhanceRelic(def.id) : this.state.upgradeRelic(def.id);
+        if (ok) {
           play('unlock');
           this.scene()?.syncHeroes();
           this.render();
@@ -229,7 +237,22 @@ export class UI {
         }
       });
       this.relicRows.push({ def, root, eff: root.querySelector('.eff') as HTMLElement, tier: root.querySelector('.tier') as HTMLElement, cost: root.querySelector('.relic-cost') as HTMLElement, up, equip });
+    };
+    const byStars = (list: RelicDef[]) => [...list].sort((x, y) => x.stars - y.stars);
+    section('Whole team');
+    byStars(RELICS.filter((r) => !r.set && relicKind(r.effect) !== 'economy')).forEach(row);
+    section('Sets');
+    for (const set of RELIC_SETS) {
+      const head = document.createElement('div');
+      head.className = 'relic-set';
+      head.style.setProperty('--el', hex(ELEMENT_COLORS[set.element]));
+      head.innerHTML = `<b>${set.name} set <span class="set-count"></span></b><small>All pieces crafted: ${set.text}</small>`;
+      host.appendChild(head);
+      this.setHeads.push({ id: set.id, root: head, count: head.querySelector('.set-count') as HTMLElement });
+      byStars(RELICS.filter((r) => r.set === set.id)).forEach(row);
     }
+    section('Economy');
+    byStars(RELICS.filter((r) => !r.set && relicKind(r.effect) === 'economy')).forEach(row);
     $('relic-buyslot').addEventListener('click', () => {
       if (this.state.buyRelicSlot()) {
         play('unlock');
@@ -243,42 +266,72 @@ export class UI {
     const s = this.state;
     let worthALook = false;
     const effectText = (def: RelicDef, level: number) => {
-      const pct = def.perLevel * level;
-      const what = { atk: 'All heroes ATK', hp: 'All heroes HP', gold: 'Gold from enemies', stall: 'Stall income', trial: 'Damage in Trials' }[def.effect as string] ?? `${cap(def.effect)} heroes ATK`;
-      return `${what} +${pct}%`;
+      const pct = Math.round(def.perLevel * level * 10) / 10;
+      const what: Record<string, string> = {
+        atk: 'All heroes ATK',
+        hp: 'All heroes HP',
+        power: 'All heroes ATK and HP',
+        speed: 'Team attack speed',
+        crit: 'Crit chance',
+        critDmg: 'Crit damage',
+        gold: 'Gold from enemies',
+        stall: 'Stall income',
+        cost: 'Hero levels cost',
+        trial: 'Damage in Trials',
+        essence: 'Essence from Trials',
+        offline: 'Offline gold',
+      };
+      if (def.effect === 'cost') return `${what.cost} −${pct}%`;
+      return `${what[def.effect] ?? `${cap(def.effect)} heroes ATK`} +${pct}%`;
     };
     $('relic-slots').textContent = `Equipped ${s.equipped.length}/${s.relicSlots}`;
-    setHtml($('relic-ess'), TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}"></i>${fmt(s.essences[e] ?? 0)}</span>`).join(''));
+    setHtml(
+      $('relic-ess'),
+      TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}"></i>${fmt(s.essences[e] ?? 0)}</span>`).join('') +
+        `<span title="Enhance Stones, from Trial level 6 and up and the Rekindle Wheel"><i class="stone"></i>${fmt(s.enhanceStones)}</span>`,
+    );
     const slotCost = s.nextSlotCost();
+    const slotStage = s.nextSlotStage() ?? 0;
     const slotBtn = $<HTMLButtonElement>('relic-buyslot');
     slotBtn.hidden = slotCost === null;
-    slotBtn.textContent = `+1 slot · ${slotCost} Gems`;
-    slotBtn.disabled = slotCost === null || s.gems < slotCost;
+    slotBtn.textContent = s.bestStage < slotStage ? `+1 slot at stage ${slotStage}` : `+1 slot · ${slotCost} Gems`;
+    slotBtn.disabled = slotCost === null || s.gems < slotCost || s.bestStage < slotStage;
     const freeSlot = s.equipped.length < s.relicSlots;
+    for (const h of this.setHeads) {
+      const p = s.setPieces(h.id);
+      h.count.textContent = `${p.owned}/${p.total}`;
+      h.root.classList.toggle('done', p.owned === p.total);
+    }
     for (const r of this.relicRows) {
       const level = s.relics[r.def.id] ?? 0;
       const on = s.equipped.includes(r.def.id);
+      const open = s.relicOpen(r.def);
       const cost = s.relicNextCost(r.def);
       const can = s.canUpgradeRelic(r.def);
+      const enhance = s.enhanceCost(r.def);
+      const capLv = s.relicMaxLevel(r.def);
       r.root.classList.toggle('on', on);
       r.root.classList.toggle('uncrafted', level === 0);
-      const tier = Math.ceil(level / RELIC_LEVELS_PER_TIER);
-      const inTier = level - (tier - 1) * RELIC_LEVELS_PER_TIER;
-      r.tier.textContent = level ? `· Tier ${['I', 'II', 'III', 'IV', 'V'][tier - 1]} Lv ${inTier}` : '';
-      r.eff.textContent = level ? effectText(r.def, level) : `Crafts to: ${effectText(r.def, 1)}`;
-      setHtml(
-        r.cost,
-        cost === null
-          ? '<span>Max level</span>'
-          : r.def.essences.map((e) => `<span class="${(s.essences[e] ?? 0) < cost ? 'short' : ''}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}" style="--el:${hex(ELEMENT_COLORS[e])}"></i>${fmt(cost)}</span>`).join(''),
-      );
-      const nextTier = level > 0 && level % RELIC_LEVELS_PER_TIER === 0;
-      r.up.textContent = level === 0 ? 'Craft' : cost === null ? 'Maxed' : nextTier ? 'Next tier' : 'Upgrade';
-      r.up.disabled = !can;
-      r.equip.hidden = level === 0;
+      r.root.classList.toggle('locked', !open);
+      r.tier.textContent = level ? `· Lv ${level}/${capLv}` : '';
+      r.eff.textContent = !open
+        ? `Opens when a ${r.def.stars - 1}★ relic reaches level ${RELIC_BASE_MAX}`
+        : level
+          ? effectText(r.def, level)
+          : `Crafts to: ${effectText(r.def, 1)}`;
+      if (!open) setHtml(r.cost, '');
+      else if (cost !== null)
+        setHtml(r.cost, r.def.essences.map((e) => `<span class="${(s.essences[e] ?? 0) < cost ? 'short' : ''}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}" style="--el:${hex(ELEMENT_COLORS[e])}"></i>${fmt(cost)}</span>`).join(''));
+      else if (enhance !== null) setHtml(r.cost, `<span class="${s.enhanceStones < enhance ? 'short' : ''}" title="Enhance Stones"><i class="stone"></i>${enhance} → cap +5</span>`);
+      else setHtml(r.cost, '<span>Max level</span>');
+      r.up.hidden = !open;
+      r.up.textContent = level === 0 ? 'Craft' : cost !== null ? 'Upgrade' : enhance !== null ? 'Enhance' : 'Maxed';
+      r.up.disabled = cost !== null ? !can : enhance === null || s.enhanceStones < enhance;
+      const passive = r.def.effect === 'cost';
+      r.equip.hidden = level === 0 || passive;
       r.equip.textContent = on ? 'Take off' : 'Equip';
       r.equip.disabled = !on && !freeSlot;
-      if ((on && can) || (level > 0 && !on && freeSlot)) worthALook = true;
+      if ((on && can) || (level > 0 && !on && !passive && freeSlot)) worthALook = true;
     }
     return worthALook;
   }
@@ -638,8 +691,8 @@ export class UI {
     ].join(''));
 
     $('sheet-gold-lvl').textContent = gold > 0 ? String(gold) : '(locked)';
-    const { levels, cost } = bulkCost(def, gold, s.buyAmount, s.gold);
-    const shown = levels > 0 ? { levels, cost } : bulkCost(def, gold, 1, s.gold);
+    const { levels, cost } = bulkCost(def, gold, s.buyAmount, s.gold, s.levelCostMult());
+    const shown = levels > 0 ? { levels, cost } : bulkCost(def, gold, 1, s.gold, s.levelCostMult());
     const goldBtn = $<HTMLButtonElement>('sheet-gold-up');
     goldBtn.classList.toggle('unlock', gold === 0);
     if (gold === 0) {
@@ -840,7 +893,7 @@ export class UI {
       const res = $('tf-result');
       res.hidden = false;
       res.innerHTML = result.won
-        ? `Victory! +${fmt(result.essence)} ${ESSENCE_NAMES[el]} · medal${result.medals.length === 1 ? '' : 's'}: ${medalNames}`
+        ? `Victory! +${fmt(result.essence)} ${ESSENCE_NAMES[el]}${result.stones ? ` · +${result.stones} Enhance Stone${result.stones === 1 ? '' : 's'}` : ''} · medal${result.medals.length === 1 ? '' : 's'}: ${medalNames}`
         : `Defeated. Your ticket was kept. Raise Ember levels or stars and try again.`;
       res.className = `tf-result ${result.won ? 'win' : 'lose'}`;
       play(result.won ? 'clear' : 'defeat');
@@ -1085,7 +1138,7 @@ export class UI {
       }
       return;
     }
-    const { levels, cost } = bulkCost(def, level, this.state.buyAmount, this.state.gold);
+    const { levels, cost } = bulkCost(def, level, this.state.buyAmount, this.state.gold, this.state.levelCostMult());
     if (levels === 0 || cost.gt(this.state.gold)) return;
     this.state.gold = this.state.gold.minus(cost);
     this.state.levels[def.id] = level + levels;
@@ -1126,7 +1179,7 @@ export class UI {
     $('mute').classList.toggle('on', !s.muted);
     $('mute').textContent = s.muted ? 'Sound off' : 'Sound on';
     $('autoult').classList.toggle('on', s.autoUlt);
-    $<HTMLButtonElement>('levelall').disabled = !HEROES.some((h) => (s.levels[h.id] ?? 0) > 0 && s.inLineup(h.id) && upgradeCost(h, s.levels[h.id]).lte(s.gold));
+    $<HTMLButtonElement>('levelall').disabled = !HEROES.some((h) => (s.levels[h.id] ?? 0) > 0 && s.inLineup(h.id) && upgradeCost(h, s.levels[h.id], s.levelCostMult()).lte(s.gold));
     $('buyamt').textContent = `Buy ${s.buyAmount === 'max' ? 'max' : `x${s.buyAmount}`}`;
     const bossBtn = $('boss');
     bossBtn.hidden = s.autoAdvance;
@@ -1155,8 +1208,8 @@ export class UI {
       r.root.classList.toggle('benched', benched);
       r.ember.textContent = benched ? '· Benched' : canEvolve ? '· Ready to evolve!' : s.embers >= emberCost(emberLevel) ? '· Embers ready' : '';
       if (!benched && (canEvolve || (s.embers > 0 && s.embers >= emberCost(emberLevel)))) heroesBadge = true;
-      const { levels, cost } = bulkCost(r.def, level, s.buyAmount, s.gold);
-      const shown = levels > 0 ? { levels, cost } : bulkCost(r.def, level, 1, s.gold);
+      const { levels, cost } = bulkCost(r.def, level, s.buyAmount, s.gold, s.levelCostMult());
+      const shown = levels > 0 ? { levels, cost } : bulkCost(r.def, level, 1, s.gold, s.levelCostMult());
       if (locked) {
         const p1 = s.heroPower(r.def, 1);
         setHtml(r.stats, `<span class="st atk">${SWORD}${fmt(p1.atk)}</span><span class="st hp">${HEART}${fmt(p1.hp)}</span>`);

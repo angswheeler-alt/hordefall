@@ -99,18 +99,18 @@ export function heroHp(def: HeroDef, level: number): Decimal {
 }
 
 /** Gold to go from `level` to `level + 1`. Level 0 means locked, so this is the recruit cost. */
-export function upgradeCost(def: HeroDef, level: number): Decimal {
-  if (level === 0) return new Decimal(def.unlockCost);
-  return Decimal.pow(COST_GROWTH, level - 1).times(def.upgradeBaseCost);
+export function upgradeCost(def: HeroDef, level: number, mult = 1): Decimal {
+  if (level === 0) return new Decimal(def.unlockCost).times(mult);
+  return Decimal.pow(COST_GROWTH, level - 1).times(def.upgradeBaseCost * mult);
 }
 
 /** Total cost and count for buying up to `count` levels (or as many as affordable when count is 'max'). */
-export function bulkCost(def: HeroDef, level: number, count: number | 'max', gold: Decimal): { levels: number; cost: Decimal } {
+export function bulkCost(def: HeroDef, level: number, count: number | 'max', gold: Decimal, mult = 1): { levels: number; cost: Decimal } {
   let total = new Decimal(0);
   let n = 0;
   const limit = count === 'max' ? 1000 : count;
   while (n < limit) {
-    const next = total.plus(upgradeCost(def, level + n));
+    const next = total.plus(upgradeCost(def, level + n, mult));
     if (count === 'max' && next.gt(gold)) break;
     total = next;
     n++;
@@ -184,11 +184,10 @@ export function trialDps(level: { difficulty: number; req: [number, number] | nu
 }
 
 /**
- * Essence of each of a relic's two kinds to go from total level `level` to the
- * next (0 = crafting). Doubles every 2 levels, so level 50 lines up with the
- * top Trial's reward; the step into a new tier costs three times as much.
+ * Essence of each of a relic's two kinds to go from level `level` to the next
+ * (0 = crafting). Doubles every 2 levels; `starMult` makes higher-star relics
+ * cost more (RELIC_STAR_COST).
  */
-export function relicCost(level: number, levelsPerTier: number): number {
-  const base = Math.round(20 * Math.pow(2, level / 2));
-  return level > 0 && level % levelsPerTier === 0 ? base * 3 : base;
+export function relicCost(level: number, starMult: number): number {
+  return Math.round(20 * starMult * Math.pow(2, level / 2));
 }

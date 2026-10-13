@@ -442,6 +442,11 @@ export class BattleScene extends Phaser.Scene {
     return sumEffect(this.state.effects(), kind, u?.def?.id ?? null);
   }
 
+  /** Attack cooldown multiplier: star skills, then relics that make the team attack faster. */
+  private cooldownMult(h: Unit) {
+    return this.mul('attackSpeed', h) / (1 + this.state.relicBonus('speed'));
+  }
+
   /** Multiplicative total of a star-skill effect reaching this unit; 1 when none apply. */
   private mul(kind: EffectKind, u: Unit | null) {
     return mulEffect(this.state.effects(), kind, u?.def?.id ?? null);
@@ -676,7 +681,7 @@ export class BattleScene extends Phaser.Scene {
         .filter((a) => a.alive && a.hp.lt(a.maxHp.times(0.75)) && Math.abs(a.x - h.x) <= h.range)
         .sort((a, b) => a.hp.div(a.maxHp).toNumber() - b.hp.div(b.maxHp).toNumber())[0];
       if (hurt && h.cooldownLeft <= 0) {
-        h.cooldownLeft = h.cooldown * this.mul('attackSpeed', h);
+        h.cooldownLeft = h.cooldown * this.cooldownMult(h);
         this.heal(hurt, h.atk.times(3 * this.mul('healPower', h)));
         this.shot(h, hurt.x, hurt.y, 0xfff6a0);
         return;
@@ -687,7 +692,7 @@ export class BattleScene extends Phaser.Scene {
     const dist = target ? target.x - h.x : Infinity;
     if (target && dist <= h.range) {
       if (h.cooldownLeft <= 0) {
-        h.cooldownLeft = h.cooldown * this.mul('attackSpeed', h);
+        h.cooldownLeft = h.cooldown * this.cooldownMult(h);
         this.heroAttack(h, target);
       }
       return;
@@ -696,7 +701,7 @@ export class BattleScene extends Phaser.Scene {
     const canHitCrystal = !this.bossAlive();
     if (crystalDist <= h.range && (!target || dist > crystalDist)) {
       if (canHitCrystal && h.cooldownLeft <= 0) {
-        h.cooldownLeft = h.cooldown * this.mul('attackSpeed', h);
+        h.cooldownLeft = h.cooldown * this.cooldownMult(h);
         if (def.range > 60) this.shot(h, ENEMY_CRYSTAL_X, LANE_TOP + 26, ELEMENT_COLORS[def.element]);
         else this.lunge(h, 1);
         if (h.anim) this.setAnim(h, 'attack');
@@ -765,7 +770,8 @@ export class BattleScene extends Phaser.Scene {
     else this.lunge(h, 1);
     if (h.anim) this.setAnim(h, 'attack');
     h.attacks++;
-    const critChance = CRIT_CHANCE + this.sum('crit', h);
+    const critChance = CRIT_CHANCE + this.sum('crit', h) + this.state.relicBonus('crit');
+    const critMult = CRIT_MULTIPLIER * (1 + this.state.relicBonus('critDmg'));
     const strikes = Math.random() < this.sum('doubleStrike', h) ? 2 : 1;
     const nth = everyNth(this.state.effects(), def.id);
     const bossMult = this.mul('bossDamage', h);
@@ -773,7 +779,7 @@ export class BattleScene extends Phaser.Scene {
     let dealt = new Decimal(0);
     for (let i = 0; i < strikes; i++) {
       const crit = Math.random() < critChance;
-      let atk = crit ? h.atk.times(CRIT_MULTIPLIER) : h.atk;
+      let atk = crit ? h.atk.times(critMult) : h.atk;
       if (nth && nth.every && h.attacks % nth.every === 0) atk = atk.times(nth.value);
       const splash = def.splash ? def.splash * this.mul('splash', h) : 0;
       let targets: Unit[];

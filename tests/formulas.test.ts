@@ -55,8 +55,9 @@ describe('progression curves', () => {
     expect(keeperLevel(keeperThreshold(1))).toBe(2);
   });
 
-  it('relic tier steps cost three times as much', () => {
-    expect(relicCost(10, 10)).toBe(Math.round(20 * Math.pow(2, 5)) * 3);
+  it('relic costs double every two levels and scale with stars', () => {
+    expect(relicCost(2, 1)).toBe(relicCost(0, 1) * 2);
+    expect(relicCost(10, 4)).toBe(relicCost(10, 1) * 4);
   });
 });
 
