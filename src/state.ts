@@ -1,7 +1,7 @@
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
 import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE } from './data';
-import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp, goldPerKill } from './formulas';
+import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES } from './data';
 import { activeEffects, mulEffect, type ActiveEffect } from './skills';
@@ -143,7 +143,7 @@ export class GameState {
   }
 
   /** ATK and HP after levels, stars (x2 each), ATK/HP star skills and relics. `level` overrides the hero's current level. */
-  heroPower(def: HeroDef, level = this.heroLevel(def.id)): { atk: Decimal; hp: Decimal } {
+  heroPower(def: HeroDef, level = this.heroLevel(def.id)): { atk: Decimal; hp: Decimal; defense: Decimal } {
     const starMult = Math.pow(2, this.stars[def.id] ?? 0);
     const atkRelics = 1 + this.relicBonus('atk') + this.relicBonus(def.element);
     const hpRelics = 1 + this.relicBonus('hp') + this.relicBonus(`${def.element}Hp`);
@@ -151,6 +151,7 @@ export class GameState {
     return {
       atk: heroAtk(def, level).times(starMult * mulEffect(fx, 'atk', def.id) * atkRelics),
       hp: heroHp(def, level).times(starMult * mulEffect(fx, 'hp', def.id) * hpRelics),
+      defense: heroDef(def, level).times(starMult * (1 + this.relicBonus('def') + this.relicBonus(`${def.element}Def`))),
     };
   }
 
@@ -584,15 +585,18 @@ export class GameState {
     const team = this.trialTeam();
     let dps = new Decimal(0);
     let hp = new Decimal(0);
+    let defense = new Decimal(0);
     let incoming = 0;
     for (const m of team) {
       dps = dps.plus(m.atk.div(m.def.attackCooldown).times(elementMultiplier(m.def.element, element)));
       hp = hp.plus(m.hp);
+      defense = defense.plus(m.defense);
       incoming += elementMultiplier(element, m.def.element);
     }
     const level = TRIAL_LEVELS[tier - 1];
     const bossHp = trialHp(level);
-    const bossDps = trialDps(level).times(team.length ? incoming / team.length : 1);
+    // The boss's damage each second counts as one hit against the team's average Defense.
+    const bossDps = defended(trialDps(level).times(team.length ? incoming / team.length : 1), team.length ? defense.div(team.length) : new Decimal(0));
     const killTime = dps.gt(0) ? bossHp.div(dps).toNumber() : Infinity;
     const wipeTime = bossDps.gt(0) ? hp.div(bossDps).toNumber() : Infinity;
     const seconds = Math.min(killTime, wipeTime, TRIAL_TIME);

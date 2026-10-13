@@ -318,6 +318,19 @@ describe('relics', () => {
     expect(s.levelCostMult()).toBeCloseTo(1 / (1 + v / 100));
   });
 
+  it('Defense relics raise hero Defense, element ones only for their element', () => {
+    const s = fresh();
+    const before = s.heroPower(starter).defense;
+    expect(before.gt(0)).toBe(true);
+    const piece = RELICS.find((r) => r.fx.some(([e]) => e === `${starter.element}Def`))!;
+    s.relics[piece.id] = RELIC_BASE_MAX;
+    s.equipped = [piece.id];
+    expect(s.heroPower(starter).defense.gt(before)).toBe(true);
+    const other = HEROES.find((h) => h.element !== starter.element)!;
+    const otherBefore = new GameState().heroPower(other).defense;
+    expect(s.heroPower(other).defense.toString()).toBe(otherBefore.toString());
+  });
+
   it('drops relics that are no longer in the game from old saves', () => {
     const s = fresh();
     s.relics.sigil = 5;
