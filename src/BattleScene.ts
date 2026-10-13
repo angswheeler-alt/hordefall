@@ -47,6 +47,11 @@ const CAMPS = [0.3, 0.55, 0.8];
 const CAMP_AGGRO = 170;
 const LANE_TOP = 175;
 const LANE_BOTTOM = 255;
+/** Background art per 50-stage region, in order; files are public/bg/<region>_{sky,far,ground}.png. */
+const REGIONS = ['tidecoast', 'dunes', 'stormcrag', 'emberwastes', 'hollowmoon'];
+/** The far layer is 180 px tall with its bottom edge on the ground line (y 170). */
+const FAR_Y = -10;
+const GROUND_Y = 170;
 const WAVE_INTERVAL = 7;
 const MAX_ENEMIES = 14;
 
@@ -113,7 +118,9 @@ export class BattleScene extends Phaser.Scene {
   private chestTimer = 20;
   private incomeWindow = new Decimal(0);
   private incomeWindowReal = 0;
-  private bg!: Phaser.GameObjects.Graphics;
+  private sky!: Phaser.GameObjects.Image;
+  private far!: Phaser.GameObjects.TileSprite;
+  private groundTiles!: Phaser.GameObjects.TileSprite;
   private ground!: Phaser.GameObjects.Graphics;
   private stageText!: Phaser.GameObjects.Text;
   private infoText!: Phaser.GameObjects.Text;
@@ -123,7 +130,6 @@ export class BattleScene extends Phaser.Scene {
   private hitStop = 0;
   /** The boss timer only runs once a hero reaches the boss. */
   private bossEngaged = false;
-  private hills!: Phaser.GameObjects.Graphics;
   private progressBar!: Phaser.GameObjects.Graphics;
 
   constructor() {
@@ -134,10 +140,17 @@ export class BattleScene extends Phaser.Scene {
     this.state = data.state;
   }
 
+  preload() {
+    for (const r of REGIONS) for (const layer of ['sky', 'far', 'ground']) this.load.image(`bg-${r}-${layer}`, `bg/${r}_${layer}.png`);
+  }
+
   create() {
     this.makeTextures();
-    this.bg = this.add.graphics().setScrollFactor(0);
-    this.hills = this.add.graphics().setScrollFactor(0.4);
+    // Sky is fixed to the screen; the far layer scrolls at 40% for depth; the ground repeats along the lane.
+    this.sky = this.add.image(0, 0, `bg-${REGIONS[0]}-sky`).setOrigin(0).setScrollFactor(0);
+    const farWidth = WIDTH + (WORLD_WIDTH - WIDTH) * 0.4;
+    this.far = this.add.tileSprite(0, FAR_Y, farWidth, 180, `bg-${REGIONS[0]}-far`).setOrigin(0).setScrollFactor(0.4);
+    this.groundTiles = this.add.tileSprite(0, GROUND_Y, WORLD_WIDTH, HEIGHT - GROUND_Y, `bg-${REGIONS[0]}-ground`).setOrigin(0);
     this.ground = this.add.graphics();
     this.progressBar = this.add.graphics().setScrollFactor(0).setDepth(1000);
     this.cameras.main.setBounds(0, 0, WORLD_WIDTH, HEIGHT);
@@ -214,33 +227,14 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private drawBackground() {
-    // Each 50-stage block is a new region: shift the palette so progress is visible.
-    const palettes = [
-      [0x7ec8e3, 0x5fa35f, 0x4f7f3f],
-      [0xf2c48d, 0xc28e4c, 0x8a5f2a],
-      [0x5b5f97, 0x4a4a6a, 0x34344a],
-      [0xff9e7a, 0x9c4a3a, 0x6a2a2a],
-      [0x2a2a4a, 0x3a5a5a, 0x2a3a3a],
-    ];
-    const [sky, hill, ground] = palettes[Math.floor((this.state.stage - 1) / 50) % palettes.length];
-    this.bg.clear();
-    this.bg.fillStyle(sky, 1).fillRect(0, 0, WIDTH, HEIGHT);
-    // Hills scroll slower than the lane for a little depth.
-    const hillsWidth = WIDTH + (WORLD_WIDTH - WIDTH) * 0.4;
-    this.hills.clear();
-    this.hills.fillStyle(hill, 1);
-    for (let x = 40, i = 0; x < hillsWidth + 100; x += 130, i++) this.hills.fillCircle(x, LANE_TOP + 10, 70 + (i % 2) * 25);
+    // Each 50-stage block is a new region, cycling through the five background sets.
+    const region = REGIONS[Math.floor((this.state.stage - 1) / 50) % REGIONS.length];
+    this.sky.setTexture(`bg-${region}-sky`);
+    this.far.setTexture(`bg-${region}-far`);
+    this.groundTiles.setTexture(`bg-${region}-ground`);
+    // Distance posts so the walk reads as travel.
     const g = this.ground;
     g.clear();
-    g.fillStyle(ground, 1).fillRect(0, LANE_TOP - 5, WORLD_WIDTH, HEIGHT - LANE_TOP + 5);
-    g.fillStyle(0x000000, 0.12).fillRect(0, LANE_BOTTOM + 12, WORLD_WIDTH, HEIGHT - LANE_BOTTOM);
-    // Grass tufts, rocks and distance posts so the walk reads as travel.
-    const rng = new Phaser.Math.RandomDataGenerator([String(this.state.stage)]);
-    for (let x = 20; x < WORLD_WIDTH; x += rng.between(30, 60)) {
-      const y = rng.between(LANE_TOP, HEIGHT - 8);
-      if (rng.frac() < 0.75) g.fillStyle(0x000000, 0.15).fillRect(x, y, 2, 4).fillRect(x + 3, y - 2, 2, 6).fillRect(x + 6, y, 2, 4);
-      else g.fillStyle(0x000000, 0.22).fillEllipse(x, y, rng.between(8, 16), rng.between(5, 8));
-    }
     for (let i = 1; i < 4; i++) {
       const x = (WORLD_WIDTH / 4) * i;
       g.fillStyle(0x5a3a1a, 1).fillRect(x - 2, LANE_TOP - 26, 4, 24);
