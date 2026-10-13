@@ -9,7 +9,6 @@ import {
   ULT_COOLDOWN,
   ULT_MULTIPLIER,
   ULT_STAR_BONUS,
-  AURA_EVOLUTIONS,
   ULT_PLUS_EVOLUTIONS,
   BOSS_GEMS,
   ULT_UNLOCK_LEVEL,
@@ -37,6 +36,8 @@ import {
 } from './formulas';
 import type { GameState } from './state';
 import { play } from './sfx';
+import { sumEffect, mulEffect, everyNth } from './skills';
+import type { EffectKind } from './data';
 
 /** Visible area. The lane itself is WORLD_WIDTH long and the camera follows the heroes. */
 export const WIDTH = 480;
@@ -50,15 +51,35 @@ const CAMP_AGGRO = 170;
 const LANE_TOP = 175;
 const LANE_BOTTOM = 255;
 /** Background art per 50-stage region, in order; files are public/bg/<region>_{sky,far,ground}.png. */
-/** Heroes with finished sprites in public/heroes/<id>.png (44 x 40, feet on row 38, facing right); the rest use placeholder blocks. */
-const HERO_ART = ['marin'];
-
 const REGIONS = ['tidecoast', 'dunes', 'stormcrag', 'emberwastes', 'hollowmoon'];
 /** The far layer is 180 px tall with its bottom edge on the ground line (y 170). */
 const FAR_Y = -10;
 const GROUND_Y = 170;
 const WAVE_INTERVAL = 7;
 const MAX_ENEMIES = 14;
+/** Melee feet sit this far below a unit's y (the old 30 px placeholders were centred on it). */
+const FOOT_Y = 15;
+
+/**
+ * Frame-animated heroes (built by art/heroes/<id>/frames.js). heroes/<id>.png is the standing pose and
+ * <id>_run.png / <id>_attack.png are strips of equal frames on the same canvas. `feet` is the point that
+ * stands on the lane, `headTop` the first row of hair (for the HP bar), and `slashFrame` the attack frame
+ * where the blade connects (the slash streak shows there).
+ */
+interface HeroAnim {
+  frame: [number, number];
+  feet: [number, number];
+  headTop: number;
+  run: number;
+  attack: number;
+  slashFrame: number;
+}
+const HERO_ANIMS: Record<string, HeroAnim> = {
+  brine: { frame: [59, 59], feet: [30, 58], headTop: 9, run: 6, attack: 5, slashFrame: 2 },
+};
+const RUN_FPS = 12;
+const ATTACK_FPS = 16;
+type AnimState = 'idle' | 'run' | 'attack';
 
 interface Unit {
   side: 'hero' | 'enemy';
@@ -83,7 +104,9 @@ interface Unit {
   respawnAt: number;
   ultReadyAt: number;
   view: Phaser.GameObjects.Container;
-  body: Phaser.GameObjects.Image;
+  body: Phaser.GameObjects.Sprite;
+  /** Set for frame-animated heroes: which animation is showing. */
+  anim?: { id: string; state: AnimState };
   hpBar: Phaser.GameObjects.Graphics;
   barWidth: number;
 }
@@ -147,11 +170,23 @@ export class BattleScene extends Phaser.Scene {
 
   preload() {
     for (const r of REGIONS) for (const layer of ['sky', 'far', 'ground']) this.load.image(`bg-${r}-${layer}`, `bg/${r}_${layer}.png`);
-    for (const id of HERO_ART) this.load.image(`hero-${id}`, `heroes/${id}.png`);
+    // Hero sprites (32x32, feet on row 30). A hero without a file falls back to its placeholder block.
+    for (const h of HEROES) this.load.image(`hero-${h.id}`, `heroes/${h.id}.png`);
+    for (const [id, a] of Object.entries(HERO_ANIMS)) {
+      const size = { frameWidth: a.frame[0], frameHeight: a.frame[1] };
+      this.load.spritesheet(`hero-${id}-run`, `heroes/${id}_run.png`, size);
+      this.load.spritesheet(`hero-${id}-attack`, `heroes/${id}_attack.png`, size);
+    }
   }
 
   create() {
     this.makeTextures();
+    for (const [id, a] of Object.entries(HERO_ANIMS)) {
+      if (!this.anims.exists(`${id}-run`)) {
+        this.anims.create({ key: `${id}-run`, frames: this.anims.generateFrameNumbers(`hero-${id}-run`, { start: 0, end: a.run - 1 }), frameRate: RUN_FPS, repeat: -1 });
+        this.anims.create({ key: `${id}-attack`, frames: this.anims.generateFrameNumbers(`hero-${id}-attack`, { start: 0, end: a.attack - 1 }), frameRate: ATTACK_FPS, repeat: 0 });
+      }
+    }
     // Sky is fixed to the screen; the far layer scrolls at 40% for depth; the ground repeats along the lane.
     this.sky = this.add.image(0, 0, `bg-${REGIONS[0]}-sky`).setOrigin(0).setScrollFactor(0);
     const farWidth = WIDTH + (WORLD_WIDTH - WIDTH) * 0.4;
@@ -267,12 +302,12 @@ export class BattleScene extends Phaser.Scene {
     label?: string;
   }): Unit {
     const y = opts.isBoss ? LANE_TOP + 35 : Phaser.Math.Between(LANE_TOP + 5, LANE_BOTTOM);
-    // Anchor every body at its feet so sprites of any size stand on the same line;
-    // finished art has 2 empty rows under the feet, placeholders don't.
-    const art = opts.def && HERO_ART.includes(opts.def.id);
-    const body = this.add.image(0, 0, opts.texture).setOrigin(0.5, 1);
-    body.y = art ? 17 : body.height / 2;
+    const body = this.add.sprite(0, 0, opts.texture);
     if (opts.side === 'enemy') body.setTint(ELEMENT_COLORS[opts.element]).setFlipX(true);
+    // Frame-animated heroes stand on their feet point, on the same foot line as everyone else.
+    const animDef = opts.def ? HERO_ANIMS[opts.def.id] : undefined;
+    const anim = animDef && this.anims.exists(`${opts.def!.id}-run`) ? { id: opts.def!.id, state: 'idle' as AnimState } : undefined;
+    if (anim && animDef) body.setOrigin(animDef.feet[0] / animDef.frame[0], animDef.feet[1] / animDef.frame[1]).setY(FOOT_Y);
     const barWidth = opts.isBoss ? 60 : 24;
     const hpBar = this.add.graphics();
     const parts: Phaser.GameObjects.GameObject[] = [body, hpBar];
@@ -306,6 +341,7 @@ export class BattleScene extends Phaser.Scene {
       ultReadyAt: 0,
       view,
       body,
+      anim,
       hpBar,
       barWidth,
     };
@@ -313,10 +349,42 @@ export class BattleScene extends Phaser.Scene {
     return unit;
   }
 
+  /** Switch a frame-animated hero between standing, running and attacking. An attack always restarts. */
+  private setAnim(u: Unit, state: AnimState) {
+    const a = u.anim;
+    if (!a || (a.state === state && state !== 'attack')) return;
+    a.state = state;
+    if (state === 'run') u.body.play(`${a.id}-run`);
+    else if (state === 'idle') u.body.stop().setTexture(`hero-${a.id}`);
+    else {
+      u.body.play(`${a.id}-attack`);
+      u.body.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+        if (a.state === 'attack' && u.body.active) this.setAnim(u, 'idle');
+      });
+      // The streak lands on the frame where the blade connects (frames run at ATTACK_FPS, scaled by battle speed).
+      const def = HERO_ANIMS[a.id];
+      this.time.delayedCall((def.slashFrame / ATTACK_FPS) * 1000 / this.speedMultiplier(), () => this.slashStreak(u));
+    }
+  }
+
+  /** A short arc in front of the hero where the blade passed, in the hero's element colour. */
+  private slashStreak(u: Unit) {
+    if (!u.alive) return;
+    const cx = u.view.x + 4, cy = u.view.y + FOOT_Y - 28;
+    const g = this.add.graphics().setDepth(u.view.depth + 1);
+    const draw = (alpha: number) => {
+      g.clear();
+      g.lineStyle(4, 0xffffff, alpha).beginPath().arc(cx, cy, 21, Phaser.Math.DegToRad(-80), Phaser.Math.DegToRad(30)).strokePath();
+      g.lineStyle(2, ELEMENT_COLORS[u.element], alpha).beginPath().arc(cx, cy, 24, Phaser.Math.DegToRad(-70), Phaser.Math.DegToRad(25)).strokePath();
+    };
+    draw(0.9);
+    this.tweens.addCounter({ from: 0.9, to: 0, duration: 160, onUpdate: (t) => draw(t.getValue() ?? 0), onComplete: () => g.destroy() });
+  }
+
   private drawHpBar(u: Unit) {
     const ratio = u.maxHp.gt(0) ? Math.max(0, Math.min(1, u.hp.div(u.maxHp).toNumber())) : 0;
     const w = u.barWidth;
-    const top = u.body.y - u.body.height - 7;
+    const top = u.anim ? FOOT_Y - HERO_ANIMS[u.anim.id].feet[1] + HERO_ANIMS[u.anim.id].headTop - 5 : -u.body.height / 2 - 7;
     u.hpBar.clear();
     u.hpBar.fillStyle(0x000000, 0.7).fillRect(-w / 2 - 1, top - 1, w + 2, 5);
     u.hpBar.fillStyle(u.side === 'hero' ? 0x4cff7a : 0xff4c4c, 1).fillRect(-w / 2, top, w * ratio, 3);
@@ -364,8 +432,14 @@ export class BattleScene extends Phaser.Scene {
     return this.state.hasStar(heroId, star);
   }
 
-  private isHero(u: Unit, id: string) {
-    return u.def?.id === id;
+  /** Additive total of a star-skill effect reaching this unit (team-wide plus its own). null = team-wide only. */
+  private sum(kind: EffectKind, u: Unit | null) {
+    return sumEffect(this.state.effects(), kind, u?.def?.id ?? null);
+  }
+
+  /** Multiplicative total of a star-skill effect reaching this unit; 1 when none apply. */
+  private mul(kind: EffectKind, u: Unit | null) {
+    return mulEffect(this.state.effects(), kind, u?.def?.id ?? null);
   }
 
   private spawnEnemy(boss = false, campX?: number) {
@@ -518,6 +592,7 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     const dt = realDt * (this.speedMultiplier());
+    this.anims.globalTimeScale = this.speedMultiplier();
     this.clock += dt;
     this.updateChests(dt);
     this.drawHud();
@@ -565,7 +640,14 @@ export class BattleScene extends Phaser.Scene {
     this.crystalShield.setVisible(shielded);
   }
 
+  /** Move or attack, then show running while the hero moved this frame and standing otherwise. */
   private stepHero(h: Unit, dt: number) {
+    const x0 = h.x;
+    this.stepHeroAction(h, dt);
+    if (h.anim && h.anim.state !== 'attack') this.setAnim(h, h.x !== x0 ? 'run' : 'idle');
+  }
+
+  private stepHeroAction(h: Unit, dt: number) {
     h.cooldownLeft -= dt;
     const def = h.def!;
 
@@ -574,8 +656,8 @@ export class BattleScene extends Phaser.Scene {
         .filter((a) => a.alive && a.hp.lt(a.maxHp.times(0.75)) && Math.abs(a.x - h.x) <= h.range)
         .sort((a, b) => a.hp.div(a.maxHp).toNumber() - b.hp.div(b.maxHp).toNumber())[0];
       if (hurt && h.cooldownLeft <= 0) {
-        h.cooldownLeft = h.cooldown;
-        this.heal(hurt, h.atk.times(this.has('solenne', 1) ? 4.5 : 3));
+        h.cooldownLeft = h.cooldown * this.mul('attackSpeed', h);
+        this.heal(hurt, h.atk.times(3 * this.mul('healPower', h)));
         this.shot(h, hurt.x, hurt.y, 0xfff6a0);
         return;
       }
@@ -585,7 +667,7 @@ export class BattleScene extends Phaser.Scene {
     const dist = target ? target.x - h.x : Infinity;
     if (target && dist <= h.range) {
       if (h.cooldownLeft <= 0) {
-        h.cooldownLeft = h.cooldown;
+        h.cooldownLeft = h.cooldown * this.mul('attackSpeed', h);
         this.heroAttack(h, target);
       }
       return;
@@ -594,7 +676,7 @@ export class BattleScene extends Phaser.Scene {
     const canHitCrystal = !this.bossAlive();
     if (crystalDist <= h.range && (!target || dist > crystalDist)) {
       if (canHitCrystal && h.cooldownLeft <= 0) {
-        h.cooldownLeft = h.cooldown;
+        h.cooldownLeft = h.cooldown * this.mul('attackSpeed', h);
         if (def.range > 60) this.shot(h, ENEMY_CRYSTAL_X, LANE_TOP + 26, ELEMENT_COLORS[def.element]);
         this.damageCrystal(h.atk);
       }
@@ -644,41 +726,59 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private enemyHits(e: Unit, target: Unit) {
-    if (this.isHero(target, 'nox') && this.has('nox', 1) && Math.random() < 0.25) {
+    if (Math.random() < this.sum('dodge', target)) {
       this.floatText(target.x, target.y - 26, 'MISS', '#c9b8ff', 11);
       return;
     }
-    let mult = elementMultiplier(e.element, target.element);
-    if (this.isHero(target, 'marin') && this.has('marin', 2)) mult *= 0.75;
-    if (this.has('bramble', AURA_EVOLUTIONS)) mult *= 0.9;
+    const mult = elementMultiplier(e.element, target.element) * this.mul('damageTaken', target);
     const dmg = e.atk.times(mult);
     this.damageUnit(target, dmg, null);
-    if (this.isHero(target, 'bramble') && this.has('bramble', 1)) this.damageUnit(e, dmg.times(0.3), target);
+    const reflect = this.sum('reflect', target);
+    if (reflect > 0) this.damageUnit(e, dmg.times(reflect), target);
   }
 
   private heroAttack(h: Unit, target: Unit) {
     const def = h.def!;
     if (def.range > 60) this.shot(h, target.x, target.y, ELEMENT_COLORS[def.element]);
     else this.lunge(h, 1);
+    if (h.anim) this.setAnim(h, 'attack');
     h.attacks++;
-    const critChance = CRIT_CHANCE + (this.isHero(h, 'nox') && this.has('nox', 2) ? 0.2 : 0);
-    const strikes = this.isHero(h, 'marin') && this.has('marin', 1) && Math.random() < 0.2 ? 2 : 1;
+    const critChance = CRIT_CHANCE + this.sum('crit', h);
+    const strikes = Math.random() < this.sum('doubleStrike', h) ? 2 : 1;
+    const nth = everyNth(this.state.effects(), def.id);
+    const bossMult = this.mul('bossDamage', h);
+    const lifesteal = this.sum('lifesteal', h);
+    let dealt = new Decimal(0);
     for (let i = 0; i < strikes; i++) {
       const crit = Math.random() < critChance;
       let atk = crit ? h.atk.times(CRIT_MULTIPLIER) : h.atk;
-      if (this.isHero(h, 'pyra') && this.has('pyra', 2) && h.attacks % 4 === 0) atk = atk.times(3);
-      const splash = def.splash ? def.splash * (this.isHero(h, 'pyra') && this.has('pyra', 1) ? 1.5 : 1) : 0;
-      const targets = splash ? this.enemies.filter((e) => e.alive && Math.abs(e.x - target.x) <= splash) : [target];
-      for (const t of targets) this.damageUnit(t, atk.times(elementMultiplier(h.element, t.element)), h, crit);
+      if (nth && nth.every && h.attacks % nth.every === 0) atk = atk.times(nth.value);
+      const splash = def.splash ? def.splash * this.mul('splash', h) : 0;
+      let targets: Unit[];
+      if (splash) targets = this.enemies.filter((e) => e.alive && Math.abs(e.x - target.x) <= splash);
+      else {
+        // Piercing shots also hit the next enemies just behind the target.
+        const pierce = Math.round(this.sum('pierce', h));
+        const behind = pierce > 0 ? this.enemies.filter((e) => e.alive && e !== target && e.x > target.x && e.x - target.x <= 60).sort((a, b) => a.x - b.x).slice(0, pierce) : [];
+        targets = [target, ...behind];
+      }
+      for (const t of targets) {
+        const amount = atk.times(elementMultiplier(h.element, t.element) * (t.isBoss ? bossMult : 1));
+        dealt = dealt.plus(amount);
+        this.damageUnit(t, amount, h, crit);
+      }
+    }
+    if (lifesteal > 0 && h.alive && h.hp.lt(h.maxHp)) {
+      h.hp = Decimal.min(h.maxHp, h.hp.plus(dealt.times(lifesteal)));
+      this.drawHpBar(h);
     }
   }
 
-  /** Bramble's Taproot and Solenne's Lanternlight. */
+  /** Regeneration star skills (a hero's own, plus team-wide auras). */
   private regenerate(dt: number) {
-    const team = this.has('solenne', AURA_EVOLUTIONS) ? 0.01 : 0;
     for (const h of this.heroes) {
       if (!h.alive) continue;
-      const rate = team + (this.isHero(h, 'bramble') && this.has('bramble', 2) ? 0.03 : 0);
+      const rate = this.sum('regen', h);
       if (rate <= 0 || h.hp.gte(h.maxHp)) continue;
       h.hp = Decimal.min(h.maxHp, h.hp.plus(h.maxHp.times(rate * dt)));
       this.drawHpBar(h);
@@ -739,7 +839,7 @@ export class BattleScene extends Phaser.Scene {
       const gold = goldPerKill(this.state.stage)
         .times(u.isBoss ? 10 : 1)
         .times(source?.goldMult ?? 1)
-        .times(this.has('nox', AURA_EVOLUTIONS) ? 1.25 : 1)
+        .times(this.mul('gold', null))
         .times(1 + this.state.relicBonus('gold'));
       this.gainGold(gold, u.x, u.y);
       this.tweens.add({ targets: u.view, alpha: 0, scale: 1.5, y: u.y - 8, duration: 220, onComplete: () => u.view.destroy() });
@@ -752,7 +852,7 @@ export class BattleScene extends Phaser.Scene {
         this.freeze(0.25);
       }
     } else {
-      u.respawnAt = this.clock + RESPAWN_SECONDS * (this.has('solenne', 2) ? 0.5 : 1);
+      u.respawnAt = this.clock + RESPAWN_SECONDS * this.mul('respawn', null);
       this.puff(u.x, u.y, 0xffffff);
       u.view.setVisible(false);
     }

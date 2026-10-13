@@ -8,6 +8,8 @@ import type { BattleScene } from './BattleScene';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
+/** Inline style for a hero face: their sprite's head and shoulders over their element colour. */
+const faceStyle = (def: HeroDef) => `background-color:${hex(ELEMENT_COLORS[def.element])};--art:url(heroes/${def.id}.png)`;
 const SWORD = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2l2 2-11 11 2 2-2 2-2-2-3 3-2-2 3-3-2-2 2-2 2 2z"/></svg>';
 const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21C5 15 2 12 2 8a5 5 0 0 1 10-1 5 5 0 0 1 10 1c0 4-3 7-10 13z"/></svg>';
 const ULT_ICONS: Record<string, string> = {
@@ -84,7 +86,7 @@ export class UI {
       const root = document.createElement('div');
       root.className = 'hero';
       root.innerHTML = `
-        <div class="face" role="button" tabindex="0" aria-label="Open ${def.name}" style="background:${hex(ELEMENT_COLORS[def.element])}">${def.name[0]}<span class="pember"></span><span class="plv"></span></div>
+        <div class="face art" role="button" tabindex="0" aria-label="Open ${def.name}" style="${faceStyle(def)}">${def.name[0]}<span class="pember"></span><span class="plv"></span></div>
         <div class="who" role="button" tabindex="0" aria-label="Open ${def.name}">
           <div class="banner" style="--el:${hex(ELEMENT_COLORS[def.element])}"><span class="name">${def.name}</span><span class="stars-mini"></span></div>
           <div class="stats"></div>
@@ -131,7 +133,7 @@ export class UI {
       const label = !recruited ? 'Locked' : on ? (spent.gt(0) ? `Remove (+${fmt(spent)} gold)` : 'Remove') : 'Add';
       const disabled = !recruited || (on && count <= 1) || (!on && count >= LINEUP_SIZE);
       return `<li class="team-row${on ? ' on' : ''}${recruited ? '' : ' locked'}">
-        <span class="face" style="background:${hex(ELEMENT_COLORS[h.element])}">${h.name[0]}</span>
+        <span class="face art" style="${faceStyle(h)}">${h.name[0]}</span>
         <span class="team-who"><b>${h.name}</b><small>${recruited ? `Lv ${s.heroLevel(h.id)} · ${on ? 'In team' : 'Benched'}` : `${cap(h.element)} ${h.job}`}</small></span>
         <button data-lineup="${h.id}" class="${on ? '' : 'hot'}" ${disabled ? 'disabled' : ''}>${label}</button>
       </li>`;
@@ -481,7 +483,7 @@ export class UI {
     const odds = (Object.keys(CHEST_RARITY_WEIGHTS) as Array<keyof typeof CHEST_RARITY_WEIGHTS>)
       .map((r) => `<li><b>${cap(r)}</b><span>${CHEST_RARITY_WEIGHTS[r]}% · ${CREST_ROLLS[r].map(([c]) => c).join('/')} medals</span></li>`)
       .join('');
-    const faces = HEROES.map((h) => `<span class="face" title="${h.name}" style="background:${hex(ELEMENT_COLORS[h.element])}">${h.name[0]}</span>`).join('');
+    const faces = HEROES.map((h) => `<span class="face art" title="${h.name}" style="${faceStyle(h)}">${h.name[0]}</span>`).join('');
     const afford = s.gems >= CHEST_COST;
     this.showModal(
       'Hero Chest',
@@ -510,7 +512,7 @@ export class UI {
     const cards = drops
       .map((d) => {
         const def = HEROES.find((h) => h.id === d.heroId)!;
-        return `<div class="drop"><div class="face" style="background:${hex(ELEMENT_COLORS[def.element])}">${def.name[0]}</div><b>${def.name}</b>${d.isNew ? '<span class="new">READY TO UNLOCK</span>' : ''}<span class="crest">+${d.crests} Crests</span></div>`;
+        return `<div class="drop"><div class="face art" style="${faceStyle(def)}">${def.name[0]}</div><b>${def.name}</b>${d.isNew ? '<span class="new">READY TO UNLOCK</span>' : ''}<span class="crest">+${d.crests} Crests</span></div>`;
       })
       .join('');
     const canAgain = this.state.gems >= CHEST_COST;
@@ -533,7 +535,8 @@ export class UI {
     const def = HEROES.find((h) => h.id === id)!;
     const face = $('sheet-face');
     face.textContent = def.name[0];
-    face.style.background = hex(ELEMENT_COLORS[def.element]);
+    face.classList.add('art');
+    face.setAttribute('style', faceStyle(def));
     $('sheet-name').textContent = def.name;
     $('sheet-sub').textContent = `${cap(def.element)} ${def.job}`;
     $('sheet-bio').textContent = def.bio;
