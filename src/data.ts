@@ -314,16 +314,10 @@ export const REKINDLE_BOOSTS: Array<{ mult: number; gems: number }> = [
   { mult: 2, gems: 80 },
   { mult: 3, gems: 160 },
 ];
-/** Rekindle Wheel: 16 slots on the Rekindle page, one unlocking every 50 best stages from 150 (GDD section 7). */
-export const ROAD_START = 150;
-export const ROAD_STEP = 50;
-export const ROAD_LENGTH = 16;
-export const ROAD_GEMS = 50;
 /** Each player level adds this much to every Ember payout. */
 export const KEEPER_BONUS_PER_LEVEL = 0.1;
 export const CRIT_CHANCE = 0.12;
 export const CRIT_MULTIPLIER = 2.5;
-
 /**
  * Hero Crests (medals) for each evolution, from Samuel's table: a hero unlocks
  * at 1★ and evolves up to 8★ (1★→2★ costs 10, ... 7★→8★ costs 5,000).
@@ -350,9 +344,7 @@ export const LEGENDARY_MEDAL_RATE = 10;
 
 // Gems (premium currency) and the Hero Chest summon.
 export const START_GEMS = 60;
-export const BOSS_GEMS = 20;
-/** Paid the first time you reach each multiple of 10 stages. */
-export const MILESTONE_GEMS = 5;
+// Free Gems come from rewards.ts (dailies, login calendar, Lucky Spin, achievements, Bootcamp) and gold chests.
 export const CHEST_COST = 30;
 export const CHEST_DROPS = 3;
 /**
