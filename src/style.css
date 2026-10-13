@@ -119,3 +119,43 @@ button.evolve { width: 100%; margin: 4px 0 8px; }
 @media (prefers-reduced-motion: reduce) { .summon-grid .drop { animation: none; } }
 button.link { background: none; border: none; padding: 4px 0 0; color: var(--ember); font-size: 12px; text-decoration: underline; }
 button.link[disabled] { display: none; }
+
+/* Rekindle rewards page */
+#rk { position: fixed; inset: 0; z-index: 15; background: rgba(8,4,20,.75); display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; }
+.rk-card { position: relative; width: 100%; max-width: 420px; margin: auto; background: linear-gradient(180deg, #3a2a5e, var(--panel)); border: 1px solid #5a4890; border-radius: 18px; padding: 44px 18px 18px; }
+.rk-close { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; padding: 0; border-radius: 10px; font-size: 16px; }
+.rk-badge { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); width: 60px; height: 60px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #ffb36b, var(--ember) 55%, #a8401a); border: 3px solid var(--bg); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 18px rgba(255,138,61,.6); }
+.rk-badge svg { width: 30px; height: 30px; fill: #fff3dc; }
+.rk-card h2 { margin: 0 0 10px; font-size: 20px; letter-spacing: .04em; text-transform: uppercase; }
+.rk-card section { margin: 0 0 14px; }
+.rk-card h3 { display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 6px; padding-bottom: 6px; border-bottom: 2px solid #5a4890; font-size: 15px; text-transform: uppercase; letter-spacing: .04em; }
+.rk-card h3 b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.rk-card dl { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin: 0; font-size: 14px; }
+.rk-card dt { color: var(--muted); }
+.rk-card dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.rk-soon { color: var(--muted) !important; font-weight: 400; font-size: 14px !important; }
+.rk-road { display: flex; align-items: center; gap: 10px; }
+.rk-road-count { flex: none; width: 46px; height: 46px; border-radius: 50%; border: 3px solid var(--ember); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rk-dots { flex: 1; display: flex; align-items: center; justify-content: space-between; position: relative; }
+.rk-dots::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: #4a3d78; }
+.rk-dots i { position: relative; width: 11px; height: 11px; border-radius: 50%; background: #120c24; border: 1px solid #4a3d78; }
+.rk-dots i.on { background: var(--ember); border-color: var(--ember); box-shadow: 0 0 6px var(--ember); }
+.rk-dots i.new { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 6px var(--gold); }
+.rk-dots i.next { background: var(--panel); border: 2px solid #fff; width: 13px; height: 13px; }
+.rk-note { margin: 6px 0 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
+.rk-keeper-head { display: flex; align-items: center; gap: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.rk-keeper-head b { background: #fff; color: var(--bg); border-radius: 8px; padding: 2px 8px; font-size: 16px; }
+.rk-keeper-head .rk-note { margin: 0 0 0 auto; text-transform: none; letter-spacing: 0; font-weight: 400; }
+.rk-bar { position: relative; height: 16px; margin-top: 8px; border-radius: 6px; background: #120c24; border: 1px solid #4a3d78; overflow: hidden; }
+.rk-bar div { position: absolute; left: 0; top: 0; bottom: 0; }
+#rk-bar-fill { background: linear-gradient(90deg, #d8641f, var(--ember)); }
+#rk-bar-gain { background: rgba(255,216,74,.45); }
+.rk-bar-nums { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.rk-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.rk-buttons button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; font-weight: 700; min-height: 64px; justify-content: center; }
+.rk-buttons button small { font-weight: 600; font-size: 12px; color: var(--ember); font-variant-numeric: tabular-nums; }
+.rk-buttons button.go { background: #1fb5c9; border-color: #1fb5c9; color: #06232a; }
+.rk-buttons button.go small { color: #06232a; }
+.rk-buttons button.boost { background: #b32fb8; border-color: #b32fb8; color: #fff; }
+.rk-buttons button.boost small { color: #ffe2b8; }
+.rk-buttons button .gemcost { font-size: 12px; font-weight: 600; }

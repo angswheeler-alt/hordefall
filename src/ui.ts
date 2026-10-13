@@ -1,8 +1,8 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, STAR_CRESTS, CHEST_COST, ULT_STAR_BONUS, ULT_MULTIPLIER, type HeroDef } from './data';
+import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, ULT_STAR_BONUS, ULT_MULTIPLIER, type HeroDef } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
-import { bulkCost, isBossStage, emberCost, fmt, fmtDuration } from './formulas';
+import { bulkCost, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
 import type { GameState, OfflineReport, SummonDrop } from './state';
 import type { BattleScene } from './BattleScene';
 
@@ -35,7 +35,7 @@ export class UI {
   constructor(
     private state: GameState,
     private scene: () => BattleScene | undefined,
-    private hooks: { simulateAway: () => void; wipe: () => void; rekindle: () => void },
+    private hooks: { simulateAway: () => void; wipe: () => void; rekindle: (mult: number) => void },
   ) {
     this.buildHeroes();
     this.buildUlts();
@@ -139,7 +139,17 @@ export class UI {
       $('modal').hidden = true;
       this.modalAction = null;
     });
-    $('rekindle').addEventListener('click', () => this.confirmRekindle());
+    $('rekindle').addEventListener('click', () => this.openRekindle());
+    $('rk-close').addEventListener('click', () => this.closeRekindle());
+    $('rk').addEventListener('click', (e) => {
+      if (e.target === $('rk')) this.closeRekindle();
+    });
+    $('rk-buttons').addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('button');
+      if (!btn || btn.disabled) return;
+      this.closeRekindle();
+      this.hooks.rekindle(Number(btn.dataset.mult));
+    });
 
     $('summon').addEventListener('click', () => this.summon());
     $('freegems').addEventListener('click', () => {
@@ -176,7 +186,9 @@ export class UI {
       if (e.target === $('sheet')) this.closeSheet();
     });
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && this.sheetHero) this.closeSheet();
+      if (e.key !== 'Escape') return;
+      if (!$('rk').hidden) this.closeRekindle();
+      else if (this.sheetHero) this.closeSheet();
     });
     const step = (dir: number) => {
       const i = HEROES.findIndex((h) => h.id === this.sheetHero);
@@ -338,22 +350,65 @@ export class UI {
     $('modal').hidden = false;
   }
 
-  private confirmRekindle() {
-    const s = this.state;
-    if (!s.canRekindle()) return;
-    this.showModal(
-      'Rekindle?',
-      `You go back to stage 1, your gold is spent and every hero drops to gold level 1.<br>You keep recruited heroes and earn <b class="ember-text">${s.pendingEmbers()} Embers</b> for permanent Ember levels.`,
-      `Rekindle for ${s.pendingEmbers()} Embers`,
-      () => this.hooks.rekindle(),
-      true,
-    );
+  /** The Rekindle rewards page: what this Rekindle pays and what it moves forward. */
+  private openRekindle() {
+    if (!this.state.canRekindle()) return;
+    this.renderRekindle();
+    $('rk').hidden = false;
   }
 
-  showRekindled(gained: number) {
+  private closeRekindle() {
+    $('rk').hidden = true;
+  }
+
+  private renderRekindle() {
+    const s = this.state;
+    const base = s.pendingEmbers();
+    $('rk-embers').textContent = `+${fmt(base)}`;
+    $('rk-stage').textContent = s.runBestStage.toLocaleString();
+    const stageBonus = emberStageBonus(s.runBestStage, REKINDLE_STAGE);
+    $('rk-stagebonus').textContent = `x${stageBonus < 100 ? stageBonus.toFixed(2) : fmt(stageBonus)}`;
+    $('rk-keeperbonus').textContent = `x${s.keeperBonus().toFixed(2)}`;
+
+    const reached = s.roadReached();
+    const roadGems = s.pendingRoadGems();
+    $('rk-road-count').textContent = `${reached}/${ROAD_LENGTH}`;
+    $('rk-dots').innerHTML = Array.from({ length: ROAD_LENGTH }, (_, i) => {
+      const cls = i < s.roadClaimed ? 'on' : i < reached ? 'new' : i === reached ? 'next' : '';
+      return `<i class="${cls}" title="Stage ${ROAD_START + i * ROAD_STEP}"></i>`;
+    }).join('');
+    $('rk-road-gems').textContent = roadGems > 0 ? `+${roadGems} Gems` : '';
+    $('rk-road-next').textContent =
+      reached < ROAD_LENGTH
+        ? `Next slot unlocks at stage ${(ROAD_START + reached * ROAD_STEP).toLocaleString()} (best stage ever). Each slot pays ${ROAD_GEMS} Gems when you Rekindle.`
+        : 'Every slot unlocked.';
+
+    const level = s.keeperLevel();
+    const from = level === 1 ? 0 : keeperThreshold(level - 1);
+    const to = keeperThreshold(level);
+    const pct = (v: number) => `${Math.max(0, Math.min(100, ((v - from) / (to - from)) * 100))}%`;
+    $('rk-level').textContent = String(level);
+    $('rk-nextlvl').textContent = `Lv ${level + 1}: Embers x${(s.keeperBonus() + KEEPER_BONUS_PER_LEVEL).toFixed(2)}`;
+    $('rk-bar-fill').style.width = pct(s.lifetimeEmbers);
+    $('rk-bar-gain').style.width = pct(s.lifetimeEmbers + base);
+    $('rk-bar-now').textContent = `Lifetime Embers: ${fmt(s.lifetimeEmbers)}`;
+    $('rk-bar-next').textContent = fmt(to);
+
+    const buttons = [
+      `<button class="go" data-mult="1"><small>+${fmt(base)} Embers</small>Rekindle</button>`,
+      ...REKINDLE_BOOSTS.map(
+        (b) =>
+          `<button class="boost" data-mult="${b.mult}" ${s.gems < b.gems ? 'disabled' : ''}><small>+${fmt(base * b.mult)} Embers</small>${b.mult}x<span class="gemcost">${b.gems} Gems</span></button>`,
+      ),
+    ];
+    $('rk-buttons').innerHTML = buttons.join('');
+  }
+
+  showRekindled(embers: number, gems: number) {
+    const road = gems > 0 ? `<br>The Rekindle Wheel paid <b>${gems} Gems</b>.` : '';
     this.showModal(
       'Rekindled!',
-      `You earned <b class="ember-text">${gained} Embers</b>. Tap any hero to spend them on Ember levels. Those levels stay through every Rekindle, so each run starts stronger.`,
+      `You earned <b class="ember-text">${fmt(embers)} Embers</b>.${road}<br>Tap any hero to spend Embers on Ember levels. Those levels stay through every Rekindle, so each run starts stronger.`,
       'Start the new run',
     );
   }
@@ -397,7 +452,7 @@ export class UI {
     const rk = $<HTMLButtonElement>('rekindle');
     rk.hidden = s.runBestStage < 100 && s.rekindles === 0;
     rk.disabled = !s.canRekindle();
-    rk.textContent = s.canRekindle() ? `Rekindle +${s.pendingEmbers()}` : `Rekindle after ${REKINDLE_STAGE}`;
+    rk.textContent = s.canRekindle() ? `Rekindle +${fmt(s.pendingEmbers())}` : `Rekindle after ${REKINDLE_STAGE}`;
     const speedUnlocked = s.bestStage >= SPEED_UNLOCK_STAGE;
     const speed = $<HTMLButtonElement>('speed');
     speed.disabled = !speedUnlocked;

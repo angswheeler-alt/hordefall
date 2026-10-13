@@ -138,6 +138,19 @@ export const OFFLINE_CAP_HOURS = 12;
 export const SPEED_UNLOCK_STAGE = 25;
 /** Rekindle unlocks after first clearing this stage. */
 export const REKINDLE_STAGE = 125;
+
+/** Gems for a 2x or 3x Ember payout on the Rekindle page. */
+export const REKINDLE_BOOSTS: Array<{ mult: number; gems: number }> = [
+  { mult: 2, gems: 80 },
+  { mult: 3, gems: 160 },
+];
+/** Rekindle Wheel: 16 slots on the Rekindle page, one unlocking every 50 best stages from 150 (GDD section 7). */
+export const ROAD_START = 150;
+export const ROAD_STEP = 50;
+export const ROAD_LENGTH = 16;
+export const ROAD_GEMS = 50;
+/** Each player level adds this much to every Ember payout. */
+export const KEEPER_BONUS_PER_LEVEL = 0.1;
 export const CRIT_CHANCE = 0.12;
 export const CRIT_MULTIPLIER = 2.5;
 
