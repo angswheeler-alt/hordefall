@@ -135,6 +135,29 @@ export class UI {
     }
   }
 
+  /** Collection: every hero, grouped by element. Tap one for their page. */
+  private openCollection() {
+    const s = this.state;
+    const elements = [...new Set(HEROES.map((h) => h.element))];
+    const owned = HEROES.filter((h) => (s.levels[h.id] ?? 0) > 0).length;
+    const groups = elements
+      .map((el) => {
+        const heroes = HEROES.filter((h) => h.element === el);
+        const have = heroes.filter((h) => (s.levels[h.id] ?? 0) > 0).length;
+        const tiles = heroes
+          .map((h) => {
+            const recruited = (s.levels[h.id] ?? 0) > 0;
+            const need = s.unlockCrests(h);
+            const sub = recruited ? '★'.repeat((s.stars[h.id] ?? 0) + 1) : need === null ? 'Special' : `${Math.min(s.crests[h.id] ?? 0, need)}/${need}`;
+            return `<button type="button" class="coll-hero${recruited ? '' : ' locked'}${s.inLineup(h.id) ? ' team' : ''}" data-hero="${h.id}"><span class="face art" style="${faceStyle(h)}">${h.name[0]}</span><b>${h.name}</b><small>${sub}</small></button>`;
+          })
+          .join('');
+        return `<h3 style="--el:${hex(ELEMENT_COLORS[el])}"><i></i>${cap(el)}<small>${have}/${heroes.length}</small></h3><div class="coll-grid">${tiles}</div>`;
+      })
+      .join('');
+    this.showModal(`Collection ${owned}/${HEROES.length}`, `<div class="coll">${groups}</div>`, 'Done');
+  }
+
   /** Manage Team: pick which recruited heroes fight. */
   private openTeam(note = '') {
     const s = this.state;
@@ -442,7 +465,13 @@ export class UI {
 
     $('summon').addEventListener('click', () => this.confirmChest());
     $('chest-btn').addEventListener('click', () => this.confirmChest());
-    $('collection-btn').addEventListener('click', () => this.openSheet(HEROES[0].id));
+    $('collection-btn').addEventListener('click', () => this.openCollection());
+    $('modal-body').addEventListener('click', (e) => {
+      const tile = (e.target as HTMLElement).closest<HTMLElement>('[data-hero]');
+      if (!tile) return;
+      $('modal').hidden = true;
+      this.openSheet(tile.dataset.hero!);
+    });
     $('team-btn').addEventListener('click', () =>
       this.openTeam(),
     );

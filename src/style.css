@@ -168,7 +168,7 @@ button.link[disabled] { display: none; }
 .panel-head h2 { margin: 0; font-size: 18px; color: #ffe9c4; text-shadow: 0 2px 0 var(--wood-deep); }
 .wood-btn { background: linear-gradient(180deg, var(--wood-hi), var(--wood)); border: 2px solid var(--wood-deep); border-radius: 10px; color: #fff4dd; font-weight: 800; text-shadow: 0 1px 0 var(--wood-deep); box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 2px 0 var(--wood-deep); line-height: 1.1; }
 .wood-btn.small { font-size: 12px; padding: 5px 10px; }
-.hero-head { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 8px; align-items: stretch; margin-bottom: 8px; }
+.hero-head { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: stretch; margin-bottom: 8px; }
 .hero-head .wood-btn { min-height: 50px; font-size: 14px; }
 .chest-btn { display: flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(180deg, #c0392b, #7d1f16); font-size: 15px !important; }
 .chest-ico { width: 32px; height: 32px; background: url('./assets/ui/chest.png') center / contain no-repeat; image-rendering: pixelated; flex: none; }
@@ -431,3 +431,18 @@ button.glass:disabled { opacity: .7; font-size: 11px; }
 #team-btn { position: relative; }
 #team-btn.ready::after { content: ''; position: absolute; top: -5px; right: -3px; width: 14px; height: 14px; border-radius: 50%; background: #e3261c; border: 2px solid #fff; }
 .team-row.locked.ready { opacity: 1; border-color: var(--gold); }
+
+/* Collection: every hero, grouped by element */
+.hero-sub .collection-btn { margin-right: auto; }
+.coll { text-align: left; }
+.coll h3 { margin: 12px 0 6px; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+.coll h3 i { width: 10px; height: 10px; border-radius: 50%; background: var(--el); }
+.coll h3 small { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 12px; }
+.coll-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.coll-hero { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; border-radius: 10px; background: var(--panel-2); border: 2px solid transparent; font-size: 11px; min-width: 0; }
+.coll-hero.team { border-color: var(--ok); }
+.coll-hero.locked .face { filter: grayscale(1) brightness(.6); }
+.coll-hero .face { width: 40px; height: 40px; border-radius: 8px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
+.coll-hero b { font-size: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.coll-hero small { color: var(--gold); font-size: 10px; }
+.coll-hero.locked small { color: var(--muted); }
