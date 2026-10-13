@@ -11,32 +11,85 @@
   </head>
   <body>
     <div id="app">
-      <header id="topbar">
-        <div class="stat"><span class="coin"></span><b id="gold">0</b></div>
-        <div class="stat small"><span id="gps">0/s</span></div>
-        <div class="stat small">Best <b id="best">1</b></div>
-        <div class="stat small"><span class="gem"></span><b id="gems">0</b></div>
-        <div class="stat small" id="embers-stat" hidden><span class="ember"></span><b id="embers">0</b></div>
-      </header>
-      <div id="game"></div>
-      <div id="ults"></div>
+      <div id="stagewrap">
+        <div id="game"></div>
+        <div id="ults"></div>
+      </div>
+      <div id="wallet">
+        <div class="pill"><span class="gem"></span><b id="gems">0</b></div>
+        <div class="pill" id="embers-stat" hidden><span class="ember"></span><b id="embers">0</b></div>
+        <div class="pill gold-pill"><span class="coin"></span><b id="gold">0</b><small id="gps">0/s</small></div>
+      </div>
       <div id="controls">
         <button id="speed" class="toggle">2x</button>
         <button id="autoult" class="toggle">Auto ult</button>
         <button id="boss" class="hot" hidden>Fight boss</button>
         <button id="rekindle" class="ember-btn" hidden>Rekindle</button>
-        <button id="summon" class="gem-btn">Hero Chest</button>
         <span class="spacer"></span>
         <button id="mute" class="toggle" aria-label="Sound">Sound</button>
-        <button id="buyamt">Buy x1</button>
       </div>
-      <main id="heroes"></main>
-      <footer id="debug">
-        <span>Prototype</span>
-        <button id="sim">Simulate 1h away</button>
-        <button id="freegems">+100 Gems</button>
-        <button id="wipe">Reset save</button>
-      </footer>
+      <main id="panels">
+        <section class="panel" data-tab="heroes">
+          <div class="hero-head">
+            <button id="team-btn" class="wood-btn">Manage<br>Team</button>
+            <button id="chest-btn" class="wood-btn chest-btn"><span class="chest-ico" aria-hidden="true"></span>Hero Chest</button>
+            <button id="collection-btn" class="wood-btn">Collection</button>
+          </div>
+          <div class="hero-sub"><button id="levelall" class="wood-btn small levelall">Level all</button><button id="buyamt" class="wood-btn small">Buy x1</button></div>
+          <div id="heroes"></div>
+        </section>
+        <section class="panel" data-tab="market" hidden>
+          <div class="panel-head"><h2>Market Row</h2></div>
+          <div class="soon-card"><h3>Stalls</h3><p class="soon-when">Coming in a later build</p><ul><li>Unlock Stalls with gold; each makes gold on a timer.</li><li>Tap to collect until a Stall reaches level 50, then it collects itself.</li><li>+200% revenue every 50 Stall levels.</li><li>Every Rekindle adds +25% Market Row revenue and +5 Stall levels.</li></ul></div>
+        </section>
+        <section class="panel" data-tab="relics" hidden>
+          <div class="panel-head"><h2>Relics</h2></div>
+          <div class="soon-card"><h3>Relics</h3><p class="soon-when">Coming in a later build</p><ul><li>Passive buffs for the whole team: attack, HP, defense, cheaper and faster Stalls.</li><li>Craft them in the Relic shop from elemental materials won in Elemental Trials.</li><li>Start with 2 slots and buy more with Gems.</li></ul></div>
+        </section>
+        <section class="panel" data-tab="battle" hidden>
+          <div class="panel-head"><h2>Battle</h2></div>
+          <dl class="battle-stats">
+            <dt>Stage</dt><dd id="bt-stage"></dd>
+            <dt>Next boss</dt><dd id="bt-boss"></dd>
+            <dt>Best stage ever</dt><dd id="bt-best"></dd>
+            <dt>Best stage this run</dt><dd id="bt-run"></dd>
+            <dt>Gold per second</dt><dd id="bt-gps"></dd>
+            <dt>Time per stage</dt><dd id="bt-pace"></dd>
+            <dt>Rekindles</dt><dd id="bt-rk"></dd>
+          </dl>
+          <div class="panel-head"><h2>Prototype tools</h2></div>
+          <div id="debug">
+            <button id="sim" class="wood-btn small">Simulate 1h away</button>
+            <button id="wipe" class="wood-btn small">Reset save</button>
+          </div>
+        </section>
+        <section class="panel" data-tab="shop" hidden>
+          <div class="panel-head"><h2>Shop</h2></div>
+          <div class="shop-card">
+            <div class="shop-art chest" aria-hidden="true"></div>
+            <div class="shop-text"><b>Hero Chest</b><p>3 drops of Hero Crests. New heroes join your team; Crests evolve heroes.</p></div>
+            <button id="summon" class="gem-btn">Hero Chest</button>
+          </div>
+          <div class="shop-card">
+            <div class="shop-art gems" aria-hidden="true"></div>
+            <div class="shop-text"><b>Gem pouch</b><p>Free in the prototype. Real Gem packs come later.</p></div>
+            <button id="freegems" class="gem-btn">+100 Gems</button>
+          </div>
+          <div class="soon-card"><h3>More to come</h3><p class="soon-when">Coming in a later build</p><ul><li>Lucky Chest: a daily Epic hero.</li><li>Relic slots and hero slots.</li><li>Offers and Gem packs.</li></ul></div>
+        </section>
+        <section class="panel" data-tab="guild" hidden>
+          <div class="panel-head"><h2>Guild</h2></div>
+          <div class="soon-card"><h3>Guilds</h3><p class="soon-when">Opens after your first Rekindle once accounts are online</p><ul><li>Up to 30 members with chat and officer ranks.</li><li>Ask for Hero Crests and donate to guildmates for guild credits.</li><li>Titan Hunt and Siege Wars, plus a guild shop.</li></ul></div>
+        </section>
+      </main>
+      <nav id="tabbar" aria-label="Main">
+        <button data-tab="heroes" class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg><span>Heroes</span><i class="badge" hidden></i></button>
+        <button data-tab="market"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l2-5h14l2 5"/><path d="M3 9h18v2a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0z"/><path d="M5 13v7h14v-7"/></svg><span>Market</span><i class="badge" hidden></i></button>
+        <button data-tab="relics"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/></svg><span>Relics</span><i class="badge" hidden></i></button>
+        <button data-tab="battle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l10 10M4 4h4M4 4v4M20 4L10 14M20 4h-4M20 4v4M7 15l2 2-3 3-2-2zM17 15l-2 2 3 3 2-2z"/></svg><span>Battle</span><i class="badge" hidden></i></button>
+        <button data-tab="shop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg><span>Shop</span><i class="badge" hidden></i></button>
+        <button data-tab="guild"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/></svg><span>Guild</span><i class="badge" hidden></i></button>
+      </nav>
     </div>
     <div id="sheet" hidden>
       <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheet-name">
