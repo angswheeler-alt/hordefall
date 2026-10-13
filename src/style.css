@@ -246,3 +246,14 @@ button.link[disabled] { display: none; }
 #wallet .gold-pill b { color: var(--gold); }
 #wallet .gold-pill small { margin-left: auto; color: var(--muted); font-size: 11px; }
 #gold { font-variant-numeric: tabular-nums; }
+
+/* Ultimate icons sit on the map, like the original */
+#stagewrap { position: relative; }
+#ults { position: absolute; left: 6px; bottom: 6px; padding: 0; gap: 6px; flex-wrap: nowrap; pointer-events: none; }
+#ults .ult { pointer-events: auto; width: 38px; height: 38px; border-radius: 9px; border: 2px solid #1a1206; background: linear-gradient(160deg, color-mix(in srgb, var(--el) 55%, #fff) 0%, var(--el) 45%, color-mix(in srgb, var(--el) 60%, #000) 100%); box-shadow: inset 0 2px 0 rgba(255,255,255,.55), inset 0 -3px 0 rgba(0,0,0,.25), 0 2px 4px rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; }
+#ults .ult svg { width: 24px; height: 24px; fill: #fffaf0; stroke: rgba(0,0,0,.35); stroke-width: 1; filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
+#ults .ult:disabled { filter: none; }
+#ults .ult .cd { inset: auto 0 0 0; height: calc(var(--cd, 1) * 100%); background: rgba(0,0,0,.6); font-size: 13px; align-items: flex-end; padding-bottom: 2px; min-height: 18px; }
+#ults .ult.ready { box-shadow: 0 0 0 2px var(--gold), 0 0 10px var(--gold), inset 0 2px 0 rgba(255,255,255,.55); animation: ult-pulse 1.2s ease-in-out infinite; }
+@keyframes ult-pulse { 50% { transform: scale(1.06); } }
+@media (prefers-reduced-motion: reduce) { #ults .ult.ready { animation: none; } }

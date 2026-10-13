@@ -1,5 +1,5 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, ULT_STAR_BONUS, ULT_MULTIPLIER, type HeroDef } from './data';
+import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, ULT_STAR_BONUS, ULT_MULTIPLIER, ULT_COOLDOWN, type HeroDef } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
 import { bulkCost, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
@@ -10,6 +10,13 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 const SWORD = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2l2 2-11 11 2 2-2 2-2-2-3 3-2-2 3-3-2-2 2-2 2 2z"/></svg>';
 const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21C5 15 2 12 2 8a5 5 0 0 1 10-1 5 5 0 0 1 10 1c0 4-3 7-10 13z"/></svg>';
+const ULT_ICONS: Record<string, string> = {
+  water: '<svg viewBox="0 0 24 24"><path d="M12 2c4 6 7 9 7 13a7 7 0 0 1-14 0c0-4 3-7 7-13z"/></svg>',
+  earth: '<svg viewBox="0 0 24 24"><path d="M5 19C5 9 11 4 21 3c-1 10-6 16-16 16zm0 0l8-8"/></svg>',
+  fire: '<svg viewBox="0 0 24 24"><path d="M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-5 3-7 0 2 1 3 2 3 0-3-1-5 1-8z"/></svg>',
+  dark: '<svg viewBox="0 0 24 24"><path d="M20 15A9 9 0 0 1 9 4a9 9 0 1 0 11 11z"/></svg>',
+  light: '<svg viewBox="0 0 24 24"><path d="M12 2l2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5z"/></svg>',
+};
 const TABS = ['heroes', 'market', 'relics', 'battle', 'shop', 'guild'] as const;
 type Tab = (typeof TABS)[number];
 const TAB_KEY = 'hordefall-tab';
@@ -97,9 +104,10 @@ export class UI {
     for (const def of HEROES) {
       const button = document.createElement('button');
       button.className = 'ult';
-      button.style.background = hex(ELEMENT_COLORS[def.element]);
-      button.innerHTML = `${def.name}<span class="cd"></span>`;
-      button.title = `${def.name} ultimate (unlocks at Lv ${ULT_UNLOCK_LEVEL})`;
+      button.style.setProperty('--el', hex(ELEMENT_COLORS[def.element]));
+      button.innerHTML = `${ULT_ICONS[def.element]}<span class="cd"></span>`;
+      button.setAttribute('aria-label', `${def.name} ultimate: ${def.ultimate.name}`);
+      button.title = `${def.name}: ${def.ultimate.name} (unlocks at Lv ${ULT_UNLOCK_LEVEL})`;
       button.addEventListener('click', () => this.scene()?.triggerUlt(def.id));
       host.appendChild(button);
       this.ults.push({ def, button, cd: button.querySelector('.cd') as HTMLElement });
@@ -592,6 +600,8 @@ export class UI {
       u.button.classList.toggle('ready', ready);
       u.cd.textContent = !st.unlocked ? `Lv${ULT_UNLOCK_LEVEL}` : !st.alive ? 'down' : st.remaining > 0 ? `${Math.ceil(st.remaining)}` : '';
       u.cd.style.display = ready ? 'none' : 'flex';
+      // Cooldown shade drains from the top as the ultimate recharges.
+      u.button.style.setProperty('--cd', !st.unlocked || !st.alive ? '1' : String(Math.min(1, st.remaining / ULT_COOLDOWN)));
     }
   }
 }
