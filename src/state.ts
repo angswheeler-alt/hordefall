@@ -1,5 +1,5 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS } from './data';
 import { trialHp, trialDps, stallIncome, stallUpgradeCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp } from './formulas';
 import type { HeroDef, StallDef, Element } from './data';
 
@@ -27,8 +27,8 @@ export interface TrialResult {
   bossLeft: number;
   teamLeft: number;
   essence: number;
-  crests: number;
-  heroId: string;
+  /** One Hero Crest per medal, to these heroes (a hero can appear twice). */
+  medals: string[];
 }
 
 export interface StallState {
@@ -337,8 +337,9 @@ export class GameState {
       hp = hp.plus(m.hp);
       incoming += elementMultiplier(element, m.def.element);
     }
-    const bossHp = trialHp(tier);
-    const bossDps = trialDps(tier).times(team.length ? incoming / team.length : 1);
+    const level = TRIAL_LEVELS[tier - 1];
+    const bossHp = trialHp(level);
+    const bossDps = trialDps(level).times(team.length ? incoming / team.length : 1);
     const killTime = dps.gt(0) ? bossHp.div(dps).toNumber() : Infinity;
     const wipeTime = bossDps.gt(0) ? hp.div(bossDps).toNumber() : Infinity;
     const seconds = Math.min(killTime, wipeTime, TRIAL_TIME);
@@ -352,6 +353,17 @@ export class GameState {
     };
   }
 
+  /** Heroes owned with at least this many Ember levels. */
+  heroesAtEmber(level: number): number {
+    return HEROES.filter((h) => (this.levels[h.id] ?? 0) > 0 && (this.emberLevels[h.id] ?? 0) >= level).length;
+  }
+
+  /** Whether the player meets a Trial level's hero requirement. */
+  trialReqMet(tier: number): boolean {
+    const req = TRIAL_LEVELS[tier - 1].req;
+    return !req || this.heroesAtEmber(req[1]) >= req[0];
+  }
+
   trialUnlocked(element: string) {
     return Math.min(TRIAL_TIERS, (this.trialBest[element] ?? 0) + 1);
   }
@@ -359,17 +371,24 @@ export class GameState {
   /** Spend a ticket on an open Trial. A loss gives the ticket back. */
   playTrial(element: Element, tier: number): TrialResult | null {
     this.refreshTickets();
-    if (!this.trialOpen(element) || this.tickets <= 0 || tier < 1 || tier > this.trialUnlocked(element)) return null;
+    if (!this.trialOpen(element) || this.tickets <= 0 || tier < 1 || tier > this.trialUnlocked(element) || !this.trialReqMet(tier)) return null;
     const sim = this.simulateTrial(tier, element);
-    const hero = HEROES.find((h) => h.element === element)!;
-    const result: TrialResult = { won: sim.won, seconds: sim.seconds, bossLeft: sim.bossLeft, teamLeft: sim.teamLeft, essence: 0, crests: 0, heroId: hero.id };
+    const level = TRIAL_LEVELS[tier - 1];
+    const result: TrialResult = { won: sim.won, seconds: sim.seconds, bossLeft: sim.bossLeft, teamLeft: sim.teamLeft, essence: 0, medals: [] };
     if (!sim.won) return result;
     if (this.tickets >= TICKET_CAP) this.ticketClock = Date.now();
     this.tickets -= 1;
-    result.essence = 2 * tier;
-    result.crests = 3 + tier;
+    result.essence = level.essence;
     this.essences[element] = (this.essences[element] ?? 0) + result.essence;
-    this.crests[hero.id] = (this.crests[hero.id] ?? 0) + result.crests;
+    // Medals go to different random heroes of the element while there are enough of them.
+    const pool = HEROES.filter((h) => h.element === element).map((h) => h.id);
+    for (let i = 0; i < level.medals; i++) {
+      const left = pool.filter((id) => !result.medals.includes(id));
+      const from = left.length ? left : pool;
+      const id = from[Math.floor(Math.random() * from.length)];
+      result.medals.push(id);
+      this.crests[id] = (this.crests[id] ?? 0) + 1;
+    }
     this.trialBest[element] = Math.max(this.trialBest[element] ?? 0, tier);
     this.save();
     return result;

@@ -146,12 +146,18 @@ export function stallUpgradeCost(def: StallDef, level: number): Decimal {
   return Decimal.pow(1.07, level - 1).times(def.unlockCost * 0.4);
 }
 
-/** Trial boss HP: tier 4 takes about 50 Ember levels on the starter at neutral element. */
-export function trialHp(tier: number): Decimal {
-  return Decimal.pow(2.15, tier - 1).times(3000);
+/**
+ * Trial boss HP for a level. It matches what `heroes` starter-strength heroes
+ * at `emberLevel` deal in 30 seconds at neutral element, so the level's hero
+ * requirement (no stars) is just enough to win. Levels 1-9 have no
+ * requirement and scale off one hero at about a third of the difficulty.
+ */
+export function trialHp(level: { difficulty: number; req: [number, number] | null }): Decimal {
+  const [heroes, emberLevel] = level.req ?? [1, Math.max(1, level.difficulty * 0.35)];
+  return Decimal.pow(2, emberLevel / MILESTONE_LEVELS).times(heroes * emberLevel * 6.25 * 30 * 0.9);
 }
 
 /** Trial boss damage per second. */
-export function trialDps(tier: number): Decimal {
-  return trialHp(tier).times(0.01);
+export function trialDps(level: { difficulty: number; req: [number, number] | null }): Decimal {
+  return trialHp(level).times(0.01);
 }

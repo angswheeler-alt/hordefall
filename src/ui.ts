@@ -1,5 +1,5 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, ULT_STAR_BONUS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element } from './data';
+import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, ULT_STAR_BONUS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
 import { bulkCost, upgradeCost, stallUpgradeCost, trialHp, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
@@ -599,16 +599,21 @@ export class UI {
       $('tr-face').textContent = TRIAL_BOSS_NAMES[el][0];
       $('tr-name').textContent = `${TRIAL_BOSS_NAMES[el]} (${cap(el)})`;
     }
-    const hero = HEROES.find((h) => h.element === el)!;
-    $('tr-info').textContent = `Uses Ember levels and stars, not gold levels. Drops ${ESSENCE_NAMES[el]} and ${hero.name} Crests.`;
-    $('tr-tier').textContent = `Tier ${tier} / ${TRIAL_TIERS}`;
+    const level = TRIAL_LEVELS[tier - 1];
+    const medals = level.medals === 1 ? 'a Crest (medal) for a random' : `Crests (medals) for ${level.medals} random`;
+    $('tr-info').textContent = `Uses Ember levels and stars, not gold levels. Drops ${ESSENCE_NAMES[el]} and ${medals} ${cap(el)} hero${level.medals === 1 ? '' : 'es'}.`;
+    $('tr-tier').textContent = `Level ${tier} / ${TRIAL_TIERS}`;
     $<HTMLButtonElement>('tr-down').disabled = tier <= 1;
     $<HTMLButtonElement>('tr-up').disabled = tier >= s.trialUnlocked(el);
     const sim = s.simulateTrial(tier, el);
-    $('tr-odds').innerHTML = `Boss HP <b>${fmt(trialHp(tier))}</b> · team damage in ${TRIAL_TIME}s <b>${fmt(sim.dps.times(TRIAL_TIME))}</b> · <span class="${sim.won ? 'win' : 'lose'}">${sim.won ? 'You should win' : 'Too strong for now'}</span>`;
+    const reqMet = s.trialReqMet(tier);
+    const req = level.req
+      ? `<span class="${reqMet ? 'win' : 'lose'}">Needs ${level.req[0]} heroes at Ember ${level.req[1]}+ (you have ${s.heroesAtEmber(level.req[1])})</span>`
+      : 'No hero requirement';
+    $('tr-odds').innerHTML = `Difficulty <b>${level.difficulty.toLocaleString()}</b> · reward <b>${fmt(level.essence)}</b> Essence · ${level.medals} medal${level.medals === 1 ? '' : 's'}<br>${req}<br>Boss HP <b>${fmt(trialHp(level))}</b> · team damage in ${TRIAL_TIME}s <b>${fmt(sim.dps.times(TRIAL_TIME))}</b> · <span class="${sim.won ? 'win' : 'lose'}">${sim.won ? 'You should win' : 'Too strong for now'}</span>`;
     const fight = $<HTMLButtonElement>('tr-fight');
-    fight.disabled = s.tickets <= 0;
-    fight.textContent = s.tickets > 0 ? 'Fight · 1 ticket' : 'No tickets';
+    fight.disabled = s.tickets <= 0 || !reqMet;
+    fight.textContent = !reqMet ? 'Locked' : s.tickets > 0 ? 'Fight · 1 ticket' : 'No tickets';
     $('tr-ess').innerHTML = TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i></i>${s.essences[e] ?? 0}</span>`).join('');
   }
 
@@ -619,9 +624,9 @@ export class UI {
     const el = this.trialEl();
     const result = s.playTrial(el, tier);
     if (!result) return;
-    const hero = HEROES.find((h) => h.id === result.heroId)!;
+    const medalNames = result.medals.map((id) => HEROES.find((h) => h.id === id)!.name).join(', ');
     this.showModal(
-      `${TRIAL_BOSS_NAMES[el]} · Tier ${tier}`,
+      `${TRIAL_BOSS_NAMES[el]} · Level ${tier}`,
       `<div class="trial-fight">
         <div class="tf-row"><span>Boss</span><div class="tf-bar boss"><i id="tf-boss"></i></div></div>
         <div class="tf-row"><span>Team</span><div class="tf-bar team"><i id="tf-team"></i></div></div>
@@ -652,7 +657,7 @@ export class UI {
       const res = $('tf-result');
       res.hidden = false;
       res.innerHTML = result.won
-        ? `Victory! +${result.essence} ${ESSENCE_NAMES[el]} · +${result.crests} ${hero.name} Crests`
+        ? `Victory! +${fmt(result.essence)} ${ESSENCE_NAMES[el]} · medal${result.medals.length === 1 ? '' : 's'}: ${medalNames}`
         : `Defeated. Your ticket was kept. Raise Ember levels or stars and try again.`;
       res.className = `tf-result ${result.won ? 'win' : 'lose'}`;
       play(result.won ? 'clear' : 'defeat');
