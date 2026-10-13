@@ -26,7 +26,7 @@ const BG = path.join(__dirname, '..', '..', 'public', 'bg');
 const regions = ['tidecoast', 'dunes', 'stormcrag', 'emberwastes', 'hollowmoon'];
 const REGION_ELEMENT = { tidecoast: 'water', dunes: 'earth', stormcrag: 'light', emberwastes: 'fire', hollowmoon: 'dark' };
 const ELEMENT_OF = {};
-for (const [el, list] of Object.entries({ fire: ['blaze', 'ember', 'flint', 'cinder'], earth: ['briar', 'fern', 'thorn', 'moss'], water: ['tide', 'brook', 'ripple', 'marina'], dark: ['shade', 'vex', 'rook', 'dread'], light: ['dawn', 'lumen', 'sol', 'aegis'] })) for (const id of list) ELEMENT_OF[id] = el;
+for (const [el, list] of Object.entries({ fire: ['blaze', 'ember', 'flint', 'cinder'], earth: ['briar', 'fern', 'thorn', 'moss'], water: ['brine', 'brook', 'ripple', 'marina'], dark: ['shade', 'vex', 'rook', 'dread'], light: ['dawn', 'lumen', 'sol', 'aegis'] })) for (const id of list) ELEMENT_OF[id] = el;
 const scenes = regions.map(r => {
   const c = new Canvas(480, 300);
   c.draw(readPNG(path.join(BG, `${r}_sky.png`)), 0, 0);

@@ -655,7 +655,7 @@ export class GameState {
 
   /**
    * Saves from before the 20-hero roster use the old five ids. Move each old hero's progress onto the
-   * hero who replaced them (Marin -> Tide and so on), keeping the higher value if both exist.
+   * hero who replaced them (Marin -> Brine and so on), keeping the higher value if both exist.
    */
   static migrateHeroIds(d: SaveData) {
     for (const key of ['levels', 'emberLevels', 'crests', 'stars', 'benched']) {

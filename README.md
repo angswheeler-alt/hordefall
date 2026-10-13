@@ -2,7 +2,7 @@
 
 Web-first idle RPG prototype (see the game design doc). This build covers the core loop only:
 
-- 20 heroes, four per element, auto-fight down a lane toward the enemy crystal, five at a time. Fire: Blaze, Ember, Flint, Cinder. Earth: Briar, Fern, Thorn, Moss. Water: Tide, Brook, Ripple, Marina. Dark: Shade, Vex, Rook, Dread. Light: Dawn, Lumen, Sol, Aegis. Jobs: Blademaster, Knight, Mage, Rogue, Ranger and Support. Star skills are data (each SP1/SP2/Aura has an effect in `data.ts`, totalled in `skills.ts`). Saves from the old five-hero roster carry over: Marin, Bramble, Pyra, Nox and Solenne become Tide, Thorn, Ember, Shade and Lumen.
+- 20 heroes, four per element, auto-fight down a lane toward the enemy crystal, five at a time. Fire: Blaze, Ember, Flint, Cinder. Earth: Briar, Fern, Thorn, Moss. Water: Brine, Brook, Ripple, Marina. Dark: Shade, Vex, Rook, Dread. Light: Dawn, Lumen, Sol, Aegis. Jobs: Blademaster, Knight, Mage, Rogue, Ranger and Support. Star skills are data (each SP1/SP2/Aura has an effect in `data.ts`, totalled in `skills.ts`). Saves from the old five-hero roster carry over: Marin, Bramble, Pyra, Nox and Solenne become Brine, Thorn, Ember, Shade and Lumen. Brine (the free starter) is drawn from painted art and animated as a cut-out rig: see `art/heroes/brine/build.js` and `RIGS` in `BattleScene.ts`.
 - Gold from kills, stage clears and drifting chests; spend it to recruit and level heroes (x1 / x10 / max).
 - Stats double every 20 levels. Type chart from the original game: Water > Fire > Earth > Water deal 4x; Light and Dark deal 2x to each other. Each element deals 0.5x to one element (the reverse of its matchup, or its own element for Light/Dark) and 1x to the rest.
 - A boss every 50 stages with a 30 s timer. Losing drops you back a stage to farm until you tap "Fight boss".
@@ -42,7 +42,7 @@ Saves are trusted from the client for now, so a determined player could edit the
 
 ## Unlocking heroes
 
-Tide is free. Every other hero unlocks with Hero Crests (medals) from the Hero Chest and Trials, by rarity: Common 10, Rare 30, Epic 80. Legendary heroes never unlock from Crests and never drop from the Hero Chest; they only come through special means. Unlocking spends the Crests and adds the hero at level 1; gold then levels them as before.
+Brine is free. Every other hero unlocks with Hero Crests (medals) from the Hero Chest and Trials, by rarity: Common 10, Rare 30, Epic 80. Legendary heroes never unlock from Crests and never drop from the Hero Chest; they only come through special means. Unlocking spends the Crests and adds the hero at level 1; gold then levels them as before.
 
 ## Art
 

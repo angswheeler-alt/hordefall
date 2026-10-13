@@ -6,7 +6,7 @@
 //        daggers), Cinder (horned helm, magma shield, hammer)
 // Earth: Briar (elf archer, kneeling shot), Fern (flowered hair, living staff), Thorn (bearded, thorn
 //        spear), Moss (hooded druid, seed staff)
-// Water: Tide (trident, wave shield), Brook (veiled cleric, water crystal), Ripple (ponytail archer,
+// Water: Brine (painted art, rigged: see brine/build.js), Brook (veiled cleric, water crystal), Ripple (ponytail archer,
 //        wave bow), Marina (witch hat, water orb)
 // Dark:  Shade (hooded, crouching, twin daggers), Vex (white hair, orb held at the chest), Rook
 //        (masked, long coat, hooked bow), Dread (spiked helm, tower shield, cape)
@@ -331,46 +331,6 @@ const H = {
   },
 
   // ---------------- Water ----------------
-  tide: {
-    dy: 3,
-    rows: {
-      0: '5:M 7:M 9:M',
-      1: '5:M 7:M 9:M',
-      2: '5:MMMMM',
-      3: '7:Z',
-      4: '7:Z 12:HHHH 18:HH',
-      5: '7:HH 10:HHHHHHHHHHH',
-      6: '5:HHHHHHHHHHHHHHHHHH',
-      7: '7:HHHLLLHHHHHHHHHHH',
-      8: '4:HHHHHHHLLHHHHHHHHHH',
-      9: '6:HHHHHHHHHHHHSSSHH',
-      10: '5:HHHDHHHHSSSSSSSSSSS',
-      11: '7:Z 8:HDHHSSSSSSSSSSSS',
-      12: '7:Z 8:HDDHSSSieSSSieSS',
-      13: '7:Z 8:HDDHSSSeeSSSeeSSS',
-      14: '7:Z 9:DDHSSSrSSSSrSS',
-      15: '7:Z 9:DHSSSSSSmmmmSS',
-      16: '7:Z 10:DSSSSSSSmmSS 21:GGGG',
-      17: '7:Z 12:SSSSSSSS 20:GQQQQG',
-      18: '6:WWWWWWWWWWWWWW 19:GQQqqQQG',
-      19: '3:WWW 7:Z 9:BVVBBBBVVBB 19:GQqQQqQG',
-      20: '2:WW 7:Z 9:BVVBBBBVVBB 19:GqQQQQqG',
-      21: '7:SSSVVBBBBVVB 19:GQQqqQQG',
-      22: '7:Z 9:KKKKKKKKKK 19:GQqQQqQG',
-      23: '7:Z 9:TTTTTTTTTT 20:GQQQQG',
-      24: '7:TTTT 15:TTTT 21:GGGG',
-      25: '5:TTTT 16:TTTT',
-      26: '3:OOOO 17:OOOO',
-      27: '2:OOOO 17:OOOOO',
-    },
-    mats: {
-      H: ['#8fd6ff', '#3fa9f5', '#2470b8'], L: '#b4e6ff', D: '#2266aa', S: SKIN, ...FACE,
-      W: ['#ffffff', '#e8ecf4', '#b8c0d0'], B: ['#6cc0ff', '#2f86d8', '#1c4f94'],
-      V: GOLD, K: LEATHER, T: ['#5a6e9a', '#3e4e78', '#2a3454'], O: BOOTS,
-      G: GOLD, Q: ['#6cc0ff', '#2f86d8', '#1c4f94'], q: '#d8f4ff', M: STEEL, Z: WOOD,
-    },
-  },
-
   brook: {
     dy: 3,
     rows: {

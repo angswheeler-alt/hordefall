@@ -56,6 +56,30 @@ const FAR_Y = -10;
 const GROUND_Y = 170;
 const WAVE_INTERVAL = 7;
 const MAX_ENEMIES = 14;
+/** Melee feet sit this far below a unit's y (the old 30 px placeholders were centred on it). */
+const FOOT_Y = 15;
+
+/**
+ * Cut-out rigs for heroes drawn from painted art (built by art/heroes/<id>/build.js). The body, arm and
+ * scarf PNGs share one canvas; coordinates are pixels on it. The arm swings about `arm` (the elbow) when
+ * attacking, the scarf flutters about `scarf` (the neck), and `feet` is the point that stands on the lane.
+ */
+interface Rig {
+  feet: [number, number];
+  arm: [number, number];
+  scarf?: [number, number];
+}
+const RIGS: Record<string, Rig> = {
+  brine: { feet: [15, 51], arm: [16, 26], scarf: [10, 19] },
+};
+
+/** The moving parts of a rigged hero. */
+interface RigParts {
+  arm: Phaser.GameObjects.Image;
+  scarf?: Phaser.GameObjects.Image;
+  /** The elbow, relative to the unit's position, for the slash effect. */
+  elbow: { x: number; y: number };
+}
 
 interface Unit {
   side: 'hero' | 'enemy';
@@ -81,6 +105,7 @@ interface Unit {
   ultReadyAt: number;
   view: Phaser.GameObjects.Container;
   body: Phaser.GameObjects.Image;
+  rig?: RigParts;
   hpBar: Phaser.GameObjects.Graphics;
   barWidth: number;
 }
@@ -146,6 +171,10 @@ export class BattleScene extends Phaser.Scene {
     for (const r of REGIONS) for (const layer of ['sky', 'far', 'ground']) this.load.image(`bg-${r}-${layer}`, `bg/${r}_${layer}.png`);
     // Hero sprites (32x32, feet on row 30). A hero without a file falls back to its placeholder block.
     for (const h of HEROES) this.load.image(`hero-${h.id}`, `heroes/${h.id}.png`);
+    for (const [id, rig] of Object.entries(RIGS)) {
+      this.load.image(`hero-${id}-arm`, `heroes/${id}_arm.png`);
+      if (rig.scarf) this.load.image(`hero-${id}-scarf`, `heroes/${id}_scarf.png`);
+    }
   }
 
   create() {
@@ -270,6 +299,11 @@ export class BattleScene extends Phaser.Scene {
     const barWidth = opts.isBoss ? 60 : 24;
     const hpBar = this.add.graphics();
     const parts: Phaser.GameObjects.GameObject[] = [body, hpBar];
+    const rig = opts.def ? this.buildRig(opts.def.id, body) : undefined;
+    if (rig) {
+      if (rig.scarf) parts.unshift(rig.scarf);
+      parts.splice(parts.indexOf(body) + 1, 0, rig.arm);
+    }
     if (opts.label) {
       parts.push(
         this.add
@@ -300,6 +334,7 @@ export class BattleScene extends Phaser.Scene {
       ultReadyAt: 0,
       view,
       body,
+      rig,
       hpBar,
       barWidth,
     };
@@ -307,10 +342,61 @@ export class BattleScene extends Phaser.Scene {
     return unit;
   }
 
+  /**
+   * Set up a cut-out hero: the body stands on the foot line, the arm and scarf sit at their pivots so they
+   * can rotate, and the scarf flutters while the whole figure bobs gently.
+   */
+  private buildRig(id: string, body: Phaser.GameObjects.Image): RigParts | undefined {
+    const rig = RIGS[id];
+    if (!rig || !this.textures.exists(`hero-${id}-arm`)) return undefined;
+    const W = body.width, H = body.height;
+    const at = ([px, py]: [number, number]) => ({ x: px - rig.feet[0], y: FOOT_Y + py - rig.feet[1] });
+    body.setOrigin(rig.feet[0] / W, rig.feet[1] / H).setPosition(0, FOOT_Y);
+    const elbow = at(rig.arm);
+    const arm = this.add.image(elbow.x, elbow.y, `hero-${id}-arm`).setOrigin(rig.arm[0] / W, rig.arm[1] / H);
+    let scarf: Phaser.GameObjects.Image | undefined;
+    if (rig.scarf) {
+      const neck = at(rig.scarf);
+      scarf = this.add.image(neck.x, neck.y, `hero-${id}-scarf`).setOrigin(rig.scarf[0] / W, rig.scarf[1] / H);
+      this.tweens.add({ targets: scarf, angle: { from: -8, to: 6 }, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    }
+    this.tweens.add({ targets: [body, arm, scarf].filter(Boolean), y: '-=1', duration: 380, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    return { arm, scarf, elbow };
+  }
+
+  /** Cutlass swing: wind up, slash through with a streak, then settle back. */
+  private swing(u: Unit) {
+    const rig = u.rig!;
+    this.tweens.killTweensOf(rig.arm);
+    rig.arm.setAngle(0);
+    this.tweens.chain({
+      targets: rig.arm,
+      tweens: [
+        { angle: -70, duration: 90, ease: 'Quad.out' },
+        { angle: 38, duration: 70, ease: 'Quad.in', onComplete: () => this.slashStreak(u) },
+        { angle: 0, duration: 170, ease: 'Sine.out' },
+      ],
+    });
+  }
+
+  /** A short arc where the blade passed, in the hero's element colour. */
+  private slashStreak(u: Unit) {
+    const rig = u.rig!;
+    const cx = u.view.x + rig.elbow.x, cy = u.view.y + rig.elbow.y;
+    const g = this.add.graphics().setDepth(u.view.depth + 1);
+    const draw = (alpha: number) => {
+      g.clear();
+      g.lineStyle(4, 0xffffff, alpha).beginPath().arc(cx, cy, 21, Phaser.Math.DegToRad(-80), Phaser.Math.DegToRad(30)).strokePath();
+      g.lineStyle(2, ELEMENT_COLORS[u.element], alpha).beginPath().arc(cx, cy, 24, Phaser.Math.DegToRad(-70), Phaser.Math.DegToRad(25)).strokePath();
+    };
+    draw(0.9);
+    this.tweens.addCounter({ from: 0.9, to: 0, duration: 160, onUpdate: (t) => draw(t.getValue() ?? 0), onComplete: () => g.destroy() });
+  }
+
   private drawHpBar(u: Unit) {
     const ratio = u.maxHp.gt(0) ? Math.max(0, Math.min(1, u.hp.div(u.maxHp).toNumber())) : 0;
     const w = u.barWidth;
-    const top = -u.body.height / 2 - 7;
+    const top = u.rig ? FOOT_Y - u.body.displayOriginY - 4 : -u.body.height / 2 - 7;
     u.hpBar.clear();
     u.hpBar.fillStyle(0x000000, 0.7).fillRect(-w / 2 - 1, top - 1, w + 2, 5);
     u.hpBar.fillStyle(u.side === 'hero' ? 0x4cff7a : 0xff4c4c, 1).fillRect(-w / 2, top, w * ratio, 3);
@@ -659,6 +745,7 @@ export class BattleScene extends Phaser.Scene {
     const def = h.def!;
     if (def.range > 60) this.shot(h, target.x, target.y, ELEMENT_COLORS[def.element]);
     else this.lunge(h, 1);
+    if (h.rig) this.swing(h);
     h.attacks++;
     const critChance = CRIT_CHANCE + this.sum('crit', h);
     const strikes = Math.random() < this.sum('doubleStrike', h) ? 2 : 1;
@@ -707,11 +794,12 @@ export class BattleScene extends Phaser.Scene {
     target.hp = target.hp.minus(amount);
     this.drawHpBar(target);
     this.hitFeedback(target, amount, source, crit);
-    target.body.setTintFill(0xffffff);
+    const flashed = [target.body, target.rig?.arm, target.rig?.scarf].filter((p): p is Phaser.GameObjects.Image => !!p);
+    for (const p of flashed) p.setTintFill(0xffffff);
     this.time.delayedCall(60, () => {
       if (!target.body.active) return;
       if (target.side === 'enemy') target.body.setTint(ELEMENT_COLORS[target.element]);
-      else target.body.clearTint();
+      else for (const p of flashed) p.clearTint();
     });
     if (target.hp.lte(0)) this.kill(target, source);
   }
@@ -886,7 +974,9 @@ export class BattleScene extends Phaser.Scene {
   // ---------- effects and HUD ----------
 
   private lunge(u: Unit, dir: 1 | -1) {
-    this.tweens.add({ targets: u.body, x: 5 * dir, duration: 70, yoyo: true });
+    // Rigged heroes move every part together; relative x keeps each part at its own offset.
+    const parts = [u.body, u.rig?.arm, u.rig?.scarf].filter(Boolean);
+    this.tweens.add({ targets: parts, x: `+=${5 * dir}`, duration: 70, yoyo: true });
   }
 
   private shot(from: Unit, x: number, y: number, color: number) {

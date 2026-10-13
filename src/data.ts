@@ -69,7 +69,7 @@ export const ELEMENT_COLORS: Record<Element, number> = {
   dark: 0x9b59d0,
 };
 
-// The first 20 heroes: four per element. All Common. Tide is the free starter.
+// The first 20 heroes: four per element. All Common. Brine is the free starter.
 // Job baselines (each hero varies a little): Blademaster quick melee, Knight high-HP front line,
 // Mage ranged splash, Rogue fast melee with 2x gold, Ranger long-range single target, Support healer.
 const VS: Record<Element, string> = {
@@ -152,13 +152,13 @@ export const HEROES: HeroDef[] = [
     aura: { name: 'Living Grove', text: 'Whole team attacks 10% faster.', effect: { kind: 'attackSpeed', value: 0.9, team: true } } },
 
   // ---- Water: adaptability and wisdom ----
-  { id: 'tide', rarity: 'common', name: 'Tide', element: 'water', job: 'Blademaster', baseAtk: 5, baseHp: 60, range: 28, attackCooldown: 0.8, moveSpeed: 120, unlockCost: 0, upgradeBaseCost: 5, goldMult: 1,
-    bio: 'A disciplined tide knight with a trident and a wave shield, sworn to bring the Lantern Queen home. The reason every early boss goes down.',
-    basic: { name: 'Trident Strike', text: 'Fast trident jabs at the nearest enemy ahead.' },
+  { id: 'brine', rarity: 'common', name: 'Brine', element: 'water', job: 'Blademaster', baseAtk: 5, baseHp: 60, range: 28, attackCooldown: 0.8, moveSpeed: 120, unlockCost: 0, upgradeBaseCost: 5, goldMult: 1,
+    bio: 'A young tidecoast sailor with a cutlass and a sea-blue scarf, sworn to bring the Lantern Queen home. The reason every early boss goes down.',
+    basic: { name: 'Cutlass Slash', text: 'Fast cutlass slashes at the nearest enemy ahead.' },
     ultimate: { name: 'Riptide', text: ULT('A crashing wave hits') },
-    trait: { name: 'Tide Knight', text: `${VS.water} Every boss before stage 600 is Fire, so Tide carries boss fights.` },
+    trait: { name: 'Tidecoast Sailor', text: `${VS.water} Every boss before stage 600 is Fire, so Brine carries boss fights.` },
     sp1: { name: 'Undertow', text: '20% chance for each attack to strike twice.', effect: { kind: 'doubleStrike', value: 0.2 } },
-    sp2: { name: 'Wave Shield', text: 'Takes 25% less damage.', effect: { kind: 'damageTaken', value: 0.75 } },
+    sp2: { name: 'Sea Legs', text: 'Takes 25% less damage.', effect: { kind: 'damageTaken', value: 0.75 } },
     aura: { name: 'Tidal Calm', text: 'Team max HP +20%.', effect: { kind: 'hp', value: 1.2, team: true } } },
   { id: 'brook', rarity: 'common', name: 'Brook', element: 'water', job: 'Support', baseAtk: 2.8, baseHp: 60, range: 140, attackCooldown: 1.2, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
     bio: 'A calm wave cleric in flowing robes who heals through a water crystal that never stops trickling.',
@@ -255,7 +255,7 @@ export const HEROES: HeroDef[] = [
 ];
 
 /** Old hero ids from saves before the 20-hero roster, and who replaced them. */
-export const RENAMED_HEROES: Record<string, string> = { marin: 'tide', bramble: 'thorn', pyra: 'ember', nox: 'shade', solenne: 'lumen' };
+export const RENAMED_HEROES: Record<string, string> = { marin: 'brine', tide: 'brine', bramble: 'thorn', pyra: 'ember', nox: 'shade', solenne: 'lumen' };
 
 /**
  * Type chart, matching the original game: Water > Fire > Earth > Water deal 4x,
