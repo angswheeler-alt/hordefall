@@ -299,3 +299,34 @@ button.link[disabled] { display: none; }
 .team-row button { font-size: 13px; padding: 6px 10px; }
 .team-help { font-size: 12px; margin: 10px 0 0; }
 .hero.benched { opacity: .6; }
+
+/* Elemental Trials */
+.trial-tickets { color: #ffe9c4; font-size: 13px; font-weight: 700; }
+.trial-card { background: linear-gradient(180deg, var(--plank), #4a2d17); border: 2px solid var(--wood-deep); border-radius: 10px; padding: 10px 12px; color: #fff4dd; margin: 0 0 16px; display: flex; flex-direction: column; gap: 10px; }
+.trial-days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.trial-day { text-align: center; font-size: 11px; font-weight: 700; padding: 4px 0; border-radius: 6px; background: color-mix(in srgb, var(--el) 30%, #1c0f06); color: #e8d3b0; border: 1px solid rgba(0,0,0,.5); }
+.trial-day.today { background: var(--el); color: #fff; text-shadow: 0 1px 2px #000; box-shadow: 0 0 0 2px #ffe9c4; }
+.trial-boss { display: flex; gap: 10px; align-items: center; }
+.trial-boss small { display: block; color: #d9bf98; font-size: 12px; margin-top: 2px; }
+.trial-face { flex: none; width: 48px; height: 48px; border-radius: 10px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
+.trial-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.trial-tier { display: flex; align-items: center; gap: 8px; font-weight: 800; }
+.trial-tier .wood-btn { width: 34px; height: 34px; padding: 0; font-size: 18px; }
+#tr-fight { min-height: 40px; padding: 6px 14px; }
+.trial-odds { margin: 0; font-size: 12px; color: #e8d3b0; }
+.trial-odds b { color: #fff; }
+.trial-odds .win { color: #8fe36b; font-weight: 700; }
+.trial-odds .lose { color: #ff8a7a; font-weight: 700; }
+.trial-ess { display: flex; gap: 10px; flex-wrap: wrap; font-size: 13px; font-weight: 700; }
+.trial-ess span { display: inline-flex; align-items: center; gap: 4px; }
+.trial-ess i { width: 12px; height: 12px; border-radius: 50%; background: var(--el); border: 1px solid #000; box-shadow: inset -2px -2px 0 rgba(0,0,0,.3); }
+.trial-fight { text-align: left; }
+.tf-row { display: grid; grid-template-columns: 44px 1fr; gap: 8px; align-items: center; margin: 6px 0; }
+.tf-bar { height: 16px; border-radius: 6px; background: #120c24; border: 1px solid #4a3d78; overflow: hidden; }
+.tf-bar i { display: block; height: 100%; width: 100%; }
+.tf-bar.boss i { background: linear-gradient(90deg, #d84a3a, #ff7a63); }
+.tf-bar.team i { background: linear-gradient(90deg, #2fae5a, #6ce38f); }
+.tf-clock { text-align: center; margin: 4px 0 0; }
+.tf-result { text-align: center; font-weight: 800; }
+.tf-result.win { color: var(--ok) !important; }
+.tf-result.lose { color: var(--hot) !important; }

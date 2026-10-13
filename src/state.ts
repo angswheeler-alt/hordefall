@@ -1,7 +1,7 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, LINEUP_SIZE, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS } from './data';
-import { stallIncome, stallUpgradeCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp } from './formulas';
-import type { HeroDef, StallDef } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_TIERS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS } from './data';
+import { trialHp, trialDps, stallIncome, stallUpgradeCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp } from './formulas';
+import type { HeroDef, StallDef, Element } from './data';
 
 const SAVE_KEY = 'hordefall-save-v1';
 
@@ -17,6 +17,18 @@ export interface OfflineReport {
   stages: number;
   /** Part of `gold` that came from auto-collect Stalls. */
   market: Decimal;
+}
+
+export interface TrialResult {
+  won: boolean;
+  /** Seconds the fight lasted (capped at the time limit). */
+  seconds: number;
+  /** Boss HP fraction left at the end, team HP fraction left at the end. */
+  bossLeft: number;
+  teamLeft: number;
+  essence: number;
+  crests: number;
+  heroId: string;
 }
 
 export interface StallState {
@@ -38,6 +50,11 @@ export class GameState {
   embers = 0;
   emberLevels: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, 0]));
   rekindles = 0;
+  /** Elemental Trials: tickets, when the next one started charging, best tier cleared per element, essences. */
+  tickets = TICKET_CAP;
+  ticketClock = Date.now();
+  trialBest: Record<string, number> = {};
+  essences: Record<string, number> = {};
   /** Recruited heroes taken out of the lineup. They keep gold levels but don't fight. */
   benched: Record<string, boolean> = {};
   /** Market Row Stalls; level 0 means not opened. Reset on Rekindle. */
@@ -279,6 +296,82 @@ export class GameState {
     return total;
   }
 
+  /** Today's Trial element (changes at midnight UTC). */
+  trialElement(now = Date.now()): Element {
+    return TRIAL_ROTATION[Math.floor(now / 86400000) % TRIAL_ROTATION.length];
+  }
+
+  /** Add tickets earned since the clock started; returns seconds until the next one (0 when full). */
+  refreshTickets(now = Date.now()): number {
+    const period = TICKET_MINUTES * 60000;
+    if (this.tickets >= TICKET_CAP) {
+      this.ticketClock = now;
+      return 0;
+    }
+    const earned = Math.floor((now - this.ticketClock) / period);
+    if (earned > 0) {
+      this.tickets = Math.min(TICKET_CAP, this.tickets + earned);
+      this.ticketClock += earned * period;
+      if (this.tickets >= TICKET_CAP) this.ticketClock = now;
+    }
+    return this.tickets >= TICKET_CAP ? 0 : Math.ceil((this.ticketClock + period - now) / 1000);
+  }
+
+  /** Trial strength uses Ember levels and stars only, not gold levels. */
+  trialTeam() {
+    return HEROES.filter((h) => this.inLineup(h.id)).map((def) => ({ def, ...this.heroPower(def, Math.max(1, this.emberLevels[def.id] ?? 0)) }));
+  }
+
+  /** Simulate a Trial fight against today's boss at `tier`. */
+  simulateTrial(tier: number, element = this.trialElement()) {
+    const team = this.trialTeam();
+    let dps = new Decimal(0);
+    let hp = new Decimal(0);
+    let incoming = 0;
+    for (const m of team) {
+      dps = dps.plus(m.atk.div(m.def.attackCooldown).times(elementMultiplier(m.def.element, element)));
+      hp = hp.plus(m.hp);
+      incoming += elementMultiplier(element, m.def.element);
+    }
+    const bossHp = trialHp(tier);
+    const bossDps = trialDps(tier).times(team.length ? incoming / team.length : 1);
+    const killTime = dps.gt(0) ? bossHp.div(dps).toNumber() : Infinity;
+    const wipeTime = bossDps.gt(0) ? hp.div(bossDps).toNumber() : Infinity;
+    const seconds = Math.min(killTime, wipeTime, TRIAL_TIME);
+    const won = killTime <= Math.min(wipeTime, TRIAL_TIME);
+    return {
+      won,
+      seconds,
+      bossLeft: won ? 0 : Math.max(0, 1 - seconds / killTime),
+      teamLeft: Math.max(0, 1 - seconds / wipeTime),
+      dps,
+    };
+  }
+
+  trialUnlocked(element: string) {
+    return Math.min(TRIAL_TIERS, (this.trialBest[element] ?? 0) + 1);
+  }
+
+  /** Spend a ticket on today's Trial. A loss gives the ticket back. */
+  playTrial(tier: number): TrialResult | null {
+    this.refreshTickets();
+    const element = this.trialElement();
+    if (this.tickets <= 0 || tier < 1 || tier > this.trialUnlocked(element)) return null;
+    const sim = this.simulateTrial(tier, element);
+    const hero = HEROES.find((h) => h.element === element)!;
+    const result: TrialResult = { won: sim.won, seconds: sim.seconds, bossLeft: sim.bossLeft, teamLeft: sim.teamLeft, essence: 0, crests: 0, heroId: hero.id };
+    if (!sim.won) return result;
+    if (this.tickets >= TICKET_CAP) this.ticketClock = Date.now();
+    this.tickets -= 1;
+    result.essence = 2 * tier;
+    result.crests = 3 + tier;
+    this.essences[element] = (this.essences[element] ?? 0) + result.essence;
+    this.crests[hero.id] = (this.crests[hero.id] ?? 0) + result.crests;
+    this.trialBest[element] = Math.max(this.trialBest[element] ?? 0, tier);
+    this.save();
+    return result;
+  }
+
   keeperLevel() {
     return keeperLevel(this.lifetimeEmbers);
   }
@@ -361,6 +454,10 @@ export class GameState {
       roadClaimed: this.roadClaimed,
       stalls: this.stalls,
       benched: this.benched,
+      tickets: this.tickets,
+      ticketClock: this.ticketClock,
+      trialBest: this.trialBest,
+      essences: this.essences,
       crests: this.crests,
       stars: this.stars,
       gems: this.gems,
@@ -401,6 +498,10 @@ export class GameState {
       this.lifetimeEmbers = d.lifetimeEmbers ?? this.embers;
       this.roadClaimed = d.roadClaimed ?? 0;
       this.benched = { ...(d.benched ?? {}) };
+      this.tickets = d.tickets ?? TICKET_CAP;
+      this.ticketClock = d.ticketClock ?? Date.now();
+      this.trialBest = { ...(d.trialBest ?? {}) };
+      this.essences = { ...(d.essences ?? {}) };
       for (const def of STALLS) {
         const st = d.stalls?.[def.id];
         if (st) this.stalls[def.id] = { level: st.level ?? 0, progress: st.progress ?? 0 };

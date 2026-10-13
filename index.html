@@ -48,7 +48,21 @@
           <div class="soon-card"><h3>Relics</h3><p class="soon-when">Coming in a later build</p><ul><li>Passive buffs for the whole team: attack, HP, defense, cheaper and faster Stalls.</li><li>Craft them in the Relic shop from elemental materials won in Elemental Trials.</li><li>Start with 2 slots and buy more with Gems.</li></ul></div>
         </section>
         <section class="panel" data-tab="battle" hidden>
-          <div class="panel-head"><h2>Battle</h2></div>
+          <div class="panel-head"><h2>Elemental Trials</h2><span id="tr-tickets" class="trial-tickets"></span></div>
+          <div class="trial-card">
+            <div id="tr-days" class="trial-days"></div>
+            <div class="trial-boss">
+              <span id="tr-face" class="trial-face"></span>
+              <div><b id="tr-name"></b><small id="tr-info"></small></div>
+            </div>
+            <div class="trial-row">
+              <div class="trial-tier"><button id="tr-down" class="wood-btn small" aria-label="Lower tier">&#8249;</button><span id="tr-tier"></span><button id="tr-up" class="wood-btn small" aria-label="Higher tier">&#8250;</button></div>
+              <button id="tr-fight" class="wood-btn levelall">Fight</button>
+            </div>
+            <p id="tr-odds" class="trial-odds"></p>
+            <div id="tr-ess" class="trial-ess"></div>
+          </div>
+          <div class="panel-head"><h2>Run stats</h2></div>
           <dl class="battle-stats">
             <dt>Stage</dt><dd id="bt-stage"></dd>
             <dt>Next boss</dt><dd id="bt-boss"></dd>

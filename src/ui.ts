@@ -1,8 +1,8 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, ULT_STAR_BONUS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef } from './data';
+import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, ULT_STAR_BONUS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_TIERS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
-import { bulkCost, upgradeCost, stallUpgradeCost, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
+import { bulkCost, upgradeCost, stallUpgradeCost, trialHp, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
 import type { GameState, OfflineReport, SummonDrop } from './state';
 import type { BattleScene } from './BattleScene';
 
@@ -254,6 +254,9 @@ export class UI {
       this.render();
     });
     $('boss').addEventListener('click', () => this.scene()?.challengeBoss());
+    $('tr-down').addEventListener('click', () => this.stepTier(-1));
+    $('tr-up').addEventListener('click', () => this.stepTier(1));
+    $('tr-fight').addEventListener('click', () => this.fightTrial());
     $('levelall').addEventListener('click', () => {
       if (this.state.levelAll() > 0) {
         play('unlock');
@@ -546,7 +549,104 @@ export class UI {
     if (b) b.hidden = !on;
   }
 
+  private trialTier = 0;
+
+  private stepTier(dir: number) {
+    const max = this.state.trialUnlocked(this.state.trialElement());
+    this.trialTier = Math.min(max, Math.max(1, this.currentTier() + dir));
+    this.renderTrials();
+  }
+
+  private currentTier() {
+    const max = this.state.trialUnlocked(this.state.trialElement());
+    if (this.trialTier < 1 || this.trialTier > max) this.trialTier = max;
+    return this.trialTier;
+  }
+
+  private renderTrials() {
+    const s = this.state;
+    const wait = s.refreshTickets();
+    const el = s.trialElement();
+    const tier = this.currentTier();
+    const mm = Math.floor(wait / 60);
+    const ss = String(wait % 60).padStart(2, '0');
+    $('tr-tickets').textContent = `Tickets ${s.tickets}/${TICKET_CAP}${wait ? ` · next ${mm}:${ss}` : ''}`;
+    const key = `${el}`;
+    if ($('tr-days').dataset.key !== key) {
+      $('tr-days').dataset.key = key;
+      $('tr-days').innerHTML = TRIAL_ROTATION.map(
+        (e) => `<span class="trial-day${e === el ? ' today' : ''}" style="--el:${hex(ELEMENT_COLORS[e])}" title="${cap(e)}">${e === el ? 'Today' : cap(e)}</span>`,
+      ).join('');
+      $('tr-face').style.background = hex(ELEMENT_COLORS[el]);
+      $('tr-face').textContent = TRIAL_BOSS_NAMES[el][0];
+      $('tr-name').textContent = `${TRIAL_BOSS_NAMES[el]} (${cap(el)})`;
+    }
+    const hero = HEROES.find((h) => h.element === el)!;
+    $('tr-info').textContent = `Uses Ember levels and stars, not gold levels. Drops ${ESSENCE_NAMES[el]} and ${hero.name} Crests.`;
+    $('tr-tier').textContent = `Tier ${tier} / ${TRIAL_TIERS}`;
+    $<HTMLButtonElement>('tr-down').disabled = tier <= 1;
+    $<HTMLButtonElement>('tr-up').disabled = tier >= s.trialUnlocked(el);
+    const sim = s.simulateTrial(tier, el);
+    $('tr-odds').innerHTML = `Boss HP <b>${fmt(trialHp(tier))}</b> · team damage in ${TRIAL_TIME}s <b>${fmt(sim.dps.times(TRIAL_TIME))}</b> · <span class="${sim.won ? 'win' : 'lose'}">${sim.won ? 'You should win' : 'Too strong for now'}</span>`;
+    const fight = $<HTMLButtonElement>('tr-fight');
+    fight.disabled = s.tickets <= 0;
+    fight.textContent = s.tickets > 0 ? 'Fight · 1 ticket' : 'No tickets';
+    $('tr-ess').innerHTML = TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i></i>${s.essences[e] ?? 0}</span>`).join('');
+  }
+
+  /** Play a Trial: the fight is simulated, then shown as two draining HP bars. */
+  private fightTrial() {
+    const s = this.state;
+    const tier = this.currentTier();
+    const el = s.trialElement();
+    const result = s.playTrial(tier);
+    if (!result) return;
+    const hero = HEROES.find((h) => h.id === result.heroId)!;
+    this.showModal(
+      `${TRIAL_BOSS_NAMES[el]} · Tier ${tier}`,
+      `<div class="trial-fight">
+        <div class="tf-row"><span>Boss</span><div class="tf-bar boss"><i id="tf-boss"></i></div></div>
+        <div class="tf-row"><span>Team</span><div class="tf-bar team"><i id="tf-team"></i></div></div>
+        <p id="tf-clock" class="tf-clock">0s</p>
+        <p id="tf-result" class="tf-result" hidden></p>
+      </div>`,
+      'Fighting…',
+    );
+    const ok = $<HTMLButtonElement>('modal-ok');
+    ok.disabled = true;
+    play('boss');
+    const start = performance.now();
+    const length = 2500;
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / length);
+      const boss = 1 - t * (1 - result.bossLeft);
+      const team = 1 - t * (1 - result.teamLeft);
+      const bossBar = document.getElementById('tf-boss');
+      const teamBar = document.getElementById('tf-team');
+      if (!bossBar || !teamBar) return;
+      bossBar.style.width = `${boss * 100}%`;
+      teamBar.style.width = `${team * 100}%`;
+      $('tf-clock').textContent = `${Math.round(t * result.seconds)}s`;
+      if (t < 1) {
+        requestAnimationFrame(step);
+        return;
+      }
+      const res = $('tf-result');
+      res.hidden = false;
+      res.innerHTML = result.won
+        ? `Victory! +${result.essence} ${ESSENCE_NAMES[el]} · +${result.crests} ${hero.name} Crests`
+        : `Defeated. Your ticket was kept. Raise Ember levels or stars and try again.`;
+      res.className = `tf-result ${result.won ? 'win' : 'lose'}`;
+      play(result.won ? 'clear' : 'defeat');
+      ok.disabled = false;
+      ok.textContent = 'Okay';
+      this.render();
+    };
+    requestAnimationFrame(step);
+  }
+
   private renderBattle() {
+    this.renderTrials();
     const s = this.state;
     const nextBoss = Math.ceil((s.stage + (isBossStage(s.stage) ? 0 : 1)) / BOSS_EVERY) * BOSS_EVERY;
     $('bt-stage').textContent = s.stage.toLocaleString();
@@ -714,6 +814,7 @@ export class UI {
     }
 
     this.badge('market', this.renderMarket());
+    this.badge('battle', s.rekindles > 0 && s.tickets >= TICKET_CAP);
     this.badge('heroes', heroesBadge);
     this.badge('shop', s.gems >= CHEST_COST);
     if (this.tab === 'battle') this.renderBattle();

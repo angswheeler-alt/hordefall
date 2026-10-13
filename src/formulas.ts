@@ -145,3 +145,13 @@ export function stallUpgradeCost(def: StallDef, level: number): Decimal {
   if (level === 0) return new Decimal(def.unlockCost);
   return Decimal.pow(1.07, level - 1).times(def.unlockCost * 0.4);
 }
+
+/** Trial boss HP: tier 4 takes about 50 Ember levels on the starter at neutral element. */
+export function trialHp(tier: number): Decimal {
+  return Decimal.pow(2.15, tier - 1).times(3000);
+}
+
+/** Trial boss damage per second. */
+export function trialDps(tier: number): Decimal {
+  return trialHp(tier).times(0.01);
+}
