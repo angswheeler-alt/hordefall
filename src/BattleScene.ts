@@ -35,6 +35,7 @@ import {
 } from './formulas';
 import type { GameState } from './state';
 import { play } from './sfx';
+import coinSmallUrl from './assets/ui/coin-small.png';
 import { sumEffect, mulEffect, everyNth } from './skills';
 import type { EffectKind } from './data';
 
@@ -172,6 +173,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   preload() {
+    this.load.image('coin', coinSmallUrl);
     for (const r of REGIONS) for (const layer of ['sky', 'far', 'ground']) this.load.image(`bg-${r}-${layer}`, `bg/${r}_${layer}.png`);
     // Hero sprites (32x32, feet on row 30). A hero without a file falls back to its placeholder block.
     for (const h of HEROES) this.load.image(`hero-${h.id}`, `heroes/${h.id}.png`);
@@ -1081,7 +1083,7 @@ export class BattleScene extends Phaser.Scene {
   /** Coins pop up and fly to the top-left, toward the gold counter. */
   private flyCoins(x: number, y: number, count: number) {
     for (let i = 0; i < count; i++) {
-      const c = this.add.circle(x, y, 3, 0xffd84a).setStrokeStyle(1, 0x8a6a00).setDepth(995);
+      const c = this.add.image(x, y, 'coin').setDepth(995);
       this.tweens.chain({
         targets: c,
         tweens: [
