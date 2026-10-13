@@ -108,7 +108,7 @@ export class UI {
         <div class="who" role="button" tabindex="0" aria-label="Open ${def.name}">
           <div class="banner" style="--el:${hex(ELEMENT_COLORS[def.element])}"><span class="name">${def.name}</span><span class="stars-mini"></span></div>
           <div class="stats"></div>
-          <div class="meta">${cap(def.element)} ${def.job} <span class="ember-chip"></span></div>
+          <div class="meta">${heroTitle(def)} <span class="ember-chip"></span></div>
         </div>
         <div class="btns">
           <button class="gold-up"><span class="cost"></span><span class="label"></span></button>
@@ -654,7 +654,7 @@ export class UI {
     face.classList.add('art');
     face.setAttribute('style', faceStyle(def));
     $('sheet-name').textContent = def.name;
-    $('sheet-sub').textContent = `${cap(def.element)} ${def.job}`;
+    $('sheet-sub').textContent = heroTitle(def) + (def.role ? ` · ${def.role}` : '');
     $('sheet-bio').textContent = def.bio;
     $('sheet').hidden = false;
     this.renderSheet();
@@ -721,7 +721,7 @@ export class UI {
     const html = [
       ability('Basic attack', def.basic),
       ability('Ultimate', def.ultimate, ultReady ? 'Unlocked' : `Unlocks at Lv ${ULT_UNLOCK_LEVEL}`, ultReady),
-      ability('Trait', def.trait),
+      ability(def.signature ? 'Signature' : 'Trait', def.trait),
     ].join('');
     // Only re-render lists when content changes, so taps and hover states aren't lost every frame.
     if ($('sheet-abilities').dataset.key !== `${id}:${ultReady}`) {
@@ -739,7 +739,7 @@ export class UI {
       [1, `${def.sp1.name}`, def.sp1.text],
       [2, `${def.sp2.name}`, def.sp2.text],
       [AURA_EVOLUTIONS, `Aura: ${def.aura.name}`, def.aura.text],
-      [ULT_PLUS_EVOLUTIONS, `${def.ultimate.name}+`, `Ultimate hits for ${ULT_MULTIPLIER * ULT_STAR_BONUS}x instead of ${ULT_MULTIPLIER}x.`],
+      [ULT_PLUS_EVOLUTIONS, `${def.ultimate.name}+`, def.ultPlus ?? `Ultimate hits for ${ULT_MULTIPLIER * ULT_STAR_BONUS}x instead of ${ULT_MULTIPLIER}x.`],
       [5, '6★ to 7★', 'Each extra star doubles all stats again.'],
       [MAX_STARS, 'Legendary medals', `At 8★ every ${LEGENDARY_MEDAL_RATE} extra medals for this hero become a Legendary medal, used to get Legendary heroes.`],
     ];
@@ -1288,4 +1288,9 @@ function stallIncomePreview(def: StallDef) {
 
 function cap(s: string) {
   return s[0].toUpperCase() + s.slice(1);
+}
+
+/** "Water Corsair" for heroes built to the hero standard, "Water Mage" for the older kits. */
+function heroTitle(def: HeroDef) {
+  return `${cap(def.element)} ${def.heroClass ?? def.job}`;
 }

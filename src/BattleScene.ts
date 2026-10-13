@@ -38,6 +38,7 @@ import { play } from './sfx';
 import coinSmallUrl from './assets/ui/coin-small.png';
 import { sumEffect, mulEffect, everyNth } from './skills';
 import type { EffectKind } from './data';
+import { comboMult, executeMult, signatureReflect, splitHeal } from './kits';
 
 /** Visible area. The lane itself is WORLD_WIDTH long and the camera follows the heroes. */
 export const WIDTH = 480;
@@ -56,6 +57,12 @@ const REGIONS = ['tidecoast', 'dunes', 'stormcrag', 'emberwastes', 'hollowmoon']
 const FAR_Y = -10;
 const GROUND_Y = 170;
 const WAVE_INTERVAL = 7;
+/** Burning deals its damage in ticks this many seconds apart. */
+const BURN_TICK = 0.5;
+const WILDFIRE_RADIUS = 40;
+const BEACON_SECONDS = 4;
+/** Lumen brings fallen heroes back this far behind her. */
+const REVIVE_BEHIND = 14;
 const MAX_ENEMIES = 14;
 /** Melee feet sit this far below a unit's y (the old 30 px placeholders were centred on it). */
 const FOOT_Y = 15;
@@ -109,6 +116,37 @@ interface Unit {
   anim?: { id: string; state: AnimState };
   hpBar: Phaser.GameObjects.Graphics;
   barWidth: number;
+  /** Riptide Combo: the enemy this hero is hitting and how many hits in a row. */
+  streakTarget?: Unit;
+  streak: number;
+  /** Burning (Kindling, Meteor ground): damage per second until burnUntil, from burnBy. */
+  burnUntil: number;
+  burnDps: Decimal;
+  burnTick: number;
+  burnBy?: Unit;
+  /** Bramble Wall: no moving or attacking until this time. */
+  rootedUntil: number;
+  /** Nightfall Volley: takes markMult damage until markUntil. */
+  markUntil: number;
+  markMult: number;
+  /** Guiding Light and Bramble Wall+: soaks damage before HP. */
+  shield: Decimal;
+  /** Beacon: ATK x beaconMult until beaconUntil. */
+  beaconUntil: number;
+  beaconMult: number;
+  /** Rogue Wave+: attack cooldown x hasteMult until hasteUntil. */
+  hasteUntil: number;
+  hasteMult: number;
+}
+
+/** Meteor's burning ground. */
+interface Zone {
+  x0: number;
+  x1: number;
+  until: number;
+  dps: Decimal;
+  by: Unit;
+  view: Phaser.GameObjects.Rectangle;
 }
 
 interface ChestKind {
@@ -133,6 +171,7 @@ export class BattleScene extends Phaser.Scene {
   private state!: GameState;
   private heroes: Unit[] = [];
   private enemies: Unit[] = [];
+  private zones: Zone[] = [];
   private crystal = { hp: new Decimal(1), maxHp: new Decimal(1) };
   private crystalView!: Phaser.GameObjects.Image;
   private crystalShield!: Phaser.GameObjects.Arc;
@@ -349,6 +388,18 @@ export class BattleScene extends Phaser.Scene {
       anim,
       hpBar,
       barWidth,
+      streak: 0,
+      burnUntil: 0,
+      burnDps: new Decimal(0),
+      burnTick: 0,
+      rootedUntil: 0,
+      markUntil: 0,
+      markMult: 1,
+      shield: new Decimal(0),
+      beaconUntil: 0,
+      beaconMult: 1,
+      hasteUntil: 0,
+      hasteMult: 1,
     };
     this.drawHpBar(unit);
     return unit;
@@ -393,6 +444,8 @@ export class BattleScene extends Phaser.Scene {
     u.hpBar.clear();
     u.hpBar.fillStyle(0x000000, 0.7).fillRect(-w / 2 - 1, top - 1, w + 2, 5);
     u.hpBar.fillStyle(u.side === 'hero' ? 0x4cff7a : 0xff4c4c, 1).fillRect(-w / 2, top, w * ratio, 3);
+    // Shields show as a pale bar over the top of the HP bar.
+    if (u.shield.gt(0) && u.maxHp.gt(0)) u.hpBar.fillStyle(0xbfe8ff, 1).fillRect(-w / 2, top - 2, w * Math.min(1, u.shield.div(u.maxHp).toNumber() * 5), 2);
   }
 
   /** Create units for newly recruited heroes and refresh stats after upgrades. */
@@ -442,11 +495,6 @@ export class BattleScene extends Phaser.Scene {
     return sumEffect(this.state.effects(), kind, u?.def?.id ?? null);
   }
 
-  /** Attack cooldown multiplier: star skills, then relics that make the team attack faster. */
-  private cooldownMult(h: Unit) {
-    return this.mul('attackSpeed', h) / (1 + this.state.relicBonus('speed'));
-  }
-
   /** Multiplicative total of a star-skill effect reaching this unit; 1 when none apply. */
   private mul(kind: EffectKind, u: Unit | null) {
     return mulEffect(this.state.effects(), kind, u?.def?.id ?? null);
@@ -479,7 +527,13 @@ export class BattleScene extends Phaser.Scene {
     this.nextStageTimer = undefined;
     for (const e of this.enemies) e.view.destroy();
     this.enemies = [];
-    for (const h of this.heroes) this.reviveHero(h);
+    for (const z of this.zones) z.view.destroy();
+    this.zones = [];
+    for (const h of this.heroes) {
+      h.shield = new Decimal(0);
+      h.streakTarget = undefined;
+      this.reviveHero(h);
+    }
     const stage = this.state.stage;
     this.crystal.maxHp = crystalHp(stage);
     this.crystal.hp = this.crystal.maxHp;
@@ -515,10 +569,10 @@ export class BattleScene extends Phaser.Scene {
     for (let i = 0; i < count; i++) this.spawnEnemy(false);
   }
 
-  private reviveHero(h: Unit) {
+  private reviveHero(h: Unit, x = PLAYER_CRYSTAL_X + 20 + Math.random() * 10) {
     h.alive = true;
     h.hp = h.maxHp;
-    h.x = PLAYER_CRYSTAL_X + 20 + Math.random() * 10;
+    h.x = x;
     h.view.setPosition(h.x, h.y).setAlpha(1).setVisible(true);
     this.drawHpBar(h);
   }
@@ -650,6 +704,7 @@ export class BattleScene extends Phaser.Scene {
       this.stepHero(h, dt);
     }
     for (const e of this.enemies) if (e.alive) this.stepEnemy(e, dt);
+    this.tickBurns(dt);
 
     // Remove dead enemies after their fade finishes.
     this.enemies = this.enemies.filter((e) => e.alive || e.view.active);
@@ -681,8 +736,8 @@ export class BattleScene extends Phaser.Scene {
         .filter((a) => a.alive && a.hp.lt(a.maxHp.times(0.75)) && Math.abs(a.x - h.x) <= h.range)
         .sort((a, b) => a.hp.div(a.maxHp).toNumber() - b.hp.div(b.maxHp).toNumber())[0];
       if (hurt && h.cooldownLeft <= 0) {
-        h.cooldownLeft = h.cooldown * this.cooldownMult(h);
-        this.heal(hurt, h.atk.times(3 * this.mul('healPower', h)));
+        h.cooldownLeft = this.cooldownFor(h);
+        this.heal(hurt, h.atk.times(3 * this.mul('healPower', h)), h);
         this.shot(h, hurt.x, hurt.y, 0xfff6a0);
         return;
       }
@@ -692,7 +747,7 @@ export class BattleScene extends Phaser.Scene {
     const dist = target ? target.x - h.x : Infinity;
     if (target && dist <= h.range) {
       if (h.cooldownLeft <= 0) {
-        h.cooldownLeft = h.cooldown * this.cooldownMult(h);
+        h.cooldownLeft = this.cooldownFor(h);
         this.heroAttack(h, target);
       }
       return;
@@ -701,7 +756,7 @@ export class BattleScene extends Phaser.Scene {
     const canHitCrystal = !this.bossAlive();
     if (crystalDist <= h.range && (!target || dist > crystalDist)) {
       if (canHitCrystal && h.cooldownLeft <= 0) {
-        h.cooldownLeft = h.cooldown * this.cooldownMult(h);
+        h.cooldownLeft = this.cooldownFor(h);
         if (def.range > 60) this.shot(h, ENEMY_CRYSTAL_X, LANE_TOP + 26, ELEMENT_COLORS[def.element]);
         else this.lunge(h, 1);
         if (h.anim) this.setAnim(h, 'attack');
@@ -714,8 +769,14 @@ export class BattleScene extends Phaser.Scene {
     h.view.x = h.x;
   }
 
+  /** Seconds until a hero's next attack: star skills, Rogue Wave+ and attack-speed relics speed it up. */
+  private cooldownFor(h: Unit) {
+    return (h.cooldown * this.mul('attackSpeed', h) * (h.hasteUntil > this.clock ? h.hasteMult : 1)) / (1 + this.state.relicBonus('speed'));
+  }
+
   private stepEnemy(e: Unit, dt: number) {
     e.cooldownLeft -= dt;
+    if (e.rootedUntil > this.clock) return;
     if (e.waiting) {
       if (!this.heroes.some((h) => h.alive && Math.abs(e.x - h.x) < CAMP_AGGRO)) return;
       e.waiting = false;
@@ -760,7 +821,7 @@ export class BattleScene extends Phaser.Scene {
     const mult = elementMultiplier(e.element, target.element) * this.mul('damageTaken', target);
     const dmg = e.atk.times(mult);
     this.damageUnit(target, dmg, null);
-    const reflect = this.sum('reflect', target);
+    const reflect = this.sum('reflect', target) + signatureReflect(target.def?.signature);
     if (reflect > 0) this.damageUnit(e, dmg.times(reflect), target);
   }
 
@@ -776,10 +837,18 @@ export class BattleScene extends Phaser.Scene {
     const nth = everyNth(this.state.effects(), def.id);
     const bossMult = this.mul('bossDamage', h);
     const lifesteal = this.sum('lifesteal', h);
+    const sig = def.signature;
+    const vsBurning = this.mul('vsBurning', h);
+    if (h.streakTarget === target) h.streak++;
+    else {
+      h.streakTarget = target;
+      h.streak = 0;
+    }
+    const beacon = h.beaconUntil > this.clock ? h.beaconMult : 1;
     let dealt = new Decimal(0);
     for (let i = 0; i < strikes; i++) {
       const crit = Math.random() < critChance;
-      let atk = crit ? h.atk.times(critMult) : h.atk;
+      let atk = (crit ? h.atk.times(critMult) : h.atk).times(beacon);
       if (nth && nth.every && h.attacks % nth.every === 0) atk = atk.times(nth.value);
       const splash = def.splash ? def.splash * this.mul('splash', h) : 0;
       let targets: Unit[];
@@ -791,14 +860,53 @@ export class BattleScene extends Phaser.Scene {
         targets = [target, ...behind];
       }
       for (const t of targets) {
-        const amount = atk.times(elementMultiplier(h.element, t.element) * (t.isBoss ? bossMult : 1));
+        const mult =
+          elementMultiplier(h.element, t.element) *
+          (t.isBoss ? bossMult : 1) *
+          (t === target ? comboMult(sig, h.streak) : 1) *
+          executeMult(sig, t.maxHp.gt(0) ? t.hp.div(t.maxHp).toNumber() : 1) *
+          (t.burnUntil > this.clock ? vsBurning : 1);
+        const amount = atk.times(mult);
         dealt = dealt.plus(amount);
         this.damageUnit(t, amount, h, crit);
+        if (sig?.kind === 'burn' && t.alive) this.ignite(t, amount.times(sig.share), sig.seconds, h);
       }
     }
     if (lifesteal > 0 && h.alive && h.hp.lt(h.maxHp)) {
       h.hp = Decimal.min(h.maxHp, h.hp.plus(dealt.times(lifesteal)));
       this.drawHpBar(h);
+    }
+  }
+
+  /** Set an enemy Burning, keeping the stronger burn if it already burns. */
+  private ignite(e: Unit, dps: Decimal, seconds: number, by: Unit) {
+    if (e.burnUntil <= this.clock || dps.gte(e.burnDps)) {
+      e.burnDps = dps;
+      e.burnBy = by;
+    }
+    e.burnUntil = Math.max(e.burnUntil, this.clock + seconds);
+  }
+
+  /** Burning enemies take damage every BURN_TICK; Meteor ground keeps setting walkers alight. */
+  private tickBurns(dt: number) {
+    for (const z of this.zones) {
+      if (z.until <= this.clock) continue;
+      for (const e of this.enemies) if (e.alive && e.x >= z.x0 && e.x <= z.x1) this.ignite(e, z.dps.times(elementMultiplier(z.by.element, e.element)), 1, z.by);
+    }
+    for (const z of this.zones) if (z.until <= this.clock) z.view.destroy();
+    this.zones = this.zones.filter((z) => z.until > this.clock);
+    for (const e of this.enemies) {
+      if (!e.alive || e.burnUntil <= this.clock) continue;
+      e.burnTick += dt;
+      if (e.burnTick < BURN_TICK) continue;
+      e.burnTick -= BURN_TICK;
+      const dmg = e.burnDps.times(BURN_TICK);
+      this.sparks(e.x, e.y - 6, 0xff8a3a, 2);
+      this.floatText(e.x + Phaser.Math.Between(-6, 6), e.y - 22, fmt(dmg), '#ffa55a', 9);
+      if (e.markUntil > this.clock) e.hp = e.hp.minus(dmg.times(e.markMult - 1));
+      e.hp = e.hp.minus(dmg);
+      this.drawHpBar(e);
+      if (e.hp.lte(0)) this.kill(e, e.burnBy ?? null);
     }
   }
 
@@ -815,7 +923,14 @@ export class BattleScene extends Phaser.Scene {
 
   private damageUnit(target: Unit, amount: Decimal, source: Unit | null, crit = false) {
     if (!target.alive) return;
-    target.hp = target.hp.minus(amount);
+    if (target.side === 'enemy' && target.markUntil > this.clock) amount = amount.times(target.markMult);
+    let toHp = amount;
+    if (target.shield.gt(0)) {
+      const soaked = Decimal.min(target.shield, amount);
+      target.shield = target.shield.minus(soaked);
+      toHp = amount.minus(soaked);
+    }
+    target.hp = target.hp.minus(toHp);
     this.drawHpBar(target);
     this.hitFeedback(target, amount, source, crit);
     target.body.setTintFill(0xffffff);
@@ -853,16 +968,34 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  private heal(target: Unit, amount: Decimal) {
+  private heal(target: Unit, amount: Decimal, healer?: Unit) {
     play('heal');
     this.sparks(target.x, target.y, 0x7dff9a, 5);
-    target.hp = Decimal.min(target.maxHp, target.hp.plus(amount));
+    const split = splitHeal(healer?.def?.signature, amount, target.maxHp.minus(target.hp), target.shield, target.maxHp);
+    target.hp = Decimal.min(target.maxHp, target.hp.plus(split.hp));
+    target.shield = split.shield;
+    const beacon = healer ? this.mul('beacon', healer) : 1;
+    if (beacon > 1) {
+      target.beaconMult = beacon;
+      target.beaconUntil = this.clock + BEACON_SECONDS;
+    }
     this.drawHpBar(target);
     this.floatText(target.x, target.y - 26, `+${fmt(amount)}`, '#7dff9a');
   }
 
   private kill(u: Unit, source: Unit | null) {
     u.alive = false;
+    if (u.side === 'enemy' && u.burnUntil > this.clock && u.burnBy?.alive) {
+      // Wildfire: a Burning enemy that dies explodes.
+      const by = u.burnBy;
+      const burst = this.sum('burnBurst', by);
+      if (burst > 0) {
+        this.shatter(u.x, u.y, 0xff8a3a);
+        for (const e of this.enemies) {
+          if (e.alive && Math.abs(e.x - u.x) <= WILDFIRE_RADIUS) this.damageUnit(e, by.atk.times(burst * elementMultiplier(by.element, e.element)), by);
+        }
+      }
+    }
     if (u.side === 'enemy') {
       this.state.track('kills');
       const gold = goldPerKill(this.state.stage)
@@ -935,8 +1068,17 @@ export class BattleScene extends Phaser.Scene {
     const color = ELEMENT_COLORS[h.element];
     play('ult');
     this.freeze(0.08);
-    if (h.def!.heals) {
-      for (const a of this.heroes) if (a.alive) this.heal(a, a.maxHp);
+    const def = h.def!;
+    const plus = this.has(def.id, ULT_PLUS_EVOLUTIONS);
+    if (def.heals) {
+      for (const a of this.heroes) if (a.alive) this.heal(a, a.maxHp, h);
+      if (def.ult?.kind === 'revive') {
+        const fallen = this.heroes.filter((a) => !a.alive);
+        for (const a of plus ? fallen : fallen.slice(0, 1)) {
+          this.reviveHero(a, Math.max(PLAYER_CRYSTAL_X + 20, h.x - REVIVE_BEHIND));
+          this.puff(a.x, a.y, 0xfff6a0);
+        }
+      }
       this.cameras.main.flash(200, 255, 245, 180);
       return true;
     }
@@ -945,12 +1087,70 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: ring, radius, alpha: 0, duration: 380, onComplete: () => ring.destroy() });
     this.cameras.main.shake(300, 0.015);
     this.cameras.main.flash(120, 255, 255, 255);
-    const dmg = h.atk.times(ULT_MULTIPLIER * (this.has(h.def!.id, ULT_PLUS_EVOLUTIONS) ? ULT_STAR_BONUS : 1));
-    for (const e of this.enemies) {
-      if (e.alive && e.x >= h.x - 30 && e.x <= h.x + radius + 60) this.damageUnit(e, dmg.times(elementMultiplier(h.element, e.element)), h);
+    // Heroes built to the hero standard get their own 5★ twist instead of the bigger hit.
+    const ult = def.ult;
+    const dmg = h.atk.times(ULT_MULTIPLIER * (plus && !ult ? ULT_STAR_BONUS : 1));
+    const x0 = h.x - 30, x1 = h.x + radius + 60;
+    const hit = this.enemies.filter((e) => e.alive && e.x >= x0 && e.x <= x1);
+    // Marks land before the hit so the Volley itself benefits.
+    if (ult?.kind === 'mark') {
+      for (const e of hit) {
+        e.markMult = plus ? ult.plusMult : ult.mult;
+        e.markUntil = this.clock + (plus ? ult.plusSeconds : ult.seconds);
+        this.floatText(e.x, e.y - 40, 'MARKED', '#c9b8ff', 9);
+      }
     }
+    for (const e of hit) this.damageUnit(e, dmg.times(elementMultiplier(h.element, e.element)), h);
     if (!this.bossAlive() && ENEMY_CRYSTAL_X - h.x <= radius + 60) this.damageCrystal(dmg);
+    if (ult) this.ultExtras(h, ult, hit, plus, x0, x1, dmg);
     return true;
+  }
+
+  /** What a hero-standard Ultimate does after the hit. */
+  private ultExtras(h: Unit, ult: NonNullable<HeroDef['ult']>, hit: Unit[], plus: boolean, x0: number, x1: number, dmg: Decimal) {
+    const living = hit.filter((e) => e.alive);
+    switch (ult.kind) {
+      case 'washback':
+        for (const e of living) {
+          if (e.isBoss) continue;
+          e.x = Math.min(e.x + ult.push, ENEMY_CRYSTAL_X - 12);
+          this.tweens.add({ targets: e.view, x: e.x, duration: 260, ease: 'Quad.out' });
+        }
+        if (plus) {
+          for (const a of this.heroes) {
+            a.hasteMult = ult.haste;
+            a.hasteUntil = this.clock + ult.hasteSeconds;
+          }
+        }
+        break;
+      case 'meteor': {
+        const view = this.add.rectangle((x0 + x1) / 2, LANE_BOTTOM - 20, x1 - x0, LANE_BOTTOM - LANE_TOP + 20, 0xff6a2a, 0.28).setDepth(1);
+        this.zones.push({ x0, x1, until: this.clock + ult.seconds, dps: h.atk.times(ult.groundDps), by: h, view });
+        if (plus) {
+          this.time.delayedCall(600 / this.speedMultiplier(), () => {
+            if (this.transitioning) return;
+            this.cameras.main.shake(200, 0.01);
+            for (const e of this.enemies) if (e.alive && e.x >= x0 && e.x <= x1) this.damageUnit(e, dmg.times(ult.second * elementMultiplier(h.element, e.element)), h);
+          });
+        }
+        break;
+      }
+      case 'root':
+        for (const e of living) {
+          e.rootedUntil = this.clock + (e.isBoss ? ult.bossSeconds : ult.seconds);
+          this.floatText(e.x, e.y - 40, 'ROOTED', '#9be07a', 9);
+        }
+        if (plus) {
+          for (const a of this.heroes) {
+            if (!a.alive) continue;
+            a.shield = Decimal.max(a.shield, a.maxHp.times(ult.shield));
+            this.drawHpBar(a);
+          }
+        }
+        break;
+      default:
+        break;
+    }
   }
 
   private tryAutoUlt(h: Unit) {
@@ -958,7 +1158,8 @@ export class BattleScene extends Phaser.Scene {
     const s = this.getUltState(h.def.id);
     if (!s.unlocked || s.remaining > 0) return;
     if (h.def.heals) {
-      if (this.heroes.some((a) => a.alive && a.hp.lt(a.maxHp.times(0.4)))) this.triggerUlt(h.def.id);
+      const revives = h.def.ult?.kind === 'revive' && this.heroes.some((a) => !a.alive);
+      if (revives || this.heroes.some((a) => a.alive && a.hp.lt(a.maxHp.times(0.4)))) this.triggerUlt(h.def.id);
       return;
     }
     const inReach = this.enemies.filter((e) => e.alive && e.x >= h.x - 30 && e.x <= h.x + 200);
