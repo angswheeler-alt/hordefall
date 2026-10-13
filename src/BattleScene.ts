@@ -50,6 +50,9 @@ const CAMP_AGGRO = 170;
 const LANE_TOP = 175;
 const LANE_BOTTOM = 255;
 /** Background art per 50-stage region, in order; files are public/bg/<region>_{sky,far,ground}.png. */
+/** Heroes with finished sprites in public/heroes/<id>.png (44 x 40, feet on row 38, facing right); the rest use placeholder blocks. */
+const HERO_ART = ['marin'];
+
 const REGIONS = ['tidecoast', 'dunes', 'stormcrag', 'emberwastes', 'hollowmoon'];
 /** The far layer is 180 px tall with its bottom edge on the ground line (y 170). */
 const FAR_Y = -10;
@@ -144,6 +147,7 @@ export class BattleScene extends Phaser.Scene {
 
   preload() {
     for (const r of REGIONS) for (const layer of ['sky', 'far', 'ground']) this.load.image(`bg-${r}-${layer}`, `bg/${r}_${layer}.png`);
+    for (const id of HERO_ART) this.load.image(`hero-${id}`, `heroes/${id}.png`);
   }
 
   create() {
@@ -263,7 +267,11 @@ export class BattleScene extends Phaser.Scene {
     label?: string;
   }): Unit {
     const y = opts.isBoss ? LANE_TOP + 35 : Phaser.Math.Between(LANE_TOP + 5, LANE_BOTTOM);
-    const body = this.add.image(0, 0, opts.texture);
+    // Anchor every body at its feet so sprites of any size stand on the same line;
+    // finished art has 2 empty rows under the feet, placeholders don't.
+    const art = opts.def && HERO_ART.includes(opts.def.id);
+    const body = this.add.image(0, 0, opts.texture).setOrigin(0.5, 1);
+    body.y = art ? 17 : body.height / 2;
     if (opts.side === 'enemy') body.setTint(ELEMENT_COLORS[opts.element]).setFlipX(true);
     const barWidth = opts.isBoss ? 60 : 24;
     const hpBar = this.add.graphics();
@@ -271,7 +279,7 @@ export class BattleScene extends Phaser.Scene {
     if (opts.label) {
       parts.push(
         this.add
-          .text(0, -body.height / 2 - 18, opts.label, { fontFamily: 'monospace', fontSize: opts.isBoss ? '11px' : '9px', color: '#fff', stroke: '#000', strokeThickness: 3 })
+          .text(0, body.y - body.height - 18, opts.label, { fontFamily: 'monospace', fontSize: opts.isBoss ? '11px' : '9px', color: '#fff', stroke: '#000', strokeThickness: 3 })
           .setOrigin(0.5),
       );
     }
@@ -308,7 +316,7 @@ export class BattleScene extends Phaser.Scene {
   private drawHpBar(u: Unit) {
     const ratio = u.maxHp.gt(0) ? Math.max(0, Math.min(1, u.hp.div(u.maxHp).toNumber())) : 0;
     const w = u.barWidth;
-    const top = -u.body.height / 2 - 7;
+    const top = u.body.y - u.body.height - 7;
     u.hpBar.clear();
     u.hpBar.fillStyle(0x000000, 0.7).fillRect(-w / 2 - 1, top - 1, w + 2, 5);
     u.hpBar.fillStyle(u.side === 'hero' ? 0x4cff7a : 0xff4c4c, 1).fillRect(-w / 2, top, w * ratio, 3);
