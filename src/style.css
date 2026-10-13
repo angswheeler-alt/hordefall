@@ -432,24 +432,33 @@ button.glass:disabled { opacity: .7; font-size: 11px; }
 #team-btn.ready::after { content: ''; position: absolute; top: -5px; right: -3px; width: 14px; height: 14px; border-radius: 50%; background: #e3261c; border: 2px solid #fff; }
 .team-row.locked.ready { opacity: 1; border-color: var(--gold); }
 
-/* Collection: every hero, grouped by element */
+/* Collection page: every hero, grouped by element, like the original */
 .hero-sub .collection-btn { margin-right: auto; }
-.coll { text-align: left; }
-.coll h3 { margin: 12px 0 6px; font-size: 14px; display: flex; align-items: center; gap: 6px; }
-.coll h3 i { width: 10px; height: 10px; border-radius: 50%; background: var(--el); }
-.coll h3 small { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 12px; }
-.coll-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-.coll-hero { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; border-radius: 10px; background: var(--panel-2); border: 2px solid transparent; font-size: 11px; min-width: 0; }
-.coll-hero.team { border-color: var(--ok); }
-.coll-hero.locked .face { filter: grayscale(1) brightness(.6); }
-.coll-hero .face { width: 40px; height: 40px; border-radius: 8px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
-.coll-hero b { font-size: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.coll-hero small { color: var(--gold); font-size: 10px; }
-.coll-hero.locked small { color: var(--muted); }
+#coll { position: fixed; inset: 0; z-index: 14; background: var(--wood-lo); background-image: repeating-linear-gradient(0deg, rgba(0,0,0,.08) 0 2px, transparent 2px 28px); overflow-y: auto; }
+.coll-page { max-width: 720px; margin: 0 auto; padding: 12px 12px 24px; }
+.coll-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; position: sticky; top: 0; padding: 4px 0 8px; background: var(--wood-lo); z-index: 1; }
+.coll-head h2 { margin: 0; font-size: 22px; color: #fff4dd; text-shadow: 0 2px 0 var(--wood-deep); }
+.coll-head span { margin-left: auto; color: #e8d3b0; font-weight: 700; }
+.coll-back { width: 64px; height: 40px; font-size: 24px; padding: 0; }
+.ct-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 12px 8px; padding: 10px 0 16px; border-bottom: 2px solid rgba(0,0,0,.25); }
+.ct { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.ct-tile { position: relative; width: 100%; aspect-ratio: 1; padding: 0; border-radius: 4px; border: 3px solid #6b3a1a; background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--el) 70%, #fff) 0%, var(--el) 55%, color-mix(in srgb, var(--el) 60%, #000) 100%); overflow: hidden; cursor: pointer; }
+.ct.team .ct-tile { border-color: #fff; }
+.ct-art { position: absolute; inset: 4% 4% 14%; background-image: var(--art); background-repeat: no-repeat; background-size: contain; background-position: center bottom; image-rendering: pixelated; }
+.ct.locked .ct-art { filter: brightness(0) opacity(.45); }
+.ct.locked .ct-tile { filter: saturate(.55) brightness(.75); }
+.ct-stars { position: absolute; right: 4px; bottom: 2px; font-weight: 900; font-size: 15px; color: #ffd84a; -webkit-text-stroke: 1px #3a2200; text-shadow: 0 1px 0 #000; }
+.ct-name { position: absolute; left: 3px; top: 2px; font-size: 10px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000, 0 0 2px #000; }
+.ct-bar { width: 100%; height: 6px; background: #1d2a44; border: 1px solid #0b1222; border-radius: 2px; overflow: hidden; }
+.ct-bar i { display: block; height: 100%; background: linear-gradient(180deg, #8fd3ff, #3a8fd8); }
+.ct-count { display: flex; align-items: center; gap: 2px; font-weight: 800; font-size: 13px; color: #fff; text-shadow: 0 1px 0 #000; }
+.ct-maxed { font-weight: 800; font-size: 13px; color: #fff; text-shadow: 0 1px 0 #000; padding-top: 4px; }
 
 /* Hero Crest (medal) icon wherever crests are counted */
-.hero.locked .gold-up .cost::before, .level-row .gold-up.unlock .cost::before, .summon-grid .crest::before, .crest-row > span:first-child::before, .coll-hero.locked small::before {
+.hero.locked .gold-up .cost::before, .level-row .gold-up.unlock .cost::before, .summon-grid .crest::before, .crest-row > span:first-child::before, .ct-count::before, .team-row .crest-ct::before {
   content: ''; display: inline-block; vertical-align: middle; width: 14px; height: 14px; margin-right: 3px; background: url('./assets/ui/crest.png') center / contain no-repeat; image-rendering: pixelated; box-shadow: none; border: 0; border-radius: 0;
 }
-.coll-hero.locked small::before { width: 11px; height: 11px; margin-right: 2px; }
+.ct-count::before { width: 16px; height: 16px; margin-right: 1px; }
 .level-row .gold-up.unlock .cost { display: inline-flex; align-items: center; }
+.team-row .crest-ct { white-space: nowrap; }
+.team-row .crest-ct::before { width: 12px; height: 12px; margin-right: 2px; }

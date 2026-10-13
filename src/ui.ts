@@ -17,7 +17,12 @@ const setHtml = (el: HTMLElement, html: string) => {
 };
 const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 /** Inline style for a hero face: their sprite's head and shoulders over their element colour. */
-const faceStyle = (def: HeroDef) => `background-color:${hex(ELEMENT_COLORS[def.element])};--art:url(heroes/${def.id}.png)`;
+/**
+ * Hero portrait URL, made absolute: a relative url() inside a CSS variable resolves against the
+ * stylesheet that uses it (assets/ in a build), not the page, so portraits went missing there.
+ */
+const heroArt = (id: string) => `url('${new URL(`heroes/${id}.png`, document.baseURI).href}')`;
+const faceStyle = (def: HeroDef) => `background-color:${hex(ELEMENT_COLORS[def.element])};--art:${heroArt(def.id)}`;
 const SWORD = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2l2 2-11 11 2 2-2 2-2-2-3 3-2-2 3-3-2-2 2-2 2 2z"/></svg>';
 const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21C5 15 2 12 2 8a5 5 0 0 1 10-1 5 5 0 0 1 10 1c0 4-3 7-10 13z"/></svg>';
 const ULT_ICONS: Record<string, string> = {
@@ -135,27 +140,38 @@ export class UI {
     }
   }
 
-  /** Collection: every hero, grouped by element. Tap one for their page. */
+  /** Collection page (like the original's): every hero in element-coloured tiles, grouped by element. */
   private openCollection() {
+    $('coll').hidden = false;
+    this.renderCollection();
+  }
+
+  private closeCollection() {
+    $('coll').hidden = true;
+  }
+
+  private renderCollection() {
     const s = this.state;
     const elements = [...new Set(HEROES.map((h) => h.element))];
     const owned = HEROES.filter((h) => (s.levels[h.id] ?? 0) > 0).length;
-    const groups = elements
-      .map((el) => {
-        const heroes = HEROES.filter((h) => h.element === el);
-        const have = heroes.filter((h) => (s.levels[h.id] ?? 0) > 0).length;
-        const tiles = heroes
-          .map((h) => {
-            const recruited = (s.levels[h.id] ?? 0) > 0;
-            const need = s.unlockCrests(h);
-            const sub = recruited ? '★'.repeat((s.stars[h.id] ?? 0) + 1) : need === null ? 'Special' : `${Math.min(s.crests[h.id] ?? 0, need)}/${need}`;
-            return `<button type="button" class="coll-hero${recruited ? '' : ' locked'}${s.inLineup(h.id) ? ' team' : ''}" data-hero="${h.id}"><span class="face art" style="${faceStyle(h)}">${h.name[0]}</span><b>${h.name}</b><small>${sub}</small></button>`;
-          })
-          .join('');
-        return `<h3 style="--el:${hex(ELEMENT_COLORS[el])}"><i></i>${cap(el)}<small>${have}/${heroes.length}</small></h3><div class="coll-grid">${tiles}</div>`;
-      })
-      .join('');
-    this.showModal(`Collection ${owned}/${HEROES.length}`, `<div class="coll">${groups}</div>`, 'Done');
+    $('coll-count').textContent = `${owned}/${HEROES.length}`;
+    const groups = elements.map((el) => {
+      const tiles = HEROES.filter((h) => h.element === el)
+        .map((h) => {
+          const recruited = (s.levels[h.id] ?? 0) > 0;
+          const crests = s.crests[h.id] ?? 0;
+          // Bar fills toward the next unlock or evolution; at max stars the hero is Maxed.
+          const need = recruited ? s.evolveCost(h.id) : s.unlockCrests(h);
+          const maxed = recruited && need === null;
+          const pct = need ? Math.min(100, (crests / need) * 100) : 0;
+          const stars = recruited ? `<span class="ct-stars">★${(s.stars[h.id] ?? 0) + 1}</span>` : '';
+          const foot = maxed ? '<span class="ct-maxed">Maxed</span>' : `<div class="ct-bar"><i style="width:${pct}%"></i></div><span class="ct-count">${crests.toLocaleString()}</span>`;
+          return `<div class="ct${recruited ? '' : ' locked'}${s.inLineup(h.id) ? ' team' : ''}"><button type="button" class="ct-tile" data-coll="${h.id}" aria-label="${h.name}" style="--el:${hex(ELEMENT_COLORS[el])}"><span class="ct-art" style="--art:${heroArt(h.id)}"></span>${stars}<span class="ct-name">${h.name}</span></button>${foot}</div>`;
+        })
+        .join('');
+      return `<section class="ct-group">${tiles}</section>`;
+    });
+    setHtml($('coll-body'), groups.join(''));
   }
 
   /** Manage Team: pick which recruited heroes fight. */
@@ -173,7 +189,7 @@ export class UI {
         const have = s.crests[h.id] ?? 0;
         return `<li class="team-row locked${ready ? ' ready' : ''}">
         <span class="face art" style="${faceStyle(h)}">${h.name[0]}</span>
-        <span class="team-who"><b>${h.name}</b><small>${cap(h.element)} ${h.job} · ${need === null ? 'Special event' : `${Math.min(have, need)}/${need} Crests`}</small></span>
+        <span class="team-who"><b>${h.name}</b><small>${cap(h.element)} ${h.job} · ${need === null ? 'Special event' : `<span class="crest-ct">${Math.min(have, need)}/${need}</span>`}</small></span>
         <button data-unlock="${h.id}" class="${ready ? 'hot' : ''}" ${ready ? '' : 'disabled'}>${ready ? 'Unlock' : 'Locked'}</button>
       </li>`;
       }
@@ -466,11 +482,10 @@ export class UI {
     $('summon').addEventListener('click', () => this.confirmChest());
     $('chest-btn').addEventListener('click', () => this.confirmChest());
     $('collection-btn').addEventListener('click', () => this.openCollection());
-    $('modal-body').addEventListener('click', (e) => {
-      const tile = (e.target as HTMLElement).closest<HTMLElement>('[data-hero]');
-      if (!tile) return;
-      $('modal').hidden = true;
-      this.openSheet(tile.dataset.hero!);
+    $('coll-back').addEventListener('click', () => this.closeCollection());
+    $('coll-body').addEventListener('click', (e) => {
+      const tile = (e.target as HTMLElement).closest<HTMLElement>('[data-coll]');
+      if (tile) this.openSheet(tile.dataset.coll!);
     });
     $('team-btn').addEventListener('click', () =>
       this.openTeam(),
@@ -533,6 +548,7 @@ export class UI {
       } else if (!$('settings').hidden) $('settings-close').click();
       else if (!$('rk').hidden) this.closeRekindle();
       else if (this.sheetHero) this.closeSheet();
+      else if (!$('coll').hidden) this.closeCollection();
     });
     const step = (dir: number) => {
       const i = HEROES.findIndex((h) => h.id === this.sheetHero);
@@ -1109,6 +1125,7 @@ export class UI {
   render() {
     // The Rekindle page stays live: the run keeps going behind it.
     if (!$('rk').hidden) this.renderRekindle();
+    if (!$('coll').hidden) this.renderCollection();
     const s = this.state;
     $('gold').textContent = fmt(s.gold);
     $('gps').textContent = `${fmt(new Decimal(s.goldPerSec))}/s`;
