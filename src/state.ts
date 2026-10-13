@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, START_GEMS, MILESTONE_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS } from './data';
-import { emberYield, effectiveLevel, heroAtk, heroHp } from './formulas';
+import { emberYield, effectiveLevel, emberCost, heroAtk, heroHp } from './formulas';
 import type { HeroDef } from './data';
 
 const SAVE_KEY = 'hordefall-save-v1';
@@ -116,6 +116,22 @@ export class GameState {
     this.stars[id] = (this.stars[id] ?? 0) + 1;
     this.save();
     return true;
+  }
+
+  /** Embers spent on a hero's Ember levels. */
+  embersSpent(id: string): number {
+    let total = 0;
+    for (let l = 0; l < (this.emberLevels[id] ?? 0); l++) total += emberCost(l);
+    return total;
+  }
+
+  /** Take a hero's Ember levels back as Embers (stand-in for removing them from the lineup). */
+  refundEmbers(id: string): number {
+    const back = this.embersSpent(id);
+    this.embers += back;
+    this.emberLevels[id] = 0;
+    this.save();
+    return back;
   }
 
   canRekindle() {

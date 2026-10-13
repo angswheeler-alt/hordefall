@@ -153,6 +153,24 @@ export class UI {
         this.render();
       }
     });
+    // Two taps: Embers come back so they can move to another hero.
+    let backArmed = 0;
+    const back = $<HTMLButtonElement>('sheet-ember-back');
+    back.addEventListener('click', () => {
+      if (!this.sheetHero) return;
+      if (Date.now() - backArmed > 3000) {
+        backArmed = Date.now();
+        back.dataset.armed = '1';
+        setTimeout(() => delete back.dataset.armed, 3000);
+        this.renderSheet();
+        return;
+      }
+      backArmed = 0;
+      delete back.dataset.armed;
+      this.state.refundEmbers(this.sheetHero);
+      this.scene()?.syncHeroes();
+      this.render();
+    });
     $('sheet-close').addEventListener('click', () => this.closeSheet());
     $('sheet').addEventListener('click', (e) => {
       if (e.target === $('sheet')) this.closeSheet();
@@ -209,6 +227,7 @@ export class UI {
 
   openSheet(id: string) {
     this.sheetHero = id;
+    delete $('sheet-ember-back').dataset.armed;
     const def = HEROES.find((h) => h.id === id)!;
     const face = $('sheet-face');
     face.textContent = def.name[0];
@@ -263,6 +282,10 @@ export class UI {
     const emberBtn = $<HTMLButtonElement>('sheet-ember-up');
     (emberBtn.querySelector('.cost') as HTMLElement).textContent = `${ec} Ember${ec === 1 ? '' : 's'}`;
     emberBtn.disabled = ec > s.embers;
+    const back = $<HTMLButtonElement>('sheet-ember-back');
+    const spent = s.embersSpent(id);
+    back.disabled = spent === 0;
+    back.textContent = back.dataset.armed ? `Tap again to take back ${spent} Embers` : `Take back ${spent} Embers`;
     emberBtn.title = s.rekindles === 0 ? `Earn Embers by Rekindling after stage ${REKINDLE_STAGE}` : '';
 
     const ultReady = eff >= ULT_UNLOCK_LEVEL;

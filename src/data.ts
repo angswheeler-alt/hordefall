@@ -105,9 +105,21 @@ export function enemyElement(stage: number): Element {
   return ENEMY_ELEMENTS[(stage - 1) % ENEMY_ELEMENTS.length];
 }
 
-/** Before stage 600 every boss is weak to Water (GDD section 4), so bosses are Fire. */
-export function bossElement(_stage: number): Element {
-  return 'fire';
+const LOCK_ROTATION: Element[] = ['water', 'earth', 'fire', 'light', 'dark'];
+export const ELEMENT_LOCK_START = 600;
+
+/**
+ * From stage 600, every 100th-stage boss is immune to every element but one,
+ * rotating Water (600), Earth (700), Fire (800), Light (900), Dark (1000), Water (1100)...
+ */
+export function bossLock(stage: number): Element | null {
+  if (stage < ELEMENT_LOCK_START || stage % 100 !== 0) return null;
+  return LOCK_ROTATION[(stage / 100 - ELEMENT_LOCK_START / 100) % LOCK_ROTATION.length];
+}
+
+/** Unlocked bosses are Fire, so the Water starter hits them for 4x. Locked bosses take their lock element. */
+export function bossElement(stage: number): Element {
+  return bossLock(stage) ?? 'fire';
 }
 
 export const BOSS_EVERY = 50;
@@ -119,8 +131,8 @@ export const ULT_MULTIPLIER = 40;
 export const OFFLINE_CAP_HOURS = 12;
 /** 2x battle speed unlocks once the player first reaches this stage. */
 export const SPEED_UNLOCK_STAGE = 25;
-/** Rekindle unlocks after first clearing this stage (GDD section 7). */
-export const REKINDLE_STAGE = 130;
+/** Rekindle unlocks after first clearing this stage. */
+export const REKINDLE_STAGE = 125;
 export const CRIT_CHANCE = 0.12;
 export const CRIT_MULTIPLIER = 2.5;
 
