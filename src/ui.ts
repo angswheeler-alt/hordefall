@@ -249,6 +249,11 @@ export class UI {
       this.state.speed2x = !this.state.speed2x;
       this.render();
     });
+    $('settings-btn').addEventListener('click', () => ($('settings').hidden = false));
+    $('settings-close').addEventListener('click', () => ($('settings').hidden = true));
+    $('settings').addEventListener('click', (e) => {
+      if (e.target === $('settings')) $('settings').hidden = true;
+    });
     $('mute').addEventListener('click', () => {
       this.state.muted = !this.state.muted;
       setMuted(this.state.muted);
