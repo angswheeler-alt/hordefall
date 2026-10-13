@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_STAR_COST, RELIC_MAX_STARS, RELIC_COST_CAP, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE } from './data';
 import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp, goldPerKill } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES } from './data';
@@ -145,23 +145,30 @@ export class GameState {
   /** ATK and HP after levels, stars (x2 each), ATK/HP star skills and relics. `level` overrides the hero's current level. */
   heroPower(def: HeroDef, level = this.heroLevel(def.id)): { atk: Decimal; hp: Decimal } {
     const starMult = Math.pow(2, this.stars[def.id] ?? 0);
-    const power = this.relicBonus('power');
-    const atkRelics = 1 + this.relicBonus('atk') + power + this.relicBonus(def.element);
+    const atkRelics = 1 + this.relicBonus('atk') + this.relicBonus(def.element);
+    const hpRelics = 1 + this.relicBonus('hp') + this.relicBonus(`${def.element}Hp`);
     const fx = this.effects();
     return {
       atk: heroAtk(def, level).times(starMult * mulEffect(fx, 'atk', def.id) * atkRelics),
-      hp: heroHp(def, level).times(starMult * mulEffect(fx, 'hp', def.id) * (1 + this.relicBonus('hp') + power)),
+      hp: heroHp(def, level).times(starMult * mulEffect(fx, 'hp', def.id) * hpRelics),
     };
   }
 
-  /** Total bonus (0.25 = +25%; crit is chance, 0.05 = +5 points) from equipped relics and completed sets with this effect. */
+  /** Bonus (0.25 = +25%) from one relic's effect at its current level. */
+  relicEffect(def: RelicDef, effect: RelicEffect, level = this.relics[def.id] ?? 0): number {
+    let total = 0;
+    for (const [e, v] of def.fx) if (e === effect) total += (v * level) / RELIC_BASE_MAX / 100;
+    return total;
+  }
+
+  /** Total bonus (0.25 = +25%; crit and dodge are chance, 0.05 = +5 points) from equipped relics and completed sets with this effect. */
   relicBonus(effect: RelicEffect): number {
     let total = 0;
     // Cheaper hero levels work without a slot, so the bench refund (at today's price) never pays back more than was spent.
     const ids = effect === 'cost' ? Object.keys(this.relics) : this.equipped;
     for (const id of ids) {
       const def = RELICS.find((r) => r.id === id);
-      if (def && def.effect === effect) total += (def.perLevel * (this.relics[id] ?? 0)) / 100;
+      if (def) total += this.relicEffect(def, effect);
     }
     for (const set of RELIC_SETS) {
       if (!this.setComplete(set.id)) continue;
@@ -181,9 +188,19 @@ export class GameState {
     return p.total > 0 && p.owned === p.total;
   }
 
-  /** Multiplier on hero level gold costs from relics (Haggler's Ledger). */
+  /** Multiplier on hero level gold costs from relics: -768% means costs divide by 8.68. */
   levelCostMult(): number {
-    return 1 - Math.min(RELIC_COST_CAP, this.relicBonus('cost'));
+    return 1 / (1 + this.relicBonus('cost'));
+  }
+
+  /** Multiplier on Stall upgrade costs from relics. */
+  stallCostMult(): number {
+    return 1 / (1 + this.relicBonus('stallCost'));
+  }
+
+  /** Seconds for one cycle of a Stall, after relics that make Stalls faster. */
+  stallCycle(def: StallDef): number {
+    return def.cycle / (1 + this.relicBonus('stallTime'));
   }
 
   /** Highest relic star the player may craft: 1★ from the start, then one more for each star with a relic at full base level. */
@@ -205,12 +222,13 @@ export class GameState {
   /** Essence of each kind for the relic's next level, or null at its cap. */
   relicNextCost(def: RelicDef): number | null {
     const level = this.relics[def.id] ?? 0;
-    return level >= this.relicMaxLevel(def) ? null : relicCost(level, RELIC_STAR_COST[def.stars - 1]);
+    return level >= this.relicMaxLevel(def) ? null : relicCost(level, def.craft);
   }
 
   canUpgradeRelic(def: RelicDef): boolean {
     const cost = this.relicNextCost(def);
-    return this.relicOpen(def) && cost !== null && def.essences.every((e) => (this.essences[e] ?? 0) >= cost);
+    if (!this.relicOpen(def) || cost === null || !def.essences.every((e) => (this.essences[e] ?? 0) >= cost)) return false;
+    return (this.relics[def.id] ?? 0) > 0 || this.enhanceStones >= (def.stones ?? 0);
   }
 
   /** Craft (level 0) or upgrade a relic with Essence. A newly crafted relic goes into a free slot. */
@@ -220,8 +238,9 @@ export class GameState {
     const cost = this.relicNextCost(def)!;
     for (const e of def.essences) this.essences[e] -= cost;
     const crafted = !this.relics[id];
+    if (crafted) this.enhanceStones -= def.stones ?? 0;
     this.relics[id] = (this.relics[id] ?? 0) + 1;
-    if (crafted && def.effect !== 'cost' && this.equipped.length < this.relicSlots) this.equipped.push(id);
+    if (crafted && this.equipped.length < this.relicSlots) this.equipped.push(id);
     this.save();
     return true;
   }
@@ -248,8 +267,7 @@ export class GameState {
     if (this.equipped.includes(id)) {
       this.equipped = this.equipped.filter((e) => e !== id);
     } else {
-      const def = RELICS.find((r) => r.id === id);
-      if (!this.relics[id] || def?.effect === 'cost' || this.equipped.length >= this.relicSlots) return false;
+      if (!this.relics[id] || this.equipped.length >= this.relicSlots) return false;
       this.equipped.push(id);
     }
     this.save();
@@ -450,7 +468,7 @@ export class GameState {
   stallReady(id: string) {
     const st = this.stalls[id];
     const def = STALLS.find((d) => d.id === id)!;
-    return st.level > 0 && !this.stallAuto(id) && st.progress >= def.cycle;
+    return st.level > 0 && !this.stallAuto(id) && st.progress >= this.stallCycle(def);
   }
 
   /** Advance every open Stall; auto-collect ones pay out, the rest wait for a tap. Returns gold auto-collected. */
@@ -460,14 +478,15 @@ export class GameState {
       const st = this.stalls[def.id];
       if (st.level === 0) continue;
       st.progress += dt;
+      const cycle = this.stallCycle(def);
       if (this.stallAuto(def.id)) {
-        const cycles = Math.floor(st.progress / def.cycle);
+        const cycles = Math.floor(st.progress / cycle);
         if (cycles > 0) {
           earned = earned.plus(this.stallIncome(def).times(cycles));
-          st.progress -= cycles * def.cycle;
+          st.progress -= cycles * cycle;
         }
       } else {
-        st.progress = Math.min(st.progress, def.cycle);
+        st.progress = Math.min(st.progress, cycle);
       }
     }
     this.gold = this.gold.plus(earned);
@@ -487,7 +506,7 @@ export class GameState {
   buyStall(id: string): boolean {
     const def = STALLS.find((d) => d.id === id)!;
     const st = this.stalls[id];
-    const { levels, cost } = stallBulkCost(def, st.level, this.stallBuyAmount, this.gold);
+    const { levels, cost } = stallBulkCost(def, st.level, this.stallBuyAmount, this.gold, this.stallCostMult());
     if (levels === 0 || cost.gt(this.gold)) return false;
     this.gold = this.gold.minus(cost);
     st.level += levels;
@@ -506,7 +525,7 @@ export class GameState {
       let pick: StallDef | null = null;
       let best: Decimal | null = null;
       for (const d of open) {
-        const c = stallUpgradeCost(d, this.stalls[d.id].level);
+        const c = stallUpgradeCost(d, this.stalls[d.id].level, this.stallCostMult());
         if (!best || c.lt(best)) {
           best = c;
           pick = d;
@@ -524,7 +543,7 @@ export class GameState {
   /** Gold per second from auto-collect Stalls, used for offline time. */
   marketAutoPerSec(): Decimal {
     let total = new Decimal(0);
-    for (const def of STALLS) if (this.stallAuto(def.id)) total = total.plus(this.stallIncome(def).div(def.cycle));
+    for (const def of STALLS) if (this.stallAuto(def.id)) total = total.plus(this.stallIncome(def).div(this.stallCycle(def)));
     return total;
   }
 
@@ -567,7 +586,7 @@ export class GameState {
     let hp = new Decimal(0);
     let incoming = 0;
     for (const m of team) {
-      dps = dps.plus(m.atk.div(m.def.attackCooldown).times(elementMultiplier(m.def.element, element) * (1 + this.relicBonus('trial'))));
+      dps = dps.plus(m.atk.div(m.def.attackCooldown).times(elementMultiplier(m.def.element, element)));
       hp = hp.plus(m.hp);
       incoming += elementMultiplier(element, m.def.element);
     }
@@ -613,7 +632,7 @@ export class GameState {
     if (this.tickets >= TICKET_CAP) this.ticketClock = Date.now();
     this.tickets -= 1;
     this.track('trials');
-    result.essence = Math.round(level.essence * (1 + this.relicBonus('essence')));
+    result.essence = level.essence;
     this.essences[element] = (this.essences[element] ?? 0) + result.essence;
     result.stones = trialStones(tier);
     this.enhanceStones += result.stones;
@@ -643,7 +662,7 @@ export class GameState {
   }
 
   pendingEmbers() {
-    return emberYield(this.runBestStage, REKINDLE_STAGE, this.keeperBonus());
+    return Math.floor(emberYield(this.runBestStage, REKINDLE_STAGE, this.keeperBonus()) * (1 + this.relicBonus('embers')));
   }
 
   /**
@@ -1021,7 +1040,8 @@ export class GameState {
       this.muted = !!d.muted;
       this.buyAmount = d.buyAmount ?? 1;
       this.stallBuyAmount = d.stallBuyAmount ?? 1;
-      this.relics = { ...(d.relics ?? {}) };
+      // Relics no longer in the game (the list changed to follow the original) are dropped.
+      this.relics = Object.fromEntries(Object.entries(d.relics ?? {}).filter(([id]) => RELICS.some((r) => r.id === id))) as Record<string, number>;
       this.relicEnhance = { ...(d.relicEnhance ?? {}) };
       this.enhanceStones = d.enhanceStones ?? 0;
       // Older saves ran relics to level 50 across tiers I-V: keep those levels as Enhances.
@@ -1102,11 +1122,10 @@ export class GameState {
   applyOffline(seconds: number): OfflineReport | null {
     const capped = Math.min(seconds, OFFLINE_CAP_HOURS * 3600);
     if (capped < 60) return null;
-    const away = 1 + this.relicBonus('offline');
-    const market = this.marketAutoPerSec().times(capped * away);
-    const gold = new Decimal(this.goldPerSec).times(capped * away).plus(market);
+    const market = this.marketAutoPerSec().times(capped);
+    const gold = new Decimal(this.goldPerSec).times(capped).plus(market);
     // Stalls waiting for a tap fill up while you're away.
-    for (const def of STALLS) if (this.stalls[def.id].level > 0 && !this.stallAuto(def.id)) this.stalls[def.id].progress = def.cycle;
+    for (const def of STALLS) if (this.stalls[def.id].level > 0 && !this.stallAuto(def.id)) this.stalls[def.id].progress = this.stallCycle(def);
     let stages = 0;
     if (this.autoAdvance && this.secondsPerStage > 0 && this.stage % BOSS_EVERY !== 0) {
       const nextBoss = Math.ceil((this.stage + 1) / BOSS_EVERY) * BOSS_EVERY;

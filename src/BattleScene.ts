@@ -814,7 +814,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private enemyHits(e: Unit, target: Unit) {
-    if (Math.random() < this.sum('dodge', target)) {
+    if (Math.random() < this.sum('dodge', target) + (target.side === 'hero' ? this.state.relicBonus('dodge') : 0)) {
       this.floatText(target.x, target.y - 26, 'MISS', '#c9b8ff', 11);
       return;
     }

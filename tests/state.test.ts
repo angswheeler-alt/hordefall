@@ -283,10 +283,50 @@ describe('relics', () => {
     const s = fresh();
     const set = RELIC_SETS[0];
     const pieces = RELICS.filter((r) => r.set === set.id);
+    const [effect, value] = set.bonus[0];
     for (const p of pieces.slice(1)) s.relics[p.id] = 1;
-    expect(s.relicBonus(set.element)).toBe(0);
+    expect(s.relicBonus(effect)).toBe(0);
     s.relics[pieces[0].id] = 1;
-    expect(s.relicBonus(set.element)).toBeCloseTo(set.bonus[0][1] / 100);
+    expect(s.relicBonus(effect)).toBeCloseTo(value / 100);
+  });
+
+  it('a piece gives each of its effects, reaching the listed number at level 20', () => {
+    const s = fresh();
+    const def = RELICS.find((r) => r.fx.length === 2)!;
+    s.relics[def.id] = RELIC_BASE_MAX;
+    s.equipped = [def.id];
+    for (const [e, v] of def.fx) expect(s.relicBonus(e)).toBeCloseTo(v / 100);
+  });
+
+  it('set pieces need Enhance Stones to craft', () => {
+    const s = fresh();
+    const def = RELICS.find((r) => r.stones)!;
+    for (const r of RELICS.filter((x) => x.stars < def.stars)) s.relics[r.id] = RELIC_BASE_MAX;
+    for (const e of def.essences) s.essences[e] = 1e12;
+    expect(s.upgradeRelic(def.id)).toBe(false);
+    s.enhanceStones = def.stones!;
+    expect(s.upgradeRelic(def.id)).toBe(true);
+    expect(s.enhanceStones).toBe(0);
+  });
+
+  it('hero level discounts divide the cost and work without a slot', () => {
+    const s = fresh();
+    const def = RELICS.find((r) => r.fx.some(([e]) => e === 'cost'))!;
+    s.relics[def.id] = RELIC_BASE_MAX;
+    s.equipped = [];
+    const v = def.fx.find(([e]) => e === 'cost')![1];
+    expect(s.levelCostMult()).toBeCloseTo(1 / (1 + v / 100));
+  });
+
+  it('drops relics that are no longer in the game from old saves', () => {
+    const s = fresh();
+    s.relics.sigil = 5;
+    s.equipped = ['sigil'];
+    s.save();
+    const t = new GameState();
+    t.load();
+    expect(t.relics.sigil).toBeUndefined();
+    expect(t.equipped).toEqual([]);
   });
 
   it('old saves past level 20 keep their levels as Enhances', () => {

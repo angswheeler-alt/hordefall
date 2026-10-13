@@ -1,5 +1,5 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, LEGENDARY_MEDAL_RATE, MAX_STARS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, relicKind, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, LEGENDARY_MEDAL_RATE, MAX_STARS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
 import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
@@ -201,7 +201,7 @@ export class UI {
   private stallRows: StallRow[] = [];
 
   private relicRows: { def: RelicDef; root: HTMLElement; eff: HTMLElement; tier: HTMLElement; cost: HTMLElement; up: HTMLButtonElement; equip: HTMLButtonElement }[] = [];
-  private setHeads: { id: string; root: HTMLElement; count: HTMLElement }[] = [];
+  private setHeads: { id: string; stars: number; box: HTMLElement; root: HTMLElement; count: HTMLElement }[] = [];
 
   private buildRelics() {
     const host = $('relics');
@@ -211,7 +211,7 @@ export class UI {
       h.textContent = title;
       host.appendChild(h);
     };
-    const row = (def: RelicDef) => {
+    const row = (def: RelicDef, parent: HTMLElement = host) => {
       const root = document.createElement('div');
       root.className = 'relic';
       const [a, b] = def.essences;
@@ -219,7 +219,7 @@ export class UI {
         <div class="relic-art" style="--a:${hex(ELEMENT_COLORS[a])};--b:${hex(ELEMENT_COLORS[b])}" aria-hidden="true">${def.name[0]}<span class="relic-stars">${'★'.repeat(def.stars)}</span></div>
         <div class="relic-info"><b>${def.name} <small class="tier" style="display:inline"></small></b><span class="eff"></span><small>${def.blurb}</small><div class="relic-cost"></div></div>
         <div class="relic-btns"><button class="wood-btn small up"></button><button class="wood-btn small equip"></button></div>`;
-      host.appendChild(root);
+      parent.appendChild(root);
       const up = root.querySelector('.up') as HTMLButtonElement;
       const equip = root.querySelector('.equip') as HTMLButtonElement;
       up.addEventListener('click', () => {
@@ -239,20 +239,29 @@ export class UI {
       this.relicRows.push({ def, root, eff: root.querySelector('.eff') as HTMLElement, tier: root.querySelector('.tier') as HTMLElement, cost: root.querySelector('.relic-cost') as HTMLElement, up, equip });
     };
     const byStars = (list: RelicDef[]) => [...list].sort((x, y) => x.stars - y.stars);
-    section('Whole team');
-    byStars(RELICS.filter((r) => !r.set && relicKind(r.effect) !== 'economy')).forEach(row);
-    section('Sets');
-    for (const set of RELIC_SETS) {
-      const head = document.createElement('div');
-      head.className = 'relic-set';
-      head.style.setProperty('--el', hex(ELEMENT_COLORS[set.element]));
-      head.innerHTML = `<b>${set.name} set <span class="set-count"></span></b><small>All pieces crafted: ${set.text}</small>`;
-      host.appendChild(head);
-      this.setHeads.push({ id: set.id, root: head, count: head.querySelector('.set-count') as HTMLElement });
-      byStars(RELICS.filter((r) => r.set === set.id)).forEach(row);
+    section('Relics');
+    byStars(RELICS.filter((r) => !r.set)).forEach((d) => row(d));
+    for (const stars of [...new Set(RELIC_SETS.map((set) => RELICS.find((r) => r.set === set.id)!.stars))].sort()) {
+      section(`${stars}★ sets`);
+      for (const set of RELIC_SETS) {
+        const pieces = byStars(RELICS.filter((r) => r.set === set.id));
+        if (pieces[0].stars !== stars) continue;
+        const box = document.createElement('div');
+        box.className = 'relic-setbox';
+        const head = document.createElement('button');
+        head.className = 'relic-set';
+        head.style.setProperty('--el', set.element ? hex(ELEMENT_COLORS[set.element]) : 'var(--gold)');
+        head.innerHTML = `<b>${set.name} set <span class="set-count"></span></b><small>All ${pieces.length} pieces crafted: ${set.text}</small>`;
+        head.addEventListener('click', () => {
+          box.dataset.user = '1';
+          box.classList.toggle('open');
+        });
+        box.appendChild(head);
+        host.appendChild(box);
+        this.setHeads.push({ id: set.id, stars, box, root: head, count: head.querySelector('.set-count') as HTMLElement });
+        pieces.forEach((d) => row(d, box));
+      }
     }
-    section('Economy');
-    byStars(RELICS.filter((r) => !r.set && relicKind(r.effect) === 'economy')).forEach(row);
     $('relic-buyslot').addEventListener('click', () => {
       if (this.state.buyRelicSlot()) {
         play('unlock');
@@ -265,25 +274,24 @@ export class UI {
   private renderRelics(): boolean {
     const s = this.state;
     let worthALook = false;
-    const effectText = (def: RelicDef, level: number) => {
-      const pct = Math.round(def.perLevel * level * 10) / 10;
-      const what: Record<string, string> = {
-        atk: 'All heroes ATK',
-        hp: 'All heroes HP',
-        power: 'All heroes ATK and HP',
-        speed: 'Team attack speed',
-        crit: 'Crit chance',
-        critDmg: 'Crit damage',
-        gold: 'Gold from enemies',
-        stall: 'Stall income',
-        cost: 'Hero levels cost',
-        trial: 'Damage in Trials',
-        essence: 'Essence from Trials',
-        offline: 'Offline gold',
-      };
-      if (def.effect === 'cost') return `${what.cost} −${pct}%`;
-      return `${what[def.effect] ?? `${cap(def.effect)} heroes ATK`} +${pct}%`;
+    const names: Record<string, string> = {
+      atk: 'All heroes ATK',
+      hp: 'All heroes HP',
+      speed: 'Team attack speed',
+      crit: 'Crit chance',
+      critDmg: 'Crit damage',
+      dodge: 'Dodge chance',
+      gold: 'Gold from enemies and chests',
+      stall: 'Stall income',
+      stallCost: 'Stall upgrade costs',
+      stallTime: 'Stall speed',
+      cost: 'Hero level costs',
+      embers: 'Embers from Rekindle',
     };
+    const effectName = (e: string) => names[e] ?? (e.endsWith('Hp') ? `${cap(e.slice(0, -2))} heroes HP` : `${cap(e)} heroes ATK`);
+    const pct = (n: number) => `${Math.round(n * 1000) / 10}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const effectText = (def: RelicDef, level: number) =>
+      def.fx.map(([e]) => `${effectName(e)} ${e === 'cost' || e === 'stallCost' ? '−' : '+'}${pct(s.relicEffect(def, e, level))}%`).join(' · ');
     $('relic-slots').textContent = `Equipped ${s.equipped.length}/${s.relicSlots}`;
     setHtml(
       $('relic-ess'),
@@ -297,10 +305,12 @@ export class UI {
     slotBtn.textContent = s.bestStage < slotStage ? `+1 slot at stage ${slotStage}` : `+1 slot · ${slotCost} Gems`;
     slotBtn.disabled = slotCost === null || s.gems < slotCost || s.bestStage < slotStage;
     const freeSlot = s.equipped.length < s.relicSlots;
+    const starsOpen = s.relicStarsOpen();
     for (const h of this.setHeads) {
       const p = s.setPieces(h.id);
       h.count.textContent = `${p.owned}/${p.total}`;
       h.root.classList.toggle('done', p.owned === p.total);
+      if (!h.box.dataset.user) h.box.classList.toggle('open', h.stars <= starsOpen);
     }
     for (const r of this.relicRows) {
       const level = s.relics[r.def.id] ?? 0;
@@ -318,20 +328,21 @@ export class UI {
         ? `Opens when a ${r.def.stars - 1}★ relic reaches level ${RELIC_BASE_MAX}`
         : level
           ? effectText(r.def, level)
-          : `Crafts to: ${effectText(r.def, 1)}`;
+          : `At level ${RELIC_BASE_MAX}: ${effectText(r.def, RELIC_BASE_MAX)}`;
       if (!open) setHtml(r.cost, '');
-      else if (cost !== null)
-        setHtml(r.cost, r.def.essences.map((e) => `<span class="${(s.essences[e] ?? 0) < cost ? 'short' : ''}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}" style="--el:${hex(ELEMENT_COLORS[e])}"></i>${fmt(cost)}</span>`).join(''));
+      else if (cost !== null) {
+        const stones = level === 0 && r.def.stones ? `<span class="${s.enhanceStones < r.def.stones ? 'short' : ''}" title="Enhance Stones"><i class="stone"></i>${r.def.stones}</span>` : '';
+        setHtml(r.cost, r.def.essences.map((e) => `<span class="${(s.essences[e] ?? 0) < cost ? 'short' : ''}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}" style="--el:${hex(ELEMENT_COLORS[e])}"></i>${fmt(cost)}</span>`).join('') + stones);
+      }
       else if (enhance !== null) setHtml(r.cost, `<span class="${s.enhanceStones < enhance ? 'short' : ''}" title="Enhance Stones"><i class="stone"></i>${enhance} → cap +5</span>`);
       else setHtml(r.cost, '<span>Max level</span>');
       r.up.hidden = !open;
       r.up.textContent = level === 0 ? 'Craft' : cost !== null ? 'Upgrade' : enhance !== null ? 'Enhance' : 'Maxed';
       r.up.disabled = cost !== null ? !can : enhance === null || s.enhanceStones < enhance;
-      const passive = r.def.effect === 'cost';
-      r.equip.hidden = level === 0 || passive;
+      r.equip.hidden = level === 0;
       r.equip.textContent = on ? 'Take off' : 'Equip';
       r.equip.disabled = !on && !freeSlot;
-      if ((on && can) || (level > 0 && !on && !passive && freeSlot)) worthALook = true;
+      if ((on && can) || (level > 0 && !on && freeSlot)) worthALook = true;
     }
     return worthALook;
   }
@@ -403,20 +414,20 @@ export class UI {
       const eff = s.stallEffectiveLevel(r.def.id);
       r.level.textContent = open ? `Lv ${eff}` : '';
       const income = s.stallIncome(r.def);
-      r.fill.style.width = open ? `${Math.min(100, (st.progress / r.def.cycle) * 100)}%` : '0%';
+      r.fill.style.width = open ? `${Math.min(100, (st.progress / s.stallCycle(r.def)) * 100)}%` : '0%';
       r.amount.textContent = !open ? 'Closed' : ready ? `Collect ${fmt(income)}` : `${fmt(income)}`;
       r.collect.disabled = !ready;
       const toMilestone = STALL_MILESTONE - (st.level % STALL_MILESTONE);
       r.meta.textContent = !open
-        ? `${r.def.blurb} ${fmt(stallIncomePreview(r.def))} gold every ${r.def.cycle}s.`
-        : `${fmt(income)} every ${r.def.cycle}s · ${auto ? 'Auto-collect' : `Auto at Lv ${STALL_AUTO_LEVEL}`} · x3 in ${toMilestone} Lv`;
-      const bulk = stallBulkCost(r.def, st.level, s.stallBuyAmount, s.gold);
-      const shown = bulk.levels > 0 ? bulk : stallBulkCost(r.def, st.level, 1, s.gold);
+        ? `${r.def.blurb} ${fmt(stallIncomePreview(r.def))} gold every ${fmtSecs(s.stallCycle(r.def))}.`
+        : `${fmt(income)} every ${fmtSecs(s.stallCycle(r.def))} · ${auto ? 'Auto-collect' : `Auto at Lv ${STALL_AUTO_LEVEL}`} · x3 in ${toMilestone} Lv`;
+      const bulk = stallBulkCost(r.def, st.level, s.stallBuyAmount, s.gold, s.stallCostMult());
+      const shown = bulk.levels > 0 ? bulk : stallBulkCost(r.def, st.level, 1, s.gold, s.stallCostMult());
       r.cost.textContent = fmt(shown.cost);
       r.label.textContent = open ? `Level +${shown.levels}` : 'Open';
       r.button.disabled = shown.cost.gt(s.gold);
     }
-    $<HTMLButtonElement>('stall-levelall').disabled = !STALLS.some((d) => s.stalls[d.id].level > 0 && stallUpgradeCost(d, s.stalls[d.id].level).lte(s.gold));
+    $<HTMLButtonElement>('stall-levelall').disabled = !STALLS.some((d) => s.stalls[d.id].level > 0 && stallUpgradeCost(d, s.stalls[d.id].level, s.stallCostMult()).lte(s.gold));
     $('stall-buyamt').textContent = `Buy ${s.stallBuyAmount === 'max' ? 'max' : `x${s.stallBuyAmount}`}`;
     return anyReady;
   }
@@ -1293,4 +1304,9 @@ function cap(s: string) {
 /** "Water Corsair" for heroes built to the hero standard, "Water Mage" for the older kits. */
 function heroTitle(def: HeroDef) {
   return `${cap(def.element)} ${def.heroClass ?? def.job}`;
+}
+
+/** A Stall cycle length: whole seconds, or one decimal under 10s. */
+function fmtSecs(sec: number): string {
+  return sec >= 10 ? `${Math.round(sec)}s` : `${Math.round(sec * 10) / 10}s`;
 }
