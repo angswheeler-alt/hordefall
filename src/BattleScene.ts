@@ -35,6 +35,8 @@ import {
 } from './formulas';
 import type { GameState } from './state';
 import { play } from './sfx';
+import { sumEffect, mulEffect, everyNth } from './skills';
+import type { EffectKind } from './data';
 
 /** Visible area. The lane itself is WORLD_WIDTH long and the camera follows the heroes. */
 export const WIDTH = 480;
@@ -356,8 +358,14 @@ export class BattleScene extends Phaser.Scene {
     return this.state.hasStar(heroId, star);
   }
 
-  private isHero(u: Unit, id: string) {
-    return u.def?.id === id;
+  /** Additive total of a star-skill effect reaching this unit (team-wide plus its own). null = team-wide only. */
+  private sum(kind: EffectKind, u: Unit | null) {
+    return sumEffect(this.state.effects(), kind, u?.def?.id ?? null);
+  }
+
+  /** Multiplicative total of a star-skill effect reaching this unit; 1 when none apply. */
+  private mul(kind: EffectKind, u: Unit | null) {
+    return mulEffect(this.state.effects(), kind, u?.def?.id ?? null);
   }
 
   private spawnEnemy(boss = false, campX?: number) {
@@ -566,8 +574,8 @@ export class BattleScene extends Phaser.Scene {
         .filter((a) => a.alive && a.hp.lt(a.maxHp.times(0.75)) && Math.abs(a.x - h.x) <= h.range)
         .sort((a, b) => a.hp.div(a.maxHp).toNumber() - b.hp.div(b.maxHp).toNumber())[0];
       if (hurt && h.cooldownLeft <= 0) {
-        h.cooldownLeft = h.cooldown;
-        this.heal(hurt, h.atk.times(this.has('solenne', 1) ? 4.5 : 3));
+        h.cooldownLeft = h.cooldown * this.mul('attackSpeed', h);
+        this.heal(hurt, h.atk.times(3 * this.mul('healPower', h)));
         this.shot(h, hurt.x, hurt.y, 0xfff6a0);
         return;
       }
@@ -577,7 +585,7 @@ export class BattleScene extends Phaser.Scene {
     const dist = target ? target.x - h.x : Infinity;
     if (target && dist <= h.range) {
       if (h.cooldownLeft <= 0) {
-        h.cooldownLeft = h.cooldown;
+        h.cooldownLeft = h.cooldown * this.mul('attackSpeed', h);
         this.heroAttack(h, target);
       }
       return;
@@ -586,7 +594,7 @@ export class BattleScene extends Phaser.Scene {
     const canHitCrystal = !this.bossAlive();
     if (crystalDist <= h.range && (!target || dist > crystalDist)) {
       if (canHitCrystal && h.cooldownLeft <= 0) {
-        h.cooldownLeft = h.cooldown;
+        h.cooldownLeft = h.cooldown * this.mul('attackSpeed', h);
         if (def.range > 60) this.shot(h, ENEMY_CRYSTAL_X, LANE_TOP + 26, ELEMENT_COLORS[def.element]);
         this.damageCrystal(h.atk);
       }
@@ -636,16 +644,15 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private enemyHits(e: Unit, target: Unit) {
-    if (this.isHero(target, 'nox') && this.has('nox', 1) && Math.random() < 0.25) {
+    if (Math.random() < this.sum('dodge', target)) {
       this.floatText(target.x, target.y - 26, 'MISS', '#c9b8ff', 11);
       return;
     }
-    let mult = elementMultiplier(e.element, target.element);
-    if (this.isHero(target, 'marin') && this.has('marin', 2)) mult *= 0.75;
-    if (this.has('bramble', 4)) mult *= 0.9;
+    const mult = elementMultiplier(e.element, target.element) * this.mul('damageTaken', target);
     const dmg = e.atk.times(mult);
     this.damageUnit(target, dmg, null);
-    if (this.isHero(target, 'bramble') && this.has('bramble', 1)) this.damageUnit(e, dmg.times(0.3), target);
+    const reflect = this.sum('reflect', target);
+    if (reflect > 0) this.damageUnit(e, dmg.times(reflect), target);
   }
 
   private heroAttack(h: Unit, target: Unit) {
@@ -653,24 +660,42 @@ export class BattleScene extends Phaser.Scene {
     if (def.range > 60) this.shot(h, target.x, target.y, ELEMENT_COLORS[def.element]);
     else this.lunge(h, 1);
     h.attacks++;
-    const critChance = CRIT_CHANCE + (this.isHero(h, 'nox') && this.has('nox', 2) ? 0.2 : 0);
-    const strikes = this.isHero(h, 'marin') && this.has('marin', 1) && Math.random() < 0.2 ? 2 : 1;
+    const critChance = CRIT_CHANCE + this.sum('crit', h);
+    const strikes = Math.random() < this.sum('doubleStrike', h) ? 2 : 1;
+    const nth = everyNth(this.state.effects(), def.id);
+    const bossMult = this.mul('bossDamage', h);
+    const lifesteal = this.sum('lifesteal', h);
+    let dealt = new Decimal(0);
     for (let i = 0; i < strikes; i++) {
       const crit = Math.random() < critChance;
       let atk = crit ? h.atk.times(CRIT_MULTIPLIER) : h.atk;
-      if (this.isHero(h, 'pyra') && this.has('pyra', 2) && h.attacks % 4 === 0) atk = atk.times(3);
-      const splash = def.splash ? def.splash * (this.isHero(h, 'pyra') && this.has('pyra', 1) ? 1.5 : 1) : 0;
-      const targets = splash ? this.enemies.filter((e) => e.alive && Math.abs(e.x - target.x) <= splash) : [target];
-      for (const t of targets) this.damageUnit(t, atk.times(elementMultiplier(h.element, t.element)), h, crit);
+      if (nth && nth.every && h.attacks % nth.every === 0) atk = atk.times(nth.value);
+      const splash = def.splash ? def.splash * this.mul('splash', h) : 0;
+      let targets: Unit[];
+      if (splash) targets = this.enemies.filter((e) => e.alive && Math.abs(e.x - target.x) <= splash);
+      else {
+        // Piercing shots also hit the next enemies just behind the target.
+        const pierce = Math.round(this.sum('pierce', h));
+        const behind = pierce > 0 ? this.enemies.filter((e) => e.alive && e !== target && e.x > target.x && e.x - target.x <= 60).sort((a, b) => a.x - b.x).slice(0, pierce) : [];
+        targets = [target, ...behind];
+      }
+      for (const t of targets) {
+        const amount = atk.times(elementMultiplier(h.element, t.element) * (t.isBoss ? bossMult : 1));
+        dealt = dealt.plus(amount);
+        this.damageUnit(t, amount, h, crit);
+      }
+    }
+    if (lifesteal > 0 && h.alive && h.hp.lt(h.maxHp)) {
+      h.hp = Decimal.min(h.maxHp, h.hp.plus(dealt.times(lifesteal)));
+      this.drawHpBar(h);
     }
   }
 
-  /** Bramble's Taproot and Solenne's Lanternlight. */
+  /** Regeneration star skills (a hero's own, plus team-wide auras). */
   private regenerate(dt: number) {
-    const team = this.has('solenne', 4) ? 0.01 : 0;
     for (const h of this.heroes) {
       if (!h.alive) continue;
-      const rate = team + (this.isHero(h, 'bramble') && this.has('bramble', 2) ? 0.03 : 0);
+      const rate = this.sum('regen', h);
       if (rate <= 0 || h.hp.gte(h.maxHp)) continue;
       h.hp = Decimal.min(h.maxHp, h.hp.plus(h.maxHp.times(rate * dt)));
       this.drawHpBar(h);
@@ -731,7 +756,7 @@ export class BattleScene extends Phaser.Scene {
       const gold = goldPerKill(this.state.stage)
         .times(u.isBoss ? 10 : 1)
         .times(source?.goldMult ?? 1)
-        .times(this.has('nox', 4) ? 1.25 : 1)
+        .times(this.mul('gold', null))
         .times(1 + this.state.relicBonus('gold'));
       this.gainGold(gold, u.x, u.y);
       this.tweens.add({ targets: u.view, alpha: 0, scale: 1.5, y: u.y - 8, duration: 220, onComplete: () => u.view.destroy() });
@@ -744,7 +769,7 @@ export class BattleScene extends Phaser.Scene {
         this.freeze(0.25);
       }
     } else {
-      u.respawnAt = this.clock + RESPAWN_SECONDS * (this.has('solenne', 2) ? 0.5 : 1);
+      u.respawnAt = this.clock + RESPAWN_SECONDS * this.mul('respawn', null);
       this.puff(u.x, u.y, 0xffffff);
       u.view.setVisible(false);
     }

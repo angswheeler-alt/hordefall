@@ -2,6 +2,8 @@ import Decimal from 'break_infinity.js';
 import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, RELICS, RELIC_LEVELS_PER_TIER, RELIC_TIERS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS } from './data';
 import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp } from './formulas';
 import type { HeroDef, StallDef, Element, RelicDef, RelicEffect } from './data';
+import { RENAMED_HEROES } from './data';
+import { activeEffects, mulEffect, type ActiveEffect } from './skills';
 
 const SAVE_KEY = 'hordefall-save-v1';
 
@@ -112,13 +114,19 @@ export class GameState {
     this.runBestStage = Math.max(this.runBestStage, stage);
   }
 
-  /** ATK and HP after levels, stars (x2 each) and team auras. `level` overrides the hero's current level. */
+  /** Star skills currently in force (see skills.ts). */
+  effects(): ActiveEffect[] {
+    return activeEffects((id, star) => this.hasStar(id, star));
+  }
+
+  /** ATK and HP after levels, stars (x2 each), ATK/HP star skills and relics. `level` overrides the hero's current level. */
   heroPower(def: HeroDef, level = this.heroLevel(def.id)): { atk: Decimal; hp: Decimal } {
     const starMult = Math.pow(2, this.stars[def.id] ?? 0);
     const atkRelics = 1 + this.relicBonus('atk') + this.relicBonus(def.element);
+    const fx = this.effects();
     return {
-      atk: heroAtk(def, level).times(starMult * (this.hasStar('pyra', 4) ? 1.15 : 1) * atkRelics),
-      hp: heroHp(def, level).times(starMult * (this.hasStar('marin', 4) ? 1.2 : 1) * (1 + this.relicBonus('hp'))),
+      atk: heroAtk(def, level).times(starMult * mulEffect(fx, 'atk', def.id) * atkRelics),
+      hp: heroHp(def, level).times(starMult * mulEffect(fx, 'hp', def.id) * (1 + this.relicBonus('hp'))),
     };
   }
 
@@ -645,10 +653,28 @@ export class GameState {
     }
   }
 
+  /**
+   * Saves from before the 20-hero roster use the old five ids. Move each old hero's progress onto the
+   * hero who replaced them (Marin -> Tide and so on), keeping the higher value if both exist.
+   */
+  static migrateHeroIds(d: SaveData) {
+    for (const key of ['levels', 'emberLevels', 'crests', 'stars', 'benched']) {
+      const map = d[key];
+      if (!map || typeof map !== 'object') continue;
+      for (const [oldId, newId] of Object.entries(RENAMED_HEROES)) {
+        if (!(oldId in map)) continue;
+        const v = map[oldId];
+        map[newId] = typeof v === 'number' ? Math.max(v, map[newId] ?? 0) : v;
+        delete map[oldId];
+      }
+    }
+  }
+
   load(): boolean {
     const d = GameState.readLocal();
     if (!d) return false;
     try {
+      GameState.migrateHeroIds(d);
       this.gold = new Decimal(d.gold ?? 0);
       this.stage = d.stage ?? 1;
       this.bestStage = d.bestStage ?? this.stage;

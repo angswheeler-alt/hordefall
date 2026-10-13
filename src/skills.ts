@@ -1,0 +1,41 @@
+import { HEROES, type Effect, type EffectKind } from './data';
+
+/** A star skill that is switched on, with the hero who owns it. */
+export interface ActiveEffect {
+  owner: string;
+  effect: Effect;
+}
+
+/**
+ * Every star skill currently in force: SP1 from 1★, SP2 from 2★ and the Aura from 4★, for heroes in
+ * the lineup. `hasStar` is GameState.hasStar (recruited, in the lineup, and evolved far enough).
+ */
+export function activeEffects(hasStar: (id: string, star: number) => boolean): ActiveEffect[] {
+  const out: ActiveEffect[] = [];
+  for (const h of HEROES) {
+    if (hasStar(h.id, 1) && h.sp1.effect) out.push({ owner: h.id, effect: h.sp1.effect });
+    if (hasStar(h.id, 2) && h.sp2.effect) out.push({ owner: h.id, effect: h.sp2.effect });
+    if (hasStar(h.id, 4) && h.aura.effect) out.push({ owner: h.id, effect: h.aura.effect });
+  }
+  return out;
+}
+
+/** Effects of one kind that reach `heroId`: team-wide ones, plus the hero's own. null = team-wide only. */
+function reaching(effects: ActiveEffect[], kind: EffectKind, heroId: string | null): Effect[] {
+  return effects.filter((a) => a.effect.kind === kind && (a.effect.team || (heroId !== null && a.owner === heroId))).map((a) => a.effect);
+}
+
+/** Additive total, for chances and fractions (crit, dodge, reflect, regen...). */
+export function sumEffect(effects: ActiveEffect[], kind: EffectKind, heroId: string | null): number {
+  return reaching(effects, kind, heroId).reduce((t, e) => t + e.value, 0);
+}
+
+/** Multiplicative total, for multipliers (ATK, damage taken, cooldown...). 1 when nothing applies. */
+export function mulEffect(effects: ActiveEffect[], kind: EffectKind, heroId: string | null): number {
+  return reaching(effects, kind, heroId).reduce((t, e) => t * e.value, 1);
+}
+
+/** The hero's own "every Nth attack" effect, if any. */
+export function everyNth(effects: ActiveEffect[], heroId: string): Effect | undefined {
+  return reaching(effects, 'everyNth', heroId)[0];
+}
