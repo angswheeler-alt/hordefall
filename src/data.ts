@@ -97,7 +97,9 @@ export interface Ability {
 export type EffectKind =
   | 'atk' | 'hp' | 'crit' | 'dodge' | 'doubleStrike' | 'reflect' | 'regen' | 'lifesteal' | 'pierce'
   | 'damageTaken' | 'attackSpeed' | 'splash' | 'bossDamage' | 'gold' | 'healPower' | 'respawn' | 'everyNth'
-  | 'vsBurning' | 'burnBurst' | 'beacon';
+  | 'vsBurning' | 'burnBurst' | 'beacon'
+  // Hero-sheet stats (added for the Crush-style stat page; chances are 0.05 = 5%).
+  | 'frenzy' | 'effectRes' | 'stunChance' | 'freezeChance' | 'burnChance' | 'poisonChance' | 'ultAtk' | 'aoeDmg';
 
 export interface Effect {
   kind: EffectKind;
@@ -535,8 +537,8 @@ export const ESSENCE_NAMES: Record<Element, string> = {
  * seven normal relics (1★-4★), six 4★ sets and five 5★ sets of three pieces.
  * Each piece has one or two effects. Effect numbers are the wiki's percentages,
  * reached at level 20, and grow evenly from level 1. "Village" effects work on
- * Market Row, and Prisms are Embers. Status-duration bonuses (burn, freeze,
- * stun, poison) and hero-specific ones are left out until those systems exist.
+ * Market Row, and Prisms are Embers. Respawn time and the Griffin set's
+ * Princess dream are left out.
  * Pieces the wiki leaves blank are marked `guessed` and follow their set.
  *
  * 1★ relics are open from the start; each higher star opens once a relic of
@@ -549,6 +551,7 @@ export type ElementDef = `${Element}Def`;
 export type RelicEffect =
   | 'atk' | 'hp' | 'def' | 'speed' | 'crit' | 'critDmg' | 'dodge'
   | 'gold' | 'stall' | 'stallCost' | 'stallTime' | 'cost' | 'embers'
+  | 'stunTime' | 'freezeTime' | 'burnTime' | 'poisonTime' | 'knightShield'
   | Element | ElementHp | ElementDef;
 export interface RelicDef {
   id: string;
@@ -580,13 +583,13 @@ export const RELICS: RelicDef[] = [
   // 4★ sets
   { id: 'tide_trident', name: 'Tidelord Trident', stars: 4, set: 'tide', fx: [['water', 4320], ['def', 1620]], essences: ['water', 'dark'], craft: 100_000, stones: 2, blurb: 'Commands the sea.' },
   { id: 'tide_crown', name: 'Tidelord Crown', stars: 4, set: 'tide', fx: [['waterDef', 2160], ['stall', 1280]], essences: ['water', 'light'], craft: 100_000, stones: 2, blurb: 'Pearls from every ocean.' },
-  { id: 'tide_armor', name: 'Tidelord Armor', stars: 4, set: 'tide', fx: [['waterHp', 4320], ['hp', 320]], essences: ['water', 'earth'], craft: 100_000, stones: 2, blurb: 'Scales of a sea giant.' },
+  { id: 'tide_armor', name: 'Tidelord Armor', stars: 4, set: 'tide', fx: [['waterHp', 4320], ['knightShield', 320]], essences: ['water', 'earth'], craft: 100_000, stones: 2, blurb: 'Scales of a sea giant.' },
   { id: 'gold_charm', name: 'Goldhand Charm', stars: 4, set: 'goldhand', fx: [['def', 1080], ['stallTime', 162]], essences: ['dark', 'fire'], craft: T4, stones: 2, blurb: 'Everything it touches works faster.' },
   { id: 'gold_scepter', name: 'Goldhand Scepter', stars: 4, set: 'goldhand', fx: [['atk', 2160], ['stallCost', 768]], essences: ['light', 'dark'], craft: T4, stones: 2, blurb: 'A rod of solid gold.' },
   { id: 'gold_crown', name: 'Goldhand Crown', stars: 4, set: 'goldhand', fx: [['hp', 2160], ['stallCost', 1280]], essences: ['earth', 'light'], craft: T4, stones: 2, blurb: 'Heavy is the head.' },
   { id: 'djinn_hammer', name: 'Djinn Hammer', stars: 4, set: 'djinn', fx: [['fire', 4320], ['critDmg', 160]], essences: ['fire', 'water'], craft: T4, stones: 2, blurb: 'Rings like a bell of flame.' },
   { id: 'djinn_armor', name: 'Djinn Armor', stars: 4, set: 'djinn', fx: [['fireHp', 4320], ['stall', 1280]], essences: ['fire', 'dark'], craft: T4, stones: 2, blurb: 'Forged in a lamp.' },
-  { id: 'djinn_shield', name: 'Djinn Shield', stars: 4, set: 'djinn', fx: [['fireDef', 3240], ['hp', 320]], essences: ['fire', 'light'], craft: T4, stones: 2, blurb: 'Smoke that turns blades.' },
+  { id: 'djinn_shield', name: 'Djinn Shield', stars: 4, set: 'djinn', fx: [['fireDef', 3240], ['knightShield', 320]], essences: ['fire', 'light'], craft: T4, stones: 2, blurb: 'Smoke that turns blades.' },
   { id: 'storm_shield', name: 'Stormking Shield', stars: 4, set: 'storm', fx: [['lightDef', 3240], ['stall', 1280]], essences: ['light', 'water'], craft: T4, stones: 2, blurb: 'Crackles when struck.' },
   { id: 'storm_armor', name: 'Stormking Armor', stars: 4, set: 'storm', fx: [['lightHp', 4320], ['lightDef', 3240]], essences: ['light', 'water'], craft: T4, stones: 2, blurb: 'Light heroes get much tougher.' },
   { id: 'storm_bolt', name: 'Stormking Bolt', stars: 4, set: 'storm', fx: [['light', 4320], ['lightDef', 3240]], essences: ['light', 'fire'], craft: T4, stones: 2, blurb: 'A thunderbolt in a jar.' },
@@ -610,7 +613,7 @@ export const RELICS: RelicDef[] = [
   { id: 'titan_fist', name: 'Stone Titan Fist', stars: 5, set: 'titan', fx: [['earth', 8640], ['earthDef', 6480]], essences: ['earth', 'light'], craft: T5, stones: 3, blurb: 'Hits like a landslide.' },
   { id: 'titan_heart', name: 'Stone Titan Heart', stars: 5, set: 'titan', fx: [['earthDef', 6480], ['hp', 640]], essences: ['earth', 'dark'], craft: T5, stones: 3, guessed: true, blurb: 'Still beating, slowly.' },
   { id: 'siren_dagger', name: 'Siren Dagger', stars: 5, set: 'siren', fx: [['water', 8640], ['waterDef', 6480]], essences: ['water', 'dark'], craft: T5, stones: 3, blurb: 'Sings as it strikes.' },
-  { id: 'siren_tiara', name: 'Siren Tiara', stars: 5, set: 'siren', fx: [['waterHp', 8640], ['hp', 640]], essences: ['water', 'earth'], craft: T5, stones: 3, blurb: 'Coral and moonlight.' },
+  { id: 'siren_tiara', name: 'Siren Tiara', stars: 5, set: 'siren', fx: [['waterHp', 8640], ['knightShield', 640]], essences: ['water', 'earth'], craft: T5, stones: 3, blurb: 'Coral and moonlight.' },
   { id: 'siren_shield', name: 'Siren Shield', stars: 5, set: 'siren', fx: [['waterDef', 6480], ['stall', 5120]], essences: ['water', 'light'], craft: T5, stones: 3, blurb: 'A shell that turns the tide.' },
 ];
 export interface RelicSetDef {
@@ -623,17 +626,17 @@ export interface RelicSetDef {
   text: string;
 }
 export const RELIC_SETS: RelicSetDef[] = [
-  { id: 'tide', name: 'Tidelord', element: 'water', bonus: [['speed', 10]], text: 'Team attacks 10% faster' },
+  { id: 'tide', name: 'Tidelord', element: 'water', bonus: [['speed', 10], ['freezeTime', 15]], text: 'Team attacks 10% faster, freeze lasts 15% longer' },
   { id: 'goldhand', name: 'Goldhand', element: null, bonus: [['embers', 30], ['stallTime', 100]], text: '+30% Embers from Rekindle, Stalls twice as fast' },
   { id: 'djinn', name: 'Djinn', element: 'fire', bonus: [['crit', 10], ['cost', 500]], text: '+10% crit chance, hero levels cost much less' },
   { id: 'storm', name: 'Stormking', element: 'light', bonus: [['hp', 1000], ['speed', 10]], text: 'Team +1,000% HP, attacks 10% faster' },
   { id: 'earthmother', name: 'Earthmother', element: 'earth', bonus: [['dodge', 10], ['def', 1000]], text: 'Team dodges 10% of attacks, +1,000% Defense' },
-  { id: 'underlord', name: 'Underlord', element: 'dark', bonus: [['atk', 1000]], text: 'Team +1,000% ATK' },
+  { id: 'underlord', name: 'Underlord', element: 'dark', bonus: [['stunTime', 15], ['atk', 1000]], text: 'Stuns last 15% longer, team +1,000% ATK' },
   { id: 'griffin', name: 'Gilded Griffin', element: null, bonus: [['embers', 50], ['hp', 4000]], text: '+50% Embers from Rekindle, team +4,000% HP' },
-  { id: 'firebird', name: 'Firebird', element: 'fire', bonus: [['crit', 15], ['atk', 4000]], text: '+15% crit chance, team +4,000% ATK' },
-  { id: 'wyrm', name: 'Abyss Wyrm', element: 'dark', bonus: [['cost', 750], ['atk', 4000]], text: 'Hero levels cost far less, team +4,000% ATK' },
-  { id: 'titan', name: 'Stone Titan', element: 'earth', bonus: [['dodge', 15], ['def', 4000]], text: 'Team dodges 15% of attacks, +4,000% Defense' },
-  { id: 'siren', name: 'Siren', element: 'water', bonus: [['speed', 15], ['def', 4000]], text: 'Team attacks 15% faster, +4,000% Defense' },
+  { id: 'firebird', name: 'Firebird', element: 'fire', bonus: [['burnTime', 25], ['crit', 15], ['atk', 4000]], text: 'Burns last 25% longer, +15% crit chance, team +4,000% ATK' },
+  { id: 'wyrm', name: 'Abyss Wyrm', element: 'dark', bonus: [['stunTime', 25], ['cost', 750], ['atk', 4000]], text: 'Stuns last 25% longer, hero levels cost far less, team +4,000% ATK' },
+  { id: 'titan', name: 'Stone Titan', element: 'earth', bonus: [['poisonTime', 25], ['dodge', 15], ['def', 4000]], text: 'Poison lasts 25% longer, team dodges 15% of attacks, +4,000% Defense' },
+  { id: 'siren', name: 'Siren', element: 'water', bonus: [['freezeTime', 25], ['speed', 15], ['def', 4000]], text: 'Freeze lasts 25% longer, team attacks 15% faster, +4,000% Defense' },
 ];
 /** Levels a relic reaches before Enhance Stones; reaching it on an N★ relic opens (N+1)★ relics. */
 export const RELIC_BASE_MAX = 20;

@@ -1,4 +1,5 @@
 import Decimal from 'break_infinity.js';
+import type { HeroStats, BigStat, StatPair } from './stats';
 import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, LEGENDARY_MEDAL_RATE, MAX_STARS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
@@ -288,6 +289,11 @@ export class UI {
       stallTime: 'Stall speed',
       cost: 'Hero level costs',
       embers: 'Embers from Rekindle',
+      stunTime: 'Stun time',
+      freezeTime: 'Freeze time',
+      burnTime: 'Burn time',
+      poisonTime: 'Poison time',
+      knightShield: 'Knight shield HP',
     };
     const effectName = (e: string) =>
       names[e] ?? (e.endsWith('Hp') ? `${cap(e.slice(0, -2))} heroes HP` : e.endsWith('Def') ? `${cap(e.slice(0, -3))} heroes Defense` : `${cap(e)} heroes ATK`);
@@ -580,6 +586,12 @@ export class UI {
       }
     });
     $('sheet-close').addEventListener('click', () => this.closeSheet());
+    $('sheet-stats').addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-statpage]');
+      if (!btn) return;
+      this.statPage = (this.statPage + Number(btn.dataset.statpage) + 3) % 3;
+      this.renderSheet();
+    });
     $('sheet').addEventListener('click', (e) => {
       if (e.target === $('sheet')) this.closeSheet();
     });
@@ -658,6 +670,8 @@ export class UI {
   // ---------- hero page ----------
 
   private sheetHero: string | null = null;
+  /** Which of the three stat pages the hero page shows. */
+  private statPage = 0;
 
   openSheet(id: string) {
     this.sheetHero = id;
@@ -692,17 +706,7 @@ export class UI {
     // A hero is 1★ when unlocked; each evolution adds a star, up to 8★.
     setHtml($('sheet-stars'), [0, ...STAR_CRESTS].map((_, i) => `<span class="${gold > 0 && i <= stars ? 'on' : ''}">★</span>`).join(''));
     const shownLevel = gold > 0 ? eff : 1 + ember;
-    const power = s.heroPower(def, shownLevel);
-    const stat = (label: string, value: string) => `<div><small>${label}</small><b>${value}</b></div>`;
-    setHtml($('sheet-stats'), [
-      stat('Level', gold > 0 ? String(eff) : 'Locked'),
-      stat('ATK', fmt(power.atk)),
-      stat('HP', fmt(power.hp)),
-      stat('Defense', fmt(power.defense)),
-      stat('Attacks / sec', (1 / def.attackCooldown).toFixed(2)),
-      stat('Range', def.range > 60 ? `Ranged (${def.range})` : 'Melee'),
-      stat('Gold per kill', `${def.goldMult}x`),
-    ].join(''));
+    setHtml($('sheet-stats'), statPages(s.heroStats(def, shownLevel), gold > 0 ? String(eff) : 'Locked', this.statPage));
 
     $('sheet-gold-lvl').textContent = gold > 0 ? String(gold) : '(locked)';
     const { levels, cost } = bulkCost(def, gold, s.buyAmount, s.gold, s.levelCostMult());
@@ -1312,4 +1316,60 @@ function heroTitle(def: HeroDef) {
 /** A Stall cycle length: whole seconds, or one decimal under 10s. */
 function fmtSecs(sec: number): string {
   return sec >= 10 ? `${Math.round(sec)}s` : `${Math.round(sec * 10) / 10}s`;
+}
+
+/** The hero page's three stat pages, laid out like the original: value, (base) and the bonus in green. Stats that do nothing for this hero are greyed. */
+function statPages(st: HeroStats, level: string, page: number): string {
+  const pct = (n: number, sign = false) => {
+    const v = Math.round(n * 1000) / 10;
+    return `${sign && v >= 0 ? '+' : ''}${v.toLocaleString()}%`;
+  };
+  const gain = (value: number, base: number) => (base > 0 && Math.abs(value - base) > 1e-9 ? pct(value / base - 1, true) : '');
+  const big = (b: BigStat) => {
+    const bonus = b.base.gt(0) ? b.value.div(b.base).toNumber() - 1 : 0;
+    return [fmt(b.value), `(${fmt(b.base)})`, Math.abs(bonus) > 1e-9 ? pct(bonus, true) : ''];
+  };
+  const pair = (p: StatPair, show: (n: number) => string) => [show(p.value), Math.abs(p.value - p.base) > 1e-9 ? `(${show(p.base)})` : '', gain(p.value, p.base)];
+  type Row = [label: string, cells: string[], off?: boolean];
+  const num = (n: number) => (Math.round(n * 100) / 100).toLocaleString();
+  const pages: Row[][] = [
+    [
+      ['Atk', big(st.atk)],
+      ['HP', big(st.hp)],
+      ['Def', big(st.def)],
+      ['Critical Rate', [pct(st.critRate), '', '']],
+      ['Critical Damage', [pct(st.critDmg, true), '', '']],
+      ['Atk per sec', pair(st.attacksPerSec, num)],
+      ['Atk Range', pair(st.range, num)],
+      ['Move Speed', pair(st.moveSpeed, num)],
+      ['Effect Resistance', pair(st.effectRes, (n) => pct(n))],
+    ],
+    [
+      ['Frenzy Chance', pair(st.frenzy, (n) => pct(n))],
+      ['Dodge Rate', pair(st.dodge, (n) => pct(n)), st.dodge.value <= 0],
+      ['Stun Chance', [pct(st.stunChance), '', ''], st.stunChance <= 0],
+      ['Stun Time', [pct(st.stunTime, true), '', ''], st.stunChance <= 0],
+      ['AoE Radius', [pct(st.aoeRadius, true), '', ''], !st.hasAoe],
+      ['AoE Dmg', [pct(st.aoeDmg, true), '', ''], !st.hasAoe],
+      ['Ultimate Atk', [pct(st.ultAtk, true), '', '']],
+      ['Knight Shield HP', [pct(st.knightShield, true), '', ''], !st.isKnight],
+      ['Bonus Gold', [pct(st.bonusGold, true), '', '']],
+    ],
+    [
+      ['Freeze Chance', [pct(st.freezeChance), '', ''], st.freezeChance <= 0],
+      ['Freeze Time', [pct(st.freezeTime, true), '', ''], st.freezeChance <= 0],
+      ['Freeze Explosion Dmg', [pct(st.freezeBlast, true), '', ''], st.freezeChance <= 0],
+      ['Burn Chance', [pct(st.burnChance), '', ''], st.burnChance <= 0],
+      ['Burn Time', [pct(st.burnTime, true), '', ''], st.burnChance <= 0],
+      ['Burn Dmg', [pct(st.burnDmg, true), '', ''], st.burnChance <= 0],
+      ['Poison Chance', [pct(st.poisonChance), '', ''], st.poisonChance <= 0],
+      ['Poison Time', [pct(st.poisonTime, true), '', ''], st.poisonChance <= 0],
+      ['Poison Dmg', [pct(st.poisonDmg, true), '', ''], st.poisonChance <= 0],
+    ],
+  ];
+  const rows = pages[page]
+    .map(([label, [v, base, bonus], off]) => `<div class="sr${off ? ' off' : ''}"><span>${label}</span><b>${v}${base ? ` <i>${base}</i>` : ''}</b><em>${bonus}</em></div>`)
+    .join('');
+  return `<div class="stat-top"><span>Level <b>${level}</b></span></div><div class="stat-page">${rows}</div>
+    <div class="stat-pager"><button data-statpage="-1" aria-label="Previous stats">‹</button><span>${page + 1}/3</span><button data-statpage="1" aria-label="More stats">›</button></div>`;
 }
