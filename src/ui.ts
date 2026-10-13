@@ -647,6 +647,7 @@ export class UI {
     const { levels, cost } = bulkCost(def, gold, s.buyAmount, s.gold);
     const shown = levels > 0 ? { levels, cost } : bulkCost(def, gold, 1, s.gold);
     const goldBtn = $<HTMLButtonElement>('sheet-gold-up');
+    goldBtn.classList.toggle('unlock', gold === 0);
     if (gold === 0) {
       const need = s.unlockCrests(def);
       (goldBtn.querySelector('.label') as HTMLElement).textContent = 'Unlock';

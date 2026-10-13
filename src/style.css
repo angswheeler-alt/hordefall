@@ -191,7 +191,7 @@ button.link[disabled] { display: none; }
 .hero .ember-chip { color: #ffd84a; font-weight: 700; }
 .hero .gold-up { min-width: 92px; min-height: 52px; background: linear-gradient(180deg, #ffb53d, var(--orange) 50%, var(--orange-lo)); border: 2px solid #6b3200; border-radius: 9px; color: #fff; text-shadow: 0 1px 1px #6b3200; box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 2px 0 #4a2200; }
 .hero .gold-up .cost { display: inline-flex; align-items: center; gap: 4px; color: #fff5c2; font-size: 13px; font-weight: 800; }
-.hero .gold-up .cost::before { content: ''; width: 12px; height: 12px; border-radius: 50%; background: var(--gold); box-shadow: inset -2px -2px 0 #c9a227; border: 1px solid #6b3200; }
+.hero .gold-up .cost::before { content: ''; width: 14px; height: 14px; background: url('./assets/ui/coin.png') center / contain no-repeat; image-rendering: pixelated; }
 .hero .gold-up .label { font-weight: 800; font-size: 15px; }
 .hero .gold-up:disabled { opacity: 1; filter: grayscale(.6) brightness(.75); }
 .hero.locked .gold-up { background: linear-gradient(180deg, #7dd0ff, #2d93d6 50%, #1a5f99); border-color: #0b2f4f; }
@@ -285,7 +285,7 @@ button.glass:disabled { opacity: .7; font-size: 11px; }
 .stall .meta { color: #d9bf98; font-size: 11px; margin-top: 3px; }
 .stall .gold-up { min-width: 92px; min-height: 52px; display: flex; flex-direction: column; align-items: center; gap: 2px; background: linear-gradient(180deg, #ffb53d, var(--orange) 50%, var(--orange-lo)); border: 2px solid #6b3200; border-radius: 9px; color: #fff; text-shadow: 0 1px 1px #6b3200; box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 2px 0 #4a2200; }
 .stall .gold-up .cost { display: inline-flex; align-items: center; gap: 4px; color: #fff5c2; font-size: 13px; font-weight: 800; }
-.stall .gold-up .cost::before { content: ''; width: 12px; height: 12px; border-radius: 50%; background: var(--gold); box-shadow: inset -2px -2px 0 #c9a227; border: 1px solid #6b3200; }
+.stall .gold-up .cost::before { content: ''; width: 14px; height: 14px; background: url('./assets/ui/coin.png') center / contain no-repeat; image-rendering: pixelated; }
 .stall .gold-up .label { font-weight: 800; font-size: 15px; }
 .stall .gold-up:disabled { opacity: 1; filter: grayscale(.6) brightness(.75); }
 .stall.locked .stall-art { filter: grayscale(.8) brightness(.6); }
@@ -446,3 +446,10 @@ button.glass:disabled { opacity: .7; font-size: 11px; }
 .coll-hero b { font-size: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .coll-hero small { color: var(--gold); font-size: 10px; }
 .coll-hero.locked small { color: var(--muted); }
+
+/* Hero Crest (medal) icon wherever crests are counted */
+.hero.locked .gold-up .cost::before, .level-row .gold-up.unlock .cost::before, .summon-grid .crest::before, .crest-row > span:first-child::before, .coll-hero.locked small::before {
+  content: ''; display: inline-block; vertical-align: middle; width: 14px; height: 14px; margin-right: 3px; background: url('./assets/ui/crest.png') center / contain no-repeat; image-rendering: pixelated; box-shadow: none; border: 0; border-radius: 0;
+}
+.coll-hero.locked small::before { width: 11px; height: 11px; margin-right: 2px; }
+.level-row .gold-up.unlock .cost { display: inline-flex; align-items: center; }
