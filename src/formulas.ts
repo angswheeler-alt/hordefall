@@ -57,9 +57,25 @@ export function effectiveLevel(goldLevel: number, emberLevel: number): number {
 }
 
 /** Embers granted for a Rekindle with this as the highest stage reached in the run. */
-export function emberYield(runBestStage: number, rekindleStage: number): number {
+/** Ember payout multiplier from the run's best stage (x1 just past the Rekindle stage). */
+export function emberStageBonus(runBestStage: number, rekindleStage: number): number {
+  return Math.pow(1.06, runBestStage - rekindleStage - 1);
+}
+
+export function emberYield(runBestStage: number, rekindleStage: number, keeperBonus = 1): number {
   if (runBestStage <= rekindleStage) return 0;
-  return Math.floor(40 * Math.pow(1.06, runBestStage - rekindleStage - 1));
+  return Math.floor(40 * emberStageBonus(runBestStage, rekindleStage) * keeperBonus);
+}
+
+/** Lifetime Embers needed to reach Keeper level `level + 1`: 100, 200, 400, ... */
+export function keeperThreshold(level: number): number {
+  return 100 * Math.pow(2, level - 1);
+}
+
+export function keeperLevel(lifetimeEmbers: number): number {
+  let level = 1;
+  while (lifetimeEmbers >= keeperThreshold(level)) level++;
+  return level;
 }
 
 /** Embers to raise a hero's Ember level from `level` to `level + 1`. */

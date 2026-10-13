@@ -31,11 +31,11 @@ const ui = new UI(state, scene, {
     scene()?.restart();
     state.save();
   },
-  rekindle: () => {
-    const gained = state.rekindle();
-    if (gained > 0) {
+  rekindle: (mult: number) => {
+    const result = state.rekindle(mult);
+    if (result) {
       scene()?.restart();
-      ui.showRekindled(gained);
+      ui.showRekindled(result.embers, result.gems);
     }
   },
   wipe: () => {

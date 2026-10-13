@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, START_GEMS, MILESTONE_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS } from './data';
-import { emberYield, effectiveLevel, emberCost, heroAtk, heroHp } from './formulas';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, START_GEMS, MILESTONE_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS } from './data';
+import { emberYield, keeperLevel, effectiveLevel, emberCost, heroAtk, heroHp } from './formulas';
 import type { HeroDef } from './data';
 
 const SAVE_KEY = 'hordefall-save-v1';
@@ -30,6 +30,10 @@ export class GameState {
   embers = 0;
   emberLevels: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, 0]));
   rekindles = 0;
+  /** Every Ember ever earned; sets the Keeper level. */
+  lifetimeEmbers = 0;
+  /** Ember Road markers already paid out. */
+  roadClaimed = 0;
   /** Hero Crests (copies) per hero, for evolution. Nothing drops them yet. */
   crests: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, 0]));
   /** Evolution stars per hero (0-7). Permanent. */
@@ -138,15 +142,45 @@ export class GameState {
     return this.runBestStage > REKINDLE_STAGE;
   }
 
-  pendingEmbers() {
-    return emberYield(this.runBestStage, REKINDLE_STAGE);
+  keeperLevel() {
+    return keeperLevel(this.lifetimeEmbers);
   }
 
-  /** Prestige reset (GDD section 7): back to stage 1 and gold level 1, keep Embers and Ember levels. */
-  rekindle(): number {
-    const gained = this.pendingEmbers();
-    if (gained <= 0) return 0;
+  keeperBonus() {
+    return 1 + KEEPER_BONUS_PER_LEVEL * (this.keeperLevel() - 1);
+  }
+
+  pendingEmbers() {
+    return emberYield(this.runBestStage, REKINDLE_STAGE, this.keeperBonus());
+  }
+
+  /** Ember Road markers reached by the best stage ever. */
+  roadReached() {
+    if (this.bestStage < ROAD_START) return 0;
+    return Math.min(ROAD_LENGTH, 1 + Math.floor((this.bestStage - ROAD_START) / ROAD_STEP));
+  }
+
+  /** Gems waiting on Ember Road markers reached since the last Rekindle. */
+  pendingRoadGems() {
+    return Math.max(0, this.roadReached() - this.roadClaimed) * ROAD_GEMS;
+  }
+
+  /**
+   * Prestige reset (GDD section 7): back to stage 1 and gold level 1, keep
+   * Embers and Ember levels. `mult` is a Gem-bought 2x or 3x payout.
+   */
+  rekindle(mult = 1): { embers: number; gems: number } | null {
+    const base = this.pendingEmbers();
+    if (base <= 0) return null;
+    const boost = REKINDLE_BOOSTS.find((b) => b.mult === mult);
+    if (mult !== 1 && (!boost || this.gems < boost.gems)) return null;
+    if (boost) this.gems -= boost.gems;
+    const gained = base * mult;
+    const roadGems = this.pendingRoadGems();
+    this.gems += roadGems;
+    this.roadClaimed = this.roadReached();
     this.embers += gained;
+    this.lifetimeEmbers += gained;
     this.rekindles += 1;
     this.gold = new Decimal(0);
     this.stage = 1;
@@ -156,7 +190,7 @@ export class GameState {
     this.secondsPerStage = 20;
     this.goldPerSec = 0;
     this.save();
-    return gained;
+    return { embers: gained, gems: roadGems };
   }
 
   addGold(amount: Decimal) {
@@ -185,6 +219,8 @@ export class GameState {
       embers: this.embers,
       emberLevels: this.emberLevels,
       rekindles: this.rekindles,
+      lifetimeEmbers: this.lifetimeEmbers,
+      roadClaimed: this.roadClaimed,
       crests: this.crests,
       stars: this.stars,
       gems: this.gems,
@@ -222,6 +258,8 @@ export class GameState {
       this.embers = d.embers ?? 0;
       this.emberLevels = { ...this.emberLevels, ...(d.emberLevels ?? {}) };
       this.rekindles = d.rekindles ?? 0;
+      this.lifetimeEmbers = d.lifetimeEmbers ?? this.embers;
+      this.roadClaimed = d.roadClaimed ?? 0;
       this.crests = { ...this.crests, ...(d.crests ?? {}) };
       this.stars = { ...this.stars, ...(d.stars ?? {}) };
       this.gems = d.gems ?? START_GEMS;
