@@ -1,5 +1,5 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, ULT_STAR_BONUS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_LEVELS_PER_TIER, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_LEVELS_PER_TIER, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
 import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
@@ -478,14 +478,15 @@ export class UI {
   /** Hero Chest pop-up: shows what's inside and asks before spending Gems. */
   private confirmChest() {
     const s = this.state;
-    const total = CREST_ROLLS.reduce((n, [, w]) => n + w, 0);
-    const odds = CREST_ROLLS.map(([c, w]) => `<li><b>${c} Crests</b><span>${Math.round((w / total) * 100)}%</span></li>`).join('');
+    const odds = (Object.keys(CHEST_RARITY_WEIGHTS) as Array<keyof typeof CHEST_RARITY_WEIGHTS>)
+      .map((r) => `<li><b>${cap(r)}</b><span>${CHEST_RARITY_WEIGHTS[r]}% · ${CREST_ROLLS[r].map(([c]) => c).join('/')} medals</span></li>`)
+      .join('');
     const faces = HEROES.map((h) => `<span class="face" title="${h.name}" style="background:${hex(ELEMENT_COLORS[h.element])}">${h.name[0]}</span>`).join('');
     const afford = s.gems >= CHEST_COST;
     this.showModal(
       'Hero Chest',
       `<div class="chest-pop"><div class="chest-art" aria-hidden="true"></div>
-        <p>${CHEST_DROPS} drops of Hero Crests. A hero you don't have yet joins your team.</p>
+        <p>${CHEST_DROPS} drops of Hero Crests (medals). Collect enough to unlock a hero, then keep collecting to evolve them. Legendary heroes never drop.</p>
         <div class="chest-heroes">${faces}</div>
         <ul class="chest-odds">${odds}</ul>
         <p class="chest-wallet">You have <b>${s.gems}</b> Gems${afford ? '' : `. You need ${CHEST_COST - s.gems} more.`}</p></div>`,

@@ -182,12 +182,22 @@ export const BOSS_GEMS = 20;
 export const MILESTONE_GEMS = 5;
 export const CHEST_COST = 30;
 export const CHEST_DROPS = 3;
-/** Crests per drop and their weights. */
-export const CREST_ROLLS: Array<[number, number]> = [
-  [5, 60],
-  [10, 30],
-  [25, 10],
-];
+/**
+ * Hero Chest odds. Each drop first picks a rarity by weight (Legendary never
+ * drops), then a random hero of that rarity, then a medal amount for that
+ * rarity. Rarer heroes drop less often and in smaller stacks, so a first Rare
+ * unlock (30) takes about 10 chests and a first Epic (80) about 100.
+ * Rarities with no heroes yet are skipped and the rest re-weighted.
+ */
+export const CHEST_RARITY_WEIGHTS: Record<Exclude<Rarity, 'legendary'>, number> = { common: 70, rare: 22, epic: 8 };
+/** Medals per drop and their weights, by rarity. */
+export const CREST_ROLLS: Record<Exclude<Rarity, 'legendary'>, Array<[number, number]>> = {
+  common: [[5, 60], [10, 30], [20, 10]],
+  rare: [[3, 60], [6, 30], [12, 10]],
+  epic: [[2, 60], [4, 30], [8, 10]],
+};
+/** Trial medals: rarity weights for which hero of the element gets each medal. */
+export const TRIAL_RARITY_WEIGHTS: Record<Exclude<Rarity, 'legendary'>, number> = { common: 80, rare: 17, epic: 3 };
 
 export const BOSS_NAMES = ['Grubjaw the Glutton', 'Sir Rattlecan', 'Mother Mireling', 'Cogsworth Crusher', 'The Molten Abbot'];
 

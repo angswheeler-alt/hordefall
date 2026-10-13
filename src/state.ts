@@ -1,7 +1,7 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, RELICS, RELIC_LEVELS_PER_TIER, RELIC_TIERS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, RELICS, RELIC_LEVELS_PER_TIER, RELIC_TIERS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS } from './data';
 import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp } from './formulas';
-import type { HeroDef, StallDef, Element, RelicDef, RelicEffect } from './data';
+import type { HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 
 const SAVE_KEY = 'hordefall-save-v1';
 
@@ -254,13 +254,11 @@ export class GameState {
   summon(): SummonDrop[] | null {
     if (this.gems < CHEST_COST) return null;
     this.gems -= CHEST_COST;
-    const total = CREST_ROLLS.reduce((t, [, w]) => t + w, 0);
     const drops: SummonDrop[] = [];
     for (let i = 0; i < CHEST_DROPS; i++) {
-      const pool = HEROES.filter((h) => h.rarity !== 'legendary');
-      const hero = pool[Math.floor(Math.random() * pool.length)];
-      let roll = Math.random() * total;
-      const crests = (CREST_ROLLS.find(([, w]) => (roll -= w) < 0) ?? CREST_ROLLS[0])[0];
+      const hero = pickByRarity(HEROES, CHEST_RARITY_WEIGHTS);
+      if (!hero) break;
+      const crests = weighted(CREST_ROLLS[hero.rarity as keyof typeof CREST_ROLLS]);
       const locked = (this.levels[hero.id] ?? 0) === 0;
       const before = this.crests[hero.id] ?? 0;
       this.crests[hero.id] = before + crests;
@@ -504,12 +502,14 @@ export class GameState {
     result.essence = level.essence;
     this.essences[element] = (this.essences[element] ?? 0) + result.essence;
     // Medals go to different random heroes of the element while there are enough of them.
-    // Locked Legendary heroes only come through special means, so they get no medals here.
-    const pool = HEROES.filter((h) => h.element === element && (h.rarity !== 'legendary' || (this.levels[h.id] ?? 0) > 0)).map((h) => h.id);
-    for (let i = 0; i < level.medals && pool.length; i++) {
-      const left = pool.filter((id) => !result.medals.includes(id));
-      const from = left.length ? left : pool;
-      const id = from[Math.floor(Math.random() * from.length)];
+    // Medals go to different heroes of the element where possible, picked by rarity weight.
+    // Legendary heroes only come through special means, so they get none.
+    const pool = HEROES.filter((h) => h.element === element);
+    for (let i = 0; i < level.medals; i++) {
+      const left = pool.filter((h) => !result.medals.includes(h.id));
+      const hero = pickByRarity(left.length ? left : pool, TRIAL_RARITY_WEIGHTS);
+      if (!hero) break;
+      const id = hero.id;
       result.medals.push(id);
       this.crests[id] = (this.crests[id] ?? 0) + 1;
     }
@@ -719,4 +719,19 @@ export class GameState {
     this.reachStage(this.stage + stages);
     return { seconds: capped, gold, stages, market };
   }
+}
+
+/** Pick from `[value, weight]` pairs by weight. */
+function weighted<T>(table: Array<[T, number]>): T {
+  let roll = Math.random() * table.reduce((t, [, w]) => t + w, 0);
+  return (table.find(([, w]) => (roll -= w) < 0) ?? table[0])[0];
+}
+
+/** A random hero: a rarity by weight among rarities present in `heroes`, then a hero of it. Never Legendary. */
+function pickByRarity(heroes: HeroDef[], weights: Partial<Record<Rarity, number>>): HeroDef | null {
+  const present = (Object.keys(weights) as Rarity[]).filter((r) => heroes.some((h) => h.rarity === r));
+  if (!present.length) return null;
+  const rarity = weighted(present.map((r) => [r, weights[r] ?? 0] as [Rarity, number]));
+  const pool = heroes.filter((h) => h.rarity === rarity);
+  return pool[Math.floor(Math.random() * pool.length)];
 }
