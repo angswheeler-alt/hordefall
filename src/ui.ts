@@ -556,7 +556,8 @@ export class UI {
     const stars = s.stars[id] ?? 0;
     const crests = s.crests[id] ?? 0;
 
-    $('sheet-stars').innerHTML = STAR_CRESTS.map((_, i) => `<span class="${i < stars ? 'on' : ''}">★</span>`).join('');
+    // A hero is 1★ when unlocked; each evolution adds a star, up to 8★.
+    $('sheet-stars').innerHTML = [0, ...STAR_CRESTS].map((_, i) => `<span class="${gold > 0 && i <= stars ? 'on' : ''}">★</span>`).join('');
     const shownLevel = gold > 0 ? eff : 1 + ember;
     const power = s.heroPower(def, shownLevel);
     const stat = (label: string, value: string) => `<div><small>${label}</small><b>${value}</b></div>`;
@@ -608,23 +609,23 @@ export class UI {
     }
 
     const next = s.evolveCost(id);
-    $('sheet-crests').textContent = next === null ? `${crests} (max stars)` : `${crests} / ${next} for ${stars + 1}★`;
+    $('sheet-crests').textContent = next === null ? `${crests} (max stars)` : `${crests} / ${next} for ${stars + 2}★`;
     $('sheet-crest-fill').style.width = next === null ? '100%' : `${Math.min(100, (crests / next) * 100)}%`;
     const evolve = $<HTMLButtonElement>('sheet-evolve');
     evolve.hidden = next === null || crests < next || gold === 0;
-    evolve.textContent = `Evolve to ${stars + 1}★ (${next} Crests)`;
+    evolve.textContent = `Evolve to ${stars + 2}★ (${next} Crests)`;
     const unlocks: Array<[number, string, string]> = [
       [1, `${def.sp1.name}`, def.sp1.text],
       [2, `${def.sp2.name}`, def.sp2.text],
       [3, `${def.ultimate.name}+`, `Ultimate hits for ${ULT_MULTIPLIER * ULT_STAR_BONUS}x instead of ${ULT_MULTIPLIER}x.`],
       [4, `Aura: ${def.aura.name}`, def.aura.text],
-      [5, '5★ to 7★', 'Each extra star doubles all stats again.'],
+      [5, '6★ to 8★', 'Each extra star doubles all stats again.'],
     ];
     if ($('sheet-unlocks').dataset.key !== `${id}:${stars}`) {
       $('sheet-unlocks').innerHTML = unlocks
         .map(([star, name, text]) => {
           const on = stars >= star;
-          return `<li class="${on ? '' : 'locked'}"><span class="kind">${star}★</span><span class="tag${on ? ' ready' : ''}">${on ? 'Unlocked' : 'Locked'}</span><div><b>${name}</b></div><p>${text}</p></li>`;
+          return `<li class="${on ? '' : 'locked'}"><span class="kind">${star + 1}★</span><span class="tag${on ? ' ready' : ''}">${on ? 'Unlocked' : 'Locked'}</span><div><b>${name}</b></div><p>${text}</p></li>`;
         })
         .join('');
       $('sheet-unlocks').dataset.key = `${id}:${stars}`;
@@ -931,7 +932,7 @@ export class UI {
       r.emberBadge.textContent = emberLevel ? `+${emberLevel}` : '';
       r.emberBadge.title = emberLevel ? `${emberLevel} Ember levels` : '';
       const starCount = s.stars[r.def.id] ?? 0;
-      r.stars.textContent = '★'.repeat(starCount);
+      r.stars.textContent = locked ? '' : '★'.repeat(starCount + 1);
       const evolveCost = s.evolveCost(r.def.id);
       const canEvolve = !locked && evolveCost !== null && (s.crests[r.def.id] ?? 0) >= evolveCost;
       const benched = !locked && !s.inLineup(r.def.id);

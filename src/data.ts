@@ -31,7 +31,7 @@ export interface HeroDef {
   basic: Ability;
   ultimate: Ability;
   trait: Ability;
-  /** Unlocked by evolving with Hero Crests: SP1 at 1★, SP2 at 2★, the Aura at 4★. */
+  /** Unlocked by evolving with Hero Crests: SP1 at 2★, SP2 at 3★, the Aura at 5★. */
   sp1: Ability;
   sp2: Ability;
   aura: Ability;
@@ -157,11 +157,13 @@ export const CRIT_CHANCE = 0.12;
 export const CRIT_MULTIPLIER = 2.5;
 
 /**
- * Hero Crests needed for each evolution star, 1-7 (GDD section 5.3). Each star
- * doubles stats; 1, 2, 3 and 4 stars unlock SP1, SP2, the Ultimate and the Aura.
- * Crests come from the Hero Chest.
+ * Hero Crests (medals) for each evolution, from Samuel's table: a hero unlocks
+ * at 1★ and evolves up to 8★ (1★→2★ costs 10, ... 7★→8★ costs 5,000).
+ * `stars` in the save counts evolutions, so 0 means 1★. Each evolution doubles
+ * stats; the 1st, 2nd, 3rd and 4th unlock SP1, SP2, the stronger Ultimate and
+ * the Aura (2★, 3★, 4★ and 5★).
  */
-export const STAR_CRESTS = [10, 20, 50, 200, 500, 1000, 2000];
+export const STAR_CRESTS = [10, 50, 250, 600, 1500, 2500, 5000];
 export const MAX_STARS = STAR_CRESTS.length;
 /**
  * Hero Crests (medals) a hero needs to unlock, by rarity (Samuel's table).
@@ -170,7 +172,7 @@ export const MAX_STARS = STAR_CRESTS.length;
  * Hero Chest never drops them. The free starter (unlockCost 0) needs none.
  */
 export const UNLOCK_CRESTS: Record<Exclude<Rarity, 'legendary'>, number> = { common: 10, rare: 30, epic: 80 };
-/** From 3★ the Ultimate hits harder (the full game unlocks it at 3★; the prototype keeps Lv 30). */
+/** From 4★ (3 evolutions) the Ultimate hits harder (the prototype unlocks the Ultimate itself at Lv 30). */
 export const ULT_STAR_BONUS = 1.5;
 
 // Gems (premium currency) and the Hero Chest summon.
