@@ -20,6 +20,7 @@ Web-first idle RPG prototype (see the game design doc). This build covers the co
     npm install
     npm run dev      # http://localhost:5173
     npm run build    # static build in dist/
+    npm test         # unit tests (saves, economy, medals, relics, Rekindle); also run on every pull request
 
 Stack: Phaser 3 + TypeScript + Vite. Lane in Phaser, menus in HTML/CSS. Balance knobs live in `src/formulas.ts`.
 - Bottom tab bar like the original: Heroes (wood-styled hero rows with Level Up buttons, Manage Team, Hero Chest and Collection), Market Row, Relics, Battle (Trials and run stats), Shop (Hero Chest, free Gems) and Guild. Guild is a placeholder for now.
