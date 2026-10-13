@@ -15,6 +15,7 @@
         <div class="stat"><span class="coin"></span><b id="gold">0</b></div>
         <div class="stat small"><span id="gps">0/s</span></div>
         <div class="stat small">Best <b id="best">1</b></div>
+        <div class="stat small" id="embers-stat" hidden><span class="ember"></span><b id="embers">0</b></div>
       </header>
       <div id="game"></div>
       <div id="ults"></div>
@@ -22,6 +23,7 @@
         <button id="speed" class="toggle">2x</button>
         <button id="autoult" class="toggle">Auto ult</button>
         <button id="boss" class="hot" hidden>Fight boss</button>
+        <button id="rekindle" class="ember-btn" hidden>Rekindle</button>
         <span class="spacer"></span>
         <button id="mute" class="toggle" aria-label="Sound">Sound</button>
         <button id="buyamt">Buy x1</button>
@@ -33,11 +35,53 @@
         <button id="wipe">Reset save</button>
       </footer>
     </div>
+    <div id="sheet" hidden>
+      <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheet-name">
+        <header class="sheet-head">
+          <button id="sheet-prev" class="icon" aria-label="Previous hero">‹</button>
+          <div id="sheet-face" class="face big"></div>
+          <div class="sheet-title">
+            <h2 id="sheet-name"></h2>
+            <div id="sheet-sub" class="meta"></div>
+            <div id="sheet-stars" class="stars"></div>
+          </div>
+          <button id="sheet-next" class="icon" aria-label="Next hero">›</button>
+          <button id="sheet-close" class="icon close" aria-label="Close">✕</button>
+        </header>
+        <p id="sheet-bio" class="bio"></p>
+        <section class="sheet-stats" id="sheet-stats"></section>
+        <section class="sheet-section">
+          <h3>Levels</h3>
+          <div class="level-row">
+            <div><b>Gold level</b> <span id="sheet-gold-lvl"></span><div class="meta">Resets when you Rekindle.</div></div>
+            <button id="sheet-gold-up" class="gold-up"><span class="label"></span><span class="cost"></span></button>
+          </div>
+          <div class="level-row">
+            <div><b class="ember-text">Ember level</b> <span id="sheet-ember-lvl"></span><div class="meta">Permanent. You have <b id="sheet-embers" class="ember-text"></b> Embers.</div></div>
+            <button id="sheet-ember-up" class="ember-up"><span>Ember +1</span><span class="cost"></span></button>
+          </div>
+        </section>
+        <section class="sheet-section">
+          <h3>Abilities</h3>
+          <ul id="sheet-abilities" class="abilities"></ul>
+        </section>
+        <section class="sheet-section">
+          <h3>Evolution</h3>
+          <div class="crest-row"><span>Hero Crests</span><span id="sheet-crests"></span></div>
+          <div class="crest-bar"><div id="sheet-crest-fill"></div></div>
+          <p class="meta">Collect copies of this hero as Hero Crests to evolve. Each star doubles all stats and the first four unlock new skills. Crest drops arrive with summons and Trials.</p>
+          <ul id="sheet-unlocks" class="abilities"></ul>
+        </section>
+      </div>
+    </div>
     <div id="modal" hidden>
       <div class="card">
-        <h2>Welcome back!</h2>
+        <h2 id="modal-title">Welcome back!</h2>
         <p id="modal-body"></p>
-        <button id="modal-ok" class="hot">Collect</button>
+        <div class="modal-actions">
+          <button id="modal-cancel" hidden>Not yet</button>
+          <button id="modal-ok" class="hot">Collect</button>
+        </div>
       </div>
     </div>
     <script type="module" src="./src/main.ts"></script>

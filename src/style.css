@@ -1,3 +1,4 @@
+[hidden] { display: none !important; }
 :root {
   --bg: #1b1530;
   --panel: #2a2246;
@@ -7,6 +8,7 @@
   --gold: #ffd84a;
   --hot: #ff6680;
   --ok: #4cd97a;
+  --ember: #ff8a3d;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -51,3 +53,52 @@ button.hot { background: var(--hot); border-color: var(--hot); color: #fff; font
 #modal h2 { margin: 0 0 8px; }
 #modal p { color: var(--muted); line-height: 1.5; }
 #modal b { color: var(--gold); }
+
+.ember { width: 12px; height: 16px; border-radius: 50% 50% 45% 45% / 65% 65% 35% 35%; background: radial-gradient(circle at 50% 70%, #ffe08a 0 25%, var(--ember) 55%, #c2410c 100%); }
+#embers { color: var(--ember); }
+button.ember-btn { background: var(--ember); border-color: var(--ember); color: #2a0d00; font-weight: 700; }
+.hero .btns { display: flex; flex-direction: column; gap: 6px; }
+.hero button.ember-up { background: transparent; border-color: var(--ember); min-height: 0; padding: 4px 10px; }
+.hero button.ember-up .cost { color: var(--ember); }
+.hero .ember-lvl { color: var(--ember); }
+.modal-actions { display: flex; gap: 8px; justify-content: center; }
+.ember-text, #modal b.ember-text { color: var(--ember); }
+
+.hero .open { all: unset; cursor: pointer; display: contents; }
+.hero .face, .hero .who { cursor: pointer; }
+.hero .who:hover .name { text-decoration: underline; }
+.hero .face:focus-visible, .hero .who:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.ember-chip { color: var(--ember); font-size: 12px; }
+#sheet { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 15; display: flex; align-items: flex-end; justify-content: center; }
+.sheet-card { background: var(--panel); width: 100%; max-width: 720px; max-height: 92%; overflow-y: auto; border-radius: 18px 18px 0 0; padding: 16px 16px calc(24px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 14px; }
+.sheet-head { display: grid; grid-template-columns: auto 64px 1fr auto auto; gap: 10px; align-items: center; }
+.face.big { width: 64px; height: 64px; font-size: 28px; border-radius: 14px; border: 3px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
+.sheet-title h2 { margin: 0; font-size: 22px; }
+.sheet-title { min-width: 0; }
+button.icon { padding: 6px 10px; font-size: 18px; line-height: 1; }
+.stars { margin-top: 4px; letter-spacing: 2px; color: #5b4f86; font-size: 15px; }
+.stars .on { color: var(--gold); }
+.bio { margin: 0; color: var(--muted); line-height: 1.5; }
+.sheet-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.sheet-stats div { background: var(--panel-2); border-radius: 10px; padding: 8px 10px; }
+.sheet-stats small { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.sheet-stats b { font-variant-numeric: tabular-nums; }
+.sheet-section h3 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.level-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid #3d3364; }
+.level-row button { min-width: 112px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.level-row .gold-up .cost { color: var(--gold); font-size: 12px; }
+.level-row .ember-up { background: transparent; border-color: var(--ember); }
+.level-row .ember-up .cost { color: var(--ember); font-size: 12px; }
+.abilities { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.abilities li { background: var(--panel-2); border-radius: 10px; padding: 10px 12px; }
+.abilities .kind { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.abilities .tag { float: right; font-size: 11px; padding: 2px 8px; border-radius: 99px; background: #463a73; color: var(--muted); }
+.abilities .tag.ready { background: var(--ok); color: #08210f; }
+.abilities li.locked { opacity: .6; }
+.abilities p { margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.crest-row { display: flex; justify-content: space-between; font-size: 13px; }
+.crest-bar { height: 8px; background: #463a73; border-radius: 99px; overflow: hidden; margin: 6px 0; }
+#sheet-crest-fill { height: 100%; background: var(--gold); width: 0; }
+@media (max-width: 420px) { .sheet-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.sheet-card .meta { font-size: 13px; color: var(--muted); line-height: 1.45; }
+.sheet-card p.meta { margin: 6px 0 10px; }

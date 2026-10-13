@@ -1,5 +1,6 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE } from './data';
+import { emberYield, effectiveLevel } from './formulas';
 
 const SAVE_KEY = 'hordefall-save-v1';
 
@@ -17,6 +18,13 @@ export class GameState {
   gold = new Decimal(0);
   stage = 1;
   bestStage = 1;
+  /** Highest stage reached since the last Rekindle; sets the Ember payout. */
+  runBestStage = 1;
+  embers = 0;
+  emberLevels: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, 0]));
+  rekindles = 0;
+  /** Hero Crests (copies) per hero, for evolution. Nothing drops them yet. */
+  crests: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, 0]));
   levels: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, h.unlockCost === 0 ? 1 : 0]));
   /** False after losing to a boss: clears repeat the current stage until the player challenges again. */
   autoAdvance = true;
@@ -37,6 +45,42 @@ export class GameState {
 
   emit() {
     for (const fn of this.listeners) fn();
+  }
+
+  /** Fighting level for a hero: gold level plus permanent Ember levels. */
+  heroLevel(id: string): number {
+    return effectiveLevel(this.levels[id] ?? 0, this.emberLevels[id] ?? 0);
+  }
+
+  reachStage(stage: number) {
+    this.stage = stage;
+    this.bestStage = Math.max(this.bestStage, stage);
+    this.runBestStage = Math.max(this.runBestStage, stage);
+  }
+
+  canRekindle() {
+    return this.runBestStage > REKINDLE_STAGE;
+  }
+
+  pendingEmbers() {
+    return emberYield(this.runBestStage, REKINDLE_STAGE);
+  }
+
+  /** Prestige reset (GDD section 7): back to stage 1 and gold level 1, keep Embers and Ember levels. */
+  rekindle(): number {
+    const gained = this.pendingEmbers();
+    if (gained <= 0) return 0;
+    this.embers += gained;
+    this.rekindles += 1;
+    this.gold = new Decimal(0);
+    this.stage = 1;
+    this.runBestStage = 1;
+    this.autoAdvance = true;
+    for (const h of HEROES) this.levels[h.id] = h.unlockCost === 0 ? 1 : this.levels[h.id] > 0 ? 1 : 0;
+    this.secondsPerStage = 20;
+    this.goldPerSec = 0;
+    this.save();
+    return gained;
   }
 
   addGold(amount: Decimal) {
@@ -61,6 +105,11 @@ export class GameState {
       gold: this.gold.toString(),
       stage: this.stage,
       bestStage: this.bestStage,
+      runBestStage: this.runBestStage,
+      embers: this.embers,
+      emberLevels: this.emberLevels,
+      rekindles: this.rekindles,
+      crests: this.crests,
       levels: this.levels,
       autoAdvance: this.autoAdvance,
       speed2x: this.speed2x,
@@ -91,6 +140,11 @@ export class GameState {
       this.gold = new Decimal(d.gold ?? 0);
       this.stage = d.stage ?? 1;
       this.bestStage = d.bestStage ?? this.stage;
+      this.runBestStage = d.runBestStage ?? this.bestStage;
+      this.embers = d.embers ?? 0;
+      this.emberLevels = { ...this.emberLevels, ...(d.emberLevels ?? {}) };
+      this.rekindles = d.rekindles ?? 0;
+      this.crests = { ...this.crests, ...(d.crests ?? {}) };
       this.levels = { ...this.levels, ...(d.levels ?? {}) };
       this.autoAdvance = d.autoAdvance ?? true;
       this.speed2x = !!d.speed2x;
@@ -130,8 +184,7 @@ export class GameState {
       stages = Math.min(room, Math.floor(capped / this.secondsPerStage));
     }
     this.gold = this.gold.plus(gold);
-    this.stage += stages;
-    this.bestStage = Math.max(this.bestStage, this.stage);
+    this.reachStage(this.stage + stages);
     return { seconds: capped, gold, stages };
   }
 }

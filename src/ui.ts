@@ -1,7 +1,7 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, type HeroDef } from './data';
+import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, STAR_CRESTS, type HeroDef } from './data';
 import { setMuted } from './sfx';
-import { bulkCost, heroAtk, heroHp, isBossStage, fmt, fmtDuration } from './formulas';
+import { bulkCost, heroAtk, heroHp, isBossStage, emberCost, fmt, fmtDuration } from './formulas';
 import type { GameState, OfflineReport } from './state';
 import type { BattleScene } from './BattleScene';
 
@@ -16,6 +16,7 @@ interface HeroRow {
   button: HTMLButtonElement;
   label: HTMLElement;
   cost: HTMLElement;
+  ember: HTMLElement;
 }
 
 interface UltButton {
@@ -32,7 +33,7 @@ export class UI {
   constructor(
     private state: GameState,
     private scene: () => BattleScene | undefined,
-    private hooks: { simulateAway: () => void; wipe: () => void },
+    private hooks: { simulateAway: () => void; wipe: () => void; rekindle: () => void },
   ) {
     this.buildHeroes();
     this.buildUlts();
@@ -47,16 +48,27 @@ export class UI {
       const root = document.createElement('div');
       root.className = 'hero';
       root.innerHTML = `
-        <div class="face" style="background:${hex(ELEMENT_COLORS[def.element])}">${def.name[0]}</div>
-        <div>
+        <div class="face" role="button" tabindex="0" aria-label="Open ${def.name}" style="background:${hex(ELEMENT_COLORS[def.element])}">${def.name[0]}</div>
+        <div class="who" role="button" tabindex="0" aria-label="Open ${def.name}">
           <div class="name">${def.name} <span class="meta lvl"></span></div>
-          <div class="meta">${cap(def.element)} ${def.job}${def.goldMult > 1 ? ' · 2x gold' : ''}${def.heals ? ' · heals' : ''}${def.splash ? ' · splash' : ''}</div>
+          <div class="meta">${cap(def.element)} ${def.job} <span class="ember-chip"></span></div>
           <div class="stats"></div>
         </div>
-        <button><span class="label"></span><span class="cost"></span></button>`;
+        <div class="btns">
+          <button class="gold-up"><span class="label"></span><span class="cost"></span></button>
+        </div>`;
       host.appendChild(root);
-      const button = root.querySelector('button') as HTMLButtonElement;
+      const button = root.querySelector('.gold-up') as HTMLButtonElement;
       button.addEventListener('click', () => this.buy(def));
+      for (const el of root.querySelectorAll<HTMLElement>('.face, .who')) {
+        el.addEventListener('click', () => this.openSheet(def.id));
+        el.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            this.openSheet(def.id);
+          }
+        });
+      }
       this.rows.push({
         def,
         root,
@@ -64,7 +76,8 @@ export class UI {
         stats: root.querySelector('.stats') as HTMLElement,
         button,
         label: root.querySelector('.label') as HTMLElement,
-        cost: root.querySelector('.cost') as HTMLElement,
+        cost: root.querySelector('.gold-up .cost') as HTMLElement,
+        ember: root.querySelector('.ember-chip') as HTMLElement,
       });
     }
   }
@@ -113,7 +126,173 @@ export class UI {
       wipe.textContent = 'Tap again to erase';
       setTimeout(() => (wipe.textContent = 'Reset save'), 3000);
     });
-    $('modal-ok').addEventListener('click', () => ($('modal').hidden = true));
+    $('modal-ok').addEventListener('click', () => {
+      $('modal').hidden = true;
+      const action = this.modalAction;
+      this.modalAction = null;
+      action?.();
+    });
+    $('modal-cancel').addEventListener('click', () => {
+      $('modal').hidden = true;
+      this.modalAction = null;
+    });
+    $('rekindle').addEventListener('click', () => this.confirmRekindle());
+
+    $('sheet-close').addEventListener('click', () => this.closeSheet());
+    $('sheet').addEventListener('click', (e) => {
+      if (e.target === $('sheet')) this.closeSheet();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.sheetHero) this.closeSheet();
+    });
+    const step = (dir: number) => {
+      const i = HEROES.findIndex((h) => h.id === this.sheetHero);
+      this.openSheet(HEROES[(i + dir + HEROES.length) % HEROES.length].id);
+    };
+    $('sheet-prev').addEventListener('click', () => step(-1));
+    $('sheet-next').addEventListener('click', () => step(1));
+    $('sheet-gold-up').addEventListener('click', () => {
+      const def = HEROES.find((h) => h.id === this.sheetHero);
+      if (def) this.buy(def);
+    });
+    $('sheet-ember-up').addEventListener('click', () => {
+      const def = HEROES.find((h) => h.id === this.sheetHero);
+      if (def) this.buyEmber(def);
+    });
+  }
+
+  // ---------- hero page ----------
+
+  private sheetHero: string | null = null;
+
+  openSheet(id: string) {
+    this.sheetHero = id;
+    const def = HEROES.find((h) => h.id === id)!;
+    const face = $('sheet-face');
+    face.textContent = def.name[0];
+    face.style.background = hex(ELEMENT_COLORS[def.element]);
+    $('sheet-name').textContent = def.name;
+    $('sheet-sub').textContent = `${cap(def.element)} ${def.job}`;
+    $('sheet-bio').textContent = def.bio;
+    $('sheet').hidden = false;
+    this.renderSheet();
+  }
+
+  private closeSheet() {
+    this.sheetHero = null;
+    $('sheet').hidden = true;
+  }
+
+  private renderSheet() {
+    const id = this.sheetHero;
+    if (!id) return;
+    const s = this.state;
+    const def = HEROES.find((h) => h.id === id)!;
+    const gold = s.levels[id] ?? 0;
+    const ember = s.emberLevels[id] ?? 0;
+    const eff = s.heroLevel(id);
+    const stars = 0; // evolution is not playable yet
+    const crests = s.crests[id] ?? 0;
+
+    $('sheet-stars').innerHTML = STAR_CRESTS.map((_, i) => `<span class="${i < stars ? 'on' : ''}">★</span>`).join('');
+    const shownLevel = gold > 0 ? eff : 1 + ember;
+    const stat = (label: string, value: string) => `<div><small>${label}</small><b>${value}</b></div>`;
+    $('sheet-stats').innerHTML = [
+      stat('Level', gold > 0 ? String(eff) : 'Not recruited'),
+      stat('ATK', fmt(heroAtk(def, shownLevel))),
+      stat('HP', fmt(heroHp(def, shownLevel))),
+      stat('Attacks / sec', (1 / def.attackCooldown).toFixed(2)),
+      stat('Range', def.range > 60 ? `Ranged (${def.range})` : 'Melee'),
+      stat('Gold per kill', `${def.goldMult}x`),
+    ].join('');
+
+    $('sheet-gold-lvl').textContent = gold > 0 ? String(gold) : '(not recruited)';
+    const { levels, cost } = bulkCost(def, gold, s.buyAmount, s.gold);
+    const shown = levels > 0 ? { levels, cost } : bulkCost(def, gold, 1, s.gold);
+    const goldBtn = $<HTMLButtonElement>('sheet-gold-up');
+    (goldBtn.querySelector('.label') as HTMLElement).textContent = gold === 0 ? 'Recruit' : `Level +${shown.levels}`;
+    (goldBtn.querySelector('.cost') as HTMLElement).textContent = fmt(shown.cost);
+    goldBtn.disabled = shown.cost.gt(s.gold);
+
+    $('sheet-ember-lvl').textContent = `+${ember}`;
+    $('sheet-embers').textContent = String(s.embers);
+    const ec = emberCost(ember);
+    const emberBtn = $<HTMLButtonElement>('sheet-ember-up');
+    (emberBtn.querySelector('.cost') as HTMLElement).textContent = `${ec} Ember${ec === 1 ? '' : 's'}`;
+    emberBtn.disabled = ec > s.embers;
+    emberBtn.title = s.rekindles === 0 ? `Earn Embers by Rekindling after stage ${REKINDLE_STAGE}` : '';
+
+    const ultReady = eff >= ULT_UNLOCK_LEVEL;
+    const ability = (kind: string, a: { name: string; text: string }, tag = '', ready = false) =>
+      `<li><span class="kind">${kind}</span>${tag ? `<span class="tag${ready ? ' ready' : ''}">${tag}</span>` : ''}<div><b>${a.name}</b></div><p>${a.text}</p></li>`;
+    const html = [
+      ability('Basic attack', def.basic),
+      ability('Ultimate', def.ultimate, ultReady ? 'Unlocked' : `Unlocks at Lv ${ULT_UNLOCK_LEVEL}`, ultReady),
+      ability('Trait', def.trait),
+    ].join('');
+    // Only re-render lists when content changes, so taps and hover states aren't lost every frame.
+    if ($('sheet-abilities').dataset.key !== `${id}:${ultReady}`) {
+      $('sheet-abilities').innerHTML = html;
+      $('sheet-abilities').dataset.key = `${id}:${ultReady}`;
+    }
+
+    const next = STAR_CRESTS[stars];
+    $('sheet-crests').textContent = `${crests} / ${next} for ${stars + 1}★`;
+    $('sheet-crest-fill').style.width = `${Math.min(100, (crests / next) * 100)}%`;
+    const unlocks: Array<[number, string, string]> = [
+      [1, `Skill: ${def.sp1}`, 'First special skill.'],
+      [2, `Skill: ${def.sp2}`, 'Second special skill.'],
+      [3, `Ultimate: ${def.ultimate.name}`, `In the full game the Ultimate unlocks at 3★. This prototype unlocks it at Lv ${ULT_UNLOCK_LEVEL}.`],
+      [4, `Aura: ${def.aura}`, 'A team-wide passive.'],
+      [5, '5★ to 7★', 'Each extra star doubles all stats again.'],
+    ];
+    if ($('sheet-unlocks').dataset.key !== id) {
+      $('sheet-unlocks').innerHTML = unlocks
+        .map(([star, name, text]) => `<li class="locked"><span class="kind">${star}★</span><span class="tag">Locked</span><div><b>${name}</b></div><p>${text}</p></li>`)
+        .join('');
+      $('sheet-unlocks').dataset.key = id;
+    }
+  }
+
+  private modalAction: (() => void) | null = null;
+
+  private showModal(title: string, html: string, ok: string, action: (() => void) | null = null, cancel = false) {
+    $('modal-title').textContent = title;
+    $('modal-body').innerHTML = html;
+    $('modal-ok').textContent = ok;
+    $('modal-cancel').hidden = !cancel;
+    this.modalAction = action;
+    $('modal').hidden = false;
+  }
+
+  private confirmRekindle() {
+    const s = this.state;
+    if (!s.canRekindle()) return;
+    this.showModal(
+      'Rekindle?',
+      `You go back to stage 1, your gold is spent and every hero drops to gold level 1.<br>You keep recruited heroes and earn <b class="ember-text">${s.pendingEmbers()} Embers</b> for permanent Ember levels.`,
+      `Rekindle for ${s.pendingEmbers()} Embers`,
+      () => this.hooks.rekindle(),
+      true,
+    );
+  }
+
+  showRekindled(gained: number) {
+    this.showModal(
+      'Rekindled!',
+      `You earned <b class="ember-text">${gained} Embers</b>. Tap any hero to spend them on Ember levels. Those levels stay through every Rekindle, so each run starts stronger.`,
+      'Start the new run',
+    );
+  }
+
+  private buyEmber(def: HeroDef) {
+    const level = this.state.emberLevels[def.id] ?? 0;
+    const cost = emberCost(level);
+    if (cost > this.state.embers) return;
+    this.state.embers -= cost;
+    this.state.emberLevels[def.id] = level + 1;
+    this.scene()?.syncHeroes();
+    this.render();
   }
 
   private buy(def: HeroDef) {
@@ -128,8 +307,7 @@ export class UI {
 
   showOffline(report: OfflineReport) {
     const stages = report.stages > 0 ? `<br>Your heroes pushed <b>${report.stages}</b> stage${report.stages === 1 ? '' : 's'}.` : '';
-    $('modal-body').innerHTML = `You were away for ${fmtDuration(report.seconds)}.<br>Your heroes earned <b>${fmt(report.gold)}</b> gold.${stages}`;
-    $('modal').hidden = false;
+    this.showModal('Welcome back!', `You were away for ${fmtDuration(report.seconds)}.<br>Your heroes earned <b>${fmt(report.gold)}</b> gold.${stages}`, 'Collect');
   }
 
   render() {
@@ -137,6 +315,12 @@ export class UI {
     $('gold').textContent = fmt(s.gold);
     $('gps').textContent = `${fmt(new Decimal(s.goldPerSec))}/s`;
     $('best').textContent = String(s.bestStage);
+    $('embers-stat').hidden = s.embers === 0 && s.rekindles === 0;
+    $('embers').textContent = String(s.embers);
+    const rk = $<HTMLButtonElement>('rekindle');
+    rk.hidden = s.runBestStage < 100 && s.rekindles === 0;
+    rk.disabled = !s.canRekindle();
+    rk.textContent = s.canRekindle() ? `Rekindle +${s.pendingEmbers()}` : `Rekindle after ${REKINDLE_STAGE}`;
     const speedUnlocked = s.bestStage >= SPEED_UNLOCK_STAGE;
     const speed = $<HTMLButtonElement>('speed');
     speed.disabled = !speedUnlocked;
@@ -152,26 +336,31 @@ export class UI {
 
     for (const r of this.rows) {
       const level = s.levels[r.def.id] ?? 0;
+      const emberLevel = s.emberLevels[r.def.id] ?? 0;
+      const eff = s.heroLevel(r.def.id);
       const locked = level === 0;
       r.root.classList.toggle('locked', locked);
-      r.level.textContent = locked ? '' : `Lv ${level}`;
+      r.level.innerHTML = locked ? (emberLevel ? `<span class="ember-lvl">+${emberLevel}</span>` : '') : `Lv ${eff}${emberLevel ? ` <span class="ember-lvl">(+${emberLevel})</span>` : ''}`;
+      r.ember.textContent = s.embers >= emberCost(emberLevel) ? '· Ember upgrade ready' : '';
       const { levels, cost } = bulkCost(r.def, level, s.buyAmount, s.gold);
       const shown = levels > 0 ? { levels, cost } : bulkCost(r.def, level, 1, s.gold);
       if (locked) {
         r.stats.textContent = `ATK ${fmt(heroAtk(r.def, 1))} · HP ${fmt(heroHp(r.def, 1))}`;
         r.label.textContent = 'Recruit';
       } else {
-        const next = level + shown.levels;
-        r.stats.innerHTML = `ATK ${fmt(heroAtk(r.def, level))} <span class="next">→ ${fmt(heroAtk(r.def, next))}</span> · HP ${fmt(heroHp(r.def, level))}`;
+        const next = eff + shown.levels;
+        r.stats.innerHTML = `ATK ${fmt(heroAtk(r.def, eff))} <span class="next">→ ${fmt(heroAtk(r.def, next))}</span> · HP ${fmt(heroHp(r.def, eff))}`;
         r.label.textContent = `Level +${shown.levels}`;
       }
       r.cost.textContent = fmt(shown.cost);
       r.button.disabled = shown.cost.gt(s.gold);
     }
 
+    this.renderSheet();
+
     const scene = this.scene();
     for (const u of this.ults) {
-      const level = s.levels[u.def.id] ?? 0;
+      const level = s.heroLevel(u.def.id);
       u.button.hidden = level === 0;
       if (!scene || level === 0) continue;
       const st = scene.getUltState(u.def.id);

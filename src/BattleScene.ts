@@ -34,14 +34,19 @@ import {
 import type { GameState } from './state';
 import { play } from './sfx';
 
+/** Visible area. The lane itself is WORLD_WIDTH long and the camera follows the heroes. */
 export const WIDTH = 480;
+const WORLD_WIDTH = 1440;
 export const HEIGHT = 300;
 const PLAYER_CRYSTAL_X = 36;
-const ENEMY_CRYSTAL_X = WIDTH - 36;
+const ENEMY_CRYSTAL_X = WORLD_WIDTH - 36;
+/** Enemy camps along the lane, as fractions of its length. They wait until a hero gets close. */
+const CAMPS = [0.3, 0.55, 0.8];
+const CAMP_AGGRO = 170;
 const LANE_TOP = 175;
 const LANE_BOTTOM = 255;
 const WAVE_INTERVAL = 7;
-const MAX_ENEMIES = 9;
+const MAX_ENEMIES = 14;
 
 interface Unit {
   side: 'hero' | 'enemy';
@@ -58,6 +63,8 @@ interface Unit {
   element: Element;
   goldMult: number;
   isBoss: boolean;
+  /** Camp enemies hold position until a hero comes within CAMP_AGGRO. */
+  waiting: boolean;
   alive: boolean;
   respawnAt: number;
   ultReadyAt: number;
@@ -103,12 +110,17 @@ export class BattleScene extends Phaser.Scene {
   private incomeWindow = new Decimal(0);
   private incomeWindowReal = 0;
   private bg!: Phaser.GameObjects.Graphics;
+  private ground!: Phaser.GameObjects.Graphics;
   private stageText!: Phaser.GameObjects.Text;
   private infoText!: Phaser.GameObjects.Text;
   private bossBar!: Phaser.GameObjects.Graphics;
   private bannerText!: Phaser.GameObjects.Text;
   /** Real seconds left in a hit-stop freeze, which sells the weight of big hits. */
   private hitStop = 0;
+  /** The boss timer only runs once a hero reaches the boss. */
+  private bossEngaged = false;
+  private hills!: Phaser.GameObjects.Graphics;
+  private progressBar!: Phaser.GameObjects.Graphics;
 
   constructor() {
     super('battle');
@@ -120,19 +132,24 @@ export class BattleScene extends Phaser.Scene {
 
   create() {
     this.makeTextures();
-    this.bg = this.add.graphics();
+    this.bg = this.add.graphics().setScrollFactor(0);
+    this.hills = this.add.graphics().setScrollFactor(0.4);
+    this.ground = this.add.graphics();
+    this.progressBar = this.add.graphics().setScrollFactor(0).setDepth(1000);
+    this.cameras.main.setBounds(0, 0, WORLD_WIDTH, HEIGHT);
     this.add.image(PLAYER_CRYSTAL_X, LANE_TOP + 30, 'crystal-player').setDepth(LANE_TOP);
     this.crystalView = this.add.image(ENEMY_CRYSTAL_X, LANE_TOP + 30, 'crystal-enemy').setDepth(LANE_TOP);
     this.crystalShield = this.add.circle(ENEMY_CRYSTAL_X, LANE_TOP + 26, 30, 0xff3355, 0.18).setStrokeStyle(2, 0xff6680, 0.8).setDepth(LANE_TOP + 1);
     this.crystalBar = this.add.graphics().setDepth(1000);
 
-    this.stageText = this.add.text(10, 8, '', { fontFamily: 'monospace', fontSize: '18px', color: '#ffffff', stroke: '#000', strokeThickness: 4 }).setDepth(1000);
-    this.infoText = this.add.text(10, 32, '', { fontFamily: 'monospace', fontSize: '12px', color: '#ffe9a8', stroke: '#000', strokeThickness: 3 }).setDepth(1000);
-    this.bossBar = this.add.graphics().setDepth(1000);
+    this.stageText = this.add.text(10, 8, '', { fontFamily: 'monospace', fontSize: '18px', color: '#ffffff', stroke: '#000', strokeThickness: 4 }).setDepth(1000).setScrollFactor(0);
+    this.infoText = this.add.text(10, 32, '', { fontFamily: 'monospace', fontSize: '12px', color: '#ffe9a8', stroke: '#000', strokeThickness: 3 }).setDepth(1000).setScrollFactor(0);
+    this.bossBar = this.add.graphics().setDepth(1000).setScrollFactor(0);
     this.bannerText = this.add
       .text(WIDTH / 2, 110, '', { fontFamily: 'monospace', fontSize: '28px', color: '#ffffff', stroke: '#000', strokeThickness: 6 })
       .setOrigin(0.5)
       .setDepth(1001)
+      .setScrollFactor(0)
       .setAlpha(0);
 
     this.syncHeroes();
@@ -204,10 +221,28 @@ export class BattleScene extends Phaser.Scene {
     const [sky, hill, ground] = palettes[Math.floor((this.state.stage - 1) / 50) % palettes.length];
     this.bg.clear();
     this.bg.fillStyle(sky, 1).fillRect(0, 0, WIDTH, HEIGHT);
-    this.bg.fillStyle(hill, 1);
-    for (let i = 0; i < 6; i++) this.bg.fillCircle(i * 130 + 40, LANE_TOP + 10, 70 + (i % 2) * 25);
-    this.bg.fillStyle(ground, 1).fillRect(0, LANE_TOP - 5, WIDTH, HEIGHT - LANE_TOP + 5);
-    this.bg.fillStyle(0x000000, 0.12).fillRect(0, LANE_BOTTOM + 12, WIDTH, HEIGHT - LANE_BOTTOM);
+    // Hills scroll slower than the lane for a little depth.
+    const hillsWidth = WIDTH + (WORLD_WIDTH - WIDTH) * 0.4;
+    this.hills.clear();
+    this.hills.fillStyle(hill, 1);
+    for (let x = 40, i = 0; x < hillsWidth + 100; x += 130, i++) this.hills.fillCircle(x, LANE_TOP + 10, 70 + (i % 2) * 25);
+    const g = this.ground;
+    g.clear();
+    g.fillStyle(ground, 1).fillRect(0, LANE_TOP - 5, WORLD_WIDTH, HEIGHT - LANE_TOP + 5);
+    g.fillStyle(0x000000, 0.12).fillRect(0, LANE_BOTTOM + 12, WORLD_WIDTH, HEIGHT - LANE_BOTTOM);
+    // Grass tufts, rocks and distance posts so the walk reads as travel.
+    const rng = new Phaser.Math.RandomDataGenerator([String(this.state.stage)]);
+    for (let x = 20; x < WORLD_WIDTH; x += rng.between(30, 60)) {
+      const y = rng.between(LANE_TOP, HEIGHT - 8);
+      if (rng.frac() < 0.75) g.fillStyle(0x000000, 0.15).fillRect(x, y, 2, 4).fillRect(x + 3, y - 2, 2, 6).fillRect(x + 6, y, 2, 4);
+      else g.fillStyle(0x000000, 0.22).fillEllipse(x, y, rng.between(8, 16), rng.between(5, 8));
+    }
+    for (let i = 1; i < 4; i++) {
+      const x = (WORLD_WIDTH / 4) * i;
+      g.fillStyle(0x5a3a1a, 1).fillRect(x - 2, LANE_TOP - 26, 4, 24);
+      g.fillStyle(0xd8b47a, 1).fillRect(x - 12, LANE_TOP - 32, 24, 10);
+      g.fillStyle(0x5a3a1a, 1).fillRect(x - 8, LANE_TOP - 28, 16, 2);
+    }
   }
 
   // ---------- units ----------
@@ -256,6 +291,7 @@ export class BattleScene extends Phaser.Scene {
       element: opts.element,
       goldMult: opts.goldMult ?? 1,
       isBoss: !!opts.isBoss,
+      waiting: false,
       alive: true,
       respawnAt: 0,
       ultReadyAt: 0,
@@ -280,7 +316,7 @@ export class BattleScene extends Phaser.Scene {
   /** Create units for newly recruited heroes and refresh stats after upgrades. */
   syncHeroes() {
     for (const def of HEROES) {
-      const level = this.state.levels[def.id] ?? 0;
+      const level = this.state.heroLevel(def.id);
       if (level <= 0) continue;
       let u = this.heroes.find((h) => h.def?.id === def.id);
       const atk = heroAtk(def, level);
@@ -311,13 +347,13 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  private spawnEnemy(boss = false) {
+  private spawnEnemy(boss = false, campX?: number) {
     const stage = this.state.stage;
     const element = boss ? bossElement(stage) : enemyElement(stage);
     const u = this.makeUnit({
       side: 'enemy',
       texture: boss ? 'boss' : 'enemy',
-      x: ENEMY_CRYSTAL_X - (boss ? 50 : Phaser.Math.Between(15, 40)),
+      x: campX !== undefined ? campX + Phaser.Math.Between(-20, 20) : ENEMY_CRYSTAL_X - (boss ? 50 : Phaser.Math.Between(15, 40)),
       hp: boss ? bossHp(stage) : enemyHp(stage),
       atk: boss ? bossAtk(stage) : enemyAtk(stage),
       range: boss ? 40 : 22,
@@ -327,6 +363,7 @@ export class BattleScene extends Phaser.Scene {
       isBoss: boss,
       label: boss ? BOSS_NAMES[(stage / 50 - 1) % BOSS_NAMES.length] : undefined,
     });
+    u.waiting = campX !== undefined;
     this.enemies.push(u);
   }
 
@@ -343,6 +380,8 @@ export class BattleScene extends Phaser.Scene {
     this.stageTime = 0;
     this.waveTimer = 0;
     this.transitioning = false;
+    this.bossEngaged = false;
+    this.cameras.main.scrollX = 0;
     this.drawBackground();
     const boss = isBossStage(stage);
     this.bossTimer = boss ? BOSS_TIME_LIMIT : 0;
@@ -352,12 +391,18 @@ export class BattleScene extends Phaser.Scene {
       this.cameras.main.shake(400, 0.01);
       play('boss');
     }
+    for (const f of CAMPS) {
+      // Camps start as single enemies and grow to three, so a lone starter hero can win early stages.
+      const count = Math.min(3, 1 + Math.floor((stage - 1) / 8) + (Math.random() < 0.3 ? 1 : 0));
+      for (let i = 0; i < count; i++) this.spawnEnemy(false, PLAYER_CRYSTAL_X + (ENEMY_CRYSTAL_X - PLAYER_CRYSTAL_X) * f);
+    }
     this.spawnWave();
     this.state.emit();
   }
 
   private spawnWave() {
-    const count = Math.min(3, MAX_ENEMIES - this.enemies.length);
+    const size = Math.min(3, 1 + Math.floor((this.state.stage - 1) / 15));
+    const count = Math.min(size, MAX_ENEMIES - this.enemies.length);
     for (let i = 0; i < count; i++) this.spawnEnemy(false);
   }
 
@@ -381,9 +426,8 @@ export class BattleScene extends Phaser.Scene {
     this.gainGold(reward, ENEMY_CRYSTAL_X, LANE_TOP);
     this.state.recordStageTime(this.stageTime);
     if (isBossStage(stage)) this.state.autoAdvance = true;
-    if (this.state.autoAdvance) this.state.stage += 1;
     const prevBest = this.state.bestStage;
-    this.state.bestStage = Math.max(this.state.bestStage, this.state.stage);
+    if (this.state.autoAdvance) this.state.reachStage(this.state.stage + 1);
     if (prevBest < SPEED_UNLOCK_STAGE && this.state.bestStage >= SPEED_UNLOCK_STAGE) {
       this.time.delayedCall(1100, () => {
         this.banner('2x SPEED UNLOCKED!', '#7dff9a');
@@ -454,7 +498,11 @@ export class BattleScene extends Phaser.Scene {
     if (this.transitioning) return;
 
     this.stageTime += dt;
-    if (this.bossTimer > 0) {
+    if (!this.bossEngaged && this.bossAlive()) {
+      const boss = this.enemies.find((e) => e.isBoss && e.alive)!;
+      this.bossEngaged = this.heroes.some((h) => h.alive && boss.x - h.x < 220);
+    }
+    if (this.bossTimer > 0 && this.bossEngaged) {
       this.bossTimer -= dt;
       if (this.bossTimer <= 0 && this.bossAlive()) {
         this.loseStage('TIME UP');
@@ -479,6 +527,7 @@ export class BattleScene extends Phaser.Scene {
 
     // Remove dead enemies after their fade finishes.
     this.enemies = this.enemies.filter((e) => e.alive || e.view.active);
+    this.followHeroes(realDt);
 
     if (this.heroes.length > 0 && this.heroes.every((h) => !h.alive)) {
       this.loseStage('DEFEATED');
@@ -531,6 +580,10 @@ export class BattleScene extends Phaser.Scene {
 
   private stepEnemy(e: Unit, dt: number) {
     e.cooldownLeft -= dt;
+    if (e.waiting) {
+      if (!this.heroes.some((h) => h.alive && Math.abs(e.x - h.x) < CAMP_AGGRO)) return;
+      e.waiting = false;
+    }
     const target = this.nearest(e, this.heroes, -1);
     const dist = target ? e.x - target.x : Infinity;
     if (target && dist <= e.range) {
@@ -675,7 +728,7 @@ export class BattleScene extends Phaser.Scene {
 
   getUltState(heroId: string): UltState {
     const h = this.heroes.find((u) => u.def?.id === heroId);
-    const level = this.state.levels[heroId] ?? 0;
+    const level = this.state.heroLevel(heroId);
     return {
       unlocked: level >= ULT_UNLOCK_LEVEL,
       alive: !!h?.alive,
@@ -732,15 +785,16 @@ export class BattleScene extends Phaser.Scene {
     let roll = Math.random() * total;
     const kind = CHESTS.find((c) => (roll -= c.weight) < 0) ?? CHESTS[0];
     const y = Phaser.Math.Between(70, 130);
-    const chest = this.add.image(WIDTH + 20, y, kind.key).setScale(1.6).setDepth(900).setInteractive({ useHandCursor: true });
+    const chest = this.add.image(WIDTH + 20, y, kind.key).setScale(1.6).setDepth(900).setScrollFactor(0).setInteractive({ useHandCursor: true });
     const drift = this.tweens.add({ targets: chest, x: -30, duration: 14000, onComplete: () => chest.destroy() });
     this.tweens.add({ targets: chest, y: y - 8, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     chest.once('pointerdown', () => {
       drift.stop();
       const gold = goldPerKill(this.state.stage).times(kind.killsWorth);
-      this.gainGold(gold, chest.x, chest.y + 10);
-      this.shatter(chest.x, chest.y, 0xffe066);
-      this.flyCoins(chest.x, chest.y, kind.killsWorth >= 15 ? 10 : 5);
+      const wx = chest.x + this.cameras.main.scrollX;
+      this.gainGold(gold, wx, chest.y + 10);
+      this.shatter(wx, chest.y, 0xffe066);
+      this.flyCoins(wx, chest.y, kind.killsWorth >= 15 ? 10 : 5);
       play('chest');
       chest.destroy();
       this.state.emit();
@@ -825,7 +879,7 @@ export class BattleScene extends Phaser.Scene {
         targets: c,
         tweens: [
           { x: x + Phaser.Math.Between(-16, 16), y: y - Phaser.Math.Between(10, 26), duration: 180, ease: 'Quad.out' },
-          { x: 12, y: -6, duration: 420, delay: i * 25, ease: 'Quad.in', onComplete: () => { c.destroy(); play('coin'); } },
+          { x: this.cameras.main.scrollX + 12, y: -6, duration: 420, delay: i * 25, ease: 'Quad.in', onComplete: () => { c.destroy(); play('coin'); } },
         ],
       });
     }
@@ -835,6 +889,15 @@ export class BattleScene extends Phaser.Scene {
     this.bannerText.setText(text).setColor(color).setAlpha(1).setScale(0.6);
     this.tweens.add({ targets: this.bannerText, scale: 1, duration: 200, ease: 'Back.out' });
     this.tweens.add({ targets: this.bannerText, alpha: 0, delay: 800, duration: 300 });
+  }
+
+  /** Keep the front-most hero about 55% across the screen. */
+  private followHeroes(realDt: number) {
+    const cam = this.cameras.main;
+    const alive = this.heroes.filter((h) => h.alive);
+    const front = alive.length ? Math.max(...alive.map((h) => h.x)) : PLAYER_CRYSTAL_X;
+    const target = Phaser.Math.Clamp(front - WIDTH * 0.55, 0, WORLD_WIDTH - WIDTH);
+    cam.scrollX += (target - cam.scrollX) * Math.min(1, realDt * 4);
   }
 
   private drawHud() {
@@ -848,6 +911,19 @@ export class BattleScene extends Phaser.Scene {
     this.crystalBar.clear();
     this.crystalBar.fillStyle(0x000000, 0.7).fillRect(ENEMY_CRYSTAL_X - 22, LANE_TOP - 12, 44, 6);
     this.crystalBar.fillStyle(0xd04a8a, 1).fillRect(ENEMY_CRYSTAL_X - 21, LANE_TOP - 11, 42 * ratio, 4);
+
+    // Lane progress: heroes as colored dots between the two crystals.
+    const px = WIDTH - 150;
+    const pw = 140;
+    const toBar = (x: number) => px + (pw * (x - PLAYER_CRYSTAL_X)) / (ENEMY_CRYSTAL_X - PLAYER_CRYSTAL_X);
+    const pb = this.progressBar;
+    pb.clear();
+    pb.fillStyle(0x000000, 0.55).fillRoundedRect(px - 6, 8, pw + 12, 14, 7);
+    pb.fillStyle(0xffffff, 0.35).fillRect(px, 14, pw, 2);
+    pb.fillStyle(0x6fd3ff, 1).fillRect(px - 2, 11, 4, 8);
+    pb.fillStyle(0xd04a8a, 1).fillRect(px + pw - 2, 11, 4, 8);
+    for (const e of this.enemies) if (e.alive) pb.fillStyle(0xff4c4c, 1).fillRect(toBar(e.x) - 1, 13, 2, 4);
+    for (const h of this.heroes) if (h.alive) pb.fillStyle(ELEMENT_COLORS[h.element], 1).fillCircle(toBar(h.x), 15, 3);
 
     this.bossBar.clear();
     if (boss && this.bossTimer > 0) {

@@ -1,11 +1,13 @@
 import Decimal from 'break_infinity.js';
 import type { HeroDef } from './data';
 
-// Tuning from a quick economy sim: stage 50 in ~8 minutes, stage 100 in ~50,
-// then a soft wall that Rekindle (not in this prototype) is meant to break.
-const ENEMY_GROWTH = 1.12;
-const GOLD_GROWTH = 1.125;
+// Tuning from a quick economy sim: stage 50 in ~6 minutes, stage 100 in ~20,
+// the first Rekindle at stage 130 in roughly an hour, then a wall that Rekindle breaks.
+const ENEMY_GROWTH = 1.11;
+const GOLD_GROWTH = 1.115;
 const COST_GROWTH = 1.08;
+/** Hero stats double every this many levels. */
+const MILESTONE_LEVELS = 20;
 
 export const isBossStage = (stage: number) => stage % 50 === 0;
 
@@ -37,10 +39,29 @@ export function stageClearGold(stage: number): Decimal {
   return goldPerKill(stage).times(isBossStage(stage) ? 40 : 3);
 }
 
-/** Stats scale with level and double at every 25-level milestone. */
+/** Stats scale with level and double at every milestone. */
 function levelScale(level: number): Decimal {
   if (level <= 0) return new Decimal(0);
-  return Decimal.pow(2, Math.floor(level / 25)).times(level);
+  return Decimal.pow(2, Math.floor(level / MILESTONE_LEVELS)).times(level);
+}
+
+/**
+ * A hero's fighting level: gold levels (reset on Rekindle) plus Ember levels
+ * (permanent). Ember levels only count once the hero is recruited this run.
+ */
+export function effectiveLevel(goldLevel: number, emberLevel: number): number {
+  return goldLevel > 0 ? goldLevel + emberLevel : 0;
+}
+
+/** Embers granted for a Rekindle with this as the highest stage reached in the run. */
+export function emberYield(runBestStage: number, rekindleStage: number): number {
+  if (runBestStage <= rekindleStage) return 0;
+  return Math.floor(40 * Math.pow(1.06, runBestStage - rekindleStage - 1));
+}
+
+/** Embers to raise a hero's Ember level from `level` to `level + 1`. */
+export function emberCost(level: number): number {
+  return 1 + Math.floor(level / 10);
 }
 
 export function heroAtk(def: HeroDef, level: number): Decimal {
