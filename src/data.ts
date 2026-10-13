@@ -3,8 +3,8 @@ export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
 export type Job = 'Blademaster' | 'Mage' | 'Knight' | 'Rogue' | 'Ranger' | 'Support';
 /**
  * The hero standard (design/base-heroes.md): every hero has one of five Roles, which sets the stat
- * shape, plus a Class of their own with a Signature passive (on from 1★) and an Ultimate that does
- * something only they do, with a 5★ twist. Heroes not yet rebuilt to the standard leave these out.
+ * shape, plus a Class (several heroes can share one), a Signature passive of their own (on from 1★) and
+ * an Ultimate that does something only they do, with a 5★ twist. Heroes not yet rebuilt to the standard leave these out.
  */
 export type Role = 'Vanguard' | 'Striker' | 'Marksman' | 'Caster' | 'Mender';
 

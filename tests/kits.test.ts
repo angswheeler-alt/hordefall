@@ -12,11 +12,11 @@ describe('hero standard', () => {
     expect(new Set(standard.map((h) => h.role)).size).toBe(5);
   });
 
-  it('gives every standard hero its own class, Signature and Ultimate', () => {
+  it('gives every standard hero a class, and a Signature and Ultimate of their own (classes can repeat)', () => {
     for (const h of standard) {
       expect(h.heroClass && h.signature && h.ult && h.ultPlus).toBeTruthy();
     }
-    for (const key of ['heroClass', 'signature', 'ult'] as const) {
+    for (const key of ['signature', 'ult'] as const) {
       const seen = standard.map((h) => JSON.stringify(h[key]));
       expect(new Set(seen).size).toBe(seen.length);
     }
