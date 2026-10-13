@@ -261,3 +261,28 @@ button.link[disabled] { display: none; }
 .hero-sub { gap: 6px; }
 .wood-btn.levelall { background: linear-gradient(180deg, #ffb53d, var(--orange) 50%, var(--orange-lo)); border-color: #6b3200; }
 .wood-btn:disabled { filter: grayscale(.6) brightness(.75); opacity: 1; }
+
+/* Market Row */
+.market-note { margin: 0 4px 10px; color: #e8d3b0; font-size: 13px; }
+#stalls { display: flex; flex-direction: column; gap: 6px; }
+.stall { display: grid; grid-template-columns: 58px 1fr auto; gap: 10px; align-items: center; background: linear-gradient(180deg, var(--plank), #4a2d17); border: 2px solid var(--wood-deep); border-radius: 10px; padding: 6px 8px 6px 6px; box-shadow: inset 0 1px 0 rgba(255,255,255,.12); }
+.stall-art { position: relative; width: 58px; height: 58px; border-radius: 8px; border: 2px solid var(--wood-deep); background: linear-gradient(180deg, #8a5a32 0 45%, #5a3a1e 45%); overflow: hidden; }
+.stall-art .awning { position: absolute; left: 0; right: 0; top: 0; height: 22px; background: repeating-linear-gradient(90deg, var(--c) 0 10px, #fff3dc 10px 20px); border-bottom: 2px solid var(--wood-deep); border-radius: 0 0 6px 6px; }
+.stall-art .stall-lv { position: absolute; left: 2px; bottom: 1px; font-size: 11px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
+.stall .banner { display: flex; align-items: center; background: linear-gradient(90deg, var(--el), color-mix(in srgb, var(--el) 55%, #000)); border: 1px solid rgba(0,0,0,.5); border-radius: 6px; padding: 2px 8px; }
+.stall .banner .name { font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
+.stall-bar { position: relative; display: block; width: 100%; height: 22px; margin-top: 5px; padding: 0; border-radius: 6px; background: #1c0f06; border: 1px solid #000; overflow: hidden; cursor: default; }
+.stall-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(180deg, #ffe46b, #e0a21a); }
+.stall-bar .stall-amt { position: relative; font-size: 12px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
+.stall-bar:disabled { opacity: 1; }
+.stall.ready .stall-bar { cursor: pointer; box-shadow: 0 0 0 2px var(--gold), 0 0 10px var(--gold); animation: ult-pulse 1.2s ease-in-out infinite; }
+.stall .meta { color: #d9bf98; font-size: 11px; margin-top: 3px; }
+.stall .gold-up { min-width: 92px; min-height: 52px; display: flex; flex-direction: column; align-items: center; gap: 2px; background: linear-gradient(180deg, #ffb53d, var(--orange) 50%, var(--orange-lo)); border: 2px solid #6b3200; border-radius: 9px; color: #fff; text-shadow: 0 1px 1px #6b3200; box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 2px 0 #4a2200; }
+.stall .gold-up .cost { display: inline-flex; align-items: center; gap: 4px; color: #fff5c2; font-size: 13px; font-weight: 800; }
+.stall .gold-up .cost::before { content: ''; width: 12px; height: 12px; border-radius: 50%; background: var(--gold); box-shadow: inset -2px -2px 0 #c9a227; border: 1px solid #6b3200; }
+.stall .gold-up .label { font-weight: 800; font-size: 15px; }
+.stall .gold-up:disabled { opacity: 1; filter: grayscale(.6) brightness(.75); }
+.stall.locked .stall-art { filter: grayscale(.8) brightness(.6); }
+.stall.locked .banner { filter: grayscale(.7); }
+.stall.locked .gold-up { background: linear-gradient(180deg, #7dd0ff, #2d93d6 50%, #1a5f99); border-color: #0b2f4f; }
+@media (prefers-reduced-motion: reduce) { .stall.ready .stall-bar { animation: none; } }

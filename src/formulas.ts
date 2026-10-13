@@ -1,5 +1,6 @@
 import Decimal from 'break_infinity.js';
-import type { HeroDef } from './data';
+import type { HeroDef, StallDef } from './data';
+import { STALL_MILESTONE } from './data';
 
 // Tuning from an economy sim: the stage 100 boss falls when the lead hero is
 // around level 100 (gold + Ember levels), the first Rekindle (after stage 125)
@@ -131,4 +132,16 @@ export function fmtDuration(seconds: number): string {
   if (h > 0) return `${h}h ${m}m`;
   if (m > 0) return `${m}m ${Math.floor(seconds % 60)}s`;
   return `${Math.floor(seconds)}s`;
+}
+
+/** Gold for one Stall cycle at a level (before the Rekindle revenue buff). */
+export function stallIncome(def: StallDef, level: number): Decimal {
+  if (level <= 0) return new Decimal(0);
+  return new Decimal(def.baseIncome).times(level).times(Decimal.pow(3, Math.floor(level / STALL_MILESTONE)));
+}
+
+/** Gold to raise a Stall from `level` to `level + 1`; level 0 means opening it. */
+export function stallUpgradeCost(def: StallDef, level: number): Decimal {
+  if (level === 0) return new Decimal(def.unlockCost);
+  return Decimal.pow(1.07, level - 1).times(def.unlockCost * 0.4);
 }

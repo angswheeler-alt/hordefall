@@ -1,8 +1,8 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, ULT_STAR_BONUS, ULT_MULTIPLIER, ULT_COOLDOWN, type HeroDef } from './data';
+import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, ULT_STAR_BONUS, ULT_MULTIPLIER, ULT_COOLDOWN, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
-import { bulkCost, upgradeCost, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
+import { bulkCost, upgradeCost, stallUpgradeCost, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
 import type { GameState, OfflineReport, SummonDrop } from './state';
 import type { BattleScene } from './BattleScene';
 
@@ -34,6 +34,19 @@ interface HeroRow {
   stars: HTMLElement;
 }
 
+interface StallRow {
+  def: StallDef;
+  root: HTMLElement;
+  level: HTMLElement;
+  fill: HTMLElement;
+  amount: HTMLElement;
+  meta: HTMLElement;
+  button: HTMLButtonElement;
+  cost: HTMLElement;
+  label: HTMLElement;
+  collect: HTMLButtonElement;
+}
+
 interface UltButton {
   def: HeroDef;
   button: HTMLButtonElement;
@@ -53,7 +66,14 @@ export class UI {
     this.buildHeroes();
     this.buildUlts();
     this.bindControls();
-    setInterval(() => this.render(), 200);
+    this.buildMarket();
+    let last = performance.now();
+    setInterval(() => {
+      const now = performance.now();
+      this.state.tickMarket(Math.min(5, (now - last) / 1000));
+      last = now;
+      this.render();
+    }, 200);
     this.render();
   }
 
@@ -97,6 +117,88 @@ export class UI {
         stars: root.querySelector('.stars-mini') as HTMLElement,
       });
     }
+  }
+
+  private stallRows: StallRow[] = [];
+
+  private buildMarket() {
+    const host = $('stalls');
+    for (const def of STALLS) {
+      const root = document.createElement('div');
+      root.className = 'stall';
+      root.innerHTML = `
+        <div class="stall-art" style="--c:${hex(def.color)}" aria-hidden="true"><span class="awning"></span><span class="stall-lv"></span></div>
+        <div class="stall-info">
+          <div class="banner" style="--el:${hex(def.color)}"><span class="name">${def.name}</span></div>
+          <button class="stall-bar" aria-label="Collect ${def.name}"><i></i><span class="stall-amt"></span></button>
+          <div class="meta"></div>
+        </div>
+        <button class="gold-up"><span class="cost"></span><span class="label"></span></button>`;
+      host.appendChild(root);
+      const button = root.querySelector('.gold-up') as HTMLButtonElement;
+      button.addEventListener('click', () => {
+        if (this.state.buyStall(def.id)) {
+          if (this.state.stalls[def.id].level === 1 || this.state.stalls[def.id].level === STALL_AUTO_LEVEL) play('unlock');
+          this.render();
+        }
+      });
+      const collect = root.querySelector('.stall-bar') as HTMLButtonElement;
+      collect.addEventListener('click', () => {
+        if (this.state.collectStall(def.id)) {
+          play('coin');
+          this.render();
+        }
+      });
+      this.stallRows.push({
+        def,
+        root,
+        level: root.querySelector('.stall-lv') as HTMLElement,
+        fill: root.querySelector('.stall-bar i') as HTMLElement,
+        amount: root.querySelector('.stall-amt') as HTMLElement,
+        meta: root.querySelector('.stall-info .meta') as HTMLElement,
+        button,
+        cost: root.querySelector('.gold-up .cost') as HTMLElement,
+        label: root.querySelector('.gold-up .label') as HTMLElement,
+        collect,
+      });
+    }
+  }
+
+  private renderMarket(): boolean {
+    const s = this.state;
+    let anyReady = false;
+    const bonus = s.stallBonusLevels();
+    $('market-note').textContent =
+      s.rekindles > 0
+        ? `Rekindle bonus: Stall income x${s.marketRevenueMult().toFixed(2)}, +${bonus} levels on auto-collect Stalls.`
+        : `Tap a full bar to collect. Stalls collect themselves from level ${STALL_AUTO_LEVEL}.`;
+    let prevOpen = true;
+    for (const r of this.stallRows) {
+      const st = s.stalls[r.def.id];
+      const open = st.level > 0;
+      const auto = s.stallAuto(r.def.id);
+      const ready = s.stallReady(r.def.id);
+      anyReady ||= ready;
+      r.root.classList.toggle('locked', !open);
+      r.root.classList.toggle('ready', ready);
+      r.root.hidden = !open && !prevOpen;
+      prevOpen = open;
+      const eff = s.stallEffectiveLevel(r.def.id);
+      r.level.textContent = open ? `Lv ${eff}` : '';
+      const income = s.stallIncome(r.def);
+      r.fill.style.width = open ? `${Math.min(100, (st.progress / r.def.cycle) * 100)}%` : '0%';
+      r.amount.textContent = !open ? 'Closed' : ready ? `Collect ${fmt(income)}` : `${fmt(income)}`;
+      r.collect.disabled = !ready;
+      const toMilestone = STALL_MILESTONE - (st.level % STALL_MILESTONE);
+      r.meta.textContent = !open
+        ? `${r.def.blurb} ${fmt(stallIncomePreview(r.def))} gold every ${r.def.cycle}s.`
+        : `${fmt(income)} every ${r.def.cycle}s · ${auto ? 'Auto-collect' : `Auto at Lv ${STALL_AUTO_LEVEL}`} · x3 in ${toMilestone} Lv`;
+      const cost = stallUpgradeCost(r.def, st.level);
+      r.cost.textContent = fmt(cost);
+      r.label.textContent = open ? 'Upgrade' : 'Open';
+      r.button.disabled = cost.gt(s.gold);
+    }
+    return anyReady;
   }
 
   private buildUlts() {
@@ -463,6 +565,9 @@ export class UI {
     $('rk-stagebonus').textContent = `x${stageBonus < 100 ? stageBonus.toFixed(2) : fmt(stageBonus)}`;
     $('rk-keeperbonus').textContent = `x${s.keeperBonus().toFixed(2)}`;
 
+    const plus = (r: number) => `+${Math.round(r * 100)}%`;
+    $('rk-mr-rev').textContent = `${plus(STALL_REKINDLE_REVENUE * s.rekindles)} → ${plus(STALL_REKINDLE_REVENUE * (s.rekindles + 1))}`;
+    $('rk-mr-lv').textContent = `+${s.stallBonusLevels()} → +${Math.min(STALL_REKINDLE_LEVELS_CAP, STALL_REKINDLE_LEVELS * (s.rekindles + 1))}`;
     const reached = s.roadReached();
     const roadGems = s.pendingRoadGems();
     $('rk-road-count').textContent = `${reached}/${ROAD_LENGTH}`;
@@ -528,7 +633,8 @@ export class UI {
 
   showOffline(report: OfflineReport) {
     const stages = report.stages > 0 ? `<br>Your heroes pushed <b>${report.stages}</b> stage${report.stages === 1 ? '' : 's'}.` : '';
-    this.showModal('Welcome back!', `You were away for ${fmtDuration(report.seconds)}.<br>Your heroes earned <b>${fmt(report.gold)}</b> gold.${stages}`, 'Collect');
+    const market = report.market.gt(0) ? `<br>Market Row made <b>${fmt(report.market)}</b> of that.` : '';
+    this.showModal('Welcome back!', `You were away for ${fmtDuration(report.seconds)}.<br>You earned <b>${fmt(report.gold)}</b> gold.${market}${stages}`, 'Collect');
   }
 
   render() {
@@ -592,6 +698,7 @@ export class UI {
       r.button.disabled = shown.cost.gt(s.gold);
     }
 
+    this.badge('market', this.renderMarket());
     this.badge('heroes', heroesBadge);
     this.badge('shop', s.gems >= CHEST_COST);
     if (this.tab === 'battle') this.renderBattle();
@@ -612,6 +719,10 @@ export class UI {
       u.button.style.setProperty('--cd', !st.unlocked || !st.alive ? '1' : String(Math.min(1, st.remaining / ULT_COOLDOWN)));
     }
   }
+}
+
+function stallIncomePreview(def: StallDef) {
+  return new Decimal(def.baseIncome);
 }
 
 function cap(s: string) {

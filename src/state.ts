@@ -1,7 +1,7 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, START_GEMS, MILESTONE_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS } from './data';
-import { upgradeCost, emberYield, keeperLevel, effectiveLevel, emberCost, heroAtk, heroHp } from './formulas';
-import type { HeroDef } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS } from './data';
+import { stallIncome, stallUpgradeCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, emberCost, heroAtk, heroHp } from './formulas';
+import type { HeroDef, StallDef } from './data';
 
 const SAVE_KEY = 'hordefall-save-v1';
 
@@ -15,6 +15,14 @@ export interface OfflineReport {
   seconds: number;
   gold: Decimal;
   stages: number;
+  /** Part of `gold` that came from auto-collect Stalls. */
+  market: Decimal;
+}
+
+export interface StallState {
+  level: number;
+  /** Seconds into the current cycle. */
+  progress: number;
 }
 
 /**
@@ -30,6 +38,8 @@ export class GameState {
   embers = 0;
   emberLevels: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, 0]));
   rekindles = 0;
+  /** Market Row Stalls; level 0 means not opened. Reset on Rekindle. */
+  stalls: Record<string, StallState> = Object.fromEntries(STALLS.map((s) => [s.id, { level: 0, progress: 0 }]));
   /** Every Ember ever earned; sets the Keeper level. */
   lifetimeEmbers = 0;
   /** Ember Road markers already paid out. */
@@ -167,6 +177,82 @@ export class GameState {
     return bought;
   }
 
+  /** Permanent Market Row revenue multiplier from Rekindles. */
+  marketRevenueMult() {
+    return 1 + STALL_REKINDLE_REVENUE * this.rekindles;
+  }
+
+  /** Bonus Stall levels from Rekindles, given to every auto-collect Stall. */
+  stallBonusLevels() {
+    return Math.min(STALL_REKINDLE_LEVELS_CAP, STALL_REKINDLE_LEVELS * this.rekindles);
+  }
+
+  stallAuto(id: string) {
+    return this.stalls[id].level >= STALL_AUTO_LEVEL;
+  }
+
+  stallEffectiveLevel(id: string) {
+    const level = this.stalls[id].level;
+    return level >= STALL_AUTO_LEVEL ? level + this.stallBonusLevels() : level;
+  }
+
+  stallIncome(def: StallDef): Decimal {
+    return stallIncome(def, this.stallEffectiveLevel(def.id)).times(this.marketRevenueMult());
+  }
+
+  stallReady(id: string) {
+    const st = this.stalls[id];
+    const def = STALLS.find((d) => d.id === id)!;
+    return st.level > 0 && !this.stallAuto(id) && st.progress >= def.cycle;
+  }
+
+  /** Advance every open Stall; auto-collect ones pay out, the rest wait for a tap. Returns gold auto-collected. */
+  tickMarket(dt: number): Decimal {
+    let earned = new Decimal(0);
+    for (const def of STALLS) {
+      const st = this.stalls[def.id];
+      if (st.level === 0) continue;
+      st.progress += dt;
+      if (this.stallAuto(def.id)) {
+        const cycles = Math.floor(st.progress / def.cycle);
+        if (cycles > 0) {
+          earned = earned.plus(this.stallIncome(def).times(cycles));
+          st.progress -= cycles * def.cycle;
+        }
+      } else {
+        st.progress = Math.min(st.progress, def.cycle);
+      }
+    }
+    this.gold = this.gold.plus(earned);
+    return earned;
+  }
+
+  collectStall(id: string): Decimal | null {
+    if (!this.stallReady(id)) return null;
+    const def = STALLS.find((d) => d.id === id)!;
+    const amount = this.stallIncome(def);
+    this.gold = this.gold.plus(amount);
+    this.stalls[id].progress = 0;
+    return amount;
+  }
+
+  buyStall(id: string): boolean {
+    const def = STALLS.find((d) => d.id === id)!;
+    const st = this.stalls[id];
+    const cost = stallUpgradeCost(def, st.level);
+    if (cost.gt(this.gold)) return false;
+    this.gold = this.gold.minus(cost);
+    st.level += 1;
+    return true;
+  }
+
+  /** Gold per second from auto-collect Stalls, used for offline time. */
+  marketAutoPerSec(): Decimal {
+    let total = new Decimal(0);
+    for (const def of STALLS) if (this.stallAuto(def.id)) total = total.plus(this.stallIncome(def).div(def.cycle));
+    return total;
+  }
+
   keeperLevel() {
     return keeperLevel(this.lifetimeEmbers);
   }
@@ -210,6 +296,7 @@ export class GameState {
     this.gold = new Decimal(0);
     this.stage = 1;
     this.runBestStage = 1;
+    for (const def of STALLS) this.stalls[def.id] = { level: 0, progress: 0 };
     this.autoAdvance = true;
     for (const h of HEROES) this.levels[h.id] = h.unlockCost === 0 ? 1 : this.levels[h.id] > 0 ? 1 : 0;
     this.secondsPerStage = 20;
@@ -246,6 +333,7 @@ export class GameState {
       rekindles: this.rekindles,
       lifetimeEmbers: this.lifetimeEmbers,
       roadClaimed: this.roadClaimed,
+      stalls: this.stalls,
       crests: this.crests,
       stars: this.stars,
       gems: this.gems,
@@ -285,6 +373,10 @@ export class GameState {
       this.rekindles = d.rekindles ?? 0;
       this.lifetimeEmbers = d.lifetimeEmbers ?? this.embers;
       this.roadClaimed = d.roadClaimed ?? 0;
+      for (const def of STALLS) {
+        const st = d.stalls?.[def.id];
+        if (st) this.stalls[def.id] = { level: st.level ?? 0, progress: st.progress ?? 0 };
+      }
       this.crests = { ...this.crests, ...(d.crests ?? {}) };
       this.stars = { ...this.stars, ...(d.stars ?? {}) };
       this.gems = d.gems ?? START_GEMS;
@@ -319,7 +411,10 @@ export class GameState {
   applyOffline(seconds: number): OfflineReport | null {
     const capped = Math.min(seconds, OFFLINE_CAP_HOURS * 3600);
     if (capped < 60) return null;
-    const gold = new Decimal(this.goldPerSec).times(capped);
+    const market = this.marketAutoPerSec().times(capped);
+    const gold = new Decimal(this.goldPerSec).times(capped).plus(market);
+    // Stalls waiting for a tap fill up while you're away.
+    for (const def of STALLS) if (this.stalls[def.id].level > 0 && !this.stallAuto(def.id)) this.stalls[def.id].progress = def.cycle;
     let stages = 0;
     if (this.autoAdvance && this.secondsPerStage > 0 && this.stage % BOSS_EVERY !== 0) {
       const nextBoss = Math.ceil((this.stage + 1) / BOSS_EVERY) * BOSS_EVERY;
@@ -328,6 +423,6 @@ export class GameState {
     }
     this.gold = this.gold.plus(gold);
     this.reachStage(this.stage + stages);
-    return { seconds: capped, gold, stages };
+    return { seconds: capped, gold, stages, market };
   }
 }
