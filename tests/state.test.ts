@@ -349,6 +349,12 @@ describe('relics', () => {
 
   it('every hero has its own specialty, and builds of shared effects get stronger', () => {
     for (const h of HEROES) expect(heroProfile(h).specialty.length, h.id).toBeGreaterThan(0);
+    // No two heroes share the same stats: every full profile (role shape plus specialty) differs.
+    const shapes = HEROES.map((h) => {
+      const { specialty: _, ...stats } = heroProfile(h);
+      return JSON.stringify(stats);
+    });
+    expect(new Set(shapes).size).toBe(HEROES.length);
     const s = fresh();
     const freezers = HEROES.filter((h) => heroBuildEffects(h).includes('freeze'));
     expect(freezers.length).toBeGreaterThanOrEqual(3);
@@ -359,6 +365,17 @@ describe('relics', () => {
     const trio = s.heroStats(freezers[0]);
     expect(trio.freezeTime).toBeGreaterThan(solo.freezeTime);
     expect(trio.freezeBlast).toBeGreaterThan(solo.freezeBlast);
+  });
+
+  it('specialty bonuses reach the stat sheet', () => {
+    const s = fresh();
+    const byId = (id: string) => HEROES.find((h) => h.id === id)!;
+    for (const id of ['brine', 'marina', 'aegis', 'flint', 'briar']) s.levels[id] = 1;
+    expect(s.heroStats(byId('brine')).ultAtk).toBeCloseTo(0.2);
+    expect(s.heroStats(byId('marina')).aoeDmg).toBeCloseTo(0.2);
+    expect(s.heroStats(byId('aegis')).knightShield).toBeCloseTo(0.5);
+    expect(s.heroStats(byId('flint')).bonusGold).toBeGreaterThan(1.9);
+    expect(s.heroStats(byId('briar')).poisonTime).toBeGreaterThanOrEqual(0.2);
   });
 
   it('drops relics that are no longer in the game from old saves', () => {

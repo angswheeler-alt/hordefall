@@ -39,6 +39,7 @@ import { sumEffect, mulEffect, everyNth } from './skills';
 import type { EffectKind } from './data';
 import { comboMult, executeMult, signatureReflect, splitHeal } from './kits';
 import { STAT_BASE, FREEZE_BLAST_RADIUS, BOSS_STUN_CHANCE, BOSS_STUN_SECONDS, type HeroStats } from './stats';
+import { heroProfile } from './profiles';
 
 /** Visible area. The lane itself is WORLD_WIDTH long and the camera follows the heroes. */
 export const WIDTH = 480;
@@ -493,7 +494,7 @@ export class BattleScene extends Phaser.Scene {
           cooldown: def.attackCooldown,
           speed: def.moveSpeed,
           element: def.element,
-          goldMult: def.goldMult,
+          goldMult: def.goldMult * (1 + heroProfile(def).goldBonus),
         });
         u.defense = defense;
         u.stats = stats;
