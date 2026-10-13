@@ -38,7 +38,7 @@ const ui = new UI(state, scene, {
     const result = state.rekindle(mult);
     if (result) {
       scene()?.restart();
-      ui.showRekindled(result.embers, result.gems);
+      ui.showRekindled(result);
     }
   },
   wipe: () => {

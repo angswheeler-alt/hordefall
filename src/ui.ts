@@ -1,9 +1,10 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, LEGENDARY_MEDAL_RATE, MAX_STARS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_LEVELS_PER_TIER, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, LEGENDARY_MEDAL_RATE, MAX_STARS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_LEVELS_PER_TIER, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
 import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
-import type { GameState, OfflineReport, SummonDrop } from './state';
+import type { GameState, OfflineReport, SummonDrop, RekindleResult } from './state';
+import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, BOOTCAMP, rewardText, type Reward } from './rewards';
 import { rarityOdds } from './state';
 import type { BattleScene } from './BattleScene';
 
@@ -459,6 +460,7 @@ export class UI {
       this.state.gems += 100;
       this.render();
     });
+    this.bindRewards();
     $('sheet-evolve').addEventListener('click', () => {
       if (this.sheetHero && this.state.evolve(this.sheetHero)) {
         play('unlock');
@@ -529,16 +531,11 @@ export class UI {
   }
 
   private showSummon(drops: SummonDrop[]) {
-    const cards = drops
-      .map((d) => {
-        const def = HEROES.find((h) => h.id === d.heroId)!;
-        return `<div class="drop"><div class="face art" style="${faceStyle(def)}">${def.name[0]}</div><b>${def.name}</b>${d.isNew ? '<span class="new">READY TO UNLOCK</span>' : ''}<span class="crest">+${d.crests} Crests</span></div>`;
-      })
-      .join('');
+    const cards = dropCards(drops);
     const canAgain = this.state.gems >= CHEST_COST;
     this.showModal(
       'Hero Chest',
-      `<div class="summon-grid">${cards}</div>Tap a hero to evolve them when their Crest bar is full.`,
+      `${cards}Tap a hero to evolve them when their Crest bar is full.`,
       canAgain ? `Open another (${CHEST_COST} Gems)` : 'Done',
       canAgain ? () => this.summon() : null,
       canAgain,
@@ -844,24 +841,22 @@ export class UI {
     $('rk-mr-rev').textContent = `${plus(STALL_REKINDLE_REVENUE * s.rekindles)} → ${plus(STALL_REKINDLE_REVENUE * (s.rekindles + 1))}`;
     $('rk-mr-lv').textContent = `+${s.stallBonusLevels()} → +${Math.min(STALL_REKINDLE_LEVELS_CAP, STALL_REKINDLE_LEVELS * (s.rekindles + 1))}`;
     const reached = s.roadReached();
-    const roadGems = s.pendingRoadGems();
     $('rk-road-count').textContent = `${reached}/${ROAD_LENGTH}`;
     setHtml($('rk-dots'), Array.from({ length: ROAD_LENGTH }, (_, i) => {
-      const cls = i < s.roadClaimed ? 'on' : i < reached ? 'new' : i === reached ? 'next' : '';
+      const cls = i < reached ? 'on' : i === reached ? 'next' : '';
       return `<i class="${cls}" title="Stage ${ROAD_START + i * ROAD_STEP}"></i>`;
     }).join(''));
-    $('rk-road-gems').textContent = roadGems > 0 ? `+${roadGems} Gems` : '';
+    $('rk-road-gems').textContent = reached > 0 ? `${reached} spin${reached === 1 ? '' : 's'}` : '';
     $('rk-road-next').textContent =
-      reached < ROAD_LENGTH
-        ? `Next slot unlocks at stage ${(ROAD_START + reached * ROAD_STEP).toLocaleString()} (best stage ever). Each slot pays ${ROAD_GEMS} Gems when you Rekindle.`
-        : 'Every slot unlocked.';
+      (reached < ROAD_LENGTH ? `Next unlock at stage ${(ROAD_START + reached * ROAD_STEP).toLocaleString()} this run. ` : 'Every slot unlocked. ') +
+      'Each slot spins the wheel once when you Rekindle: a Hero Chest, Trial tickets, Trial Essence or extra Embers.';
 
     const level = s.keeperLevel();
     const from = level === 1 ? 0 : keeperThreshold(level - 1);
     const to = keeperThreshold(level);
     const pct = (v: number) => `${Math.max(0, Math.min(100, ((v - from) / (to - from)) * 100))}%`;
     $('rk-level').textContent = String(level);
-    $('rk-nextlvl').textContent = `Lv ${level + 1}: Embers x${(s.keeperBonus() + KEEPER_BONUS_PER_LEVEL).toFixed(2)}`;
+    $('rk-nextlvl').textContent = `Lv ${level + 1}: Embers x${(s.keeperBonus() + KEEPER_BONUS_PER_LEVEL).toFixed(2)} + 🎁 Hero Chest`;
     $('rk-bar-fill').style.width = pct(s.lifetimeEmbers);
     $('rk-bar-gain').style.width = pct(s.lifetimeEmbers + base);
     $('rk-bar-now').textContent = `Lifetime Embers: ${fmt(s.lifetimeEmbers)}`;
@@ -877,11 +872,148 @@ export class UI {
     setHtml($('rk-buttons'), buttons.join(''));
   }
 
-  showRekindled(embers: number, gems: number) {
-    const road = gems > 0 ? `<br>The Rekindle Wheel paid <b>${gems} Gems</b>.` : '';
+  // ---------- free rewards (Shop tab) ----------
+
+  private spinning = false;
+
+  private bindRewards() {
+    // Lucky Spin wheel: equal slices, labels turned to face out.
+    const n = SPIN_SLICES.length;
+    const deg = 360 / n;
+    const wheel = $('spin-wheel');
+    wheel.style.background = `conic-gradient(${SPIN_SLICES.map((sl, i) => `${sl.color} ${i * deg}deg ${(i + 1) * deg}deg`).join(',')})`;
+    wheel.innerHTML = SPIN_SLICES.map((sl, i) => `<span style="transform:rotate(${i * deg + deg / 2}deg)"><em>${sliceLabel(sl.reward)}</em></span>`).join('');
+
+    $('login-claim').addEventListener('click', () => {
+      const day = this.state.loginState().day;
+      const got = this.state.claimLogin();
+      if (!got) return;
+      play('chest');
+      this.scene()?.syncHeroes();
+      this.showReward(`Day ${day + 1} reward`, LOGIN_CYCLE[day], got);
+      this.render();
+    });
+    $('spin-btn').addEventListener('click', () => {
+      if (this.spinning) return;
+      const got = this.state.spin();
+      if (!got) return;
+      this.spinning = true;
+      play('coin');
+      // Five full turns, then stop with the winning slice under the pointer at the top.
+      const prev = Number(wheel.dataset.turn ?? 0);
+      const target = Math.ceil(prev / 360) * 360 + 5 * 360 + (360 - (got.index * deg + deg / 2));
+      wheel.dataset.turn = String(target);
+      wheel.style.transform = `rotate(${target}deg)`;
+      window.setTimeout(() => {
+        this.spinning = false;
+        play('chest');
+        this.scene()?.syncHeroes();
+        this.showReward('Lucky Spin', SPIN_SLICES[got.index].reward, got);
+        this.render();
+      }, 3200);
+      this.render();
+    });
+    $('rewards').addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-claim]');
+      if (!btn || btn.disabled) return;
+      const [kind, id] = btn.dataset.claim!.split(':');
+      const ok =
+        kind === 'daily' ? this.state.claimDaily(id as (typeof DAILIES)[number]['stat']) : kind === 'ach' ? this.state.claimAchievement(id) : this.state.claimBootcamp(id);
+      if (ok) {
+        play('coin');
+        this.render();
+      }
+    });
+  }
+
+  private showReward(title: string, reward: Reward, got: { gold: Decimal; drops: SummonDrop[] }) {
+    const gold = got.gold.gt(0) ? ` (${fmt(got.gold)} gold)` : '';
+    this.showModal(title, `You got <b>${rewardText(reward)}</b>${gold}.${dropCards(got.drops)}`, 'Collect');
+  }
+
+  /** One list row per goal, built once and updated in place so a tap never lands on a replaced button. */
+  private rewardRows = new Map<string, { li: HTMLElement; text: HTMLElement; fill: HTMLElement; meta: HTMLElement; button: HTMLButtonElement }>();
+
+  private rewardRow(list: HTMLElement, key: string, text: string, progress: number, goal: number, meta: string, state: 'claim' | 'wait' | 'done' | 'hide') {
+    let row = this.rewardRows.get(key);
+    if (!row) {
+      const li = document.createElement('li');
+      li.innerHTML = `<div class="rw-text"><span></span><div class="rw-bar"><i></i></div><small></small></div><button class="gem-btn" data-claim="${key}">Claim</button>`;
+      list.appendChild(li);
+      row = { li, text: li.querySelector('span')!, fill: li.querySelector('i')!, meta: li.querySelector('small')!, button: li.querySelector('button')! };
+      this.rewardRows.set(key, row);
+    }
+    row.li.hidden = state === 'hide';
+    if (row.text.textContent !== text) row.text.textContent = text;
+    row.fill.style.width = `${Math.min(100, (progress / Math.max(1, goal)) * 100)}%`;
+    if (row.meta.textContent !== meta) row.meta.textContent = meta;
+    row.button.disabled = state !== 'claim';
+    row.button.textContent = state === 'done' ? 'Done' : 'Claim';
+    row.li.classList.toggle('ready', state === 'claim');
+    row.li.classList.toggle('done', state === 'done');
+  }
+
+  private renderRewards() {
+    const s = this.state;
+    const now = Date.now();
+    const short = (v: number) => (v >= 1e4 ? fmt(v) : v.toLocaleString());
+
+    const login = s.loginState(now);
+    // Claimed today with the cycle just finished: show all five as collected.
+    const doneDays = !login.ready && login.day === 0 && s.login.count > 0 ? LOGIN_CYCLE.length : login.day;
+    setHtml(
+      $('login-days'),
+      LOGIN_CYCLE.map((r, i) => {
+        const cls = i < doneDays ? 'done' : i === login.day && login.ready ? 'today' : '';
+        return `<div class="${cls}${r.gems ? ' big' : ''}"><small>Day ${i + 1}</small><b>${i < doneDays ? '✓' : sliceLabel(r)}</b></div>`;
+      }).join(''),
+    );
+    $<HTMLButtonElement>('login-claim').disabled = !login.ready;
+    $('login-claim').textContent = login.ready ? 'Claim' : 'Come back tomorrow';
+
+    const spinReady = s.spinReady(now) && !this.spinning;
+    $<HTMLButtonElement>('spin-btn').disabled = !spinReady;
+    $('spin-btn').textContent = this.spinning ? 'Spinning...' : spinReady ? 'Free spin' : 'Next spin tomorrow';
+
+    const daily = s.dailies(now);
+    const dailyList = $('daily-list');
+    for (const r of daily) {
+      this.rewardRow(dailyList, `daily:${r.def.stat}`, r.def.text, r.progress, r.def.goal, `${r.progress}/${r.def.goal} · ${DAILY_GEMS} Gems`, r.claimed ? 'done' : r.progress >= r.def.goal ? 'claim' : 'wait');
+    }
+    const earned = daily.filter((r) => r.claimed).length * DAILY_GEMS;
+    $('daily-note').textContent = `${earned}/${DAILIES.length * DAILY_GEMS} Gems today`;
+
+    const bootList = $('boot-list');
+    let bootLeft = 0;
+    for (const b of BOOTCAMP) {
+      const claimed = s.bootcamp.includes(b.id);
+      if (!claimed) bootLeft++;
+      const done = s.bootcampDone(b);
+      // Only the next few goals show, plus any ready to claim, so the list stays short.
+      const shown = !claimed && (done || bootLeft <= 4);
+      this.rewardRow(bootList, `boot:${b.id}`, b.text, done ? 1 : 0, 1, `${b.gems} Gems`, !shown ? 'hide' : done ? 'claim' : 'wait');
+    }
+    $('boot-note').textContent = bootLeft ? `${BOOTCAMP.length - bootLeft}/${BOOTCAMP.length} done` : 'All done!';
+
+    const achList = $('ach-list');
+    for (const a of s.achievements()) {
+      const goal = a.next ? a.next[0] : a.def.tiers[a.def.tiers.length - 1][0];
+      const text = a.def.text(goal);
+      const meta = a.next ? `${short(Math.min(a.value, goal))}/${short(goal)} · ${a.next[1]} Gems · tier ${a.tier + 1}/${a.def.tiers.length}` : 'Every tier claimed';
+      this.rewardRow(achList, `ach:${a.def.id}`, text, Math.min(a.value, goal), goal, meta, !a.next ? 'done' : a.ready ? 'claim' : 'wait');
+    }
+  }
+
+  showRekindled(r: RekindleResult) {
+    const counts = new Map<string, number>();
+    for (const line of r.wheel) counts.set(line, (counts.get(line) ?? 0) + 1);
+    const wheel = r.wheel.length
+      ? `<br>The Rekindle Wheel spun ${r.wheel.length} time${r.wheel.length === 1 ? '' : 's'}: ${[...counts].map(([line, n]) => (n > 1 ? `${line} x${n}` : line)).join(', ')}.`
+      : '';
+    const gift = r.levelsGained > 0 ? `<br>Player level up! Your gift: <b>${r.levelsGained === 1 ? 'a Hero Chest' : `${r.levelsGained} Hero Chests`}</b>.` : '';
     this.showModal(
       'Rekindled!',
-      `You earned <b class="ember-text">${fmt(embers)} Embers</b>.${road}<br>Tap any hero to spend Embers on Ember levels. Those levels stay through every Rekindle, so each run starts stronger.`,
+      `You earned <b class="ember-text">${fmt(r.embers)} Embers</b>.${wheel}${gift}${dropCards(r.drops)}<br>Tap any hero to spend Embers on Ember levels. Those levels stay through every Rekindle, so each run starts stronger.`,
       'Start the new run',
     );
   }
@@ -910,6 +1042,7 @@ export class UI {
     if (levels === 0 || cost.gt(this.state.gold)) return;
     this.state.gold = this.state.gold.minus(cost);
     this.state.levels[def.id] = level + levels;
+    this.state.track('levels', levels);
     this.scene()?.syncHeroes();
     this.render();
   }
@@ -996,7 +1129,8 @@ export class UI {
     this.badge('relics', this.renderRelics());
     this.badge('battle', s.rekindles > 0 && s.tickets >= TICKET_CAP);
     this.badge('heroes', heroesBadge);
-    this.badge('shop', s.gems >= CHEST_COST);
+    this.badge('shop', s.gems >= CHEST_COST || s.rewardsWaiting());
+    if (this.tab === 'shop') this.renderRewards();
     if (this.tab === 'battle') this.renderBattle();
     this.renderSheet();
 
@@ -1015,6 +1149,30 @@ export class UI {
       u.button.style.setProperty('--cd', !st.unlocked || !st.alive ? '1' : String(Math.min(1, st.remaining / ULT_COOLDOWN)));
     }
   }
+}
+
+/** Hero Chest drops as cards, one per hero (repeat drops for a hero are added together). */
+function dropCards(drops: SummonDrop[]): string {
+  if (!drops.length) return '';
+  const merged = new Map<string, SummonDrop>();
+  for (const d of drops) {
+    const m = merged.get(d.heroId);
+    merged.set(d.heroId, m ? { heroId: d.heroId, crests: m.crests + d.crests, isNew: m.isNew || d.isNew } : { ...d });
+  }
+  const cards = [...merged.values()]
+    .map((d) => {
+      const def = HEROES.find((h) => h.id === d.heroId)!;
+      return `<div class="drop"><div class="face art" style="${faceStyle(def)}">${def.name[0]}</div><b>${def.name}</b>${d.isNew ? '<span class="new">READY TO UNLOCK</span>' : ''}<span class="crest">+${d.crests} Crests</span></div>`;
+    })
+    .join('');
+  return `<div class="summon-grid">${cards}</div>`;
+}
+
+/** Short label for a Lucky Spin slice. */
+function sliceLabel(r: Reward): string {
+  if (r.gems) return `${r.gems} Gems`;
+  if (r.goldMinutes) return r.goldMinutes >= 60 ? `${r.goldMinutes / 60}h gold` : `${r.goldMinutes}m gold`;
+  return r.chests === 1 ? 'Chest' : `${r.chests} Chests`;
 }
 
 function stallIncomePreview(def: StallDef) {

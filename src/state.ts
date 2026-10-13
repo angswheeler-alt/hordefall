@@ -1,7 +1,8 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, RELICS, RELIC_LEVELS_PER_TIER, RELIC_TIERS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE } from './data';
-import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp } from './formulas';
-import type { HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
+import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_LEVELS_PER_TIER, RELIC_TIERS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE } from './data';
+import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp, goldPerKill } from './formulas';
+import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES } from './data';
 import { activeEffects, mulEffect, type ActiveEffect } from './skills';
 
@@ -19,6 +20,15 @@ export interface OfflineReport {
   stages: number;
   /** Part of `gold` that came from auto-collect Stalls. */
   market: Decimal;
+}
+
+export interface RekindleResult {
+  embers: number;
+  /** One line per Rekindle Wheel spin. */
+  wheel: string[];
+  /** Hero Chest drops from the wheel and from player level gifts. */
+  drops: SummonDrop[];
+  levelsGained: number;
 }
 
 export type SaveData = Record<string, any>;
@@ -65,8 +75,18 @@ export class GameState {
   stalls: Record<string, StallState> = Object.fromEntries(STALLS.map((s) => [s.id, { level: 0, progress: 0 }]));
   /** Every Ember ever earned; sets the Keeper level. */
   lifetimeEmbers = 0;
-  /** Ember Road markers already paid out. */
-  roadClaimed = 0;
+  /** Lifetime counters for achievements and Bootcamp. */
+  stats: Record<StatKey, number> = Object.fromEntries(STAT_KEYS.map((k) => [k, 0])) as Record<StatKey, number>;
+  /** Today's daily challenge progress; reset when the local day changes. */
+  daily: { day: string; counts: Partial<Record<StatKey, number>>; claimed: StatKey[] } = { day: dayKey(), counts: {}, claimed: [] };
+  /** Login calendar: days claimed so far (position in the 5-day cycle is this mod 5) and the last day claimed. */
+  login = { count: 0, last: '' };
+  /** Day of the last free Lucky Spin. */
+  spinDay = '';
+  /** Achievement tiers already claimed, by achievement id. */
+  achieved: Record<string, number> = {};
+  /** Bootcamp goals already claimed. */
+  bootcamp: string[] = [];
   /** Hero Crests (copies) per hero, for evolution. Nothing drops them yet. */
   crests: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, 0]));
   /** Evolution stars per hero (0-7). Permanent. */
@@ -108,9 +128,6 @@ export class GameState {
   }
 
   reachStage(stage: number) {
-    // First time past each 10-stage mark pays a few Gems.
-    const newMarks = Math.floor(stage / 10) - Math.floor(this.bestStage / 10);
-    if (newMarks > 0) this.gems += newMarks * MILESTONE_GEMS;
     this.stage = stage;
     this.bestStage = Math.max(this.bestStage, stage);
     this.runBestStage = Math.max(this.runBestStage, stage);
@@ -276,6 +293,14 @@ export class GameState {
   summon(): SummonDrop[] | null {
     if (this.gems < CHEST_COST) return null;
     this.gems -= CHEST_COST;
+    this.track('summons');
+    const drops = this.rollChest();
+    this.save();
+    return drops;
+  }
+
+  /** The drops of one Hero Chest, paid for or not. */
+  private rollChest(): SummonDrop[] {
     const drops: SummonDrop[] = [];
     for (let i = 0; i < CHEST_DROPS; i++) {
       const hero = pickByRarity(HEROES, CHEST_RARITY_WEIGHTS);
@@ -289,7 +314,6 @@ export class GameState {
       const isNew = locked && need !== null && before < need && before + crests >= need;
       drops.push({ heroId: hero.id, crests, isNew });
     }
-    this.save();
     return drops;
   }
 
@@ -334,6 +358,7 @@ export class GameState {
       this.levels[pick.id] += 1;
       bought++;
     }
+    this.track('levels', bought);
     return bought;
   }
 
@@ -430,6 +455,7 @@ export class GameState {
       this.stalls[pick.id].level += 1;
       bought++;
     }
+    this.track('levels', bought);
     return bought;
   }
 
@@ -524,6 +550,7 @@ export class GameState {
     if (!sim.won) return result;
     if (this.tickets >= TICKET_CAP) this.ticketClock = Date.now();
     this.tickets -= 1;
+    this.track('trials');
     result.essence = level.essence;
     this.essences[element] = (this.essences[element] ?? 0) + result.essence;
     // Medals go to different random heroes of the element while there are enough of them.
@@ -555,34 +582,26 @@ export class GameState {
     return emberYield(this.runBestStage, REKINDLE_STAGE, this.keeperBonus());
   }
 
-  /** Ember Road markers reached by the best stage ever. */
-  roadReached() {
-    if (this.bestStage < ROAD_START) return 0;
-    return Math.min(ROAD_LENGTH, 1 + Math.floor((this.bestStage - ROAD_START) / ROAD_STEP));
-  }
-
-  /** Gems waiting on Ember Road markers reached since the last Rekindle. */
-  pendingRoadGems() {
-    return Math.max(0, this.roadReached() - this.roadClaimed) * ROAD_GEMS;
-  }
-
   /**
    * Prestige reset (GDD section 7): back to stage 1 and gold level 1, keep
    * Embers and Ember levels. `mult` is a Gem-bought 2x or 3x payout.
    */
-  rekindle(mult = 1): { embers: number; gems: number } | null {
+  rekindle(mult = 1): RekindleResult | null {
     const base = this.pendingEmbers();
     if (base <= 0) return null;
     const boost = REKINDLE_BOOSTS.find((b) => b.mult === mult);
     if (mult !== 1 && (!boost || this.gems < boost.gems)) return null;
     if (boost) this.gems -= boost.gems;
-    const gained = base * mult;
-    const roadGems = this.pendingRoadGems();
-    this.gems += roadGems;
-    this.roadClaimed = this.roadReached();
+    const levelBefore = this.keeperLevel();
+    const wheel = this.spinWheel(base);
+    const gained = base * mult + wheel.embers;
     this.embers += gained;
     this.lifetimeEmbers += gained;
     this.rekindles += 1;
+    // Every new player level comes with a gift: a free Hero Chest.
+    const levelsGained = this.keeperLevel() - levelBefore;
+    const gifts: SummonDrop[] = [];
+    for (let i = 0; i < levelsGained; i++) gifts.push(...this.rollChest());
     this.gold = new Decimal(0);
     this.stage = 1;
     this.runBestStage = 1;
@@ -592,7 +611,191 @@ export class GameState {
     this.secondsPerStage = 20;
     this.goldPerSec = 0;
     this.save();
-    return { embers: gained, gems: roadGems };
+    return { embers: gained, wheel: wheel.lines, drops: [...wheel.drops, ...gifts], levelsGained };
+  }
+
+  /** Rekindle Wheel slots unlocked by this run's best stage. */
+  roadReached() {
+    if (this.runBestStage < ROAD_START) return 0;
+    return Math.min(ROAD_LENGTH, 1 + Math.floor((this.runBestStage - ROAD_START) / ROAD_STEP));
+  }
+
+  /** Spin the Rekindle Wheel once per unlocked slot. Ember prizes are a share of `base` and are added by the caller. */
+  private spinWheel(base: number) {
+    const lines: string[] = [];
+    const drops: SummonDrop[] = [];
+    let embers = 0;
+    for (let i = 0; i < this.roadReached(); i++) {
+      const prize = weighted(WHEEL_PRIZES.map((p) => [p.prize, p.weight] as [WheelPrize, number]));
+      if (prize.kind === 'chest') {
+        drops.push(...this.rollChest());
+        lines.push('Hero Chest');
+      } else if (prize.kind === 'tickets') {
+        this.refreshTickets();
+        this.tickets = Math.min(TICKET_CAP, this.tickets + prize.amount);
+        lines.push(`${prize.amount} Trial tickets`);
+      } else if (prize.kind === 'essence') {
+        const els = Object.keys(ESSENCE_NAMES) as Element[];
+        const el = els[Math.floor(Math.random() * els.length)];
+        this.essences[el] = (this.essences[el] ?? 0) + prize.amount;
+        lines.push(`${prize.amount} ${ESSENCE_NAMES[el]}`);
+      } else {
+        const extra = Math.floor(base * prize.share);
+        embers += extra;
+        lines.push(`+${Math.round(prize.share * 100)}% Embers`);
+      }
+    }
+    return { lines, drops, embers };
+  }
+
+  // ---------- free Gem sources (rewards.ts) ----------
+
+  /** Start a fresh set of daily challenges when the local day has changed. */
+  private rollDay(now = Date.now()) {
+    const today = dayKey(now);
+    if (this.daily.day !== today) this.daily = { day: today, counts: {}, claimed: [] };
+  }
+
+  /** Count progress toward daily challenges, achievements and Bootcamp. */
+  track(stat: StatKey, n = 1) {
+    if (n <= 0) return;
+    this.rollDay();
+    this.stats[stat] += n;
+    this.daily.counts[stat] = (this.daily.counts[stat] ?? 0) + n;
+  }
+
+  /** Today's challenges with progress, and whether each is claimed. */
+  dailies(now = Date.now()) {
+    this.rollDay(now);
+    return DAILIES.map((def) => ({ def, progress: Math.min(def.goal, this.daily.counts[def.stat] ?? 0), claimed: this.daily.claimed.includes(def.stat) }));
+  }
+
+  claimDaily(stat: StatKey): boolean {
+    const row = this.dailies().find((r) => r.def.stat === stat);
+    if (!row || row.claimed || row.progress < row.def.goal) return false;
+    this.daily.claimed.push(stat);
+    this.gems += DAILY_GEMS;
+    this.save();
+    return true;
+  }
+
+  /** Gold worth `minutes` of income, with a floor so new players still get something. */
+  goldFor(minutes: number): Decimal {
+    return Decimal.max(new Decimal(this.goldPerSec).times(minutes * 60), goldPerKill(this.stage).times(20 * minutes));
+  }
+
+  /** Pay out a reward. Free Hero Chests roll like bought ones. */
+  grant(r: Reward): { gems: number; gold: Decimal; drops: SummonDrop[] } {
+    const gems = r.gems ?? 0;
+    const gold = r.goldMinutes ? this.goldFor(r.goldMinutes) : new Decimal(0);
+    this.gems += gems;
+    this.gold = this.gold.plus(gold);
+    const drops: SummonDrop[] = [];
+    for (let i = 0; i < (r.chests ?? 0); i++) drops.push(...this.rollChest());
+    return { gems, gold, drops };
+  }
+
+  /** Which day of the 5-day login calendar is next (0-4), and whether it can be claimed today. */
+  loginState(now = Date.now()) {
+    return { day: this.login.count % LOGIN_CYCLE.length, ready: this.login.last !== dayKey(now) };
+  }
+
+  claimLogin(now = Date.now()) {
+    const { day, ready } = this.loginState(now);
+    if (!ready) return null;
+    this.login = { count: this.login.count + 1, last: dayKey(now) };
+    const got = this.grant(LOGIN_CYCLE[day]);
+    this.save();
+    return got;
+  }
+
+  spinReady(now = Date.now()) {
+    return this.spinDay !== dayKey(now);
+  }
+
+  /** Use today's free Lucky Spin. Returns the slice it landed on. */
+  spin(now = Date.now()) {
+    if (!this.spinReady(now)) return null;
+    this.spinDay = dayKey(now);
+    const index = weighted(SPIN_SLICES.map((sl, i) => [i, sl.weight] as [number, number]));
+    const got = this.grant(SPIN_SLICES[index].reward);
+    this.save();
+    return { index, ...got };
+  }
+
+  /** Current value an achievement counts. */
+  achievementValue(def: AchievementDef): number {
+    switch (def.value) {
+      case 'bestStage':
+        return this.bestStage;
+      case 'rekindles':
+        return this.rekindles;
+      case 'heroes':
+        return HEROES.filter((h) => (this.levels[h.id] ?? 0) > 0).length;
+      case 'stars':
+        return HEROES.reduce((t, h) => t + ((this.levels[h.id] ?? 0) > 0 ? (this.stars[h.id] ?? 0) + 1 : 0), 0);
+      default:
+        return this.stats[def.value];
+    }
+  }
+
+  /** Each achievement's next tier (null once all are claimed), its progress and whether it's ready. */
+  achievements() {
+    return ACHIEVEMENTS.map((def) => {
+      const tier = this.achieved[def.id] ?? 0;
+      const next = def.tiers[tier] ?? null;
+      const value = this.achievementValue(def);
+      return { def, tier, next, value, ready: !!next && value >= next[0] };
+    });
+  }
+
+  claimAchievement(id: string): boolean {
+    const row = this.achievements().find((a) => a.def.id === id);
+    if (!row || !row.ready || !row.next) return false;
+    this.achieved[id] = row.tier + 1;
+    this.gems += row.next[1];
+    this.save();
+    return true;
+  }
+
+  bootcampDone(def: BootcampDef): boolean {
+    const c = def.check;
+    switch (c.kind) {
+      case 'heroLevel':
+        return HEROES.some((h) => (this.levels[h.id] ?? 0) >= c.level);
+      case 'stage':
+        return this.bestStage >= c.stage;
+      case 'stat':
+        return this.stats[c.stat] >= c.count;
+      case 'team':
+        return this.lineupCount() >= c.size;
+      case 'star':
+        return HEROES.some((h) => (this.levels[h.id] ?? 0) > 0 && (this.stars[h.id] ?? 0) + 1 >= c.stars);
+      case 'rekindle':
+        return this.rekindles > 0;
+      case 'relic':
+        return this.equipped.length > 0;
+    }
+  }
+
+  claimBootcamp(id: string): boolean {
+    const def = BOOTCAMP.find((b) => b.id === id);
+    if (!def || this.bootcamp.includes(id) || !this.bootcampDone(def)) return false;
+    this.bootcamp.push(id);
+    this.gems += def.gems;
+    this.save();
+    return true;
+  }
+
+  /** True when any free reward is waiting (drives the Shop tab badge). */
+  rewardsWaiting(now = Date.now()): boolean {
+    return (
+      this.loginState(now).ready ||
+      this.spinReady(now) ||
+      this.dailies(now).some((r) => !r.claimed && r.progress >= r.def.goal) ||
+      this.achievements().some((a) => a.ready) ||
+      BOOTCAMP.some((b) => !this.bootcamp.includes(b.id) && this.bootcampDone(b))
+    );
   }
 
   addGold(amount: Decimal) {
@@ -638,7 +841,12 @@ export class GameState {
       emberLevels: this.emberLevels,
       rekindles: this.rekindles,
       lifetimeEmbers: this.lifetimeEmbers,
-      roadClaimed: this.roadClaimed,
+      stats: this.stats,
+      daily: this.daily,
+      login: this.login,
+      spinDay: this.spinDay,
+      achieved: this.achieved,
+      bootcamp: this.bootcamp,
       stalls: this.stalls,
       benched: this.benched,
       tickets: this.tickets,
@@ -719,8 +927,13 @@ export class GameState {
       this.emberLevels = { ...this.emberLevels, ...(d.emberLevels ?? {}) };
       this.rekindles = d.rekindles ?? 0;
       this.lifetimeEmbers = d.lifetimeEmbers ?? this.embers;
-      this.roadClaimed = d.roadClaimed ?? 0;
       this.benched = { ...(d.benched ?? {}) };
+      this.stats = { ...this.stats, ...(d.stats ?? {}) };
+      if (d.daily) this.daily = { day: String(d.daily.day ?? ''), counts: { ...(d.daily.counts ?? {}) }, claimed: [...(d.daily.claimed ?? [])] };
+      if (d.login) this.login = { count: d.login.count ?? 0, last: String(d.login.last ?? '') };
+      this.spinDay = String(d.spinDay ?? '');
+      this.achieved = { ...(d.achieved ?? {}) };
+      this.bootcamp = [...(d.bootcamp ?? [])];
       this.tickets = d.tickets ?? TICKET_CAP;
       this.ticketClock = d.ticketClock ?? Date.now();
       this.trialBest = { ...(d.trialBest ?? {}) };
@@ -771,6 +984,8 @@ export class GameState {
     this.tickets = Math.min(TICKET_CAP, Math.max(0, Math.floor(num(this.tickets, TICKET_CAP))));
     this.ticketClock = num(this.ticketClock, Date.now());
     this.lastSeen = num(this.lastSeen, Date.now());
+    for (const k of STAT_KEYS) this.stats[k] = Math.max(0, num(this.stats[k], 0));
+    this.login.count = Math.max(0, Math.floor(num(this.login.count, 0)));
     for (const h of HEROES) {
       this.levels[h.id] = Math.max(0, Math.floor(num(this.levels[h.id], 0)));
       this.emberLevels[h.id] = Math.max(0, Math.floor(num(this.emberLevels[h.id], 0)));
