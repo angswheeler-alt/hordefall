@@ -93,4 +93,36 @@ function hash(x, y, seed = 0) {
 const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map(v => (v + 0.5) / 16);
 const bayer = (x, y) => BAYER4[(y & 3) * 4 + (((x % 4) + 4) % 4)];
 
-module.exports = { Canvas, hex, hash, bayer };
+// Reads an 8-bit RGBA, non-interlaced PNG (the kind save() writes) back into a Canvas.
+function readPNG(file) {
+  const buf = fs.readFileSync(file);
+  let pos = 8, w = 0, h = 0;
+  const idat = [];
+  while (pos < buf.length) {
+    const len = buf.readUInt32BE(pos), type = buf.toString('ascii', pos + 4, pos + 8);
+    const data = buf.subarray(pos + 8, pos + 8 + len);
+    if (type === 'IHDR') {
+      w = data.readUInt32BE(0); h = data.readUInt32BE(4);
+      if (data[8] !== 8 || data[9] !== 6 || data[12] !== 0) throw new Error(file + ': only 8-bit RGBA non-interlaced PNGs');
+    } else if (type === 'IDAT') idat.push(data);
+    pos += 12 + len;
+  }
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  const c = new Canvas(w, h), stride = w * 4;
+  const prev = Buffer.alloc(stride), cur = Buffer.alloc(stride);
+  for (let y = 0; y < h; y++) {
+    const f = raw[y * (stride + 1)];
+    raw.copy(cur, 0, y * (stride + 1) + 1, (y + 1) * (stride + 1));
+    for (let i = 0; i < stride; i++) {
+      const a = i >= 4 ? cur[i - 4] : 0, b = prev[i], cc = i >= 4 ? prev[i - 4] : 0;
+      const p = a + b - cc, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - cc);
+      const pred = f === 1 ? a : f === 2 ? b : f === 3 ? (a + b) >> 1 : f === 4 ? (pa <= pb && pa <= pc ? a : pb <= pc ? b : cc) : 0;
+      cur[i] = (cur[i] + pred) & 255;
+    }
+    c.px.set(cur, y * stride);
+    cur.copy(prev);
+  }
+  return c;
+}
+
+module.exports = { Canvas, hex, hash, bayer, readPNG };

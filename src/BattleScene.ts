@@ -142,6 +142,8 @@ export class BattleScene extends Phaser.Scene {
 
   preload() {
     for (const r of REGIONS) for (const layer of ['sky', 'far', 'ground']) this.load.image(`bg-${r}-${layer}`, `bg/${r}_${layer}.png`);
+    // Hero sprites (32x32, feet on row 30). A hero without a file falls back to its placeholder block.
+    for (const h of HEROES) this.load.image(`hero-${h.id}`, `heroes/${h.id}.png`);
   }
 
   create() {
