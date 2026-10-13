@@ -228,20 +228,22 @@ export class GameState {
     return refund;
   }
 
-  /** Crests a locked hero needs to unlock (0 for the free starter). */
-  unlockCrests(def: HeroDef): number {
-    return def.unlockCost === 0 ? 0 : UNLOCK_CRESTS[def.rarity];
+  /** Crests a locked hero needs to unlock (0 for the free starter), or null for Legendary heroes, which only come through special means. */
+  unlockCrests(def: HeroDef): number | null {
+    if (def.unlockCost === 0) return 0;
+    return def.rarity === 'legendary' ? null : UNLOCK_CRESTS[def.rarity];
   }
 
   canUnlock(def: HeroDef): boolean {
-    return (this.levels[def.id] ?? 0) === 0 && (this.crests[def.id] ?? 0) >= this.unlockCrests(def);
+    const need = this.unlockCrests(def);
+    return need !== null && (this.levels[def.id] ?? 0) === 0 && (this.crests[def.id] ?? 0) >= need;
   }
 
   /** Spend a locked hero's Crests to unlock them at level 1; benched if the team is full. */
   unlockHero(id: string): boolean {
     const def = HEROES.find((h) => h.id === id)!;
     if (!this.canUnlock(def)) return false;
-    this.crests[id] -= this.unlockCrests(def);
+    this.crests[id] -= this.unlockCrests(def)!;
     this.levels[id] = 1;
     if (this.lineupCount() > LINEUP_SIZE) this.benched[id] = true;
     this.save();
@@ -255,7 +257,8 @@ export class GameState {
     const total = CREST_ROLLS.reduce((t, [, w]) => t + w, 0);
     const drops: SummonDrop[] = [];
     for (let i = 0; i < CHEST_DROPS; i++) {
-      const hero = HEROES[Math.floor(Math.random() * HEROES.length)];
+      const pool = HEROES.filter((h) => h.rarity !== 'legendary');
+      const hero = pool[Math.floor(Math.random() * pool.length)];
       let roll = Math.random() * total;
       const crests = (CREST_ROLLS.find(([, w]) => (roll -= w) < 0) ?? CREST_ROLLS[0])[0];
       const locked = (this.levels[hero.id] ?? 0) === 0;
@@ -263,7 +266,7 @@ export class GameState {
       this.crests[hero.id] = before + crests;
       // "New" marks the drop that brings a locked hero to their unlock count.
       const need = this.unlockCrests(hero);
-      const isNew = locked && before < need && before + crests >= need;
+      const isNew = locked && need !== null && before < need && before + crests >= need;
       drops.push({ heroId: hero.id, crests, isNew });
     }
     this.save();
@@ -501,8 +504,9 @@ export class GameState {
     result.essence = level.essence;
     this.essences[element] = (this.essences[element] ?? 0) + result.essence;
     // Medals go to different random heroes of the element while there are enough of them.
-    const pool = HEROES.filter((h) => h.element === element).map((h) => h.id);
-    for (let i = 0; i < level.medals; i++) {
+    // Locked Legendary heroes only come through special means, so they get no medals here.
+    const pool = HEROES.filter((h) => h.element === element && (h.rarity !== 'legendary' || (this.levels[h.id] ?? 0) > 0)).map((h) => h.id);
+    for (let i = 0; i < level.medals && pool.length; i++) {
       const left = pool.filter((id) => !result.medals.includes(id));
       const from = left.length ? left : pool;
       const id = from[Math.floor(Math.random() * from.length)];

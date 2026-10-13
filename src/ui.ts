@@ -576,7 +576,7 @@ export class UI {
     if (gold === 0) {
       const need = s.unlockCrests(def);
       (goldBtn.querySelector('.label') as HTMLElement).textContent = 'Unlock';
-      (goldBtn.querySelector('.cost') as HTMLElement).textContent = `${Math.min(s.crests[def.id] ?? 0, need)}/${need} Crests`;
+      (goldBtn.querySelector('.cost') as HTMLElement).textContent = need === null ? 'Special event' : `${Math.min(s.crests[def.id] ?? 0, need)}/${need} Crests`;
       goldBtn.disabled = !s.canUnlock(def);
     } else {
       (goldBtn.querySelector('.label') as HTMLElement).textContent = `Level +${shown.levels}`;
@@ -952,7 +952,7 @@ export class UI {
       }
       if (locked) {
         const need = s.unlockCrests(r.def);
-        r.cost.textContent = `${Math.min(s.crests[r.def.id] ?? 0, need)}/${need} Crests`;
+        r.cost.textContent = need === null ? 'Special event' : `${Math.min(s.crests[r.def.id] ?? 0, need)}/${need} Crests`;
         r.button.disabled = !s.canUnlock(r.def);
         if (s.canUnlock(r.def)) heroesBadge = true;
       } else {
