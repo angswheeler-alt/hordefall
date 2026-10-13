@@ -128,7 +128,7 @@ export class UI {
       const recruited = (s.levels[h.id] ?? 0) > 0;
       const on = s.inLineup(h.id);
       const spent = s.goldSpent(h.id);
-      const label = !recruited ? 'Not recruited' : on ? (spent.gt(0) ? `Remove (+${fmt(spent)} gold)` : 'Remove') : 'Add';
+      const label = !recruited ? 'Locked' : on ? (spent.gt(0) ? `Remove (+${fmt(spent)} gold)` : 'Remove') : 'Add';
       const disabled = !recruited || (on && count <= 1) || (!on && count >= LINEUP_SIZE);
       return `<li class="team-row${on ? ' on' : ''}${recruited ? '' : ' locked'}">
         <span class="face" style="background:${hex(ELEMENT_COLORS[h.element])}">${h.name[0]}</span>
@@ -509,7 +509,7 @@ export class UI {
     const cards = drops
       .map((d) => {
         const def = HEROES.find((h) => h.id === d.heroId)!;
-        return `<div class="drop"><div class="face" style="background:${hex(ELEMENT_COLORS[def.element])}">${def.name[0]}</div><b>${def.name}</b>${d.isNew ? '<span class="new">NEW HERO</span>' : ''}<span class="crest">+${d.crests} Crests</span></div>`;
+        return `<div class="drop"><div class="face" style="background:${hex(ELEMENT_COLORS[def.element])}">${def.name[0]}</div><b>${def.name}</b>${d.isNew ? '<span class="new">READY TO UNLOCK</span>' : ''}<span class="crest">+${d.crests} Crests</span></div>`;
       })
       .join('');
     const canAgain = this.state.gems >= CHEST_COST;
@@ -561,7 +561,7 @@ export class UI {
     const power = s.heroPower(def, shownLevel);
     const stat = (label: string, value: string) => `<div><small>${label}</small><b>${value}</b></div>`;
     $('sheet-stats').innerHTML = [
-      stat('Level', gold > 0 ? String(eff) : 'Not recruited'),
+      stat('Level', gold > 0 ? String(eff) : 'Locked'),
       stat('ATK', fmt(power.atk)),
       stat('HP', fmt(power.hp)),
       stat('Attacks / sec', (1 / def.attackCooldown).toFixed(2)),
@@ -569,13 +569,20 @@ export class UI {
       stat('Gold per kill', `${def.goldMult}x`),
     ].join('');
 
-    $('sheet-gold-lvl').textContent = gold > 0 ? String(gold) : '(not recruited)';
+    $('sheet-gold-lvl').textContent = gold > 0 ? String(gold) : '(locked)';
     const { levels, cost } = bulkCost(def, gold, s.buyAmount, s.gold);
     const shown = levels > 0 ? { levels, cost } : bulkCost(def, gold, 1, s.gold);
     const goldBtn = $<HTMLButtonElement>('sheet-gold-up');
-    (goldBtn.querySelector('.label') as HTMLElement).textContent = gold === 0 ? 'Recruit' : `Level +${shown.levels}`;
-    (goldBtn.querySelector('.cost') as HTMLElement).textContent = fmt(shown.cost);
-    goldBtn.disabled = shown.cost.gt(s.gold);
+    if (gold === 0) {
+      const need = s.unlockCrests(def);
+      (goldBtn.querySelector('.label') as HTMLElement).textContent = 'Unlock';
+      (goldBtn.querySelector('.cost') as HTMLElement).textContent = `${Math.min(s.crests[def.id] ?? 0, need)}/${need} Crests`;
+      goldBtn.disabled = !s.canUnlock(def);
+    } else {
+      (goldBtn.querySelector('.label') as HTMLElement).textContent = `Level +${shown.levels}`;
+      (goldBtn.querySelector('.cost') as HTMLElement).textContent = fmt(shown.cost);
+      goldBtn.disabled = shown.cost.gt(s.gold);
+    }
 
     $('sheet-ember-lvl').textContent = `+${ember}`;
     $('sheet-embers').textContent = String(s.embers);
@@ -862,6 +869,14 @@ export class UI {
 
   private buy(def: HeroDef) {
     const level = this.state.levels[def.id] ?? 0;
+    if (level === 0) {
+      if (this.state.unlockHero(def.id)) {
+        play('unlock');
+        this.scene()?.syncHeroes();
+        this.render();
+      }
+      return;
+    }
     const { levels, cost } = bulkCost(def, level, this.state.buyAmount, this.state.gold);
     if (levels === 0 || cost.gt(this.state.gold)) return;
     this.state.gold = this.state.gold.minus(cost);
@@ -928,15 +943,22 @@ export class UI {
       if (locked) {
         const p1 = s.heroPower(r.def, 1);
         r.stats.innerHTML = `<span class="st atk">${SWORD}${fmt(p1.atk)}</span><span class="st hp">${HEART}${fmt(p1.hp)}</span>`;
-        r.label.textContent = 'Recruit';
+        r.label.textContent = 'Unlock';
       } else {
         const next = eff + shown.levels;
         const now = s.heroPower(r.def, eff);
         r.stats.innerHTML = `<span class="st atk">${SWORD}${fmt(now.atk)} <span class="next">→ ${fmt(s.heroPower(r.def, next).atk)}</span></span><span class="st hp">${HEART}${fmt(now.hp)}</span>`;
         r.label.textContent = shown.levels === 1 ? 'Level Up' : `Level +${shown.levels}`;
       }
-      r.cost.textContent = fmt(shown.cost);
-      r.button.disabled = shown.cost.gt(s.gold);
+      if (locked) {
+        const need = s.unlockCrests(r.def);
+        r.cost.textContent = `${Math.min(s.crests[r.def.id] ?? 0, need)}/${need} Crests`;
+        r.button.disabled = !s.canUnlock(r.def);
+        if (s.canUnlock(r.def)) heroesBadge = true;
+      } else {
+        r.cost.textContent = fmt(shown.cost);
+        r.button.disabled = shown.cost.gt(s.gold);
+      }
     }
 
     this.badge('market', this.renderMarket());

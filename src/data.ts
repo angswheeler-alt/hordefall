@@ -1,10 +1,12 @@
 export type Element = 'water' | 'fire' | 'earth' | 'light' | 'dark';
+export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
 export type Job = 'Blademaster' | 'Mage' | 'Knight' | 'Rogue' | 'Support';
 
 export interface HeroDef {
   id: string;
   name: string;
   element: Element;
+  rarity: Rarity;
   job: Job;
   /** Attack and HP at gold level 1. */
   baseAtk: number;
@@ -50,35 +52,35 @@ export const ELEMENT_COLORS: Record<Element, number> = {
 
 // Starter cast from GDD section 17. The prototype runs a team of five, one per element.
 export const HEROES: HeroDef[] = [
-  { id: 'marin', name: 'Marin', element: 'water', job: 'Blademaster', baseAtk: 5, baseHp: 60, range: 28, attackCooldown: 0.8, moveSpeed: 120, unlockCost: 0, upgradeBaseCost: 5, goldMult: 1, bio: 'A tidecoast swordsman who signed on to bring the Lantern Queen home. Steady, quick, and the reason every early boss goes down.',
+  { id: 'marin', rarity: 'common', name: 'Marin', element: 'water', job: 'Blademaster', baseAtk: 5, baseHp: 60, range: 28, attackCooldown: 0.8, moveSpeed: 120, unlockCost: 0, upgradeBaseCost: 5, goldMult: 1, bio: 'A tidecoast swordsman who signed on to bring the Lantern Queen home. Steady, quick, and the reason every early boss goes down.',
     basic: { name: 'Tide Cutter', text: 'Fast sword slashes at the nearest enemy ahead.' },
     ultimate: { name: 'Riptide', text: 'A crashing wave hits every enemy ahead for 40x ATK, with element bonuses.' },
     trait: { name: 'Water Blade', text: 'Water deals 4x to Fire and 0.5x to Earth. Every boss before stage 600 is Fire, so Marin carries boss fights.' },
     sp1: { name: 'Undertow', text: '20% chance for each attack to strike twice.' },
     sp2: { name: 'Spray Guard', text: 'Takes 25% less damage.' },
     aura: { name: 'Tidal Calm', text: 'Team max HP +20%.' } },
-  { id: 'bramble', name: 'Bramble', element: 'earth', job: 'Knight', baseAtk: 3, baseHp: 150, range: 26, attackCooldown: 1.0, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, bio: 'An old hedge knight with bark for armor. He walks slowly and refuses to fall over.',
+  { id: 'bramble', rarity: 'common', name: 'Bramble', element: 'earth', job: 'Knight', baseAtk: 3, baseHp: 150, range: 26, attackCooldown: 1.0, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, bio: 'An old hedge knight with bark for armor. He walks slowly and refuses to fall over.',
     basic: { name: 'Shield Bash', text: 'Slow, heavy blows that shove enemies back a step.' },
     ultimate: { name: 'Rootwall Crash', text: 'Slams the ground, hitting every enemy ahead for 40x ATK.' },
     trait: { name: 'Front Line', text: 'The highest HP on the team. Earth deals 4x to Water and 0.5x to Fire.' },
     sp1: { name: 'Thornhide', text: 'Reflects 30% of damage taken back at the attacker.' },
     sp2: { name: 'Taproot', text: 'Regenerates 3% of max HP every second.' },
     aura: { name: 'Old Growth', text: 'Whole team takes 10% less damage.' } },
-  { id: 'pyra', name: 'Pyra', element: 'fire', job: 'Mage', baseAtk: 8, baseHp: 40, range: 150, attackCooldown: 1.4, moveSpeed: 105, unlockCost: 300, upgradeBaseCost: 40, goldMult: 1, splash: 40, bio: 'A hot-tempered fire mage from the Ember Wastes who treats every fight as a demolition job.',
+  { id: 'pyra', rarity: 'common', name: 'Pyra', element: 'fire', job: 'Mage', baseAtk: 8, baseHp: 40, range: 150, attackCooldown: 1.4, moveSpeed: 105, unlockCost: 300, upgradeBaseCost: 40, goldMult: 1, splash: 40, bio: 'A hot-tempered fire mage from the Ember Wastes who treats every fight as a demolition job.',
     basic: { name: 'Fireball', text: 'Ranged fireballs that splash every enemy near the target.' },
     ultimate: { name: 'Meteor Shower', text: 'Rains fire on every enemy ahead for 40x ATK.' },
     trait: { name: 'Splash', text: 'Long range and area damage. Fire deals 4x to Earth and 0.5x to Water.' },
     sp1: { name: 'Kindle', text: 'Fireball splash radius +50%.' },
     sp2: { name: 'Firewall', text: 'Every 4th attack deals 3x damage.' },
     aura: { name: 'Heatwave', text: 'Team ATK +15%.' } },
-  { id: 'nox', name: 'Nox', element: 'dark', job: 'Rogue', baseAtk: 6, baseHp: 50, range: 24, attackCooldown: 0.6, moveSpeed: 145, unlockCost: 1500, upgradeBaseCost: 120, goldMult: 2, bio: 'A shadow rogue who is in it for the loot and does not pretend otherwise.',
+  { id: 'nox', rarity: 'common', name: 'Nox', element: 'dark', job: 'Rogue', baseAtk: 6, baseHp: 50, range: 24, attackCooldown: 0.6, moveSpeed: 145, unlockCost: 1500, upgradeBaseCost: 120, goldMult: 2, bio: 'A shadow rogue who is in it for the loot and does not pretend otherwise.',
     basic: { name: 'Twin Daggers', text: 'Very fast stabs at the closest enemy.' },
     ultimate: { name: 'Shadow Flurry', text: 'Blinks through every enemy ahead for 40x ATK.' },
     trait: { name: 'Pickpocket', text: 'Runs fastest and earns 2x gold from every kill. Dark deals 2x to Light and 0.5x to Dark.' },
     sp1: { name: 'Smoke Step', text: 'Dodges 25% of incoming attacks.' },
     sp2: { name: 'Backstab', text: '+20% critical hit chance.' },
     aura: { name: 'Nightfall', text: 'Team earns 25% more gold from kills.' } },
-  { id: 'solenne', name: 'Solenne', element: 'light', job: 'Support', baseAtk: 3, baseHp: 55, range: 130, attackCooldown: 1.2, moveSpeed: 105, unlockCost: 8000, upgradeBaseCost: 400, goldMult: 1, heals: true, bio: 'A lantern-keeper from the Queen\'s own chapel. She keeps everyone standing.',
+  { id: 'solenne', rarity: 'common', name: 'Solenne', element: 'light', job: 'Support', baseAtk: 3, baseHp: 55, range: 130, attackCooldown: 1.2, moveSpeed: 105, unlockCost: 8000, upgradeBaseCost: 400, goldMult: 1, heals: true, bio: 'A lantern-keeper from the Queen\'s own chapel. She keeps everyone standing.',
     basic: { name: 'Sunlight Mend', text: 'Heals the most injured nearby ally for 3x ATK. Attacks when nobody needs healing.' },
     ultimate: { name: 'Dawn Chorus', text: 'Fully heals every living hero.' },
     trait: { name: 'Support', text: 'The team\'s only healer. Light deals 2x to Dark and 0.5x to Light.' },
@@ -161,6 +163,12 @@ export const CRIT_MULTIPLIER = 2.5;
  */
 export const STAR_CRESTS = [10, 20, 50, 200, 500, 1000, 2000];
 export const MAX_STARS = STAR_CRESTS.length;
+/**
+ * Hero Crests (medals) a hero needs to unlock, by rarity (Samuel's table).
+ * Unlocking spends them. Legendary is a placeholder until Samuel sets it.
+ * The free starter (unlockCost 0) needs none.
+ */
+export const UNLOCK_CRESTS: Record<Rarity, number> = { common: 10, rare: 30, epic: 80, legendary: 200 };
 /** From 3★ the Ultimate hits harder (the full game unlocks it at 3★; the prototype keeps Lv 30). */
 export const ULT_STAR_BONUS = 1.5;
 

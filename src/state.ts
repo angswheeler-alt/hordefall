@@ -1,5 +1,5 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, RELICS, RELIC_LEVELS_PER_TIER, RELIC_TIERS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, RELICS, RELIC_LEVELS_PER_TIER, RELIC_TIERS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS } from './data';
 import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp } from './formulas';
 import type { HeroDef, StallDef, Element, RelicDef, RelicEffect } from './data';
 
@@ -228,7 +228,27 @@ export class GameState {
     return refund;
   }
 
-  /** Open a Hero Chest: Crests for random heroes; a drop for an unrecruited hero recruits them. */
+  /** Crests a locked hero needs to unlock (0 for the free starter). */
+  unlockCrests(def: HeroDef): number {
+    return def.unlockCost === 0 ? 0 : UNLOCK_CRESTS[def.rarity];
+  }
+
+  canUnlock(def: HeroDef): boolean {
+    return (this.levels[def.id] ?? 0) === 0 && (this.crests[def.id] ?? 0) >= this.unlockCrests(def);
+  }
+
+  /** Spend a locked hero's Crests to unlock them at level 1; benched if the team is full. */
+  unlockHero(id: string): boolean {
+    const def = HEROES.find((h) => h.id === id)!;
+    if (!this.canUnlock(def)) return false;
+    this.crests[id] -= this.unlockCrests(def);
+    this.levels[id] = 1;
+    if (this.lineupCount() > LINEUP_SIZE) this.benched[id] = true;
+    this.save();
+    return true;
+  }
+
+  /** Open a Hero Chest: Crests (medals) for random heroes. Locked heroes unlock once they have enough. */
   summon(): SummonDrop[] | null {
     if (this.gems < CHEST_COST) return null;
     this.gems -= CHEST_COST;
@@ -238,12 +258,12 @@ export class GameState {
       const hero = HEROES[Math.floor(Math.random() * HEROES.length)];
       let roll = Math.random() * total;
       const crests = (CREST_ROLLS.find(([, w]) => (roll -= w) < 0) ?? CREST_ROLLS[0])[0];
-      const isNew = (this.levels[hero.id] ?? 0) === 0;
-      if (isNew) {
-        this.levels[hero.id] = 1;
-        if (this.lineupCount() > LINEUP_SIZE) this.benched[hero.id] = true;
-      }
-      this.crests[hero.id] = (this.crests[hero.id] ?? 0) + crests;
+      const locked = (this.levels[hero.id] ?? 0) === 0;
+      const before = this.crests[hero.id] ?? 0;
+      this.crests[hero.id] = before + crests;
+      // "New" marks the drop that brings a locked hero to their unlock count.
+      const need = this.unlockCrests(hero);
+      const isNew = locked && before < need && before + crests >= need;
       drops.push({ heroId: hero.id, crests, isNew });
     }
     this.save();
