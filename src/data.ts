@@ -314,6 +314,21 @@ export const REKINDLE_BOOSTS: Array<{ mult: number; gems: number }> = [
   { mult: 2, gems: 80 },
   { mult: 3, gems: 160 },
 ];
+/**
+ * Rekindle Wheel (the original's Ascension Wheel): 16 slots that unlock as this
+ * run's best stage passes 150, 200, 250... Each unlocked slot is one spin of
+ * the wheel when you Rekindle. Prizes are never Gems (those come from rewards.ts).
+ */
+export const ROAD_START = 150;
+export const ROAD_STEP = 50;
+export const ROAD_LENGTH = 16;
+export type WheelPrize = { kind: 'chest' } | { kind: 'tickets'; amount: number } | { kind: 'essence'; amount: number } | { kind: 'embers'; share: number };
+export const WHEEL_PRIZES: Array<{ prize: WheelPrize; weight: number }> = [
+  { prize: { kind: 'chest' }, weight: 30 },
+  { prize: { kind: 'tickets', amount: 3 }, weight: 25 },
+  { prize: { kind: 'essence', amount: 40 }, weight: 25 },
+  { prize: { kind: 'embers', share: 0.05 }, weight: 20 },
+];
 /** Each player level adds this much to every Ember payout. */
 export const KEEPER_BONUS_PER_LEVEL = 0.1;
 export const CRIT_CHANCE = 0.12;

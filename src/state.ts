@@ -1,8 +1,8 @@
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, REKINDLE_BOOSTS, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_LEVELS_PER_TIER, RELIC_TIERS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_LEVELS_PER_TIER, RELIC_TIERS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE } from './data';
 import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp, goldPerKill } from './formulas';
-import type { HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
+import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES } from './data';
 import { activeEffects, mulEffect, type ActiveEffect } from './skills';
 
@@ -20,6 +20,15 @@ export interface OfflineReport {
   stages: number;
   /** Part of `gold` that came from auto-collect Stalls. */
   market: Decimal;
+}
+
+export interface RekindleResult {
+  embers: number;
+  /** One line per Rekindle Wheel spin. */
+  wheel: string[];
+  /** Hero Chest drops from the wheel and from player level gifts. */
+  drops: SummonDrop[];
+  levelsGained: number;
 }
 
 export type SaveData = Record<string, any>;
@@ -577,16 +586,22 @@ export class GameState {
    * Prestige reset (GDD section 7): back to stage 1 and gold level 1, keep
    * Embers and Ember levels. `mult` is a Gem-bought 2x or 3x payout.
    */
-  rekindle(mult = 1): number | null {
+  rekindle(mult = 1): RekindleResult | null {
     const base = this.pendingEmbers();
     if (base <= 0) return null;
     const boost = REKINDLE_BOOSTS.find((b) => b.mult === mult);
     if (mult !== 1 && (!boost || this.gems < boost.gems)) return null;
     if (boost) this.gems -= boost.gems;
-    const gained = base * mult;
+    const levelBefore = this.keeperLevel();
+    const wheel = this.spinWheel(base);
+    const gained = base * mult + wheel.embers;
     this.embers += gained;
     this.lifetimeEmbers += gained;
     this.rekindles += 1;
+    // Every new player level comes with a gift: a free Hero Chest.
+    const levelsGained = this.keeperLevel() - levelBefore;
+    const gifts: SummonDrop[] = [];
+    for (let i = 0; i < levelsGained; i++) gifts.push(...this.rollChest());
     this.gold = new Decimal(0);
     this.stage = 1;
     this.runBestStage = 1;
@@ -596,7 +611,41 @@ export class GameState {
     this.secondsPerStage = 20;
     this.goldPerSec = 0;
     this.save();
-    return gained;
+    return { embers: gained, wheel: wheel.lines, drops: [...wheel.drops, ...gifts], levelsGained };
+  }
+
+  /** Rekindle Wheel slots unlocked by this run's best stage. */
+  roadReached() {
+    if (this.runBestStage < ROAD_START) return 0;
+    return Math.min(ROAD_LENGTH, 1 + Math.floor((this.runBestStage - ROAD_START) / ROAD_STEP));
+  }
+
+  /** Spin the Rekindle Wheel once per unlocked slot. Ember prizes are a share of `base` and are added by the caller. */
+  private spinWheel(base: number) {
+    const lines: string[] = [];
+    const drops: SummonDrop[] = [];
+    let embers = 0;
+    for (let i = 0; i < this.roadReached(); i++) {
+      const prize = weighted(WHEEL_PRIZES.map((p) => [p.prize, p.weight] as [WheelPrize, number]));
+      if (prize.kind === 'chest') {
+        drops.push(...this.rollChest());
+        lines.push('Hero Chest');
+      } else if (prize.kind === 'tickets') {
+        this.refreshTickets();
+        this.tickets = Math.min(TICKET_CAP, this.tickets + prize.amount);
+        lines.push(`${prize.amount} Trial tickets`);
+      } else if (prize.kind === 'essence') {
+        const els = Object.keys(ESSENCE_NAMES) as Element[];
+        const el = els[Math.floor(Math.random() * els.length)];
+        this.essences[el] = (this.essences[el] ?? 0) + prize.amount;
+        lines.push(`${prize.amount} ${ESSENCE_NAMES[el]}`);
+      } else {
+        const extra = Math.floor(base * prize.share);
+        embers += extra;
+        lines.push(`+${Math.round(prize.share * 100)}% Embers`);
+      }
+    }
+    return { lines, drops, embers };
   }
 
   // ---------- free Gem sources (rewards.ts) ----------

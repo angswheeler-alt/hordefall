@@ -10,7 +10,6 @@ import {
   ULT_MULTIPLIER,
   ULT_STAR_BONUS,
   ULT_PLUS_EVOLUTIONS,
-  BOSS_GEMS,
   ULT_UNLOCK_LEVEL,
   SPEED_UNLOCK_STAGE,
   CRIT_CHANCE,
@@ -530,9 +529,8 @@ export class BattleScene extends Phaser.Scene {
     this.state.recordStageTime(this.stageRealTime);
     if (isBossStage(stage)) {
       this.state.autoAdvance = true;
-      this.state.gems += BOSS_GEMS;
-      this.time.delayedCall(1000, () => this.floatText(this.cameras.main.scrollX + WIDTH / 2, 150, `+${BOSS_GEMS} Gems`, '#7fe3ff', 18));
     }
+    this.state.track('stages');
     const prevBest = this.state.bestStage;
     if (this.state.autoAdvance) this.state.reachStage(this.state.stage + 1);
     if (prevBest < SPEED_UNLOCK_STAGE && this.state.bestStage >= SPEED_UNLOCK_STAGE) {
@@ -595,10 +593,18 @@ export class BattleScene extends Phaser.Scene {
 
   // ---------- combat ----------
 
+  private playSeconds = 0;
+
   update(_time: number, deltaMs: number) {
     const realDt = Math.min(deltaMs / 1000, 0.1);
     this.trackIncome(realDt);
     if (!this.transitioning) this.stageRealTime += realDt;
+    // Battle time for the daily challenge, in whole minutes.
+    this.playSeconds += realDt;
+    if (this.playSeconds >= 60) {
+      this.playSeconds -= 60;
+      this.state.track('minutes');
+    }
     if (this.hitStop > 0) {
       this.hitStop -= realDt;
       return;
@@ -850,6 +856,7 @@ export class BattleScene extends Phaser.Scene {
   private kill(u: Unit, source: Unit | null) {
     u.alive = false;
     if (u.side === 'enemy') {
+      this.state.track('kills');
       const gold = goldPerKill(this.state.stage)
         .times(u.isBoss ? 10 : 1)
         .times(source?.goldMult ?? 1)
@@ -975,6 +982,7 @@ export class BattleScene extends Phaser.Scene {
       this.shatter(wx, chest.y, 0xffe066);
       this.flyCoins(wx, chest.y, kind.killsWorth >= 15 ? 10 : 5);
       play('chest');
+      this.state.track('chests');
       if (kind.key === 'chest-gold') {
         this.state.gems += 5;
         this.floatText(wx, chest.y - 12, '+5 Gems', '#7fe3ff', 14);

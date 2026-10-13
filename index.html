@@ -77,6 +77,20 @@
         </section>
         <section class="panel" data-tab="shop" hidden>
           <div class="panel-head"><h2>Shop</h2></div>
+          <div id="rewards">
+          <div class="rw-card">
+            <h3>Daily login <small>Gems every 5th day</small></h3>
+            <div id="login-days" class="login-days"></div>
+            <button id="login-claim" class="hot rw-wide">Claim</button>
+          </div>
+          <div class="rw-card spin-card">
+            <div class="spin-wrap"><div id="spin-wheel" class="spin-wheel"></div><i class="spin-pin" aria-hidden="true"></i></div>
+            <div class="spin-side"><h3>Lucky Spin</h3><p>One free spin every day.</p><button id="spin-btn" class="hot">Free spin</button></div>
+          </div>
+          <div class="rw-card">
+            <h3>Daily challenges <small id="daily-note"></small></h3>
+            <ul id="daily-list" class="rw-list"></ul>
+          </div>
           <div class="shop-card">
             <div class="shop-art chest" aria-hidden="true"></div>
             <div class="shop-text"><b>Hero Chest</b><p>3 drops of Hero Crests (medals). Crests unlock new heroes (10 for a common) and evolve them.</p></div>
@@ -87,7 +101,15 @@
             <div class="shop-text"><b>Gem pouch</b><p>Free in the prototype. Real Gem packs come later.</p></div>
             <button id="freegems" class="gem-btn">+100 Gems</button>
           </div>
-          <div class="soon-card"><h3>More to come</h3><p class="soon-when">Coming in a later build</p><ul><li>Lucky Chest: a daily Epic hero.</li><li>Relic slots and hero slots.</li><li>Offers and Gem packs.</li></ul></div>
+          <div class="rw-card">
+            <h3>Bootcamp <small id="boot-note"></small></h3>
+            <ul id="boot-list" class="rw-list"></ul>
+          </div>
+          <div class="rw-card">
+            <h3>Achievements</h3>
+            <ul id="ach-list" class="rw-list"></ul>
+          </div>
+          </div>
         </section>
         <section class="panel" data-tab="guild" hidden>
           <div class="panel-head"><h2>Guild</h2></div>

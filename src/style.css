@@ -385,3 +385,37 @@ button.link[disabled] { display: none; }
 
 /* Hero faces drawn from the hero sprite: zoomed to head and shoulders, crisp pixels, letter hidden. */
 .face.art { background-image: var(--art); background-repeat: no-repeat; background-size: 180%; background-position: 52% 18%; image-rendering: pixelated; color: transparent !important; text-shadow: none !important; }
+
+/* Free rewards in the Shop tab */
+.rw-card { background: linear-gradient(180deg, var(--plank), #4a2d17); border: 2px solid var(--wood-deep); border-radius: 10px; padding: 10px 12px; color: #fff4dd; margin-bottom: 8px; }
+.rw-card h3 { margin: 0 0 8px; font-size: 16px; display: flex; align-items: baseline; gap: 8px; }
+.rw-card h3 small { margin-left: auto; color: var(--orange); font-size: 12px; font-weight: 700; }
+.rw-card p { margin: 2px 0 8px; font-size: 12px; color: #e8d3b0; }
+.rw-wide { width: 100%; min-height: 40px; }
+.login-days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 8px; }
+.login-days div { background: rgba(0,0,0,.25); border: 2px solid transparent; border-radius: 8px; padding: 6px 2px; text-align: center; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.login-days small { font-size: 10px; color: #e8d3b0; }
+.login-days b { font-size: 11px; line-height: 1.2; }
+.login-days .big b { color: #7fe3ff; }
+.login-days .today { border-color: var(--gold); box-shadow: 0 0 8px rgba(255,216,74,.5); }
+.login-days .done { opacity: .55; }
+.login-days .done b { color: var(--ok); font-size: 16px; }
+.spin-card { display: flex; gap: 14px; align-items: center; }
+.spin-wrap { position: relative; flex: none; width: 132px; height: 132px; }
+.spin-wheel { width: 100%; height: 100%; border-radius: 50%; border: 4px solid var(--gold); position: relative; transition: transform 3s cubic-bezier(.17,.67,.2,1); box-shadow: 0 0 10px rgba(0,0,0,.5); }
+.spin-wheel span { position: absolute; left: 50%; top: 0; height: 50%; width: 0; transform-origin: bottom center; }
+.spin-wheel em { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); writing-mode: vertical-rl; font-style: normal; font-size: 9px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px #000; white-space: nowrap; }
+.spin-pin { position: absolute; top: -6px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 14px solid #fff; filter: drop-shadow(0 1px 2px #000); }
+.spin-side { flex: 1; min-width: 0; }
+.spin-side h3 { margin: 0; }
+.spin-side button { width: 100%; min-height: 40px; }
+.rw-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.rw-list li { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,.2); border-radius: 8px; padding: 6px 8px; }
+.rw-list li[hidden] { display: none; }
+.rw-list li.ready { box-shadow: inset 0 0 0 2px var(--gold); }
+.rw-list li.done { opacity: .55; }
+.rw-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
+.rw-text small { font-size: 11px; color: #e8d3b0; }
+.rw-bar { height: 6px; background: rgba(0,0,0,.35); border-radius: 99px; overflow: hidden; }
+.rw-bar i { display: block; height: 100%; background: var(--gold); }
+.rw-list button { flex: none; min-width: 72px; min-height: 36px; }
