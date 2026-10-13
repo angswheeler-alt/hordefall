@@ -6,7 +6,7 @@
 //        daggers), Cinder (horned helm, magma shield, hammer)
 // Earth: Briar (elf archer, kneeling shot), Fern (flowered hair, living staff), Thorn (bearded, thorn
 //        spear), Moss (hooded druid, seed staff)
-// Water: Brine (painted art, rigged: see brine/build.js), Brook (veiled cleric, water crystal), Ripple (ponytail archer,
+// Water: Brine (frame-animated from sprite sheets: see brine/frames.js), Brook (veiled cleric, water crystal), Ripple (ponytail archer,
 //        wave bow), Marina (witch hat, water orb)
 // Dark:  Shade (hooded, crouching, twin daggers), Vex (white hair, orb held at the chest), Rook
 //        (masked, long coat, hooked bow), Dread (spiked helm, tower shield, cape)

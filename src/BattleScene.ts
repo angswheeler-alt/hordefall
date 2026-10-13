@@ -60,26 +60,25 @@ const MAX_ENEMIES = 14;
 const FOOT_Y = 15;
 
 /**
- * Cut-out rigs for heroes drawn from painted art (built by art/heroes/<id>/build.js). The body, arm and
- * scarf PNGs share one canvas; coordinates are pixels on it. The arm swings about `arm` (the elbow) when
- * attacking, the scarf flutters about `scarf` (the neck), and `feet` is the point that stands on the lane.
+ * Frame-animated heroes (built by art/heroes/<id>/frames.js). heroes/<id>.png is the standing pose and
+ * <id>_run.png / <id>_attack.png are strips of equal frames on the same canvas. `feet` is the point that
+ * stands on the lane, `headTop` the first row of hair (for the HP bar), and `slashFrame` the attack frame
+ * where the blade connects (the slash streak shows there).
  */
-interface Rig {
+interface HeroAnim {
+  frame: [number, number];
   feet: [number, number];
-  arm: [number, number];
-  scarf?: [number, number];
+  headTop: number;
+  run: number;
+  attack: number;
+  slashFrame: number;
 }
-const RIGS: Record<string, Rig> = {
-  brine: { feet: [15, 51], arm: [16, 26], scarf: [10, 19] },
+const HERO_ANIMS: Record<string, HeroAnim> = {
+  brine: { frame: [59, 59], feet: [30, 58], headTop: 9, run: 6, attack: 5, slashFrame: 2 },
 };
-
-/** The moving parts of a rigged hero. */
-interface RigParts {
-  arm: Phaser.GameObjects.Image;
-  scarf?: Phaser.GameObjects.Image;
-  /** The elbow, relative to the unit's position, for the slash effect. */
-  elbow: { x: number; y: number };
-}
+const RUN_FPS = 12;
+const ATTACK_FPS = 16;
+type AnimState = 'idle' | 'run' | 'attack';
 
 interface Unit {
   side: 'hero' | 'enemy';
@@ -104,8 +103,9 @@ interface Unit {
   respawnAt: number;
   ultReadyAt: number;
   view: Phaser.GameObjects.Container;
-  body: Phaser.GameObjects.Image;
-  rig?: RigParts;
+  body: Phaser.GameObjects.Sprite;
+  /** Set for frame-animated heroes: which animation is showing. */
+  anim?: { id: string; state: AnimState };
   hpBar: Phaser.GameObjects.Graphics;
   barWidth: number;
 }
@@ -171,14 +171,21 @@ export class BattleScene extends Phaser.Scene {
     for (const r of REGIONS) for (const layer of ['sky', 'far', 'ground']) this.load.image(`bg-${r}-${layer}`, `bg/${r}_${layer}.png`);
     // Hero sprites (32x32, feet on row 30). A hero without a file falls back to its placeholder block.
     for (const h of HEROES) this.load.image(`hero-${h.id}`, `heroes/${h.id}.png`);
-    for (const [id, rig] of Object.entries(RIGS)) {
-      this.load.image(`hero-${id}-arm`, `heroes/${id}_arm.png`);
-      if (rig.scarf) this.load.image(`hero-${id}-scarf`, `heroes/${id}_scarf.png`);
+    for (const [id, a] of Object.entries(HERO_ANIMS)) {
+      const size = { frameWidth: a.frame[0], frameHeight: a.frame[1] };
+      this.load.spritesheet(`hero-${id}-run`, `heroes/${id}_run.png`, size);
+      this.load.spritesheet(`hero-${id}-attack`, `heroes/${id}_attack.png`, size);
     }
   }
 
   create() {
     this.makeTextures();
+    for (const [id, a] of Object.entries(HERO_ANIMS)) {
+      if (!this.anims.exists(`${id}-run`)) {
+        this.anims.create({ key: `${id}-run`, frames: this.anims.generateFrameNumbers(`hero-${id}-run`, { start: 0, end: a.run - 1 }), frameRate: RUN_FPS, repeat: -1 });
+        this.anims.create({ key: `${id}-attack`, frames: this.anims.generateFrameNumbers(`hero-${id}-attack`, { start: 0, end: a.attack - 1 }), frameRate: ATTACK_FPS, repeat: 0 });
+      }
+    }
     // Sky is fixed to the screen; the far layer scrolls at 40% for depth; the ground repeats along the lane.
     this.sky = this.add.image(0, 0, `bg-${REGIONS[0]}-sky`).setOrigin(0).setScrollFactor(0);
     const farWidth = WIDTH + (WORLD_WIDTH - WIDTH) * 0.4;
@@ -294,16 +301,15 @@ export class BattleScene extends Phaser.Scene {
     label?: string;
   }): Unit {
     const y = opts.isBoss ? LANE_TOP + 35 : Phaser.Math.Between(LANE_TOP + 5, LANE_BOTTOM);
-    const body = this.add.image(0, 0, opts.texture);
+    const body = this.add.sprite(0, 0, opts.texture);
     if (opts.side === 'enemy') body.setTint(ELEMENT_COLORS[opts.element]).setFlipX(true);
+    // Frame-animated heroes stand on their feet point, on the same foot line as everyone else.
+    const animDef = opts.def ? HERO_ANIMS[opts.def.id] : undefined;
+    const anim = animDef && this.anims.exists(`${opts.def!.id}-run`) ? { id: opts.def!.id, state: 'idle' as AnimState } : undefined;
+    if (anim && animDef) body.setOrigin(animDef.feet[0] / animDef.frame[0], animDef.feet[1] / animDef.frame[1]).setY(FOOT_Y);
     const barWidth = opts.isBoss ? 60 : 24;
     const hpBar = this.add.graphics();
     const parts: Phaser.GameObjects.GameObject[] = [body, hpBar];
-    const rig = opts.def ? this.buildRig(opts.def.id, body) : undefined;
-    if (rig) {
-      if (rig.scarf) parts.unshift(rig.scarf);
-      parts.splice(parts.indexOf(body) + 1, 0, rig.arm);
-    }
     if (opts.label) {
       parts.push(
         this.add
@@ -334,7 +340,7 @@ export class BattleScene extends Phaser.Scene {
       ultReadyAt: 0,
       view,
       body,
-      rig,
+      anim,
       hpBar,
       barWidth,
     };
@@ -342,47 +348,28 @@ export class BattleScene extends Phaser.Scene {
     return unit;
   }
 
-  /**
-   * Set up a cut-out hero: the body stands on the foot line, the arm and scarf sit at their pivots so they
-   * can rotate, and the scarf flutters while the whole figure bobs gently.
-   */
-  private buildRig(id: string, body: Phaser.GameObjects.Image): RigParts | undefined {
-    const rig = RIGS[id];
-    if (!rig || !this.textures.exists(`hero-${id}-arm`)) return undefined;
-    const W = body.width, H = body.height;
-    const at = ([px, py]: [number, number]) => ({ x: px - rig.feet[0], y: FOOT_Y + py - rig.feet[1] });
-    body.setOrigin(rig.feet[0] / W, rig.feet[1] / H).setPosition(0, FOOT_Y);
-    const elbow = at(rig.arm);
-    const arm = this.add.image(elbow.x, elbow.y, `hero-${id}-arm`).setOrigin(rig.arm[0] / W, rig.arm[1] / H);
-    let scarf: Phaser.GameObjects.Image | undefined;
-    if (rig.scarf) {
-      const neck = at(rig.scarf);
-      scarf = this.add.image(neck.x, neck.y, `hero-${id}-scarf`).setOrigin(rig.scarf[0] / W, rig.scarf[1] / H);
-      this.tweens.add({ targets: scarf, angle: { from: -8, to: 6 }, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+  /** Switch a frame-animated hero between standing, running and attacking. An attack always restarts. */
+  private setAnim(u: Unit, state: AnimState) {
+    const a = u.anim;
+    if (!a || (a.state === state && state !== 'attack')) return;
+    a.state = state;
+    if (state === 'run') u.body.play(`${a.id}-run`);
+    else if (state === 'idle') u.body.stop().setTexture(`hero-${a.id}`);
+    else {
+      u.body.play(`${a.id}-attack`);
+      u.body.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+        if (a.state === 'attack' && u.body.active) this.setAnim(u, 'idle');
+      });
+      // The streak lands on the frame where the blade connects (frames run at ATTACK_FPS, scaled by battle speed).
+      const def = HERO_ANIMS[a.id];
+      this.time.delayedCall((def.slashFrame / ATTACK_FPS) * 1000 / this.speedMultiplier(), () => this.slashStreak(u));
     }
-    this.tweens.add({ targets: [body, arm, scarf].filter(Boolean), y: '-=1', duration: 380, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-    return { arm, scarf, elbow };
   }
 
-  /** Cutlass swing: wind up, slash through with a streak, then settle back. */
-  private swing(u: Unit) {
-    const rig = u.rig!;
-    this.tweens.killTweensOf(rig.arm);
-    rig.arm.setAngle(0);
-    this.tweens.chain({
-      targets: rig.arm,
-      tweens: [
-        { angle: -70, duration: 90, ease: 'Quad.out' },
-        { angle: 38, duration: 70, ease: 'Quad.in', onComplete: () => this.slashStreak(u) },
-        { angle: 0, duration: 170, ease: 'Sine.out' },
-      ],
-    });
-  }
-
-  /** A short arc where the blade passed, in the hero's element colour. */
+  /** A short arc in front of the hero where the blade passed, in the hero's element colour. */
   private slashStreak(u: Unit) {
-    const rig = u.rig!;
-    const cx = u.view.x + rig.elbow.x, cy = u.view.y + rig.elbow.y;
+    if (!u.alive) return;
+    const cx = u.view.x + 4, cy = u.view.y + FOOT_Y - 28;
     const g = this.add.graphics().setDepth(u.view.depth + 1);
     const draw = (alpha: number) => {
       g.clear();
@@ -396,7 +383,7 @@ export class BattleScene extends Phaser.Scene {
   private drawHpBar(u: Unit) {
     const ratio = u.maxHp.gt(0) ? Math.max(0, Math.min(1, u.hp.div(u.maxHp).toNumber())) : 0;
     const w = u.barWidth;
-    const top = u.rig ? FOOT_Y - u.body.displayOriginY - 4 : -u.body.height / 2 - 7;
+    const top = u.anim ? FOOT_Y - HERO_ANIMS[u.anim.id].feet[1] + HERO_ANIMS[u.anim.id].headTop - 5 : -u.body.height / 2 - 7;
     u.hpBar.clear();
     u.hpBar.fillStyle(0x000000, 0.7).fillRect(-w / 2 - 1, top - 1, w + 2, 5);
     u.hpBar.fillStyle(u.side === 'hero' ? 0x4cff7a : 0xff4c4c, 1).fillRect(-w / 2, top, w * ratio, 3);
@@ -604,6 +591,7 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     const dt = realDt * (this.speedMultiplier());
+    this.anims.globalTimeScale = this.speedMultiplier();
     this.clock += dt;
     this.updateChests(dt);
     this.drawHud();
@@ -651,7 +639,14 @@ export class BattleScene extends Phaser.Scene {
     this.crystalShield.setVisible(shielded);
   }
 
+  /** Move or attack, then show running while the hero moved this frame and standing otherwise. */
   private stepHero(h: Unit, dt: number) {
+    const x0 = h.x;
+    this.stepHeroAction(h, dt);
+    if (h.anim && h.anim.state !== 'attack') this.setAnim(h, h.x !== x0 ? 'run' : 'idle');
+  }
+
+  private stepHeroAction(h: Unit, dt: number) {
     h.cooldownLeft -= dt;
     const def = h.def!;
 
@@ -745,7 +740,7 @@ export class BattleScene extends Phaser.Scene {
     const def = h.def!;
     if (def.range > 60) this.shot(h, target.x, target.y, ELEMENT_COLORS[def.element]);
     else this.lunge(h, 1);
-    if (h.rig) this.swing(h);
+    if (h.anim) this.setAnim(h, 'attack');
     h.attacks++;
     const critChance = CRIT_CHANCE + this.sum('crit', h);
     const strikes = Math.random() < this.sum('doubleStrike', h) ? 2 : 1;
@@ -794,12 +789,11 @@ export class BattleScene extends Phaser.Scene {
     target.hp = target.hp.minus(amount);
     this.drawHpBar(target);
     this.hitFeedback(target, amount, source, crit);
-    const flashed = [target.body, target.rig?.arm, target.rig?.scarf].filter((p): p is Phaser.GameObjects.Image => !!p);
-    for (const p of flashed) p.setTintFill(0xffffff);
+    target.body.setTintFill(0xffffff);
     this.time.delayedCall(60, () => {
       if (!target.body.active) return;
       if (target.side === 'enemy') target.body.setTint(ELEMENT_COLORS[target.element]);
-      else for (const p of flashed) p.clearTint();
+      else target.body.clearTint();
     });
     if (target.hp.lte(0)) this.kill(target, source);
   }
@@ -974,9 +968,7 @@ export class BattleScene extends Phaser.Scene {
   // ---------- effects and HUD ----------
 
   private lunge(u: Unit, dir: 1 | -1) {
-    // Rigged heroes move every part together; relative x keeps each part at its own offset.
-    const parts = [u.body, u.rig?.arm, u.rig?.scarf].filter(Boolean);
-    this.tweens.add({ targets: parts, x: `+=${5 * dir}`, duration: 70, yoyo: true });
+    this.tweens.add({ targets: u.body, x: 5 * dir, duration: 70, yoyo: true });
   }
 
   private shot(from: Unit, x: number, y: number, color: number) {
