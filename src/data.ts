@@ -217,12 +217,21 @@ export const STALL_REKINDLE_LEVELS_CAP = 600;
 /** Heroes that can fight at once. Matches the roster for now; matters once more heroes arrive. */
 export const LINEUP_SIZE = 5;
 
-/** Elemental Trials (GDD 11.1): one boss per element, rotating daily. */
+/** Elemental Trials (GDD 11.1): each element's dungeon opens on set days (Samuel's schedule). */
 export const TRIAL_ROTATION: Element[] = ['water', 'earth', 'fire', 'light', 'dark'];
+/** Days each Trial is open, as Date.getDay() numbers (0 = Sunday), in the player's local time. */
+export const TRIAL_SCHEDULE: Record<Element, number[]> = {
+  dark: [1, 5, 0],
+  light: [2, 4, 6],
+  earth: [2, 4, 0],
+  water: [3, 5, 0],
+  fire: [1, 3, 6],
+};
+export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export const TRIAL_TIERS = 20;
 export const TRIAL_TIME = 30;
-export const TICKET_MINUTES = 20;
-export const TICKET_CAP = 3;
+export const TICKET_MINUTES = 30;
+export const TICKET_CAP = 20;
 export const TRIAL_BOSS_NAMES: Record<Element, string> = {
   water: 'Tide Warden',
   earth: 'Stone Colossus',

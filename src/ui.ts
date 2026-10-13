@@ -1,5 +1,5 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, ULT_STAR_BONUS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_TIERS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef } from './data';
+import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, ULT_STAR_BONUS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
 import { bulkCost, upgradeCost, stallUpgradeCost, trialHp, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
@@ -257,6 +257,13 @@ export class UI {
     $('tr-down').addEventListener('click', () => this.stepTier(-1));
     $('tr-up').addEventListener('click', () => this.stepTier(1));
     $('tr-fight').addEventListener('click', () => this.fightTrial());
+    $('tr-days').addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-el]');
+      if (!btn || btn.disabled) return;
+      this.trialPick = btn.dataset.el as Element;
+      this.trialTier = 0;
+      this.renderTrials();
+    });
     $('levelall').addEventListener('click', () => {
       if (this.state.levelAll() > 0) {
         play('unlock');
@@ -550,15 +557,23 @@ export class UI {
   }
 
   private trialTier = 0;
+  private trialPick: Element | null = null;
+
+  /** The Trial being looked at: the player's pick if it's open today, else the first open one. */
+  private trialEl(): Element {
+    const open = this.state.openTrials();
+    if (!this.trialPick || !open.includes(this.trialPick)) this.trialPick = open[0];
+    return this.trialPick;
+  }
 
   private stepTier(dir: number) {
-    const max = this.state.trialUnlocked(this.state.trialElement());
+    const max = this.state.trialUnlocked(this.trialEl());
     this.trialTier = Math.min(max, Math.max(1, this.currentTier() + dir));
     this.renderTrials();
   }
 
   private currentTier() {
-    const max = this.state.trialUnlocked(this.state.trialElement());
+    const max = this.state.trialUnlocked(this.trialEl());
     if (this.trialTier < 1 || this.trialTier > max) this.trialTier = max;
     return this.trialTier;
   }
@@ -566,17 +581,20 @@ export class UI {
   private renderTrials() {
     const s = this.state;
     const wait = s.refreshTickets();
-    const el = s.trialElement();
+    const el = this.trialEl();
     const tier = this.currentTier();
     const mm = Math.floor(wait / 60);
     const ss = String(wait % 60).padStart(2, '0');
     $('tr-tickets').textContent = `Tickets ${s.tickets}/${TICKET_CAP}${wait ? ` · next ${mm}:${ss}` : ''}`;
-    const key = `${el}`;
+    const open = s.openTrials();
+    const key = `${el}:${open.join(',')}`;
     if ($('tr-days').dataset.key !== key) {
       $('tr-days').dataset.key = key;
-      $('tr-days').innerHTML = TRIAL_ROTATION.map(
-        (e) => `<span class="trial-day${e === el ? ' today' : ''}" style="--el:${hex(ELEMENT_COLORS[e])}" title="${cap(e)}">${e === el ? 'Today' : cap(e)}</span>`,
-      ).join('');
+      $('tr-days').innerHTML = TRIAL_ROTATION.map((e) => {
+        const isOpen = open.includes(e);
+        const days = TRIAL_SCHEDULE[e].map((d) => DAY_NAMES[d]).join(' ');
+        return `<button class="trial-day${isOpen ? ' open' : ''}${e === el ? ' today' : ''}" data-el="${e}" style="--el:${hex(ELEMENT_COLORS[e])}" ${isOpen ? '' : 'disabled'} title="${cap(e)}: ${days}"><b>${cap(e)}</b><small>${isOpen ? 'Open' : days}</small></button>`;
+      }).join('');
       $('tr-face').style.background = hex(ELEMENT_COLORS[el]);
       $('tr-face').textContent = TRIAL_BOSS_NAMES[el][0];
       $('tr-name').textContent = `${TRIAL_BOSS_NAMES[el]} (${cap(el)})`;
@@ -598,8 +616,8 @@ export class UI {
   private fightTrial() {
     const s = this.state;
     const tier = this.currentTier();
-    const el = s.trialElement();
-    const result = s.playTrial(tier);
+    const el = this.trialEl();
+    const result = s.playTrial(el, tier);
     if (!result) return;
     const hero = HEROES.find((h) => h.id === result.heroId)!;
     this.showModal(

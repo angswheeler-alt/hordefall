@@ -330,3 +330,9 @@ button.link[disabled] { display: none; }
 .tf-result { text-align: center; font-weight: 800; }
 .tf-result.win { color: var(--ok) !important; }
 .tf-result.lose { color: var(--hot) !important; }
+
+.trial-day { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 4px 0; font: inherit; cursor: pointer; }
+.trial-day b { font-size: 11px; }
+.trial-day small { font-size: 9px; font-weight: 600; opacity: .85; }
+.trial-day:disabled { opacity: .55; cursor: default; filter: grayscale(.5); }
+.trial-day.open:not(.today) { color: #fff; box-shadow: inset 0 0 0 1px var(--el); }

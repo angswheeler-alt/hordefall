@@ -1,5 +1,5 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_TIERS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS } from './data';
 import { trialHp, trialDps, stallIncome, stallUpgradeCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp } from './formulas';
 import type { HeroDef, StallDef, Element } from './data';
 
@@ -296,9 +296,13 @@ export class GameState {
     return total;
   }
 
-  /** Today's Trial element (changes at midnight UTC). */
-  trialElement(now = Date.now()): Element {
-    return TRIAL_ROTATION[Math.floor(now / 86400000) % TRIAL_ROTATION.length];
+  /** Whether an element's Trial is open today (player's local day). */
+  trialOpen(element: Element, now = Date.now()): boolean {
+    return TRIAL_SCHEDULE[element].includes(new Date(now).getDay());
+  }
+
+  openTrials(now = Date.now()): Element[] {
+    return TRIAL_ROTATION.filter((e) => this.trialOpen(e, now));
   }
 
   /** Add tickets earned since the clock started; returns seconds until the next one (0 when full). */
@@ -323,7 +327,7 @@ export class GameState {
   }
 
   /** Simulate a Trial fight against today's boss at `tier`. */
-  simulateTrial(tier: number, element = this.trialElement()) {
+  simulateTrial(tier: number, element: Element) {
     const team = this.trialTeam();
     let dps = new Decimal(0);
     let hp = new Decimal(0);
@@ -352,11 +356,10 @@ export class GameState {
     return Math.min(TRIAL_TIERS, (this.trialBest[element] ?? 0) + 1);
   }
 
-  /** Spend a ticket on today's Trial. A loss gives the ticket back. */
-  playTrial(tier: number): TrialResult | null {
+  /** Spend a ticket on an open Trial. A loss gives the ticket back. */
+  playTrial(element: Element, tier: number): TrialResult | null {
     this.refreshTickets();
-    const element = this.trialElement();
-    if (this.tickets <= 0 || tier < 1 || tier > this.trialUnlocked(element)) return null;
+    if (!this.trialOpen(element) || this.tickets <= 0 || tier < 1 || tier > this.trialUnlocked(element)) return null;
     const sim = this.simulateTrial(tier, element);
     const hero = HEROES.find((h) => h.element === element)!;
     const result: TrialResult = { won: sim.won, seconds: sim.seconds, bossLeft: sim.bossLeft, teamLeft: sim.teamLeft, essence: 0, crests: 0, heroId: hero.id };
