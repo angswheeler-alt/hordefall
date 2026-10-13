@@ -140,6 +140,10 @@ export class BattleScene extends Phaser.Scene {
   /** Game-time clock in seconds; runs twice as fast at 2x speed. */
   private clock = 0;
   private stageTime = 0;
+  /** Real seconds spent on this stage, for offline pace (stageTime is game time, doubled at 2x). */
+  private stageRealTime = 0;
+  /** The queued move to the next stage after a win or loss; cancelled if the stage restarts sooner. */
+  private nextStageTimer?: Phaser.Time.TimerEvent;
   private waveTimer = 0;
   private bossTimer = 0;
   private transitioning = false;
@@ -465,6 +469,8 @@ export class BattleScene extends Phaser.Scene {
   // ---------- stage flow ----------
 
   startStage() {
+    this.nextStageTimer?.remove();
+    this.nextStageTimer = undefined;
     for (const e of this.enemies) e.view.destroy();
     this.enemies = [];
     for (const h of this.heroes) this.reviveHero(h);
@@ -473,6 +479,7 @@ export class BattleScene extends Phaser.Scene {
     this.crystal.hp = this.crystal.maxHp;
     this.crystalView.setAlpha(1).setScale(1);
     this.stageTime = 0;
+    this.stageRealTime = 0;
     this.waveTimer = 0;
     this.transitioning = false;
     this.bossEngaged = false;
@@ -520,7 +527,7 @@ export class BattleScene extends Phaser.Scene {
     const stage = this.state.stage;
     const reward = stageClearGold(stage);
     this.gainGold(reward, ENEMY_CRYSTAL_X, LANE_TOP);
-    this.state.recordStageTime(this.stageTime);
+    this.state.recordStageTime(this.stageRealTime);
     if (isBossStage(stage)) {
       this.state.autoAdvance = true;
       this.state.gems += BOSS_GEMS;
@@ -541,7 +548,7 @@ export class BattleScene extends Phaser.Scene {
     play('clear');
     this.banner(isBossStage(stage) ? 'BOSS DOWN!' : 'STAGE CLEAR', '#ffe066');
     this.state.save();
-    this.time.delayedCall(900, () => this.startStage());
+    this.nextStageTimer = this.time.delayedCall(900, () => this.startStage());
   }
 
   private loseStage(reason: string) {
@@ -556,7 +563,7 @@ export class BattleScene extends Phaser.Scene {
     this.banner(reason, '#ff6b6b');
     play('defeat');
     this.state.save();
-    this.time.delayedCall(1300, () => this.startStage());
+    this.nextStageTimer = this.time.delayedCall(1300, () => this.startStage());
   }
 
   /** Player tapped "Fight boss": resume advancing and jump to the boss now. */
@@ -568,9 +575,12 @@ export class BattleScene extends Phaser.Scene {
 
   /** Called after offline progress or a reset changes the stage. */
   restart() {
+    // Rebuilt heroes keep their ultimate cooldowns (clock keeps running across restarts).
+    const ults = new Map(this.heroes.map((h) => [h.def?.id, h.ultReadyAt]));
     for (const h of this.heroes) h.view.destroy();
     this.heroes = [];
     this.syncHeroes();
+    for (const h of this.heroes) h.ultReadyAt = ults.get(h.def?.id) ?? 0;
     this.startStage();
   }
 
@@ -579,7 +589,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private freeze(seconds: number) {
-    this.hitStop = Math.max(this.hitStop, seconds);
+    // Shorter at 2x so hit-stop doesn't eat the speed-up (it pauses the whole fight in real time).
+    this.hitStop = Math.max(this.hitStop, seconds / this.speedMultiplier());
   }
 
   // ---------- combat ----------
@@ -587,6 +598,7 @@ export class BattleScene extends Phaser.Scene {
   update(_time: number, deltaMs: number) {
     const realDt = Math.min(deltaMs / 1000, 0.1);
     this.trackIncome(realDt);
+    if (!this.transitioning) this.stageRealTime += realDt;
     if (this.hitStop > 0) {
       this.hitStop -= realDt;
       return;
@@ -678,6 +690,8 @@ export class BattleScene extends Phaser.Scene {
       if (canHitCrystal && h.cooldownLeft <= 0) {
         h.cooldownLeft = h.cooldown * this.mul('attackSpeed', h);
         if (def.range > 60) this.shot(h, ENEMY_CRYSTAL_X, LANE_TOP + 26, ELEMENT_COLORS[def.element]);
+        else this.lunge(h, 1);
+        if (h.anim) this.setAnim(h, 'attack');
         this.damageCrystal(h.atk);
       }
       if (!target) return;
@@ -947,10 +961,14 @@ export class BattleScene extends Phaser.Scene {
     const kind = CHESTS.find((c) => (roll -= c.weight) < 0) ?? CHESTS[0];
     const y = Phaser.Math.Between(70, 130);
     const chest = this.add.image(WIDTH + 20, y, kind.key).setScale(1.6).setDepth(900).setScrollFactor(0).setInteractive({ useHandCursor: true });
-    const drift = this.tweens.add({ targets: chest, x: -30, duration: 14000, onComplete: () => chest.destroy() });
+    // Destroying an object doesn't stop its tweens, and the bob loops forever, so both are killed with the chest.
+    const remove = () => {
+      this.tweens.killTweensOf(chest);
+      chest.destroy();
+    };
+    this.tweens.add({ targets: chest, x: -30, duration: 14000, onComplete: remove });
     this.tweens.add({ targets: chest, y: y - 8, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     chest.once('pointerdown', () => {
-      drift.stop();
       const gold = goldPerKill(this.state.stage).times(kind.killsWorth).times(1 + this.state.relicBonus('gold'));
       const wx = chest.x + this.cameras.main.scrollX;
       this.gainGold(gold, wx, chest.y + 10);
@@ -961,7 +979,7 @@ export class BattleScene extends Phaser.Scene {
         this.state.gems += 5;
         this.floatText(wx, chest.y - 12, '+5 Gems', '#7fe3ff', 14);
       }
-      chest.destroy();
+      remove();
       this.state.emit();
     });
   }
@@ -991,16 +1009,32 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  /** Damage and gold numbers are reused: each Phaser Text owns a canvas texture, so making one per hit stutters phones. */
+  private textPool: Phaser.GameObjects.Text[] = [];
+  private textsShown = 0;
+
   private floatText(x: number, y: number, text: string, color: string, size = 11) {
-    const t = this.add
-      .text(x, y, text, { fontFamily: 'monospace', fontSize: `${size}px`, fontStyle: 'bold', color, stroke: '#000', strokeThickness: size > 12 ? 4 : 3 })
-      .setOrigin(0.5)
-      .setDepth(990);
+    // In a big splash fight, small numbers past this many on screen are just noise.
+    if (size <= 12 && this.textsShown >= 40) return;
+    const style = { fontFamily: 'monospace', fontSize: `${size}px`, fontStyle: 'bold', color, stroke: '#000', strokeThickness: size > 12 ? 4 : 3 };
+    const t = this.textPool.pop()?.setStyle(style).setText(text).setPosition(x, y).setAlpha(1).setScale(1).setVisible(true) ?? this.add.text(x, y, text, style).setOrigin(0.5).setDepth(990);
+    this.textsShown++;
     if (size > 12) {
       t.setScale(0.4);
       this.tweens.add({ targets: t, scale: 1, duration: 140, ease: 'Back.out' });
     }
-    this.tweens.add({ targets: t, y: y - 26, alpha: 0, delay: 250, duration: 650, onComplete: () => t.destroy() });
+    this.tweens.add({
+      targets: t,
+      y: y - 26,
+      alpha: 0,
+      delay: 250,
+      duration: 650,
+      onComplete: () => {
+        t.setVisible(false);
+        this.textsShown--;
+        this.textPool.push(t);
+      },
+    });
   }
 
   private sparks(x: number, y: number, color: number, count: number) {
@@ -1051,6 +1085,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private banner(text: string, color: string) {
+    // A previous banner's fade would otherwise keep running and hide this one.
+    this.tweens.killTweensOf(this.bannerText);
     this.bannerText.setText(text).setColor(color).setAlpha(1).setScale(0.6);
     this.tweens.add({ targets: this.bannerText, scale: 1, duration: 200, ease: 'Back.out' });
     this.tweens.add({ targets: this.bannerText, alpha: 0, delay: 800, duration: 300 });
