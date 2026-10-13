@@ -23,8 +23,8 @@ const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
  */
 const heroArt = (id: string) => `url('${new URL(`heroes/${id}.png`, document.baseURI).href}')`;
 const faceStyle = (def: HeroDef) => `background-color:${hex(ELEMENT_COLORS[def.element])};--art:${heroArt(def.id)}`;
-const SWORD = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2l2 2-11 11 2 2-2 2-2-2-3 3-2-2 3-3-2-2 2-2 2 2z"/></svg>';
-const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21C5 15 2 12 2 8a5 5 0 0 1 10-1 5 5 0 0 1 10 1c0 4-3 7-10 13z"/></svg>';
+const SWORD = '<i class="ico ico-atk" aria-hidden="true"></i>';
+const HEART = '<i class="ico ico-hp" aria-hidden="true"></i>';
 const ULT_ICONS: Record<string, string> = {
   water: '<svg viewBox="0 0 24 24"><path d="M12 2c4 6 7 9 7 13a7 7 0 0 1-14 0c0-4 3-7 7-13z"/></svg>',
   earth: '<svg viewBox="0 0 24 24"><path d="M5 19C5 9 11 4 21 3c-1 10-6 16-16 16zm0 0l8-8"/></svg>',
@@ -248,7 +248,7 @@ export class UI {
       return `${what} +${pct}%`;
     };
     $('relic-slots').textContent = `Equipped ${s.equipped.length}/${s.relicSlots}`;
-    setHtml($('relic-ess'), TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i></i>${fmt(s.essences[e] ?? 0)}</span>`).join(''));
+    setHtml($('relic-ess'), TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}"></i>${fmt(s.essences[e] ?? 0)}</span>`).join(''));
     const slotCost = s.nextSlotCost();
     const slotBtn = $<HTMLButtonElement>('relic-buyslot');
     slotBtn.hidden = slotCost === null;
@@ -270,7 +270,7 @@ export class UI {
         r.cost,
         cost === null
           ? '<span>Max level</span>'
-          : r.def.essences.map((e) => `<span class="${(s.essences[e] ?? 0) < cost ? 'short' : ''}" title="${ESSENCE_NAMES[e]}"><i style="--el:${hex(ELEMENT_COLORS[e])}"></i>${fmt(cost)}</span>`).join(''),
+          : r.def.essences.map((e) => `<span class="${(s.essences[e] ?? 0) < cost ? 'short' : ''}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}" style="--el:${hex(ELEMENT_COLORS[e])}"></i>${fmt(cost)}</span>`).join(''),
       );
       const nextTier = level > 0 && level % RELIC_LEVELS_PER_TIER === 0;
       r.up.textContent = level === 0 ? 'Craft' : cost === null ? 'Maxed' : nextTier ? 'Next tier' : 'Upgrade';
@@ -796,7 +796,7 @@ export class UI {
     const fight = $<HTMLButtonElement>('tr-fight');
     fight.disabled = s.tickets <= 0 || !reqMet;
     fight.textContent = !reqMet ? 'Locked' : s.tickets > 0 ? 'Fight · 1 ticket' : 'No tickets';
-    setHtml($('tr-ess'), TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i></i>${fmt(s.essences[e] ?? 0)}</span>`).join(''));
+    setHtml($('tr-ess'), TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}"></i>${fmt(s.essences[e] ?? 0)}</span>`).join(''));
   }
 
   /** Play a Trial: the fight is simulated, then shown as two draining HP bars. */

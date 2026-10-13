@@ -465,3 +465,28 @@ button.glass:disabled { opacity: .7; font-size: 11px; }
 .ct.ready .ct-tile { border-color: var(--gold); box-shadow: 0 0 10px var(--gold); }
 .ct.ready .ct-art { filter: brightness(0) opacity(.6); }
 .ct.ready .ct-tile::after { content: 'UNLOCK'; position: absolute; left: 0; right: 0; bottom: 3px; font-size: 10px; font-weight: 900; color: #fff; text-shadow: 0 1px 2px #000; }
+
+/* Pixel-art icons: hero stats, tab bar, settings, Rekindle badge, Gem pouch */
+.ico { display: inline-block; flex: none; width: 16px; height: 16px; background: center / contain no-repeat; image-rendering: pixelated; }
+.ico-atk { background-image: url('./assets/ui/atk.png'); }
+.ico-hp { background-image: url('./assets/ui/hp.png'); }
+#tabbar button svg, #settings-btn svg, .rk-badge svg { display: none; }
+#tabbar button::before { content: ''; width: 28px; height: 28px; background: center / contain no-repeat; image-rendering: pixelated; filter: drop-shadow(0 1px 0 rgba(0,0,0,.6)); }
+#tabbar button[data-tab="heroes"]::before { background-image: url('./assets/ui/tab-heroes.png'); }
+#tabbar button[data-tab="market"]::before { background-image: url('./assets/ui/tab-market.png'); }
+#tabbar button[data-tab="relics"]::before { background-image: url('./assets/ui/tab-relics.png'); }
+#tabbar button[data-tab="battle"]::before { background-image: url('./assets/ui/tab-battle.png'); }
+#tabbar button[data-tab="shop"]::before { background-image: url('./assets/ui/tab-shop.png'); }
+#tabbar button[data-tab="guild"]::before { background-image: url('./assets/ui/tab-guild.png'); }
+#settings-btn::before { content: ''; width: 24px; height: 24px; background: url('./assets/ui/gear.png') center / contain no-repeat; image-rendering: pixelated; }
+.rk-badge::before { content: ''; width: 36px; height: 36px; background: url('./assets/ui/ember.png') center / contain no-repeat; image-rendering: pixelated; }
+.shop-art.gems { background: #2b190c url('./assets/ui/gem-pouch.png') center / 40px no-repeat; image-rendering: pixelated; }
+
+/* Trial Essence: one pixel icon per element */
+.trial-ess i[class^="ess-"], .relic-cost i[class^="ess-"] { width: 16px; height: 16px; border: 0; border-radius: 0; box-shadow: none; background: center / contain no-repeat; image-rendering: pixelated; }
+.relic-cost i[class^="ess-"] { width: 14px; height: 14px; }
+i.ess-water { background-image: url('./assets/ui/ess-water.png') !important; }
+i.ess-fire { background-image: url('./assets/ui/ess-fire.png') !important; }
+i.ess-earth { background-image: url('./assets/ui/ess-earth.png') !important; }
+i.ess-light { background-image: url('./assets/ui/ess-light.png') !important; }
+i.ess-dark { background-image: url('./assets/ui/ess-dark.png') !important; }
