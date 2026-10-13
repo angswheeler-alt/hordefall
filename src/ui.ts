@@ -24,7 +24,6 @@ const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 const heroArt = (id: string) => `url('${new URL(`heroes/${id}.png`, document.baseURI).href}')`;
 const faceStyle = (def: HeroDef) => `background-color:${hex(ELEMENT_COLORS[def.element])};--art:${heroArt(def.id)}`;
 const SWORD = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2l2 2-11 11 2 2-2 2-2-2-3 3-2-2 3-3-2-2 2-2 2 2z"/></svg>';
-const MEDAL = '<svg class="medal" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5z" fill="#4a8fd8" stroke="#1a2a50" stroke-width="1.5"/><circle cx="12" cy="11" r="4" fill="#ffd84a" stroke="#8a5a00"/></svg>';
 const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21C5 15 2 12 2 8a5 5 0 0 1 10-1 5 5 0 0 1 10 1c0 4-3 7-10 13z"/></svg>';
 const ULT_ICONS: Record<string, string> = {
   water: '<svg viewBox="0 0 24 24"><path d="M12 2c4 6 7 9 7 13a7 7 0 0 1-14 0c0-4 3-7 7-13z"/></svg>',
@@ -166,7 +165,7 @@ export class UI {
           const maxed = recruited && need === null;
           const pct = need ? Math.min(100, (crests / need) * 100) : 0;
           const stars = recruited ? `<span class="ct-stars">★${(s.stars[h.id] ?? 0) + 1}</span>` : '';
-          const foot = maxed ? '<span class="ct-maxed">Maxed</span>' : `<div class="ct-bar"><i style="width:${pct}%"></i></div><span class="ct-count">${MEDAL}${crests.toLocaleString()}</span>`;
+          const foot = maxed ? '<span class="ct-maxed">Maxed</span>' : `<div class="ct-bar"><i style="width:${pct}%"></i></div><span class="ct-count">${crests.toLocaleString()}</span>`;
           return `<div class="ct${recruited ? '' : ' locked'}${s.inLineup(h.id) ? ' team' : ''}"><button type="button" class="ct-tile" data-coll="${h.id}" aria-label="${h.name}" style="--el:${hex(ELEMENT_COLORS[el])}"><span class="ct-art" style="--art:${heroArt(h.id)}"></span>${stars}<span class="ct-name">${h.name}</span></button>${foot}</div>`;
         })
         .join('');
@@ -190,7 +189,7 @@ export class UI {
         const have = s.crests[h.id] ?? 0;
         return `<li class="team-row locked${ready ? ' ready' : ''}">
         <span class="face art" style="${faceStyle(h)}">${h.name[0]}</span>
-        <span class="team-who"><b>${h.name}</b><small>${cap(h.element)} ${h.job} · ${need === null ? 'Special event' : `${Math.min(have, need)}/${need} Crests`}</small></span>
+        <span class="team-who"><b>${h.name}</b><small>${cap(h.element)} ${h.job} · ${need === null ? 'Special event' : `<span class="crest-ct">${Math.min(have, need)}/${need}</span>`}</small></span>
         <button data-unlock="${h.id}" class="${ready ? 'hot' : ''}" ${ready ? '' : 'disabled'}>${ready ? 'Unlock' : 'Locked'}</button>
       </li>`;
       }
@@ -664,6 +663,7 @@ export class UI {
     const { levels, cost } = bulkCost(def, gold, s.buyAmount, s.gold);
     const shown = levels > 0 ? { levels, cost } : bulkCost(def, gold, 1, s.gold);
     const goldBtn = $<HTMLButtonElement>('sheet-gold-up');
+    goldBtn.classList.toggle('unlock', gold === 0);
     if (gold === 0) {
       const need = s.unlockCrests(def);
       (goldBtn.querySelector('.label') as HTMLElement).textContent = 'Unlock';
