@@ -72,6 +72,15 @@
             <dt>Time per stage</dt><dd id="bt-pace"></dd>
             <dt>Rekindles</dt><dd id="bt-rk"></dd>
           </dl>
+          <div class="panel-head"><h2>Account</h2></div>
+          <div class="acct-card">
+            <p id="acct-status"></p>
+            <div class="acct-actions">
+              <button id="acct-signin" class="wood-btn small" hidden>Sign in / Create account</button>
+              <button id="acct-sync" class="wood-btn small" hidden>Save now</button>
+              <button id="acct-signout" class="wood-btn small" hidden>Sign out</button>
+            </div>
+          </div>
           <div class="panel-head"><h2>Prototype tools</h2></div>
           <div id="debug">
             <button id="sim" class="wood-btn small">Simulate 1h away</button>
@@ -182,6 +191,13 @@
         <p class="rk-note">You go back to stage 1 and every hero drops to gold level 1. Embers, Ember levels, stars and Gems stay.</p>
         <div id="rk-buttons" class="rk-buttons"></div>
       </div>
+    </div>
+    <div id="acct-dialog" class="overlay" hidden>
+      <form id="acct-form" class="card">
+        <h2 id="acct-title"></h2>
+        <div id="acct-body"></div>
+        <button type="button" id="acct-cancel" class="acct-cancel">Cancel</button>
+      </form>
     </div>
     <div id="modal" hidden>
       <div class="card">
