@@ -80,6 +80,11 @@ export class UI {
     let last = performance.now();
     setInterval(() => {
       const now = performance.now();
+      // A hidden tab is paid as offline time when it comes back (Market Row included), so don't tick it here.
+      if (document.hidden) {
+        last = now;
+        return;
+      }
       this.state.tickMarket(Math.min(5, (now - last) / 1000));
       last = now;
       this.render();

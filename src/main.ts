@@ -11,6 +11,8 @@ const hadSave = state.load();
 initAudio();
 setMuted(state.muted);
 const offline = hadSave ? state.applyOffline((Date.now() - state.lastSeen) / 1000) : null;
+// That time is paid; move the mark now so a quick hide/show can't pay it twice.
+state.lastSeen = Math.max(state.lastSeen, Date.now());
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -40,19 +42,15 @@ const ui = new UI(state, scene, {
     }
   },
   wipe: () => {
+    // Freezes saving (here and in cloud uploads) so the wipe sticks.
     GameState.wipe();
-    // Skip the unload save so the wipe sticks.
-    reloading = true;
     location.reload();
   },
 });
 if (offline) ui.showOffline(offline);
 
-/** Set once the page is about to reload with a different save, so nothing overwrites it. */
-let reloading = false;
-const save = () => {
-  if (!reloading) state.save();
-};
+// GameState.frozen is set once the page is about to reload with a different save, so nothing overwrites it.
+const save = () => state.save();
 setInterval(save, 5000);
 window.addEventListener('pagehide', save);
 
@@ -62,8 +60,9 @@ document.addEventListener('visibilitychange', () => {
     save();
     return;
   }
+  // Saves while hidden leave lastSeen alone, so this is the whole time away.
   const report = state.applyOffline((Date.now() - state.lastSeen) / 1000);
-  state.lastSeen = Date.now();
+  state.lastSeen = Math.max(state.lastSeen, Date.now());
   if (report) {
     ui.showOffline(report);
     scene()?.restart();
@@ -71,7 +70,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 new Account(state, (data) => {
-  reloading = true;
+  GameState.frozen = true;
   GameState.writeLocal(data);
   location.reload();
 });
