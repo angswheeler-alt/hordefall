@@ -5,7 +5,7 @@
  * VITE_SUPABASE_ANON_KEY in the environment override these at build time.
  */
 export const SUPABASE_URL: string = import.meta.env.VITE_SUPABASE_URL ?? 'https://yqsvekcxsejtjghcztha.supabase.co';
-export const SUPABASE_ANON_KEY: string = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
+export const SUPABASE_ANON_KEY: string = import.meta.env.VITE_SUPABASE_ANON_KEY ?? 'sb_publishable_AO6C3LlVChUDncAYJOMV8A_yyaWMv4y';
 
 /**
  * Players sign in with a username, not an email. Supabase needs an email-shaped
