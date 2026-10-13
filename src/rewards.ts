@@ -80,6 +80,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
 ];
 
 // ---------- Bootcamp: one-time beginner goals ----------
+// The first eight pay more (200 Gems in all) so a new player can open a few Hero Chests in their first hour.
 
 export type BootcampCheck =
   | { kind: 'heroLevel'; level: number }
@@ -96,14 +97,14 @@ export interface BootcampDef {
   check: BootcampCheck;
 }
 export const BOOTCAMP: BootcampDef[] = [
-  { id: 'lv10', text: 'Raise a hero to level 10', gems: 10, check: { kind: 'heroLevel', level: 10 } },
-  { id: 'st10', text: 'Reach stage 10', gems: 10, check: { kind: 'stage', stage: 10 } },
-  { id: 'chest', text: 'Tap a floating chest', gems: 10, check: { kind: 'stat', stat: 'chests', count: 1 } },
-  { id: 'summon', text: 'Open a Hero Chest', gems: 10, check: { kind: 'stat', stat: 'summons', count: 1 } },
-  { id: 'team2', text: 'Have 2 heroes fighting', gems: 15, check: { kind: 'team', size: 2 } },
-  { id: 'st51', text: 'Beat the stage 50 boss', gems: 15, check: { kind: 'stage', stage: 51 } },
-  { id: 'star2', text: 'Evolve a hero to 2★', gems: 20, check: { kind: 'star', stars: 2 } },
-  { id: 'team3', text: 'Have 3 heroes fighting', gems: 20, check: { kind: 'team', size: 3 } },
+  { id: 'lv10', text: 'Raise a hero to level 10', gems: 20, check: { kind: 'heroLevel', level: 10 } },
+  { id: 'st10', text: 'Reach stage 10', gems: 20, check: { kind: 'stage', stage: 10 } },
+  { id: 'chest', text: 'Tap a floating chest', gems: 20, check: { kind: 'stat', stat: 'chests', count: 1 } },
+  { id: 'summon', text: 'Open a Hero Chest', gems: 20, check: { kind: 'stat', stat: 'summons', count: 1 } },
+  { id: 'team2', text: 'Have 2 heroes fighting', gems: 30, check: { kind: 'team', size: 2 } },
+  { id: 'st51', text: 'Beat the stage 50 boss', gems: 30, check: { kind: 'stage', stage: 51 } },
+  { id: 'star2', text: 'Evolve a hero to 2★', gems: 30, check: { kind: 'star', stars: 2 } },
+  { id: 'team3', text: 'Have 3 heroes fighting', gems: 30, check: { kind: 'team', size: 3 } },
   { id: 'st101', text: 'Beat the stage 100 boss', gems: 25, check: { kind: 'stage', stage: 101 } },
   { id: 'rekindle', text: 'Rekindle for the first time', gems: 30, check: { kind: 'rekindle' } },
   { id: 'trial', text: 'Win an Elemental Trial', gems: 20, check: { kind: 'stat', stat: 'trials', count: 1 } },
