@@ -17,7 +17,8 @@ import {
   elementMultiplier,
   enemyElement,
   bossElement,
-  bossLock,
+  bossWeakness,
+  BOSS_ROTATION_START,
   type Element,
   type HeroDef,
 } from './data';
@@ -64,8 +65,6 @@ interface Unit {
   element: Element;
   goldMult: number;
   isBoss: boolean;
-  /** Element-locked bosses only take damage from this element. */
-  onlyHurtBy: Element | null;
   /** Attacks made, for every-Nth-attack skills. */
   attacks: number;
   /** Camp enemies hold position until a hero comes within CAMP_AGGRO. */
@@ -124,7 +123,6 @@ export class BattleScene extends Phaser.Scene {
   private hitStop = 0;
   /** The boss timer only runs once a hero reaches the boss. */
   private bossEngaged = false;
-  private lastImmuneText = 0;
   private hills!: Phaser.GameObjects.Graphics;
   private progressBar!: Phaser.GameObjects.Graphics;
 
@@ -298,7 +296,6 @@ export class BattleScene extends Phaser.Scene {
       goldMult: opts.goldMult ?? 1,
       isBoss: !!opts.isBoss,
       waiting: false,
-      onlyHurtBy: null,
       attacks: 0,
       alive: true,
       respawnAt: 0,
@@ -380,7 +377,6 @@ export class BattleScene extends Phaser.Scene {
       label: boss ? BOSS_NAMES[(stage / 50 - 1) % BOSS_NAMES.length] : undefined,
     });
     u.waiting = campX !== undefined;
-    if (boss) u.onlyHurtBy = bossLock(stage);
     this.enemies.push(u);
   }
 
@@ -404,8 +400,8 @@ export class BattleScene extends Phaser.Scene {
     this.bossTimer = boss ? BOSS_TIME_LIMIT : 0;
     if (boss) {
       this.spawnEnemy(true);
-      const lock = bossLock(stage);
-      this.banner(lock ? `${lock.toUpperCase()}-ONLY BOSS` : 'BOSS STAGE', '#ff6680');
+      const rotating = stage >= BOSS_ROTATION_START && stage % 100 === 0;
+      this.banner(rotating ? `BOSS: WEAK TO ${bossWeakness(stage).toUpperCase()}` : 'BOSS STAGE', '#ff6680');
       this.cameras.main.shake(400, 0.01);
       play('boss');
     }
@@ -683,13 +679,6 @@ export class BattleScene extends Phaser.Scene {
 
   private damageUnit(target: Unit, amount: Decimal, source: Unit | null, crit = false) {
     if (!target.alive) return;
-    if (target.onlyHurtBy && source && source.element !== target.onlyHurtBy) {
-      if (this.clock - this.lastImmuneText > 0.5) {
-        this.lastImmuneText = this.clock;
-        this.floatText(target.x, target.y - 40, 'IMMUNE', '#9aa0b8', 12);
-      }
-      return;
-    }
     target.hp = target.hp.minus(amount);
     this.drawHpBar(target);
     this.hitFeedback(target, amount, source, crit);
@@ -972,8 +961,7 @@ export class BattleScene extends Phaser.Scene {
     const boss = isBossStage(stage);
     this.stageText.setText(`Stage ${stage}${boss ? '  BOSS' : ''}`);
     const farming = !this.state.autoAdvance ? '  (farming)' : '';
-    const lock = boss ? bossLock(stage) : null;
-    this.infoText.setText(lock ? `Boss: only ${lock} heroes can hurt it${farming}` : `Enemies: ${enemyElement(stage)}${farming}`);
+    this.infoText.setText(boss ? `Boss is weak to ${bossWeakness(stage)}${farming}` : `Enemies: ${enemyElement(stage)}${farming}`);
 
     const ratio = this.crystal.maxHp.gt(0) ? Math.max(0, this.crystal.hp.div(this.crystal.maxHp).toNumber()) : 0;
     this.crystalBar.clear();

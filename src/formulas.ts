@@ -23,7 +23,7 @@ export function enemyAtk(stage: number): Decimal {
 }
 
 export function bossHp(stage: number): Decimal {
-  return enemyHp(stage).times(260);
+  return enemyHp(stage).times(140);
 }
 
 export function bossAtk(stage: number): Decimal {

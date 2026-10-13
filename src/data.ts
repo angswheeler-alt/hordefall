@@ -53,48 +53,51 @@ export const HEROES: HeroDef[] = [
   { id: 'marin', name: 'Marin', element: 'water', job: 'Blademaster', baseAtk: 5, baseHp: 60, range: 28, attackCooldown: 0.8, moveSpeed: 120, unlockCost: 0, upgradeBaseCost: 5, goldMult: 1, bio: 'A tidecoast swordsman who signed on to bring the Lantern Queen home. Steady, quick, and the reason every early boss goes down.',
     basic: { name: 'Tide Cutter', text: 'Fast sword slashes at the nearest enemy ahead.' },
     ultimate: { name: 'Riptide', text: 'A crashing wave hits every enemy ahead for 40x ATK, with element bonuses.' },
-    trait: { name: 'Water Blade', text: 'Water deals 4x to Fire. Every boss before stage 600 is Fire, so Marin carries boss fights.' },
+    trait: { name: 'Water Blade', text: 'Water deals 2x to Fire and 0.5x to Earth. Every boss before stage 600 is Fire, so Marin carries boss fights.' },
     sp1: { name: 'Undertow', text: '20% chance for each attack to strike twice.' },
     sp2: { name: 'Spray Guard', text: 'Takes 25% less damage.' },
     aura: { name: 'Tidal Calm', text: 'Team max HP +20%.' } },
   { id: 'bramble', name: 'Bramble', element: 'earth', job: 'Knight', baseAtk: 3, baseHp: 150, range: 26, attackCooldown: 1.0, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, bio: 'An old hedge knight with bark for armor. He walks slowly and refuses to fall over.',
     basic: { name: 'Shield Bash', text: 'Slow, heavy blows that shove enemies back a step.' },
     ultimate: { name: 'Rootwall Crash', text: 'Slams the ground, hitting every enemy ahead for 40x ATK.' },
-    trait: { name: 'Front Line', text: 'The highest HP on the team. Stands in front so the rest of the squad survives.' },
+    trait: { name: 'Front Line', text: 'The highest HP on the team. Earth deals 2x to Water and 0.5x to Fire.' },
     sp1: { name: 'Thornhide', text: 'Reflects 30% of damage taken back at the attacker.' },
     sp2: { name: 'Taproot', text: 'Regenerates 3% of max HP every second.' },
     aura: { name: 'Old Growth', text: 'Whole team takes 10% less damage.' } },
   { id: 'pyra', name: 'Pyra', element: 'fire', job: 'Mage', baseAtk: 8, baseHp: 40, range: 150, attackCooldown: 1.4, moveSpeed: 105, unlockCost: 300, upgradeBaseCost: 40, goldMult: 1, splash: 40, bio: 'A hot-tempered fire mage from the Ember Wastes who treats every fight as a demolition job.',
     basic: { name: 'Fireball', text: 'Ranged fireballs that splash every enemy near the target.' },
     ultimate: { name: 'Meteor Shower', text: 'Rains fire on every enemy ahead for 40x ATK.' },
-    trait: { name: 'Splash', text: 'Long range and area damage. Best against packed camps and Earth enemies (4x).' },
+    trait: { name: 'Splash', text: 'Long range and area damage. Fire deals 2x to Earth and 0.5x to Water.' },
     sp1: { name: 'Kindle', text: 'Fireball splash radius +50%.' },
     sp2: { name: 'Firewall', text: 'Every 4th attack deals 3x damage.' },
     aura: { name: 'Heatwave', text: 'Team ATK +15%.' } },
   { id: 'nox', name: 'Nox', element: 'dark', job: 'Rogue', baseAtk: 6, baseHp: 50, range: 24, attackCooldown: 0.6, moveSpeed: 145, unlockCost: 1500, upgradeBaseCost: 120, goldMult: 2, bio: 'A shadow rogue who is in it for the loot and does not pretend otherwise.',
     basic: { name: 'Twin Daggers', text: 'Very fast stabs at the closest enemy.' },
     ultimate: { name: 'Shadow Flurry', text: 'Blinks through every enemy ahead for 40x ATK.' },
-    trait: { name: 'Pickpocket', text: 'Runs fastest and earns 2x gold from every kill. Dark deals 2x to Light.' },
+    trait: { name: 'Pickpocket', text: 'Runs fastest and earns 2x gold from every kill. Dark deals 2x to Light and 0.5x to Dark.' },
     sp1: { name: 'Smoke Step', text: 'Dodges 25% of incoming attacks.' },
     sp2: { name: 'Backstab', text: '+20% critical hit chance.' },
     aura: { name: 'Nightfall', text: 'Team earns 25% more gold from kills.' } },
   { id: 'solenne', name: 'Solenne', element: 'light', job: 'Support', baseAtk: 3, baseHp: 55, range: 130, attackCooldown: 1.2, moveSpeed: 105, unlockCost: 8000, upgradeBaseCost: 400, goldMult: 1, heals: true, bio: 'A lantern-keeper from the Queen\'s own chapel. She keeps everyone standing.',
     basic: { name: 'Sunlight Mend', text: 'Heals the most injured nearby ally for 3x ATK. Attacks when nobody needs healing.' },
     ultimate: { name: 'Dawn Chorus', text: 'Fully heals every living hero.' },
-    trait: { name: 'Support', text: 'The team\'s only healer. Light deals 2x to Dark.' },
+    trait: { name: 'Support', text: 'The team\'s only healer. Light deals 2x to Dark and 0.5x to Light.' },
     sp1: { name: 'Halo', text: 'Heals are 50% stronger.' },
     sp2: { name: 'Sanctuary', text: 'Fallen heroes respawn twice as fast.' },
     aura: { name: 'Lanternlight', text: 'Whole team regenerates 1% of max HP every second.' } },
 ];
 
 /**
- * Element advantage from GDD section 4: Fire > Earth > Water > Fire at 4x,
- * Light and Dark beat each other at 2x.
+ * Type chart: every element deals 2x to one element, 0.5x to another and 1x to
+ * the rest. Water > Fire > Earth > Water; Light and Dark deal 2x to each other
+ * and 0.5x to their own element.
  */
+export const STRONG_VS: Record<Element, Element> = { water: 'fire', fire: 'earth', earth: 'water', light: 'dark', dark: 'light' };
+export const WEAK_VS: Record<Element, Element> = { water: 'earth', fire: 'water', earth: 'fire', light: 'light', dark: 'dark' };
+
 export function elementMultiplier(attacker: Element, defender: Element): number {
-  const beats: Partial<Record<Element, Element>> = { fire: 'earth', earth: 'water', water: 'fire' };
-  if (beats[attacker] === defender) return 4;
-  if ((attacker === 'light' && defender === 'dark') || (attacker === 'dark' && defender === 'light')) return 2;
+  if (STRONG_VS[attacker] === defender) return 2;
+  if (WEAK_VS[attacker] === defender) return 0.5;
   return 1;
 }
 
@@ -105,21 +108,22 @@ export function enemyElement(stage: number): Element {
   return ENEMY_ELEMENTS[(stage - 1) % ENEMY_ELEMENTS.length];
 }
 
-const LOCK_ROTATION: Element[] = ['water', 'earth', 'fire', 'light', 'dark'];
-export const ELEMENT_LOCK_START = 600;
+const WEAKNESS_ROTATION: Element[] = ['water', 'earth', 'fire', 'light', 'dark'];
+export const BOSS_ROTATION_START = 600;
 
 /**
- * From stage 600, every 100th-stage boss is immune to every element but one,
- * rotating Water (600), Earth (700), Fire (800), Light (900), Dark (1000), Water (1100)...
+ * The element that hits a boss for 2x. Before stage 600 every boss is weak to
+ * Water (the starter's element). From 600, each 100th-stage boss rotates:
+ * Water (600), Earth (700), Fire (800), Light (900), Dark (1000), Water (1100)...
  */
-export function bossLock(stage: number): Element | null {
-  if (stage < ELEMENT_LOCK_START || stage % 100 !== 0) return null;
-  return LOCK_ROTATION[(stage / 100 - ELEMENT_LOCK_START / 100) % LOCK_ROTATION.length];
+export function bossWeakness(stage: number): Element {
+  if (stage < BOSS_ROTATION_START || stage % 100 !== 0) return 'water';
+  return WEAKNESS_ROTATION[(stage / 100 - BOSS_ROTATION_START / 100) % WEAKNESS_ROTATION.length];
 }
 
-/** Unlocked bosses are Fire, so the Water starter hits them for 4x. Locked bosses take their lock element. */
+/** The boss takes the element its weakness beats. */
 export function bossElement(stage: number): Element {
-  return bossLock(stage) ?? 'fire';
+  return STRONG_VS[bossWeakness(stage)];
 }
 
 export const BOSS_EVERY = 50;
