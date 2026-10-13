@@ -257,3 +257,7 @@ button.link[disabled] { display: none; }
 #ults .ult.ready { box-shadow: 0 0 0 2px var(--gold), 0 0 10px var(--gold), inset 0 2px 0 rgba(255,255,255,.55); animation: ult-pulse 1.2s ease-in-out infinite; }
 @keyframes ult-pulse { 50% { transform: scale(1.06); } }
 @media (prefers-reduced-motion: reduce) { #ults .ult.ready { animation: none; } }
+
+.hero-sub { gap: 6px; }
+.wood-btn.levelall { background: linear-gradient(180deg, #ffb53d, var(--orange) 50%, var(--orange-lo)); border-color: #6b3200; }
+.wood-btn:disabled { filter: grayscale(.6) brightness(.75); opacity: 1; }

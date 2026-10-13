@@ -2,7 +2,7 @@ import Decimal from 'break_infinity.js';
 import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, ULT_STAR_BONUS, ULT_MULTIPLIER, ULT_COOLDOWN, type HeroDef } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
-import { bulkCost, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
+import { bulkCost, upgradeCost, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
 import type { GameState, OfflineReport, SummonDrop } from './state';
 import type { BattleScene } from './BattleScene';
 
@@ -129,6 +129,13 @@ export class UI {
       this.render();
     });
     $('boss').addEventListener('click', () => this.scene()?.challengeBoss());
+    $('levelall').addEventListener('click', () => {
+      if (this.state.levelAll() > 0) {
+        play('unlock');
+        this.scene()?.syncHeroes();
+        this.render();
+      }
+    });
     $('buyamt').addEventListener('click', () => {
       const order: Array<1 | 10 | 'max'> = [1, 10, 'max'];
       this.state.buyAmount = order[(order.indexOf(this.state.buyAmount) + 1) % order.length];
@@ -547,6 +554,7 @@ export class UI {
     $('mute').classList.toggle('on', !s.muted);
     $('mute').textContent = s.muted ? 'Sound off' : 'Sound on';
     $('autoult').classList.toggle('on', s.autoUlt);
+    $<HTMLButtonElement>('levelall').disabled = !HEROES.some((h) => (s.levels[h.id] ?? 0) > 0 && upgradeCost(h, s.levels[h.id]).lte(s.gold));
     $('buyamt').textContent = `Buy ${s.buyAmount === 'max' ? 'max' : `x${s.buyAmount}`}`;
     const bossBtn = $('boss');
     bossBtn.hidden = s.autoAdvance;

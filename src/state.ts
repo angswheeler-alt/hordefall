@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, START_GEMS, MILESTONE_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS } from './data';
-import { emberYield, keeperLevel, effectiveLevel, emberCost, heroAtk, heroHp } from './formulas';
+import { upgradeCost, emberYield, keeperLevel, effectiveLevel, emberCost, heroAtk, heroHp } from './formulas';
 import type { HeroDef } from './data';
 
 const SAVE_KEY = 'hordefall-save-v1';
@@ -140,6 +140,31 @@ export class GameState {
 
   canRekindle() {
     return this.runBestStage > REKINDLE_STAGE;
+  }
+
+  /**
+   * Spend gold across every recruited hero, always buying the cheapest next
+   * level, so the team rises together. Returns how many levels were bought.
+   */
+  levelAll(): number {
+    const team = HEROES.filter((h) => (this.levels[h.id] ?? 0) > 0);
+    let bought = 0;
+    while (bought < 5000) {
+      let pick: HeroDef | null = null;
+      let best: Decimal | null = null;
+      for (const h of team) {
+        const c = upgradeCost(h, this.levels[h.id]);
+        if (!best || c.lt(best)) {
+          best = c;
+          pick = h;
+        }
+      }
+      if (!pick || !best || best.gt(this.gold)) break;
+      this.gold = this.gold.minus(best);
+      this.levels[pick.id] += 1;
+      bought++;
+    }
+    return bought;
   }
 
   keeperLevel() {
