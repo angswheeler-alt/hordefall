@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, STAR_CRESTS, MAX_STARS } from './data';
-import { trialHp, trialDps, stallIncome, stallUpgradeCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp } from './formulas';
+import { trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp } from './formulas';
 import type { HeroDef, StallDef, Element } from './data';
 
 const SAVE_KEY = 'hordefall-save-v1';
@@ -77,6 +77,8 @@ export class GameState {
   autoUlt = false;
   muted = false;
   buyAmount: 1 | 10 | 'max' = 1;
+  /** Market Row's own buy amount, separate from the heroes'. */
+  stallBuyAmount: 1 | 10 | 'max' = 1;
   /** Smoothed gold per second and seconds per stage, used for offline earnings. */
   goldPerSec = 0;
   secondsPerStage = 20;
@@ -281,14 +283,41 @@ export class GameState {
     return amount;
   }
 
+  /** Buy Stall levels at the Market's buy amount (opening a Stall always buys one). */
   buyStall(id: string): boolean {
     const def = STALLS.find((d) => d.id === id)!;
     const st = this.stalls[id];
-    const cost = stallUpgradeCost(def, st.level);
-    if (cost.gt(this.gold)) return false;
+    const { levels, cost } = stallBulkCost(def, st.level, this.stallBuyAmount, this.gold);
+    if (levels === 0 || cost.gt(this.gold)) return false;
     this.gold = this.gold.minus(cost);
-    st.level += 1;
+    st.level += levels;
     return true;
+  }
+
+  /**
+   * Spend gold across every open Stall, always buying the cheapest next
+   * level, so the whole row rises together. Closed Stalls stay closed.
+   * Returns how many levels were bought.
+   */
+  levelAllStalls(): number {
+    const open = STALLS.filter((d) => this.stalls[d.id].level > 0);
+    let bought = 0;
+    while (bought < 5000) {
+      let pick: StallDef | null = null;
+      let best: Decimal | null = null;
+      for (const d of open) {
+        const c = stallUpgradeCost(d, this.stalls[d.id].level);
+        if (!best || c.lt(best)) {
+          best = c;
+          pick = d;
+        }
+      }
+      if (!pick || !best || best.gt(this.gold)) break;
+      this.gold = this.gold.minus(best);
+      this.stalls[pick.id].level += 1;
+      bought++;
+    }
+    return bought;
   }
 
   /** Gold per second from auto-collect Stalls, used for offline time. */
@@ -496,6 +525,7 @@ export class GameState {
       autoUlt: this.autoUlt,
       muted: this.muted,
       buyAmount: this.buyAmount,
+      stallBuyAmount: this.stallBuyAmount,
       goldPerSec: this.goldPerSec,
       secondsPerStage: this.secondsPerStage,
       lastSeen: this.lastSeen,
@@ -550,6 +580,7 @@ export class GameState {
       this.autoUlt = !!d.autoUlt;
       this.muted = !!d.muted;
       this.buyAmount = d.buyAmount ?? 1;
+      this.stallBuyAmount = d.stallBuyAmount ?? 1;
       this.goldPerSec = d.goldPerSec ?? 0;
       this.secondsPerStage = d.secondsPerStage ?? 20;
       this.lastSeen = d.lastSeen ?? Date.now();

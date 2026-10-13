@@ -146,6 +146,21 @@ export function stallUpgradeCost(def: StallDef, level: number): Decimal {
   return Decimal.pow(1.07, level - 1).times(def.unlockCost * 0.4);
 }
 
+/** Total cost and count for buying up to `count` Stall levels (or as many as affordable for 'max'). Opening buys exactly one. */
+export function stallBulkCost(def: StallDef, level: number, count: number | 'max', gold: Decimal): { levels: number; cost: Decimal } {
+  let total = new Decimal(0);
+  let n = 0;
+  const limit = count === 'max' ? 1000 : count;
+  while (n < limit) {
+    const next = total.plus(stallUpgradeCost(def, level + n));
+    if (count === 'max' && next.gt(gold)) break;
+    total = next;
+    n++;
+    if (level + n === 1) break;
+  }
+  return { levels: n, cost: total };
+}
+
 /**
  * Trial boss HP for a level. It matches what `heroes` starter-strength heroes
  * at `emberLevel` deal in 30 seconds at neutral element, so the level's hero

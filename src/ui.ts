@@ -2,7 +2,7 @@ import Decimal from 'break_infinity.js';
 import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, ULT_STAR_BONUS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
-import { bulkCost, upgradeCost, stallUpgradeCost, trialHp, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
+import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
 import type { GameState, OfflineReport, SummonDrop } from './state';
 import type { BattleScene } from './BattleScene';
 
@@ -160,8 +160,10 @@ export class UI {
       host.appendChild(root);
       const button = root.querySelector('.gold-up') as HTMLButtonElement;
       button.addEventListener('click', () => {
+        const before = this.state.stalls[def.id].level;
         if (this.state.buyStall(def.id)) {
-          if (this.state.stalls[def.id].level === 1 || this.state.stalls[def.id].level === STALL_AUTO_LEVEL) play('unlock');
+          const after = this.state.stalls[def.id].level;
+          if (before === 0 || (before < STALL_AUTO_LEVEL && after >= STALL_AUTO_LEVEL)) play('unlock');
           this.render();
         }
       });
@@ -216,11 +218,14 @@ export class UI {
       r.meta.textContent = !open
         ? `${r.def.blurb} ${fmt(stallIncomePreview(r.def))} gold every ${r.def.cycle}s.`
         : `${fmt(income)} every ${r.def.cycle}s · ${auto ? 'Auto-collect' : `Auto at Lv ${STALL_AUTO_LEVEL}`} · x3 in ${toMilestone} Lv`;
-      const cost = stallUpgradeCost(r.def, st.level);
-      r.cost.textContent = fmt(cost);
-      r.label.textContent = open ? 'Upgrade' : 'Open';
-      r.button.disabled = cost.gt(s.gold);
+      const bulk = stallBulkCost(r.def, st.level, s.stallBuyAmount, s.gold);
+      const shown = bulk.levels > 0 ? bulk : stallBulkCost(r.def, st.level, 1, s.gold);
+      r.cost.textContent = fmt(shown.cost);
+      r.label.textContent = open ? `Level +${shown.levels}` : 'Open';
+      r.button.disabled = shown.cost.gt(s.gold);
     }
+    $<HTMLButtonElement>('stall-levelall').disabled = !STALLS.some((d) => s.stalls[d.id].level > 0 && stallUpgradeCost(d, s.stalls[d.id].level).lte(s.gold));
+    $('stall-buyamt').textContent = `Buy ${s.stallBuyAmount === 'max' ? 'max' : `x${s.stallBuyAmount}`}`;
     return anyReady;
   }
 
@@ -274,6 +279,17 @@ export class UI {
     $('buyamt').addEventListener('click', () => {
       const order: Array<1 | 10 | 'max'> = [1, 10, 'max'];
       this.state.buyAmount = order[(order.indexOf(this.state.buyAmount) + 1) % order.length];
+      this.render();
+    });
+    $('stall-levelall').addEventListener('click', () => {
+      if (this.state.levelAllStalls() > 0) {
+        play('unlock');
+        this.render();
+      }
+    });
+    $('stall-buyamt').addEventListener('click', () => {
+      const order: Array<1 | 10 | 'max'> = [1, 10, 'max'];
+      this.state.stallBuyAmount = order[(order.indexOf(this.state.stallBuyAmount) + 1) % order.length];
       this.render();
     });
     $('sim').addEventListener('click', () => this.hooks.simulateAway());
