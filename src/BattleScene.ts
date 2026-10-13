@@ -9,6 +9,8 @@ import {
   ULT_COOLDOWN,
   ULT_MULTIPLIER,
   ULT_STAR_BONUS,
+  AURA_EVOLUTIONS,
+  ULT_PLUS_EVOLUTIONS,
   BOSS_GEMS,
   ULT_UNLOCK_LEVEL,
   SPEED_UNLOCK_STAGE,
@@ -640,7 +642,7 @@ export class BattleScene extends Phaser.Scene {
     }
     let mult = elementMultiplier(e.element, target.element);
     if (this.isHero(target, 'marin') && this.has('marin', 2)) mult *= 0.75;
-    if (this.has('bramble', 4)) mult *= 0.9;
+    if (this.has('bramble', AURA_EVOLUTIONS)) mult *= 0.9;
     const dmg = e.atk.times(mult);
     this.damageUnit(target, dmg, null);
     if (this.isHero(target, 'bramble') && this.has('bramble', 1)) this.damageUnit(e, dmg.times(0.3), target);
@@ -665,7 +667,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Bramble's Taproot and Solenne's Lanternlight. */
   private regenerate(dt: number) {
-    const team = this.has('solenne', 4) ? 0.01 : 0;
+    const team = this.has('solenne', AURA_EVOLUTIONS) ? 0.01 : 0;
     for (const h of this.heroes) {
       if (!h.alive) continue;
       const rate = team + (this.isHero(h, 'bramble') && this.has('bramble', 2) ? 0.03 : 0);
@@ -729,7 +731,7 @@ export class BattleScene extends Phaser.Scene {
       const gold = goldPerKill(this.state.stage)
         .times(u.isBoss ? 10 : 1)
         .times(source?.goldMult ?? 1)
-        .times(this.has('nox', 4) ? 1.25 : 1)
+        .times(this.has('nox', AURA_EVOLUTIONS) ? 1.25 : 1)
         .times(1 + this.state.relicBonus('gold'));
       this.gainGold(gold, u.x, u.y);
       this.tweens.add({ targets: u.view, alpha: 0, scale: 1.5, y: u.y - 8, duration: 220, onComplete: () => u.view.destroy() });
@@ -806,7 +808,7 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: ring, radius, alpha: 0, duration: 380, onComplete: () => ring.destroy() });
     this.cameras.main.shake(300, 0.015);
     this.cameras.main.flash(120, 255, 255, 255);
-    const dmg = h.atk.times(ULT_MULTIPLIER * (this.has(h.def!.id, 3) ? ULT_STAR_BONUS : 1));
+    const dmg = h.atk.times(ULT_MULTIPLIER * (this.has(h.def!.id, ULT_PLUS_EVOLUTIONS) ? ULT_STAR_BONUS : 1));
     for (const e of this.enemies) {
       if (e.alive && e.x >= h.x - 30 && e.x <= h.x + radius + 60) this.damageUnit(e, dmg.times(elementMultiplier(h.element, e.element)), h);
     }

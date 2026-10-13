@@ -1,5 +1,5 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, RELICS, RELIC_LEVELS_PER_TIER, RELIC_TIERS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, RELICS, RELIC_LEVELS_PER_TIER, RELIC_TIERS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, AURA_EVOLUTIONS, LEGENDARY_MEDAL_RATE } from './data';
 import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp } from './formulas';
 import type { HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 
@@ -81,6 +81,8 @@ export class GameState {
   relics: Record<string, number> = {};
   equipped: string[] = [];
   relicSlots = RELIC_START_SLOTS;
+  /** Legendary medals, made by 8★ heroes from extra medals; Legendary heroes will use them. */
+  legendaryMedals = 0;
   /** Market Row's own buy amount, separate from the heroes'. */
   stallBuyAmount: 1 | 10 | 'max' = 1;
   /** Smoothed gold per second and seconds per stage, used for offline earnings. */
@@ -117,8 +119,8 @@ export class GameState {
     const starMult = Math.pow(2, this.stars[def.id] ?? 0);
     const atkRelics = 1 + this.relicBonus('atk') + this.relicBonus(def.element);
     return {
-      atk: heroAtk(def, level).times(starMult * (this.hasStar('pyra', 4) ? 1.15 : 1) * atkRelics),
-      hp: heroHp(def, level).times(starMult * (this.hasStar('marin', 4) ? 1.2 : 1) * (1 + this.relicBonus('hp'))),
+      atk: heroAtk(def, level).times(starMult * (this.hasStar('pyra', AURA_EVOLUTIONS) ? 1.15 : 1) * atkRelics),
+      hp: heroHp(def, level).times(starMult * (this.hasStar('marin', AURA_EVOLUTIONS) ? 1.2 : 1) * (1 + this.relicBonus('hp'))),
     };
   }
 
@@ -228,6 +230,18 @@ export class GameState {
     return refund;
   }
 
+  /**
+   * Give a hero medals. Once a hero is 8★ they can't use more, so every
+   * LEGENDARY_MEDAL_RATE of them becomes a Legendary medal instead.
+   */
+  addCrests(id: string, amount: number) {
+    this.crests[id] = (this.crests[id] ?? 0) + amount;
+    if ((this.stars[id] ?? 0) < MAX_STARS) return;
+    const made = Math.floor(this.crests[id] / LEGENDARY_MEDAL_RATE);
+    this.legendaryMedals += made;
+    this.crests[id] -= made * LEGENDARY_MEDAL_RATE;
+  }
+
   /** Crests a locked hero needs to unlock (0 for the free starter), or null for Legendary heroes, which only come through special means. */
   unlockCrests(def: HeroDef): number | null {
     if (def.unlockCost === 0) return 0;
@@ -261,7 +275,7 @@ export class GameState {
       const crests = weighted(CREST_ROLLS[hero.rarity as keyof typeof CREST_ROLLS]);
       const locked = (this.levels[hero.id] ?? 0) === 0;
       const before = this.crests[hero.id] ?? 0;
-      this.crests[hero.id] = before + crests;
+      this.addCrests(hero.id, crests);
       // "New" marks the drop that brings a locked hero to their unlock count.
       const need = this.unlockCrests(hero);
       const isNew = locked && need !== null && before < need && before + crests >= need;
@@ -281,6 +295,7 @@ export class GameState {
     if (cost === null || (this.crests[id] ?? 0) < cost) return false;
     this.crests[id] -= cost;
     this.stars[id] = (this.stars[id] ?? 0) + 1;
+    this.addCrests(id, 0); // at 8★, leftover medals turn into Legendary medals
     this.save();
     return true;
   }
@@ -511,7 +526,7 @@ export class GameState {
       if (!hero) break;
       const id = hero.id;
       result.medals.push(id);
-      this.crests[id] = (this.crests[id] ?? 0) + 1;
+      this.addCrests(id, 1);
     }
     this.trialBest[element] = Math.max(this.trialBest[element] ?? 0, tier);
     this.save();
@@ -622,6 +637,7 @@ export class GameState {
       relics: this.relics,
       equipped: this.equipped,
       relicSlots: this.relicSlots,
+      legendaryMedals: this.legendaryMedals,
       goldPerSec: this.goldPerSec,
       secondsPerStage: this.secondsPerStage,
       lastSeen: this.lastSeen,
@@ -679,6 +695,7 @@ export class GameState {
       this.stallBuyAmount = d.stallBuyAmount ?? 1;
       this.relics = { ...(d.relics ?? {}) };
       this.relicSlots = d.relicSlots ?? RELIC_START_SLOTS;
+      this.legendaryMedals = d.legendaryMedals ?? 0;
       this.equipped = (d.equipped ?? []).filter((id: string) => this.relics[id]).slice(0, this.relicSlots);
       this.goldPerSec = d.goldPerSec ?? 0;
       this.secondsPerStage = d.secondsPerStage ?? 20;
