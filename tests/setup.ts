@@ -5,4 +5,6 @@ const store = new Map<string, string>();
   setItem: (k: string, v: string) => void store.set(k, String(v)),
   removeItem: (k: string) => void store.delete(k),
   clear: () => store.clear(),
+  /** Test helper: every key currently stored. */
+  keys: () => [...store.keys()],
 };
