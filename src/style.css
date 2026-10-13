@@ -286,3 +286,16 @@ button.link[disabled] { display: none; }
 .stall.locked .banner { filter: grayscale(.7); }
 .stall.locked .gold-up { background: linear-gradient(180deg, #7dd0ff, #2d93d6 50%, #1a5f99); border-color: #0b2f4f; }
 @media (prefers-reduced-motion: reduce) { .stall.ready .stall-bar { animation: none; } }
+
+/* Manage Team */
+.team-note { color: var(--ember) !important; font-weight: 700; margin: 0 0 8px; }
+.team-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; text-align: left; }
+.team-row { display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; align-items: center; background: var(--panel-2); border-radius: 10px; padding: 6px 8px; border: 2px solid transparent; }
+.team-row.on { border-color: var(--ok); }
+.team-row.locked { opacity: .55; }
+.team-row .face { width: 36px; height: 36px; border-radius: 8px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
+.team-who { display: flex; flex-direction: column; }
+.team-who small { color: var(--muted); font-size: 12px; }
+.team-row button { font-size: 13px; padding: 6px 10px; }
+.team-help { font-size: 12px; margin: 10px 0 0; }
+.hero.benched { opacity: .6; }

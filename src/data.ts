@@ -213,3 +213,6 @@ export const STALL_MILESTONE = 50;
 export const STALL_REKINDLE_REVENUE = 0.25;
 export const STALL_REKINDLE_LEVELS = 5;
 export const STALL_REKINDLE_LEVELS_CAP = 600;
+
+/** Heroes that can fight at once. Matches the roster for now; matters once more heroes arrive. */
+export const LINEUP_SIZE = 5;
