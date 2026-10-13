@@ -529,100 +529,117 @@ export const ESSENCE_NAMES: Record<Element, string> = {
 };
 
 /**
- * Relics, the original's artifacts: passive boosts crafted and levelled with
- * Trial Essence. Each relic has a fixed star rating from 1★ to 6★: more stars
- * means a bigger bonus per level and a higher price. The first 1★ relics are
- * open from the start; each higher star opens once a relic of the star below
- * reaches its full base level. At full level, Enhance Stones raise the cap by 5.
+ * Relics, the original's artifacts, following the Crush Them All wiki's list:
+ * seven normal relics (1★-4★), six 4★ sets and five 5★ sets of three pieces.
+ * Each piece has one or two effects. Effect numbers are the wiki's percentages,
+ * reached at level 20, and grow evenly from level 1. The original's Defense
+ * counts as HP here (Hordefall has no Defense stat), "village" effects work on
+ * Market Row, and Prisms are Embers. Status-duration bonuses (burn, freeze,
+ * stun, poison) and hero-specific ones are left out until those systems exist.
+ * Pieces the wiki leaves blank are marked `guessed` and follow their set.
  *
- * Kinds: global (the whole team), element (heroes of one element) and economy
- * (gold, Market Row, hero level costs, Trial rewards, offline gold).
- * Pieces of a set give an extra bonus once every piece is crafted.
+ * 1★ relics are open from the start; each higher star opens once a relic of
+ * the star below reaches level 20. At full level, Enhance Stones raise the cap
+ * by 5. 4★ and 5★ set pieces also take Enhance Stones to craft (the original's
+ * Art Stones). A set's bonus turns on once every piece is crafted.
  */
+export type ElementHp = `${Element}Hp`;
 export type RelicEffect =
-  | 'atk' | 'hp' | 'power' | 'speed' | 'crit' | 'critDmg'
-  | 'gold' | 'stall' | 'cost' | 'trial' | 'essence' | 'offline'
-  | Element;
-export type RelicKind = 'global' | 'element' | 'economy';
+  | 'atk' | 'hp' | 'speed' | 'crit' | 'critDmg' | 'dodge'
+  | 'gold' | 'stall' | 'stallCost' | 'stallTime' | 'cost' | 'embers'
+  | Element | ElementHp;
 export interface RelicDef {
   id: string;
   name: string;
   stars: number;
-  effect: RelicEffect;
-  /** Bonus per level, in percent (crit: percentage points of crit chance). */
-  perLevel: number;
+  /** Effects as [effect, percent at level 20]. Crit and dodge are chance points (15 = +15%). */
+  fx: Array<[RelicEffect, number]>;
   essences: [Element, Element];
+  /** Essence of each kind to craft; each level after doubles every 2 levels. */
+  craft: number;
+  /** Enhance Stones to craft (set pieces). */
+  stones?: number;
   set?: string;
+  /** True for pieces the wiki leaves blank; their effects follow the rest of the set. */
+  guessed?: boolean;
   blurb: string;
 }
-export const RELIC_KIND_NAMES: Record<RelicKind, string> = { global: 'Whole team', element: 'Element', economy: 'Economy' };
-export function relicKind(effect: RelicEffect): RelicKind {
-  if (effect === 'water' || effect === 'earth' || effect === 'fire' || effect === 'light' || effect === 'dark') return 'element';
-  if (['gold', 'stall', 'cost', 'trial', 'essence', 'offline'].includes(effect)) return 'economy';
-  return 'global';
-}
+const T4 = 300_000;
+const T5 = 2_000_000;
 export const RELICS: RelicDef[] = [
-  // Global
-  { id: 'warbanner', name: 'Warbanner', stars: 1, effect: 'atk', perLevel: 5, essences: ['fire', 'dark'], blurb: 'A torn battle flag that still makes everyone swing harder.' },
-  { id: 'oakheart', name: 'Oakheart', stars: 1, effect: 'hp', perLevel: 5, essences: ['earth', 'water'], blurb: 'A living acorn that hardens skin like bark.' },
-  { id: 'kingsblade', name: 'Kingsblade', stars: 3, effect: 'power', perLevel: 8, essences: ['light', 'fire'], blurb: 'Raises ATK and HP for the whole team.' },
-  { id: 'wardrum', name: 'War Drum', stars: 4, effect: 'speed', perLevel: 1, essences: ['earth', 'fire'], blurb: 'Every beat makes the team attack faster.' },
-  { id: 'titancrown', name: 'Titan Crown', stars: 5, effect: 'power', perLevel: 18, essences: ['earth', 'light'], blurb: 'Raises ATK and HP for the whole team.' },
-  { id: 'starforge', name: 'Starforged Edge', stars: 6, effect: 'power', perLevel: 30, essences: ['dark', 'light'], blurb: 'Hammered from a fallen star. Huge ATK and HP for everyone.' },
-  // Economy
-  { id: 'luckycoin', name: 'Lucky Coin', stars: 1, effect: 'gold', perLevel: 5, essences: ['light', 'earth'], blurb: 'Always lands heads. Enemies drop more gold.' },
-  { id: 'scale', name: "Merchant's Scale", stars: 1, effect: 'stall', perLevel: 5, essences: ['water', 'light'], blurb: 'Tips every deal your way on Market Row.' },
-  { id: 'ledger', name: "Haggler's Ledger", stars: 2, effect: 'cost', perLevel: 3, essences: ['earth', 'dark'], blurb: 'Hero levels cost less gold. Works without a slot.' },
-  { id: 'sigil', name: 'Trial Sigil', stars: 2, effect: 'trial', perLevel: 10, essences: ['dark', 'fire'], blurb: 'Glows near Trial bosses and finds their weak spots.' },
-  { id: 'hourglass', name: 'Sleeping Hourglass', stars: 2, effect: 'offline', perLevel: 5, essences: ['water', 'dark'], blurb: 'More gold while you are away.' },
-  { id: 'satchel', name: "Delver's Satchel", stars: 3, effect: 'essence', perLevel: 4, essences: ['fire', 'water'], blurb: 'More Essence from every Trial win.' },
-  // Tidecaller set (Water)
-  { id: 'pearl', name: 'Tide Pearl', stars: 2, effect: 'water', perLevel: 10, essences: ['water', 'light'], set: 'tide', blurb: 'Sea-song in a shell. Water heroes hit harder.' },
-  { id: 'trident', name: 'Tidecaller Trident', stars: 3, effect: 'speed', perLevel: 1, essences: ['water', 'earth'], set: 'tide', blurb: 'The team attacks faster.' },
-  { id: 'coral', name: 'Coral Crown', stars: 4, effect: 'water', perLevel: 25, essences: ['water', 'dark'], set: 'tide', blurb: 'Water heroes hit much harder.' },
-  // Ashwing set (Fire)
-  { id: 'fang', name: 'Cinder Fang', stars: 2, effect: 'fire', perLevel: 10, essences: ['fire', 'earth'], set: 'ash', blurb: 'Still warm. Fire heroes hit harder.' },
-  { id: 'plume', name: 'Ashwing Plume', stars: 3, effect: 'crit', perLevel: 0.5, essences: ['fire', 'light'], set: 'ash', blurb: 'More critical hits for the team.' },
-  { id: 'emberheart', name: 'Ember Heart', stars: 4, effect: 'fire', perLevel: 25, essences: ['fire', 'dark'], set: 'ash', blurb: 'Fire heroes hit much harder.' },
-  // Mountain set (Earth)
-  { id: 'idol', name: 'Stone Idol', stars: 2, effect: 'earth', perLevel: 10, essences: ['earth', 'dark'], set: 'mountain', blurb: 'A mossy idol that steadies Earth heroes.' },
-  { id: 'gauntlet', name: 'Granite Gauntlet', stars: 3, effect: 'hp', perLevel: 8, essences: ['earth', 'fire'], set: 'mountain', blurb: 'The whole team gets tougher.' },
-  { id: 'rootcrown', name: 'Root Crown', stars: 4, effect: 'earth', perLevel: 25, essences: ['earth', 'water'], set: 'mountain', blurb: 'Earth heroes hit much harder.' },
-  // Sunspire set (Light)
-  { id: 'feather', name: 'Dawn Feather', stars: 2, effect: 'light', perLevel: 10, essences: ['light', 'water'], set: 'sun', blurb: 'Drifts upward. Light heroes hit harder.' },
-  { id: 'sundisc', name: 'Sun Disc', stars: 3, effect: 'gold', perLevel: 8, essences: ['light', 'fire'], set: 'sun', blurb: 'Enemies drop more gold.' },
-  { id: 'halo', name: 'Halo of Dawn', stars: 4, effect: 'light', perLevel: 25, essences: ['light', 'earth'], set: 'sun', blurb: 'Light heroes hit much harder.' },
-  // Nightveil set (Dark)
-  { id: 'mask', name: 'Dusk Mask', stars: 2, effect: 'dark', perLevel: 10, essences: ['dark', 'fire'], set: 'night', blurb: 'Smiles in the dark. Dark heroes hit harder.' },
-  { id: 'cloak', name: 'Shadow Cloak', stars: 3, effect: 'critDmg', perLevel: 3, essences: ['dark', 'water'], set: 'night', blurb: 'Critical hits deal more damage.' },
-  { id: 'lantern', name: 'Void Lantern', stars: 4, effect: 'dark', perLevel: 25, essences: ['dark', 'light'], set: 'night', blurb: 'Dark heroes hit much harder.' },
+  // Normal relics
+  { id: 'warbanner', name: 'Warbanner', stars: 1, fx: [['atk', 40]], essences: ['fire', 'dark'], craft: 10, blurb: 'A torn battle flag that still makes everyone swing harder.' },
+  { id: 'oakheart', name: 'Oakheart Coat', stars: 1, fx: [['hp', 40]], essences: ['earth', 'water'], craft: 10, blurb: 'Bark-padded armor for the whole team.' },
+  { id: 'pouch', name: 'Penny Pouch', stars: 1, fx: [['stallCost', 3]], essences: ['light', 'earth'], craft: 10, blurb: 'Stall upgrades cost less.' },
+  { id: 'sundial', name: 'Pocket Sundial', stars: 1, fx: [['stallTime', 3]], essences: ['water', 'light'], craft: 10, blurb: 'Stalls finish their cycles sooner.' },
+  { id: 'sawtooth', name: 'Sawtooth Sword', stars: 2, fx: [['atk', 120]], essences: ['fire', 'earth'], craft: 300, blurb: 'Bites through anything.' },
+  { id: 'jackal', name: 'Jackal Idol', stars: 3, fx: [['stallCost', 48]], essences: ['fire', 'light'], craft: 5_000, blurb: 'Merchants bow to it. Stall upgrades cost much less.' },
+  { id: 'starfall', name: 'Starfall Blade', stars: 4, fx: [['atk', 1080], ['hp', 1080]], essences: ['light', 'water'], craft: 40_000, blurb: 'Hammered from a fallen star.' },
+  // 4★ sets
+  { id: 'tide_trident', name: 'Tidelord Trident', stars: 4, set: 'tide', fx: [['water', 4320], ['hp', 1620]], essences: ['water', 'dark'], craft: 100_000, stones: 2, blurb: 'Commands the sea.' },
+  { id: 'tide_crown', name: 'Tidelord Crown', stars: 4, set: 'tide', fx: [['waterHp', 2160], ['stall', 1280]], essences: ['water', 'light'], craft: 100_000, stones: 2, blurb: 'Pearls from every ocean.' },
+  { id: 'tide_armor', name: 'Tidelord Armor', stars: 4, set: 'tide', fx: [['waterHp', 4320], ['hp', 320]], essences: ['water', 'earth'], craft: 100_000, stones: 2, blurb: 'Scales of a sea giant.' },
+  { id: 'gold_charm', name: 'Goldhand Charm', stars: 4, set: 'goldhand', fx: [['hp', 1080], ['stallTime', 162]], essences: ['dark', 'fire'], craft: T4, stones: 2, blurb: 'Everything it touches works faster.' },
+  { id: 'gold_scepter', name: 'Goldhand Scepter', stars: 4, set: 'goldhand', fx: [['atk', 2160], ['stallCost', 768]], essences: ['light', 'dark'], craft: T4, stones: 2, blurb: 'A rod of solid gold.' },
+  { id: 'gold_crown', name: 'Goldhand Crown', stars: 4, set: 'goldhand', fx: [['hp', 2160], ['stallCost', 1280]], essences: ['earth', 'light'], craft: T4, stones: 2, blurb: 'Heavy is the head.' },
+  { id: 'djinn_hammer', name: 'Djinn Hammer', stars: 4, set: 'djinn', fx: [['fire', 4320], ['critDmg', 160]], essences: ['fire', 'water'], craft: T4, stones: 2, blurb: 'Rings like a bell of flame.' },
+  { id: 'djinn_armor', name: 'Djinn Armor', stars: 4, set: 'djinn', fx: [['fireHp', 4320], ['stall', 1280]], essences: ['fire', 'dark'], craft: T4, stones: 2, blurb: 'Forged in a lamp.' },
+  { id: 'djinn_shield', name: 'Djinn Shield', stars: 4, set: 'djinn', fx: [['fireHp', 3240], ['hp', 320]], essences: ['fire', 'light'], craft: T4, stones: 2, blurb: 'Smoke that turns blades.' },
+  { id: 'storm_shield', name: 'Stormking Shield', stars: 4, set: 'storm', fx: [['lightHp', 3240], ['stall', 1280]], essences: ['light', 'water'], craft: T4, stones: 2, blurb: 'Crackles when struck.' },
+  { id: 'storm_armor', name: 'Stormking Armor', stars: 4, set: 'storm', fx: [['lightHp', 7560]], essences: ['light', 'water'], craft: T4, stones: 2, blurb: 'Light heroes get much tougher.' },
+  { id: 'storm_bolt', name: 'Stormking Bolt', stars: 4, set: 'storm', fx: [['light', 4320], ['lightHp', 3240]], essences: ['light', 'fire'], craft: T4, stones: 2, blurb: 'A thunderbolt in a jar.' },
+  { id: 'earth_rod', name: 'Earthmother Rod', stars: 4, set: 'earthmother', fx: [['earth', 4320], ['earthHp', 3240]], essences: ['earth', 'light'], craft: T4, stones: 2, blurb: 'Roots follow where it points.' },
+  { id: 'earth_armor', name: 'Earthmother Armor', stars: 4, set: 'earthmother', fx: [['earthHp', 4320]], essences: ['earth', 'water'], craft: T4, stones: 2, guessed: true, blurb: 'Woven bark and stone.' },
+  { id: 'earth_helm', name: 'Earthmother Helm', stars: 4, set: 'earthmother', fx: [['earthHp', 3240], ['cost', 768]], essences: ['earth', 'water'], craft: T4, stones: 2, blurb: 'Hero levels cost less gold.' },
+  { id: 'under_pendant', name: 'Underlord Pendant', stars: 4, set: 'underlord', fx: [['darkHp', 4320], ['cost', 768]], essences: ['dark', 'fire'], craft: T4, stones: 2, blurb: 'Hero levels cost less gold.' },
+  { id: 'under_scythe', name: 'Underlord Scythe', stars: 4, set: 'underlord', fx: [['dark', 4320]], essences: ['dark', 'water'], craft: T4, stones: 2, blurb: 'Reaps the battlefield.' },
+  { id: 'under_gauntlet', name: 'Underlord Gauntlet', stars: 4, set: 'underlord', fx: [['darkHp', 3240]], essences: ['dark', 'earth'], craft: T4, stones: 2, guessed: true, blurb: 'Cold iron from below.' },
+  // 5★ sets
+  { id: 'griffin_mask', name: 'Gilded Griffin Mask', stars: 5, set: 'griffin', fx: [['hp', 2160], ['gold', 324]], essences: ['dark', 'fire'], craft: T5, stones: 3, blurb: 'More gold from enemies and chests.' },
+  { id: 'griffin_claw', name: 'Gilded Griffin Claw', stars: 5, set: 'griffin', fx: [['atk', 4320], ['stallCost', 3072]], essences: ['light', 'dark'], craft: T5, stones: 3, blurb: 'Talons of beaten gold.' },
+  { id: 'griffin_cape', name: 'Gilded Griffin Cape', stars: 5, set: 'griffin', fx: [['hp', 4320], ['stallTime', 324]], essences: ['earth', 'light'], craft: T5, stones: 3, blurb: 'Feathers that never fall.' },
+  { id: 'firebird_halberd', name: 'Firebird Halberd', stars: 5, set: 'firebird', fx: [['fireHp', 8640], ['stall', 5120]], essences: ['fire', 'dark'], craft: T5, stones: 3, blurb: 'Reborn every dawn.' },
+  { id: 'firebird_armor', name: 'Firebird Armor', stars: 5, set: 'firebird', fx: [['fire', 8640], ['critDmg', 320]], essences: ['fire', 'water'], craft: T5, stones: 3, blurb: 'Burns hotter with every hit.' },
+  { id: 'firebird_crest', name: 'Firebird Crest', stars: 5, set: 'firebird', fx: [['fire', 4320], ['fireHp', 6480]], essences: ['fire', 'earth'], craft: T5, stones: 3, guessed: true, blurb: 'A feather that never cools.' },
+  { id: 'wyrm_armor', name: 'Abyss Wyrm Armor', stars: 5, set: 'wyrm', fx: [['darkHp', 8640], ['cost', 3072]], essences: ['dark', 'fire'], craft: T5, stones: 3, blurb: 'Hero levels cost far less gold.' },
+  { id: 'wyrm_fang', name: 'Abyss Wyrm Fang', stars: 5, set: 'wyrm', fx: [['dark', 8640], ['darkHp', 6480]], essences: ['dark', 'water'], craft: T5, stones: 3, guessed: true, blurb: 'Drips shadow.' },
+  { id: 'wyrm_scale', name: 'Abyss Wyrm Scale', stars: 5, set: 'wyrm', fx: [['darkHp', 6480], ['stall', 5120]], essences: ['dark', 'light'], craft: T5, stones: 3, guessed: true, blurb: 'Harder than the deep.' },
+  { id: 'titan_mask', name: 'Stone Titan Mask', stars: 5, set: 'titan', fx: [['earthHp', 8640], ['stall', 5120]], essences: ['earth', 'fire'], craft: T5, stones: 3, blurb: 'Older than the mountains.' },
+  { id: 'titan_fist', name: 'Stone Titan Fist', stars: 5, set: 'titan', fx: [['earth', 8640], ['earthHp', 6480]], essences: ['earth', 'light'], craft: T5, stones: 3, blurb: 'Hits like a landslide.' },
+  { id: 'titan_heart', name: 'Stone Titan Heart', stars: 5, set: 'titan', fx: [['earthHp', 6480], ['hp', 640]], essences: ['earth', 'dark'], craft: T5, stones: 3, guessed: true, blurb: 'Still beating, slowly.' },
+  { id: 'siren_dagger', name: 'Siren Dagger', stars: 5, set: 'siren', fx: [['water', 8640], ['waterHp', 6480]], essences: ['water', 'dark'], craft: T5, stones: 3, blurb: 'Sings as it strikes.' },
+  { id: 'siren_tiara', name: 'Siren Tiara', stars: 5, set: 'siren', fx: [['waterHp', 8640], ['hp', 640]], essences: ['water', 'earth'], craft: T5, stones: 3, blurb: 'Coral and moonlight.' },
+  { id: 'siren_shield', name: 'Siren Shield', stars: 5, set: 'siren', fx: [['waterHp', 6480], ['stall', 5120]], essences: ['water', 'light'], craft: T5, stones: 3, blurb: 'A shell that turns the tide.' },
 ];
 export interface RelicSetDef {
   id: string;
   name: string;
-  element: Element;
-  /** Bonuses (same units as RelicDef.perLevel totals) once every piece is crafted. */
+  /** Colour for the set header: an element, or gold for whole-team sets. */
+  element: Element | null;
+  /** Bonuses ([effect, percent]) once every piece is crafted. */
   bonus: Array<[RelicEffect, number]>;
   text: string;
 }
 export const RELIC_SETS: RelicSetDef[] = [
-  { id: 'tide', name: 'Tidecaller', element: 'water', bonus: [['water', 50], ['speed', 10]], text: 'Water heroes +50% ATK, team attacks 10% faster' },
-  { id: 'ash', name: 'Ashwing', element: 'fire', bonus: [['fire', 50], ['crit', 5]], text: 'Fire heroes +50% ATK, +5% crit chance' },
-  { id: 'mountain', name: 'Mountain', element: 'earth', bonus: [['earth', 50], ['hp', 30]], text: 'Earth heroes +50% ATK, team +30% HP' },
-  { id: 'sun', name: 'Sunspire', element: 'light', bonus: [['light', 50], ['gold', 30]], text: 'Light heroes +50% ATK, +30% gold' },
-  { id: 'night', name: 'Nightveil', element: 'dark', bonus: [['dark', 50], ['critDmg', 50]], text: 'Dark heroes +50% ATK, crits deal +50% damage' },
+  { id: 'tide', name: 'Tidelord', element: 'water', bonus: [['speed', 10]], text: 'Team attacks 10% faster' },
+  { id: 'goldhand', name: 'Goldhand', element: null, bonus: [['embers', 30], ['stallTime', 100]], text: '+30% Embers from Rekindle, Stalls twice as fast' },
+  { id: 'djinn', name: 'Djinn', element: 'fire', bonus: [['crit', 10], ['cost', 500]], text: '+10% crit chance, hero levels cost much less' },
+  { id: 'storm', name: 'Stormking', element: 'light', bonus: [['hp', 1000], ['speed', 10]], text: 'Team +1,000% HP, attacks 10% faster' },
+  { id: 'earthmother', name: 'Earthmother', element: 'earth', bonus: [['dodge', 10], ['hp', 1000]], text: 'Team dodges 10% of attacks, +1,000% HP' },
+  { id: 'underlord', name: 'Underlord', element: 'dark', bonus: [['atk', 1000]], text: 'Team +1,000% ATK' },
+  { id: 'griffin', name: 'Gilded Griffin', element: null, bonus: [['embers', 50], ['hp', 4000]], text: '+50% Embers from Rekindle, team +4,000% HP' },
+  { id: 'firebird', name: 'Firebird', element: 'fire', bonus: [['crit', 15], ['atk', 4000]], text: '+15% crit chance, team +4,000% ATK' },
+  { id: 'wyrm', name: 'Abyss Wyrm', element: 'dark', bonus: [['cost', 750], ['atk', 4000]], text: 'Hero levels cost far less, team +4,000% ATK' },
+  { id: 'titan', name: 'Stone Titan', element: 'earth', bonus: [['dodge', 15], ['hp', 4000]], text: 'Team dodges 15% of attacks, +4,000% HP' },
+  { id: 'siren', name: 'Siren', element: 'water', bonus: [['speed', 15], ['hp', 4000]], text: 'Team attacks 15% faster, +4,000% HP' },
 ];
 /** Levels a relic reaches before Enhance Stones; reaching it on an N★ relic opens (N+1)★ relics. */
 export const RELIC_BASE_MAX = 20;
 /** Each Enhance raises the cap by this many levels, up to RELIC_ENHANCE_COSTS.length times. */
 export const RELIC_ENHANCE_LEVELS = 5;
 export const RELIC_ENHANCE_COSTS = [5, 10, 20, 40];
-/** Essence price multiplier by star (index 0 = 1★). */
-export const RELIC_STAR_COST = [1, 2, 4, 8, 16, 32];
-export const RELIC_MAX_STARS = 6;
-/** Hero level cost reduction from relics never goes past this. */
-export const RELIC_COST_CAP = 0.75;
-/** Relic slots: 2 free, then bought with Gems once your best stage reaches the gate. */
+export const RELIC_MAX_STARS = Math.max(...RELICS.map((r) => r.stars));
+/** Relic slots: 2 free, then up to 20 more bought with Gems once your best stage reaches each gate (22 in all, like the original). */
 export const RELIC_START_SLOTS = 2;
-export const RELIC_SLOT_COSTS = [150, 300, 600, 1200];
-export const RELIC_SLOT_STAGES = [25, 100, 250, 500];
+export const RELIC_SLOT_COSTS = [100, 150, 200, 300, 400, 500, 650, 800, 1000, 1200, 1500, 1800, 2200, 2600, 3000, 3500, 4000, 4500, 5000, 6000];
+export const RELIC_SLOT_STAGES = [25, 50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000, 1200, 1400, 1600, 1800, 2000, 2500];

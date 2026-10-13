@@ -147,18 +147,18 @@ export function stallIncome(def: StallDef, level: number): Decimal {
 }
 
 /** Gold to raise a Stall from `level` to `level + 1`; level 0 means opening it. */
-export function stallUpgradeCost(def: StallDef, level: number): Decimal {
-  if (level === 0) return new Decimal(def.unlockCost);
-  return Decimal.pow(1.07, level - 1).times(def.unlockCost * 0.4);
+export function stallUpgradeCost(def: StallDef, level: number, mult = 1): Decimal {
+  if (level === 0) return new Decimal(def.unlockCost).times(mult);
+  return Decimal.pow(1.07, level - 1).times(def.unlockCost * 0.4 * mult);
 }
 
 /** Total cost and count for buying up to `count` Stall levels (or as many as affordable for 'max'). Opening buys exactly one. */
-export function stallBulkCost(def: StallDef, level: number, count: number | 'max', gold: Decimal): { levels: number; cost: Decimal } {
+export function stallBulkCost(def: StallDef, level: number, count: number | 'max', gold: Decimal, mult = 1): { levels: number; cost: Decimal } {
   let total = new Decimal(0);
   let n = 0;
   const limit = count === 'max' ? 1000 : count;
   while (n < limit) {
-    const next = total.plus(stallUpgradeCost(def, level + n));
+    const next = total.plus(stallUpgradeCost(def, level + n, mult));
     if (count === 'max' && next.gt(gold)) break;
     total = next;
     n++;
@@ -185,9 +185,8 @@ export function trialDps(level: { difficulty: number; req: [number, number] | nu
 
 /**
  * Essence of each of a relic's two kinds to go from level `level` to the next
- * (0 = crafting). Doubles every 2 levels; `starMult` makes higher-star relics
- * cost more (RELIC_STAR_COST).
+ * (0 = crafting, which costs `craft`). Doubles every 2 levels.
  */
-export function relicCost(level: number, starMult: number): number {
-  return Math.round(20 * starMult * Math.pow(2, level / 2));
+export function relicCost(level: number, craft: number): number {
+  return Math.round(craft * Math.pow(2, level / 2));
 }
