@@ -139,15 +139,27 @@ export class UI {
   private openTeam(note = '') {
     const s = this.state;
     const count = s.lineupCount();
-    const rows = HEROES.map((h) => {
+    // Team first, then benched heroes, then heroes ready to unlock, then the rest.
+    const rank = (h: HeroDef) => (s.inLineup(h.id) ? 0 : (s.levels[h.id] ?? 0) > 0 ? 1 : s.canUnlock(h) ? 2 : 3);
+    const rows = [...HEROES].sort((a, b) => rank(a) - rank(b)).map((h) => {
       const recruited = (s.levels[h.id] ?? 0) > 0;
       const on = s.inLineup(h.id);
-      const spent = s.goldSpent(h.id);
-      const label = !recruited ? 'Locked' : on ? (spent.gt(0) ? `Remove (+${fmt(spent)} gold)` : 'Remove') : 'Add';
-      const disabled = !recruited || (on && count <= 1) || (!on && count >= LINEUP_SIZE);
-      return `<li class="team-row${on ? ' on' : ''}${recruited ? '' : ' locked'}">
+      if (!recruited) {
+        const need = s.unlockCrests(h);
+        const ready = s.canUnlock(h);
+        const have = s.crests[h.id] ?? 0;
+        return `<li class="team-row locked${ready ? ' ready' : ''}">
         <span class="face art" style="${faceStyle(h)}">${h.name[0]}</span>
-        <span class="team-who"><b>${h.name}</b><small>${recruited ? `Lv ${s.heroLevel(h.id)} · ${on ? 'In team' : 'Benched'}` : `${cap(h.element)} ${h.job}`}</small></span>
+        <span class="team-who"><b>${h.name}</b><small>${cap(h.element)} ${h.job} · ${need === null ? 'Special event' : `${Math.min(have, need)}/${need} Crests`}</small></span>
+        <button data-unlock="${h.id}" class="${ready ? 'hot' : ''}" ${ready ? '' : 'disabled'}>${ready ? 'Unlock' : 'Locked'}</button>
+      </li>`;
+      }
+      const spent = s.goldSpent(h.id);
+      const label = on ? (spent.gt(0) ? `Remove (+${fmt(spent)} gold)` : 'Remove') : 'Add';
+      const disabled = (on && count <= 1) || (!on && count >= LINEUP_SIZE);
+      return `<li class="team-row${on ? ' on' : ''}">
+        <span class="face art" style="${faceStyle(h)}">${h.name[0]}</span>
+        <span class="team-who"><b>${h.name}</b><small>Lv ${s.heroLevel(h.id)} · ${on ? 'In team' : 'Benched'}</small></span>
         <button data-lineup="${h.id}" class="${on ? '' : 'hot'}" ${disabled ? 'disabled' : ''}>${label}</button>
       </li>`;
     }).join('');
@@ -435,6 +447,17 @@ export class UI {
       this.openTeam(),
     );
     $('modal-body').addEventListener('click', (e) => {
+      const unlock = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-unlock]');
+      if (unlock && !unlock.disabled) {
+        const id = unlock.dataset.unlock!;
+        if (!this.state.unlockHero(id)) return;
+        play('unlock');
+        this.scene()?.syncHeroes();
+        this.render();
+        const name = HEROES.find((h) => h.id === id)!.name;
+        this.openTeam(this.state.inLineup(id) ? `${name} joined the team!` : `${name} is unlocked. The team is full, so they wait on the bench.`);
+        return;
+      }
       const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-lineup]');
       if (!btn || btn.disabled) return;
       const id = btn.dataset.lineup!;
@@ -1085,11 +1108,16 @@ export class UI {
     bossBtn.textContent = isBossStage(s.stage + 1) || isBossStage(s.stage) ? 'Fight boss' : 'Resume';
 
     let heroesBadge = false;
+    let teamReady = false;
     for (const r of this.rows) {
       const level = s.levels[r.def.id] ?? 0;
       const emberLevel = s.emberLevels[r.def.id] ?? 0;
       const eff = s.heroLevel(r.def.id);
       const locked = level === 0;
+      // The Heroes tab lists only the current team; Manage Team handles everyone else.
+      r.root.hidden = !s.inLineup(r.def.id);
+      if (s.canUnlock(r.def)) teamReady = true;
+      if (r.root.hidden) continue;
       r.root.classList.toggle('locked', locked);
       r.level.textContent = locked ? '' : `Lv ${eff}`;
       r.emberBadge.textContent = emberLevel ? `+${emberLevel}` : '';
@@ -1128,7 +1156,8 @@ export class UI {
     this.badge('market', this.renderMarket());
     this.badge('relics', this.renderRelics());
     this.badge('battle', s.rekindles > 0 && s.tickets >= TICKET_CAP);
-    this.badge('heroes', heroesBadge);
+    this.badge('heroes', heroesBadge || teamReady);
+    $('team-btn').classList.toggle('ready', teamReady);
     this.badge('shop', s.gems >= CHEST_COST || s.rewardsWaiting());
     if (this.tab === 'shop') this.renderRewards();
     if (this.tab === 'battle') this.renderBattle();
