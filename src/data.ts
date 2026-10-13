@@ -216,3 +216,52 @@ export const STALL_REKINDLE_LEVELS_CAP = 600;
 
 /** Heroes that can fight at once. Matches the roster for now; matters once more heroes arrive. */
 export const LINEUP_SIZE = 5;
+
+/** Elemental Trials (GDD 11.1): each element's dungeon opens on set days (Samuel's schedule). */
+export const TRIAL_ROTATION: Element[] = ['water', 'earth', 'fire', 'light', 'dark'];
+/** Days each Trial is open, as Date.getDay() numbers (0 = Sunday), in the player's local time. */
+export const TRIAL_SCHEDULE: Record<Element, number[]> = {
+  dark: [1, 5, 0],
+  light: [2, 4, 6],
+  earth: [2, 4, 0],
+  water: [3, 5, 0],
+  fire: [1, 3, 6],
+};
+export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+/**
+ * Trial levels from Samuel's table (original dungeon chart). Essence is the
+ * resource reward, difficulty sets the boss strength (roughly the Ember level
+ * the team needs), `req` is [heroes, Ember level] needed to enter, and medals
+ * is how many random heroes of the element get a Hero Crest on a win.
+ */
+export interface TrialLevel { essence: number; difficulty: number; req: [number, number] | null; medals: number }
+const TRIAL_DIFFICULTY = [1, 10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 950, 1100, 1300, 1500, 1700, 2000, 2300, 2600, 2900, 3200, 3600];
+const TRIAL_REQS: ([number, number] | null)[] = [
+  null, null, null, null, null, null, null, null, null,
+  [2, 100], [2, 200], [2, 300], [2, 400], [2, 500], [3, 600], [3, 750], [3, 850], [3, 1050], [3, 1250],
+  [4, 1450], [4, 1700], [4, 2000], [4, 2300], [4, 2600], [5, 2850], [5, 4000],
+];
+export const TRIAL_LEVELS: TrialLevel[] = TRIAL_DIFFICULTY.map((difficulty, i) => ({
+  essence: 20 * 2 ** i,
+  difficulty,
+  req: TRIAL_REQS[i],
+  medals: i + 1 >= 16 ? 2 : 1,
+}));
+export const TRIAL_TIERS = TRIAL_LEVELS.length;
+export const TRIAL_TIME = 30;
+export const TICKET_MINUTES = 30;
+export const TICKET_CAP = 20;
+export const TRIAL_BOSS_NAMES: Record<Element, string> = {
+  water: 'Tide Warden',
+  earth: 'Stone Colossus',
+  fire: 'Cinder Drake',
+  light: 'Dawn Seraph',
+  dark: 'Night Hollow',
+};
+export const ESSENCE_NAMES: Record<Element, string> = {
+  water: 'Tide Essence',
+  earth: 'Stone Essence',
+  fire: 'Cinder Essence',
+  light: 'Dawn Essence',
+  dark: 'Dusk Essence',
+};
