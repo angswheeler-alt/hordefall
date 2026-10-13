@@ -769,9 +769,9 @@ export class BattleScene extends Phaser.Scene {
     h.view.x = h.x;
   }
 
-  /** Seconds until a hero's next attack: star skills and Rogue Wave+ speed it up. */
+  /** Seconds until a hero's next attack: star skills, Rogue Wave+ and attack-speed relics speed it up. */
   private cooldownFor(h: Unit) {
-    return h.cooldown * this.mul('attackSpeed', h) * (h.hasteUntil > this.clock ? h.hasteMult : 1);
+    return (h.cooldown * this.mul('attackSpeed', h) * (h.hasteUntil > this.clock ? h.hasteMult : 1)) / (1 + this.state.relicBonus('speed'));
   }
 
   private stepEnemy(e: Unit, dt: number) {
@@ -831,7 +831,8 @@ export class BattleScene extends Phaser.Scene {
     else this.lunge(h, 1);
     if (h.anim) this.setAnim(h, 'attack');
     h.attacks++;
-    const critChance = CRIT_CHANCE + this.sum('crit', h);
+    const critChance = CRIT_CHANCE + this.sum('crit', h) + this.state.relicBonus('crit');
+    const critMult = CRIT_MULTIPLIER * (1 + this.state.relicBonus('critDmg'));
     const strikes = Math.random() < this.sum('doubleStrike', h) ? 2 : 1;
     const nth = everyNth(this.state.effects(), def.id);
     const bossMult = this.mul('bossDamage', h);
@@ -847,7 +848,7 @@ export class BattleScene extends Phaser.Scene {
     let dealt = new Decimal(0);
     for (let i = 0; i < strikes; i++) {
       const crit = Math.random() < critChance;
-      let atk = (crit ? h.atk.times(CRIT_MULTIPLIER) : h.atk).times(beacon);
+      let atk = (crit ? h.atk.times(critMult) : h.atk).times(beacon);
       if (nth && nth.every && h.attacks % nth.every === 0) atk = atk.times(nth.value);
       const splash = def.splash ? def.splash * this.mul('splash', h) : 0;
       let targets: Unit[];

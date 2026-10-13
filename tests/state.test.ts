@@ -3,7 +3,7 @@ import Decimal from 'break_infinity.js';
 import { GameState, rarityOdds } from '../src/state';
 import {
   HEROES, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, LINEUP_SIZE,
-  TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, RELICS, RELIC_SLOT_COSTS, RELIC_START_SLOTS, TRIAL_LEVELS, RENAMED_HEROES,
+  TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, RELICS, RELIC_SETS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, RENAMED_HEROES,
 } from '../src/data';
 
 const starter = HEROES.find((h) => h.unlockCost === 0)!;
@@ -42,6 +42,8 @@ describe('saving', () => {
     s.essences.fire = 300;
     s.relics[RELICS[0].id] = 3;
     s.equipped = [RELICS[0].id];
+    s.relicEnhance[RELICS[0].id] = 1;
+    s.enhanceStones = 7;
     s.save();
     const t = new GameState();
     expect(t.load()).toBe(true);
@@ -225,6 +227,8 @@ describe('relics', () => {
   it('buy slots with gems in order, then stop', () => {
     const s = fresh();
     s.gems = 1e6;
+    expect(s.buyRelicSlot()).toBe(false); // stage gate
+    s.bestStage = RELIC_SLOT_STAGES[RELIC_SLOT_STAGES.length - 1];
     for (const cost of RELIC_SLOT_COSTS) {
       const before = s.gems;
       expect(s.buyRelicSlot()).toBe(true);
@@ -248,6 +252,51 @@ describe('relics', () => {
     for (const e of def.essences) s.essences[e] = 1e9;
     expect(s.upgradeRelic(def.id)).toBe(true);
     expect(s.relics[def.id]).toBe(1);
+  });
+
+  it('opens the next star by maxing a relic of the star below', () => {
+    const s = fresh();
+    const two = RELICS.find((r) => r.stars === 2)!;
+    for (const e of two.essences) s.essences[e] = 1e12;
+    expect(s.relicStarsOpen()).toBe(1);
+    expect(s.upgradeRelic(two.id)).toBe(false);
+    s.relics[RELICS.find((r) => r.stars === 1)!.id] = RELIC_BASE_MAX;
+    expect(s.relicStarsOpen()).toBe(2);
+    expect(s.upgradeRelic(two.id)).toBe(true);
+  });
+
+  it('Enhance Stones raise the cap by 5 only at max level', () => {
+    const s = fresh();
+    const def = RELICS[0];
+    s.enhanceStones = 1000;
+    s.relics[def.id] = RELIC_BASE_MAX - 1;
+    expect(s.enhanceRelic(def.id)).toBe(false);
+    s.relics[def.id] = RELIC_BASE_MAX;
+    expect(s.relicNextCost(def)).toBeNull();
+    expect(s.enhanceRelic(def.id)).toBe(true);
+    expect(s.enhanceStones).toBe(1000 - RELIC_ENHANCE_COSTS[0]);
+    expect(s.relicMaxLevel(def)).toBe(RELIC_BASE_MAX + 5);
+    expect(s.relicNextCost(def)).not.toBeNull();
+  });
+
+  it('a set gives its bonus once every piece is crafted, equipped or not', () => {
+    const s = fresh();
+    const set = RELIC_SETS[0];
+    const pieces = RELICS.filter((r) => r.set === set.id);
+    for (const p of pieces.slice(1)) s.relics[p.id] = 1;
+    expect(s.relicBonus(set.element)).toBe(0);
+    s.relics[pieces[0].id] = 1;
+    expect(s.relicBonus(set.element)).toBeCloseTo(set.bonus[0][1] / 100);
+  });
+
+  it('old saves past level 20 keep their levels as Enhances', () => {
+    const s = fresh();
+    s.relics.warbanner = 30;
+    s.save();
+    const s2 = new GameState();
+    expect(s2.load()).toBe(true);
+    expect(s2.relics.warbanner).toBe(30);
+    expect(s2.relicEnhance.warbanner).toBe(2);
   });
 });
 

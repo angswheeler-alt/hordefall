@@ -388,6 +388,18 @@ button.glass:disabled { opacity: .7; font-size: 11px; }
 .relic-cost i { width: 10px; height: 10px; border-radius: 50%; background: var(--el); border: 1px solid #000; }
 .relic-btns { display: flex; flex-direction: column; gap: 4px; min-width: 84px; }
 .relic-btns button { font-size: 12px; padding: 6px 8px; }
+.relic-section { margin: 12px 2px 6px; font-size: 14px; color: var(--gold); text-transform: uppercase; letter-spacing: .06em; }
+.relic-set { margin: 8px 0 4px; padding: 6px 10px; border-left: 4px solid var(--el); background: rgba(0,0,0,.25); border-radius: 6px; color: #fff4dd; }
+.relic-set b { display: block; font-size: 14px; }
+.relic-set small { display: block; color: #e8d6b8; font-size: 12px; }
+.relic-set.done { box-shadow: 0 0 0 1px var(--gold) inset; }
+.relic-set.done small { color: #9effa8; }
+.relic-art { position: relative; }
+.relic-stars { position: absolute; bottom: -2px; left: 0; right: 0; text-align: center; font-size: 9px; letter-spacing: -1px; color: #ffd84a; text-shadow: 0 0 2px #000, 0 1px 1px #000; }
+.relic.locked { opacity: .55; }
+.relic.locked .relic-art { filter: grayscale(1) brightness(.5); }
+.relic.locked .eff { color: #e8d6b8; }
+i.stone { display: inline-block; width: 12px; height: 12px; background: linear-gradient(135deg, #e6e9f2, #8a90a8 60%, #4a4f63); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
 
 /* Hero faces drawn from the hero sprite: zoomed to head and shoulders, crisp pixels, letter hidden. */
 .face.art { background-image: var(--art); background-repeat: no-repeat; background-size: 180%; background-position: 52% 18%; image-rendering: pixelated; color: transparent !important; text-shadow: none !important; }
