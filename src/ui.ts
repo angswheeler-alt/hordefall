@@ -520,7 +520,6 @@ export class UI {
     const s = this.state;
     $('gold').textContent = fmt(s.gold);
     $('gps').textContent = `${fmt(new Decimal(s.goldPerSec))}/s`;
-    $('best').textContent = String(s.bestStage);
     $('gems').textContent = String(s.gems);
     const summon = $<HTMLButtonElement>('summon');
     summon.disabled = s.gems < CHEST_COST;
