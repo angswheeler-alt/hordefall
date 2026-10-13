@@ -20,7 +20,7 @@ body { -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
 .stat.small { font-size: 13px; color: var(--muted); }
 .stat.small b { color: var(--text); }
 #gold { color: var(--gold); font-variant-numeric: tabular-nums; }
-.coin { width: 16px; height: 16px; border-radius: 50%; background: var(--gold); box-shadow: inset -3px -3px 0 #c9a227; }
+.coin { display: inline-block; vertical-align: middle; width: 16px; height: 16px; background: url('./assets/ui/coin.png') center / contain no-repeat; image-rendering: pixelated; }
 #game { width: 100%; aspect-ratio: 480 / 300; background: #000; touch-action: manipulation; }
 #game canvas { display: block; width: 100% !important; height: 100% !important; image-rendering: pixelated; }
 #ults { display: flex; gap: 8px; padding: 10px 14px 0; flex-wrap: wrap; }
@@ -54,7 +54,7 @@ button.hot { background: var(--hot); border-color: var(--hot); color: #fff; font
 #modal p { color: var(--muted); line-height: 1.5; }
 #modal b { color: var(--gold); }
 
-.ember { width: 12px; height: 16px; border-radius: 50% 50% 45% 45% / 65% 65% 35% 35%; background: radial-gradient(circle at 50% 70%, #ffe08a 0 25%, var(--ember) 55%, #c2410c 100%); }
+.ember { display: inline-block; vertical-align: middle; width: 16px; height: 16px; background: url('./assets/ui/ember.png') center / contain no-repeat; image-rendering: pixelated; }
 #embers { color: var(--ember); }
 button.ember-btn { background: var(--ember); border-color: var(--ember); color: #2a0d00; font-weight: 700; }
 .hero .btns { display: flex; flex-direction: column; gap: 6px; }
@@ -103,7 +103,7 @@ button.icon { padding: 6px 10px; font-size: 18px; line-height: 1; }
 .sheet-card .meta { font-size: 13px; color: var(--muted); line-height: 1.45; }
 .sheet-card p.meta { margin: 6px 0 10px; }
 
-.gem { width: 14px; height: 14px; background: linear-gradient(135deg, #b9f3ff, #3fb8e6 60%, #1d6f99); clip-path: polygon(50% 0, 100% 40%, 50% 100%, 0 40%); }
+.gem { display: inline-block; vertical-align: middle; width: 16px; height: 16px; background: url('./assets/ui/gem.png') center / contain no-repeat; image-rendering: pixelated; }
 #gems { color: #7fe3ff; }
 button.gem-btn { background: #1d6f99; border-color: #3fb8e6; color: #e6fbff; font-weight: 700; }
 button.evolve { width: 100%; margin: 4px 0 8px; }
@@ -171,8 +171,7 @@ button.link[disabled] { display: none; }
 .hero-head { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 8px; align-items: stretch; margin-bottom: 8px; }
 .hero-head .wood-btn { min-height: 50px; font-size: 14px; }
 .chest-btn { display: flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(180deg, #c0392b, #7d1f16); font-size: 15px !important; }
-.chest-ico { width: 28px; height: 22px; border-radius: 5px 5px 3px 3px; background: linear-gradient(180deg, #e0a23a 0 40%, #8a5320 40% 100%); border: 2px solid var(--wood-deep); position: relative; flex: none; }
-.chest-ico::after { content: ''; position: absolute; left: 50%; top: 30%; width: 6px; height: 7px; transform: translateX(-50%); background: #ffd84a; border: 1px solid var(--wood-deep); border-radius: 1px; }
+.chest-ico { width: 32px; height: 32px; background: url('./assets/ui/chest.png') center / contain no-repeat; image-rendering: pixelated; flex: none; }
 .hero-sub { display: flex; justify-content: flex-end; margin-bottom: 8px; }
 #heroes { padding: 0; gap: 6px; }
 .hero { grid-template-columns: 58px 1fr auto; gap: 10px; background: linear-gradient(180deg, var(--plank), #4a2d17); border: 2px solid var(--wood-deep); border-radius: 10px; padding: 6px 8px 6px 6px; box-shadow: inset 0 1px 0 rgba(255,255,255,.12); }
@@ -220,14 +219,13 @@ button.link[disabled] { display: none; }
 .shop-card p { margin: 2px 0 0; font-size: 12px; color: #e8d3b0; }
 .shop-card button { min-width: 104px; min-height: 44px; }
 .shop-art { width: 56px; height: 48px; border-radius: 8px; border: 2px solid var(--wood-deep); }
-.shop-art.chest { background: linear-gradient(180deg, #e0a23a 0 42%, #8a5320 42% 100%); }
+.shop-art.chest { background: #2b190c url('./assets/ui/chest.png') center / 40px no-repeat; image-rendering: pixelated; }
 .shop-art.gems { background: radial-gradient(circle at 50% 45%, #b9f3ff, #3fb8e6 45%, #1d6f99); }
 
 /* Hero Chest pop-up */
 .chest-pop { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .chest-pop p { margin: 0; }
-.chest-art { width: 96px; height: 76px; margin: 4px 0; border-radius: 14px 14px 8px 8px; border: 3px solid #2b190c; background: linear-gradient(180deg, #e0a23a 0 40%, #2b190c 40% 44%, #8a5320 44% 100%); position: relative; box-shadow: 0 0 24px rgba(255,216,74,.45); animation: chest-bob 1.6s ease-in-out infinite; }
-.chest-art::after { content: ''; position: absolute; left: 50%; top: 30%; width: 16px; height: 20px; transform: translateX(-50%); background: var(--gold); border: 2px solid #2b190c; border-radius: 3px; }
+.chest-art { width: 96px; height: 96px; margin: 4px 0; background: url('./assets/ui/chest.png') center / contain no-repeat; image-rendering: pixelated; filter: drop-shadow(0 0 12px rgba(255,216,74,.45)); animation: chest-bob 1.6s ease-in-out infinite; }
 @keyframes chest-bob { 50% { transform: translateY(-4px); } }
 @media (prefers-reduced-motion: reduce) { .chest-art { animation: none; } }
 .chest-heroes { display: flex; gap: 6px; }
@@ -241,7 +239,6 @@ button.link[disabled] { display: none; }
 #wallet .pill { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px 0 4px; background: #0e0a1c; border: 2px solid #3a2f5c; border-radius: 15px; box-shadow: inset 0 2px 3px rgba(0,0,0,.6); font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; }
 #wallet .pill b { color: #fff; }
 #wallet .pill .gem, #wallet .pill .coin, #wallet .pill .ember { flex: none; width: 22px; height: 22px; }
-#wallet .pill .ember { width: 18px; }
 #wallet .gold-pill { flex: 1.6; }
 #wallet .gold-pill b { color: var(--gold); }
 #wallet .gold-pill small { margin-left: auto; color: var(--muted); font-size: 11px; }
