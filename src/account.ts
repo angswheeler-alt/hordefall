@@ -252,6 +252,38 @@ export class Account {
     this.render();
   }
 
+  /**
+   * Full account reset. A signed-in player leaves their guild and the cloud
+   * save is overwritten with a fresh game (they stay signed in); then this
+   * device's save is replaced too and the page reloads. Returns an error to
+   * show, and changes nothing locally, when the server couldn't be reached,
+   * since the old cloud save would otherwise come back on the next start.
+   */
+  async reset(): Promise<string | null> {
+    if (this.db && this.user) {
+      this.choosing = true; // no uploads of the old state while this runs
+      const fail = (message: string) => {
+        this.choosing = false;
+        return `Couldn't reset the online account: ${message}`;
+      };
+      const left = await this.db.rpc('leave_guild');
+      // Guild tables missing (guilds.sql not run) means there is no guild to leave.
+      if (left.error && !/does not exist|schema cache|PGRST20[0-9]|42P01|42883/i.test(left.error.message)) return fail(left.error.message);
+      const cloud = await this.fetchCloud();
+      if (cloud === undefined) return fail('the cloud save is out of reach.');
+      const rev = Number(cloud?.rev ?? 0) + 1;
+      const data = GameState.freshSave(rev);
+      const row = { user_id: this.user.id, data, best_stage: 1, updated_at: new Date().toISOString() };
+      const { error } = cloud ? await this.db.from('saves').update(row).eq('user_id', this.user.id) : await this.db.from('saves').upsert(row);
+      if (error) return fail(error.message);
+      this.knownRev = rev;
+      GameState.startOver(data);
+      return null;
+    }
+    GameState.startOver();
+    return null;
+  }
+
   private async submit(create: boolean) {
     const username = $<HTMLInputElement>('acct-name').value.trim().toLowerCase();
     const password = $<HTMLInputElement>('acct-password').value;

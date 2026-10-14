@@ -1457,6 +1457,22 @@ export class GameState {
     }
   }
 
+  /** A brand-new game's save, as the account reset writes it to the device and the cloud. */
+  static freshSave(rev?: number): SaveData {
+    const data = new GameState().toJSON();
+    return rev === undefined ? data : { ...data, rev };
+  }
+
+  /**
+   * Account reset: replace this device's save with a fresh game and freeze
+   * saving, so nothing still running in this page (autosave, pagehide, a cloud
+   * upload) can write the old progress back before the reload.
+   */
+  static startOver(data: SaveData = GameState.freshSave()) {
+    GameState.frozen = true;
+    GameState.writeLocal(data);
+  }
+
   /**
    * Offline earnings (GDD section 10): gold at the recent rate, and stage
    * progress at the recent clear speed. Offline play never beats a boss, so it

@@ -42,10 +42,11 @@ const ui = new UI(state, scene, {
       ui.showRekindled(result);
     }
   },
-  wipe: () => {
-    // Freezes saving (here and in cloud uploads) so the wipe sticks.
-    GameState.wipe();
-    location.reload();
+  resetAccount: async () => {
+    // Freezes saving (here and in cloud uploads) so the reset sticks.
+    const error = await account.reset();
+    if (!error) location.reload();
+    return error;
   },
 });
 if (offline) ui.showOffline(offline);
