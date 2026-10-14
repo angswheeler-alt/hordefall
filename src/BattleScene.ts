@@ -47,7 +47,7 @@ import chestBronzeUrl from './assets/ui/chest-bronze.png';
 import chestGoldUrl from './assets/ui/chest-gold.png';
 import { sumEffect, mulEffect, everyNth } from './skills';
 import type { EffectKind } from './data';
-import { comboMult, executeMult, signatureReflect, splitHeal, SIG_PLUS } from './kits';
+import { comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS } from './kits';
 import { STAT_BASE, FREEZE_BLAST_RADIUS, BOSS_STUN_CHANCE, BOSS_STUN_SECONDS, type HeroStats } from './stats';
 import { heroProfile } from './profiles';
 
@@ -77,8 +77,9 @@ const WAVE_INTERVAL = 7;
 const BURN_TICK = 0.5;
 const WILDFIRE_RADIUS = 40;
 const BEACON_SECONDS = 4;
-/** Lumen brings fallen heroes back this far behind her. */
+/** Lumen brings fallen heroes back this far behind her, with this share of their HP. */
 const REVIVE_BEHIND = 14;
+const REVIVE_HP = 0.5;
 const MAX_ENEMIES = 14;
 /** Melee feet sit this far below a unit's y (the old 30 px placeholders were centred on it). */
 const FOOT_Y = 15;
@@ -144,6 +145,8 @@ interface Unit {
   burnBy?: Unit;
   /** Bramble Wall: no moving or attacking until this time. */
   rootedUntil: number;
+  /** Bosses: crowd control has no effect until this time (BOSS_CC in kits.ts). */
+  ccImmuneUntil: number;
   /** Nightfall Volley: takes markMult damage until markUntil. */
   markUntil: number;
   markMult: number;
@@ -418,6 +421,7 @@ export class BattleScene extends Phaser.Scene {
       burnDps: new Decimal(0),
       burnTick: 0,
       rootedUntil: 0,
+      ccImmuneUntil: 0,
       markUntil: 0,
       markMult: 1,
       shield: new Decimal(0),
@@ -537,6 +541,21 @@ export class BattleScene extends Phaser.Scene {
     return !!h?.def?.signature && this.has(h.def.id, SIG_PLUS_EVOLUTIONS);
   }
 
+  /**
+   * Stun, freeze or root an enemy for `seconds` (bosses: `bossSeconds`, half by default, and not again until
+   * 2 s after it ends; see controlEnd). Returns when the control ends, or 0 if the boss shrugged it off.
+   */
+  private control(e: Unit, seconds: number, bossSeconds?: number): number {
+    const end = controlEnd(e.isBoss, this.clock, e.rootedUntil, e.ccImmuneUntil, seconds, bossSeconds);
+    if (!end) {
+      this.floatText(e.x, e.y - 30, 'IMMUNE', '#c9b8ff', 9);
+      return 0;
+    }
+    e.rootedUntil = end.until;
+    e.ccImmuneUntil = end.immuneUntil;
+    return end.until;
+  }
+
   private ultCooldown(heroId: string) {
     return this.has(heroId, ASCENDED_EVOLUTIONS) ? ASCENDED_ULT_COOLDOWN : ULT_COOLDOWN;
   }
@@ -628,9 +647,9 @@ export class BattleScene extends Phaser.Scene {
     h.shield = Decimal.max(h.shield, h.maxHp.times(STAT_BASE.knightShield * (1 + h.stats.knightShield)));
   }
 
-  private reviveHero(h: Unit, x = PLAYER_CRYSTAL_X + 20 + Math.random() * 10) {
+  private reviveHero(h: Unit, x = PLAYER_CRYSTAL_X + 20 + Math.random() * 10, hpShare = 1) {
     h.alive = true;
-    h.hp = h.maxHp;
+    h.hp = h.maxHp.times(hpShare);
     h.rootedUntil = 0;
     this.giveKnightShield(h);
     h.x = x;
@@ -896,8 +915,7 @@ export class BattleScene extends Phaser.Scene {
       this.damageUnit(e, dmg.times(reflect), target);
       // Bramble Hide+ (6★): reflected hits can stun the attacker.
       if (e.alive && target.def?.signature?.kind === 'reflect' && this.sigPlus(target) && Math.random() < SIG_PLUS.reflectStun) {
-        e.rootedUntil = Math.max(e.rootedUntil, this.clock + SIG_PLUS.reflectStunSeconds);
-        this.floatText(e.x, e.y - 30, 'STUN', '#ffd84a', 9);
+        if (this.control(e, SIG_PLUS.reflectStunSeconds)) this.floatText(e.x, e.y - 30, 'STUN', '#ffd84a', 9);
       }
     }
   }
@@ -934,8 +952,7 @@ export class BattleScene extends Phaser.Scene {
     const rage = this.mastery(h, 'Barbarian') ? 1 + Math.min(0.5, (1 - h.hp.div(h.maxHp).toNumber()) / 2) : 1;
     // Brawler Mastery: every 4th hit in a row on one enemy stuns it.
     if (this.mastery(h, 'Brawler') && (h.streak + 1) % 4 === 0) {
-      target.rootedUntil = Math.max(target.rootedUntil, this.clock + 0.5);
-      this.floatText(target.x, target.y - 30, 'STUN', '#ffd84a', 9);
+      if (this.control(target, 0.5)) this.floatText(target.x, target.y - 30, 'STUN', '#ffd84a', 9);
     }
     const beacon = h.beaconUntil > this.clock ? h.beaconMult : 1;
     let dealt = new Decimal(0);
@@ -980,16 +997,17 @@ export class BattleScene extends Phaser.Scene {
     const st = h.stats!;
     const sig = h.def?.signature;
     if (st.stunChance > 0 && Math.random() < st.stunChance) {
-      t.rootedUntil = Math.max(t.rootedUntil, this.clock + STAT_BASE.stunSeconds * (1 + st.stunTime));
-      this.floatText(t.x, t.y - 30, 'STUN', '#ffd84a', 9);
+      if (this.control(t, STAT_BASE.stunSeconds * (1 + st.stunTime))) this.floatText(t.x, t.y - 30, 'STUN', '#ffd84a', 9);
     }
     if (st.freezeChance > 0 && t.frozenUntil <= this.clock && Math.random() < st.freezeChance) {
-      t.frozenUntil = this.clock + STAT_BASE.freezeSeconds * (1 + st.freezeTime);
-      t.rootedUntil = Math.max(t.rootedUntil, t.frozenUntil);
-      t.frozenBlast = h.atk.times(STAT_BASE.freezeBlast * (1 + st.freezeBlast));
-      t.frozenBy = h;
-      t.body.setTint(0x9fdcff);
-      this.floatText(t.x, t.y - 30, 'FROZEN', '#9fdcff', 9);
+      const until = this.control(t, STAT_BASE.freezeSeconds * (1 + st.freezeTime));
+      if (until) {
+        t.frozenUntil = until;
+        t.frozenBlast = h.atk.times(STAT_BASE.freezeBlast * (1 + st.freezeBlast));
+        t.frozenBy = h;
+        t.body.setTint(0x9fdcff);
+        this.floatText(t.x, t.y - 30, 'FROZEN', '#9fdcff', 9);
+      }
     }
     const burnTime = 1 + st.burnTime;
     if (sig?.kind === 'burn') this.ignite(t, amount.times(sig.share * (1 + st.burnDmg)), sig.seconds * burnTime, h);
@@ -1232,7 +1250,7 @@ export class BattleScene extends Phaser.Scene {
       if (def.ult?.kind === 'revive') {
         const fallen = this.heroes.filter((a) => !a.alive);
         for (const a of plus ? fallen : fallen.slice(0, 1)) {
-          this.reviveHero(a, Math.max(PLAYER_CRYSTAL_X + 20, h.x - REVIVE_BEHIND));
+          this.reviveHero(a, Math.max(PLAYER_CRYSTAL_X + 20, h.x - REVIVE_BEHIND), REVIVE_HP);
           this.puff(a.x, a.y, 0xfff6a0);
         }
       }
@@ -1294,8 +1312,7 @@ export class BattleScene extends Phaser.Scene {
       }
       case 'root':
         for (const e of living) {
-          e.rootedUntil = this.clock + (e.isBoss ? ult.bossSeconds : ult.seconds);
-          this.floatText(e.x, e.y - 40, 'ROOTED', '#9be07a', 9);
+          if (this.control(e, ult.seconds, ult.bossSeconds)) this.floatText(e.x, e.y - 40, 'ROOTED', '#9be07a', 9);
         }
         if (plus) {
           for (const a of this.heroes) {

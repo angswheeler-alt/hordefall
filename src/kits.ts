@@ -21,6 +21,20 @@ export const SIG_PLUS = {
   killUltRefund: 2,
 };
 
+/**
+ * Boss crowd-control resistance: stuns, freezes and roots last `BOSS_CC.scale` as long on a boss, and once one
+ * ends the boss can't be controlled again for `immune` seconds. Returns the new end of the control and of the
+ * boss's immunity, or null when the boss is still immune.
+ */
+export const BOSS_CC = { scale: 0.5, immune: 2 };
+export function controlEnd(
+  isBoss: boolean, clock: number, rootedUntil: number, immuneUntil: number, seconds: number, bossSeconds = seconds * BOSS_CC.scale,
+): { until: number; immuneUntil: number } | null {
+  if (isBoss && clock < immuneUntil) return null;
+  const until = Math.max(rootedUntil, clock + (isBoss ? bossSeconds : seconds));
+  return { until, immuneUntil: isBoss ? until + BOSS_CC.immune : immuneUntil };
+}
+
 /** Riptide Combo: damage multiplier for the `streak`th hit in a row on one enemy (the first hit is streak 0). */
 export function comboMult(sig: Signature | undefined, streak: number): number {
   if (sig?.kind !== 'combo') return 1;
