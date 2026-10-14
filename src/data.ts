@@ -117,8 +117,9 @@ export const ELEMENT_COLORS: Record<Element, number> = {
 };
 
 // The first 20 heroes: four per element. All Common. Brine is the free starter.
-// Brine, Ember, Thorn, Lumen and Rook are built to the hero standard (role, class, Signature, unique Ultimate);
-// the rest keep their older kits until they are rebuilt.
+// Brine, Ember, Thicket (id thorn), Lumen and Rook are built to the hero standard (role, class, Signature, unique Ultimate);
+// the rest keep their older kits until they are rebuilt. Thorn and Blaze were renamed Thicket and Flare
+// (names only; ids stay) because Crush Them All already has heroes with those names.
 // Job baselines (each hero varies a little): Blademaster quick melee, Knight high-HP front line,
 // Mage ranged splash, Rogue fast melee with 2x gold, Ranger long-range single target, Support healer.
 const VS: Record<Element, string> = {
@@ -133,7 +134,7 @@ const HEAL_BASIC = 'Heals the most injured nearby ally for 3x ATK. Attacks when 
 
 export const HEROES: HeroDef[] = [
   // ---- Fire: passion and destruction ----
-  { id: 'blaze', rarity: 'common', name: 'Blaze', element: 'fire', job: 'Blademaster', baseAtk: 5.5, baseHp: 55, range: 28, attackCooldown: 0.75, moveSpeed: 125, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'blaze', rarity: 'common', name: 'Flare', element: 'fire', job: 'Blademaster', baseAtk: 5.5, baseHp: 55, range: 28, attackCooldown: 0.75, moveSpeed: 125, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A young red-haired swordsman whose blade catches fire when he gets excited, which is always.',
     basic: { name: 'Searing Slash', text: 'Quick flaming slashes at the nearest enemy ahead.' },
     ultimate: { name: 'Wildfire Arc', text: ULT('One huge burning sweep hits') },
@@ -186,7 +187,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Green Touch', text: 'Heals are 50% stronger.', effect: { kind: 'healPower', value: 1.5 } },
     sp2: { name: 'Seedbed', text: 'Fallen heroes respawn twice as fast.', effect: { kind: 'respawn', value: 0.5, team: true } },
     aura: { name: 'Bloom', text: 'Whole team regenerates 1% of max HP every second.', effect: { kind: 'regen', value: 0.01, team: true } } },
-  { id: 'thorn', rarity: 'common', name: 'Thorn', element: 'earth', job: 'Knight', role: 'Vanguard', heroClass: 'Briarwarden', baseAtk: 3.5, baseHp: 150, range: 34, attackCooldown: 1.0, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'thorn', rarity: 'common', name: 'Thicket', element: 'earth', job: 'Knight', role: 'Vanguard', heroClass: 'Briarwarden', baseAtk: 3.5, baseHp: 150, range: 34, attackCooldown: 1.0, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A sturdy thorn sentinel in bark armor. His thorn spear gives him a little more reach than other knights.',
     basic: { name: 'Thorn Thrust', text: 'Heavy spear thrusts with a little extra reach that shove enemies back.' },
     ultimate: { name: 'Bramble Wall', text: `${ULT('Thorns burst from the ground under')} Roots them in place for 3 seconds (bosses for 1).` },
