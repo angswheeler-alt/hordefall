@@ -62,6 +62,8 @@ const REGIONS = ['tidecoast', 'dunes', 'stormcrag', 'emberwastes', 'hollowmoon']
 /** The far layer is 180 px tall with its bottom edge on the ground line (y 170). */
 const FAR_Y = -10;
 const GROUND_Y = 170;
+/** Centre of the floating stage crystals (48x72 sprites floating over a shadow). */
+const CRYSTAL_Y = LANE_TOP + 10;
 const WAVE_INTERVAL = 7;
 /** Burning deals its damage in ticks this many seconds apart. */
 const BURN_TICK = 0.5;
@@ -263,9 +265,17 @@ export class BattleScene extends Phaser.Scene {
     this.ground = this.add.graphics();
     this.progressBar = this.add.graphics().setScrollFactor(0).setDepth(1000);
     this.cameras.main.setBounds(0, 0, WORLD_WIDTH, HEIGHT);
-    this.add.image(PLAYER_CRYSTAL_X, LANE_TOP + 30, 'crystal-player').setDepth(LANE_TOP);
-    this.crystalView = this.add.image(ENEMY_CRYSTAL_X, LANE_TOP + 30, 'crystal-enemy').setDepth(LANE_TOP);
-    this.crystalShield = this.add.circle(ENEMY_CRYSTAL_X, LANE_TOP + 26, 30, 0xff3355, 0.18).setStrokeStyle(2, 0xff6680, 0.8).setDepth(LANE_TOP + 1);
+    // Each crystal floats above the ground, bobbing gently; its shadow shrinks and fades as it rises.
+    const crystalAt = (x: number, key: string) => {
+      const shadow = this.add.ellipse(x, CRYSTAL_Y + 56, 40, 9, 0x000000, 0.35).setDepth(LANE_TOP - 1);
+      this.tweens.add({ targets: shadow, alpha: 0.2, scaleX: 0.75, scaleY: 0.75, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      const view = this.add.image(x, CRYSTAL_Y, key).setDepth(LANE_TOP);
+      this.tweens.add({ targets: view, y: CRYSTAL_Y - 6, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      return view;
+    };
+    crystalAt(PLAYER_CRYSTAL_X, 'crystal-player');
+    this.crystalView = crystalAt(ENEMY_CRYSTAL_X, 'crystal-enemy');
+    this.crystalShield = this.add.circle(ENEMY_CRYSTAL_X, CRYSTAL_Y, 44, 0xff3355, 0.18).setStrokeStyle(2, 0xff6680, 0.8).setDepth(LANE_TOP + 1);
     this.crystalBar = this.add.graphics().setDepth(1000);
 
     this.stageText = this.add.text(10, 8, '', { fontFamily: 'monospace', fontSize: '18px', color: '#ffffff', stroke: '#000', strokeThickness: 4 }).setDepth(1000).setScrollFactor(0);
@@ -1423,8 +1433,8 @@ export class BattleScene extends Phaser.Scene {
 
     const ratio = this.crystal.maxHp.gt(0) ? Math.max(0, this.crystal.hp.div(this.crystal.maxHp).toNumber()) : 0;
     this.crystalBar.clear();
-    this.crystalBar.fillStyle(0x000000, 0.7).fillRect(ENEMY_CRYSTAL_X - 22, LANE_TOP - 12, 44, 6);
-    this.crystalBar.fillStyle(0xd04a8a, 1).fillRect(ENEMY_CRYSTAL_X - 21, LANE_TOP - 11, 42 * ratio, 4);
+    this.crystalBar.fillStyle(0x000000, 0.7).fillRect(ENEMY_CRYSTAL_X - 22, CRYSTAL_Y - 48, 44, 6);
+    this.crystalBar.fillStyle(0xd04a8a, 1).fillRect(ENEMY_CRYSTAL_X - 21, CRYSTAL_Y - 47, 42 * ratio, 4);
 
     // Lane progress: heroes as colored dots between the two crystals.
     const px = WIDTH - 150;
