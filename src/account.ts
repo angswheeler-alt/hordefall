@@ -44,6 +44,23 @@ export class Account {
   private synced = false;
   /** lastSeen of the save this page loaded, before this session's play moved it. */
   private readonly loadedLastSeen: number;
+  /** Told when the signed-in player may have changed (the guild panel listens). */
+  readonly listeners: Array<() => void> = [];
+
+  /** The database client, or null when online accounts are off. */
+  get client(): SupabaseClient | null {
+    return this.db;
+  }
+
+  /** The signed-in player's id, or null for a guest. */
+  get userId(): string | null {
+    return this.user?.id ?? null;
+  }
+
+  /** Open the sign-in dialog (from the guild panel). */
+  signIn() {
+    if (this.db && !this.user) this.openSignIn();
+  }
 
   constructor(
     private state: GameState,
@@ -310,5 +327,6 @@ export class Account {
     $('acct-signin').hidden = signedIn || !this.db;
     $('acct-signout').hidden = !signedIn;
     $('acct-sync').hidden = !signedIn;
+    for (const listener of this.listeners) listener();
   }
 }

@@ -5,6 +5,7 @@ import { GameState } from './state';
 import { UI } from './ui';
 import { initAudio, setMuted } from './sfx';
 import { Account } from './account';
+import { Guild } from './guild';
 
 const state = new GameState();
 const hadSave = state.load();
@@ -69,11 +70,12 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-new Account(state, (data) => {
+const account = new Account(state, (data) => {
   GameState.frozen = true;
   GameState.writeLocal(data);
   location.reload();
 });
+new Guild(state, account, ui);
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {});

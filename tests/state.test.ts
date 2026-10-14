@@ -4,7 +4,7 @@ import { heroProfile, heroBuildEffects } from '../src/profiles';
 import { GameState, rarityOdds } from '../src/state';
 import {
   HEROES, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, LINEUP_SIZE,
-  TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, RELICS, RELIC_SETS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, RENAMED_HEROES,
+  TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, RELICS, RELIC_SETS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL,
 } from '../src/data';
 
 const starter = HEROES.find((h) => h.unlockCost === 0)!;
@@ -517,5 +517,43 @@ describe('Daily Medal Bundle', () => {
     const next = again.medalBundleState(day1 + 86_400_000);
     expect(next.claimed).toBe(false);
     expect(next.done).toBe(0);
+  });
+});
+
+describe('guild medals and credits', () => {
+  it('giving medals pays credits by rarity, and only medals you have', () => {
+    const s = fresh();
+    const common = HEROES.find((h) => h.rarity === 'common')!;
+    s.crests[common.id] = 4;
+    expect(s.giveGuildMedals(common.id, 5)).toBeNull();
+    expect(s.giveGuildMedals(common.id, 3)).toBe(3 * GUILD_CREDITS_PER_MEDAL.common);
+    expect(s.crests[common.id]).toBe(1);
+    expect(s.guildCredits).toBe(3 * GUILD_CREDITS_PER_MEDAL.common);
+  });
+
+  it('received medals can unlock a hero', () => {
+    const s = fresh();
+    const locked = HEROES.find((h) => h.rarity === 'common' && !s.levels[h.id])!;
+    const drops = s.receiveGuildMedals([{ heroId: locked.id, crests: 20 }, { heroId: 'nobody', crests: 5 }]);
+    expect(drops).toEqual([{ heroId: locked.id, crests: 20, isNew: true }]);
+  });
+
+  it('the guild shop spends credits and keeps tickets under the cap', () => {
+    const s = fresh();
+    expect(s.buyGuildItem('stone')).toBeNull();
+    s.guildCredits = 1000;
+    expect(s.buyGuildItem('chest')!.drops.length).toBe(CHEST_DROPS);
+    expect(s.buyGuildItem('stone')).not.toBeNull();
+    expect(s.enhanceStones).toBe(1);
+    s.tickets = TICKET_CAP;
+    expect(s.guildItemReady('tickets')).toBe(false);
+    s.tickets = TICKET_CAP - 2;
+    s.buyGuildItem('tickets');
+    expect(s.tickets).toBe(TICKET_CAP);
+    expect(s.guildCredits).toBe(1000 - 60 - 40 - 30);
+    s.save();
+    const t = new GameState();
+    t.load();
+    expect(t.guildCredits).toBe(s.guildCredits);
   });
 });
