@@ -736,3 +736,17 @@ export const GUILD_BOSS_NAMES: Record<Element, string> = {
   light: 'Radiant Seraph',
   dark: 'Night Devourer',
 };
+
+/** Guild Research: shared bonuses for every member. Points come from Guild Coins members put in and from Guild Boss attempts (10 + boss level to the focus branch). */
+export type ResearchBranch = 'prosperity' | 'combat' | 'exploration' | 'elemental';
+export const GUILD_RESEARCH: { id: ResearchBranch; name: string; perRank: number; what: string }[] = [
+  { id: 'combat', name: 'Combat', perRank: 0.02, what: 'hero damage' },
+  { id: 'prosperity', name: 'Prosperity', perRank: 0.05, what: 'gold from enemies' },
+  { id: 'exploration', name: 'Exploration', perRank: 0.05, what: 'Trial Essence and Enhance Stones' },
+  { id: 'elemental', name: 'Elemental Studies', perRank: 0.03, what: 'damage in Trials and against the Guild Boss' },
+];
+export const GUILD_RESEARCH_MAX_RANK = 10;
+/** Points for rank r alone are 300 x r^2, so all 10 ranks take 115,500 (matches guilds.sql). */
+export const GUILD_RESEARCH_RANK_COST = 300;
+/** Points one Guild Boss attempt adds to the focus branch (matches guilds.sql). */
+export const guildResearchPerAttempt = (level: number) => 10 + level;

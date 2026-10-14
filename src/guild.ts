@@ -1,17 +1,17 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   HEROES, GUILD_MAX_MEMBERS, GUILD_REQUEST_GOALS, GUILD_REQUEST_HOURS, GUILD_REQUEST_OPEN_HOURS, GUILD_DONATE_MAX, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP,
-  GUILD_BOSS_ATTEMPTS, GUILD_BOSS_NAMES, GUILD_BOSS_PAR_ATTEMPTS, ELEMENT_COLORS, elementMultiplier,
-  type HeroDef, type GuildShopId, type Element,
+  GUILD_BOSS_ATTEMPTS, GUILD_BOSS_NAMES, GUILD_BOSS_PAR_ATTEMPTS, ELEMENT_COLORS, elementMultiplier, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, guildResearchPerAttempt,
+  type HeroDef, type GuildShopId, type Element, type ResearchBranch,
 } from './data';
 import Decimal from 'break_infinity.js';
-import { fmt, guildBossAttemptCoins, guildBossKillCoins } from './formulas';
+import { fmt, guildBossAttemptCoins, guildBossKillCoins, researchPointsFor, researchRank } from './formulas';
 import type { GameState } from './state';
 import type { Account } from './account';
 import { faceStyle, dropCards, type UI } from './ui';
 import { play } from './sfx';
 
-// Guilds: browse, create and join; the daily Guild Boss; members and ranks;
+// Guilds: browse, create and join; the daily Guild Boss; Guild Research; members and ranks;
 // chat; medal requests and donations for Guild Coins; and a guild shop. The rules are enforced
 // on the server (supabase/guilds.sql); this file only reads and asks.
 
@@ -20,17 +20,19 @@ const esc = (text: string) => text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(
 /** How often an open Guild tab checks for new chat, requests and gifts. */
 const POLL_SECONDS = 10;
 const HOUR = 3_600_000;
+/** Guild Coins the two Research buttons put in. */
+const RESEARCH_GIFTS = [100, 1000];
 
 type Role = 'leader' | 'officer' | 'member';
-interface GuildRow { id: string; name: string; description: string; min_stage: number; created_at: string; guild_members?: Array<{ count: number }> }
+interface GuildRow { id: string; name: string; description: string; min_stage: number; created_at: string; research_focus?: ResearchBranch; guild_members?: Array<{ count: number }> }
 interface MemberRow { user_id: string; guild_id: string; username: string; role: Role; best_stage: number; joined_at: string }
 interface MessageRow { id: number; user_id: string; username: string; body: string; created_at: string }
 interface BossRow { guild_id: string; day: string; level: number; element: Element; hp: number | string; damage: number | string; killed_at: string | null }
 interface HitRow { user_id: string; username: string; damage: number | string; day: string }
 interface RequestRow { id: number; user_id: string; username: string; hero_id: string; goal: number; received: number; collected: number; created_at: string }
 
-type View = 'boss' | 'requests' | 'chat' | 'members' | 'shop';
-const VIEWS: Array<[View, string]> = [['boss', 'Boss'], ['requests', 'Requests'], ['chat', 'Chat'], ['members', 'Members'], ['shop', 'Shop']];
+type View = 'boss' | 'research' | 'requests' | 'chat' | 'members' | 'shop';
+const VIEWS: Array<[View, string]> = [['boss', 'Boss'], ['research', 'Research'], ['requests', 'Requests'], ['chat', 'Chat'], ['members', 'Members'], ['shop', 'Shop']];
 const ROLE_ORDER: Record<Role, number> = { leader: 0, officer: 1, member: 2 };
 const ROLE_NAME: Record<Role, string> = { leader: 'Leader', officer: 'Officer', member: 'Member' };
 
@@ -62,6 +64,8 @@ export class Guild {
   private members: MemberRow[] = [];
   private messages: MessageRow[] = [];
   private requests: RequestRow[] = [];
+  /** Research points per branch. */
+  private research: Partial<Record<ResearchBranch, number>> = {};
   /** Medals this player already gave, per request id. */
   private given = new Map<number, number>();
   /** When this player last asked for medals. */
@@ -145,6 +149,8 @@ export class Guild {
     if (mine.error) throw mine.error;
     this.me = mine.data as MemberRow | null;
     if (!this.me) {
+      this.research = {};
+      if (this.state.setGuildResearch({})) this.ui.render();
       const res = await db.from('guilds').select('*, guild_members(count)').order('created_at', { ascending: false }).limit(50);
       if (res.error) throw res.error;
       this.list = (res.data as GuildRow[]).sort((a, b) => count(b) - count(a));
@@ -153,14 +159,16 @@ export class Guild {
     const gid = this.me.guild_id;
     if (this.me.best_stage < this.state.bestStage) void db.rpc('touch_guild_member', { p_best_stage: this.state.bestStage });
     const since = new Date(Date.now() - GUILD_REQUEST_OPEN_HOURS * HOUR).toISOString();
-    const [g, members, messages, requests, last] = await Promise.all([
+    const [g, members, messages, requests, last, research] = await Promise.all([
       db.from('guilds').select('*').eq('id', gid).maybeSingle(),
       db.from('guild_members').select('*').eq('guild_id', gid),
       db.from('guild_messages').select('id, user_id, username, body, created_at').eq('guild_id', gid).order('id', { ascending: false }).limit(50),
       db.from('guild_requests').select('*').eq('guild_id', gid).gte('created_at', since).order('created_at', { ascending: false }),
       db.from('guild_requests').select('created_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(1),
+      db.from('guild_research').select('branch, points').eq('guild_id', gid),
     ]);
-    for (const r of [g, members, messages, requests, last]) if (r.error) throw r.error;
+    for (const r of [g, members, messages, requests, last, research]) if (r.error) throw r.error;
+    this.setResearch(research.data as Array<{ branch: ResearchBranch; points: number | string }>);
     this.guild = g.data as GuildRow;
     this.members = (members.data as MemberRow[]).sort((a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role] || b.best_stage - a.best_stage);
     this.messages = (messages.data as MessageRow[]).reverse();
@@ -175,6 +183,32 @@ export class Guild {
       for (const row of d.data as Array<{ request_id: number; amount: number }>) this.given.set(row.request_id, (this.given.get(row.request_id) ?? 0) + row.amount);
     }
     await this.collect();
+  }
+
+  /** Keep the points and hand the ranks to the game, which applies the bonuses. */
+  private setResearch(rows: Array<{ branch: ResearchBranch; points: number | string }>) {
+    this.research = {};
+    const ranks: Partial<Record<ResearchBranch, number>> = {};
+    for (const r of rows) {
+      this.research[r.branch] = Number(r.points);
+      ranks[r.branch] = researchRank(Number(r.points));
+    }
+    if (this.state.setGuildResearch(ranks)) this.ui.render();
+  }
+
+  private async contribute(branch: ResearchBranch, amount: number) {
+    if (this.state.guildCredits < amount) return;
+    const res = await this.db!.rpc('contribute_guild_research', { p_branch: branch, p_amount: amount });
+    if (res.error) {
+      this.ui.showModal('Guild Research', esc(this.message(res.error)), 'Okay');
+      return;
+    }
+    const taken = Number(res.data) || 0;
+    if (taken > 0) {
+      this.state.spendGuildCoins(taken);
+      play('coin');
+    }
+    await this.refresh();
   }
 
   private async fetchBoss() {
@@ -216,7 +250,8 @@ export class Guild {
       play(r.killed ? 'chest' : 'coin');
       const pct = hp.gt(0) ? damage.div(hp).times(100).toNumber() : 0;
       const share = pct > 100 ? 'more than its whole health' : `${pct >= 0.1 ? pct.toFixed(1) : '<0.1'}% of its health`;
-      let html = `<p>Your team dealt <b>${fmt(damage)}</b> damage (${share}).</p><p>+${pay.coins} Guild Coins · +${fmt(pay.gold)} gold</p>`;
+      const focus = GUILD_RESEARCH.find((b) => b.id === this.guild?.research_focus);
+      let html = `<p>Your team dealt <b>${fmt(damage)}</b> damage (${share}).</p><p>+${pay.coins} Guild Coins · +${fmt(pay.gold)} gold${focus ? ` · +${guildResearchPerAttempt(r.level)} ${focus.name} research` : ''}</p>`;
       if (r.killed) {
         html += '<p><b>Boss beaten!</b> Everyone who hit it today can claim the kill reward. A stronger boss comes tomorrow.</p>';
       }
@@ -399,6 +434,10 @@ export class Guild {
     } else if (kind === 'ask') this.pickHero();
     else if (kind === 'fight') void this.fightBoss();
     else if (kind === 'claim') void this.claimBoss(arg);
+    else if (kind === 'research') {
+      const [branch, amount] = arg.split('/');
+      void this.contribute(branch as ResearchBranch, Number(amount));
+    } else if (kind === 'focus') void this.call('set_guild_research_focus', { p_branch: arg });
     else if (kind === 'give') {
       const req = this.requests.find((r) => r.id === Number(arg));
       if (req) void this.donate(req);
@@ -429,7 +468,7 @@ export class Guild {
     if (mode === 'off') {
       const text = locked ?? (this.error ? this.error : 'Loading your guild…');
       const button = !this.account.userId && this.db ? '<button type="button" class="hot" data-g="signin">Sign in</button>' : this.error && !locked ? '<button type="button" data-g="retry">Try again</button>' : '';
-      setHtml($('g-off'), `<h3>Guilds</h3><p class="soon-when">${esc(text)}</p><ul><li>Up to ${GUILD_MAX_MEMBERS} members with chat and officer ranks.</li><li>Ask guildmates for a hero's medals and give medals to earn Guild Coins.</li><li>Fight a daily Guild Boss together and spend Guild Coins in the guild shop.</li></ul>${button}`);
+      setHtml($('g-off'), `<h3>Guilds</h3><p class="soon-when">${esc(text)}</p><ul><li>Up to ${GUILD_MAX_MEMBERS} members with chat and officer ranks.</li><li>Ask guildmates for a hero's medals and give medals to earn Guild Coins.</li><li>Fight a daily Guild Boss together, research shared bonuses and spend Guild Coins in the guild shop.</li></ul>${button}`);
     } else if (mode === 'browse') this.renderBrowse();
     else this.renderHome();
   }
@@ -483,7 +522,9 @@ export class Guild {
             ? `<div class="rw-card"><ul id="g-members" class="rw-list"></ul></div><div id="g-edit-box"></div><button type="button" class="wood-btn rw-wide" data-g="leave">Leave guild</button>`
             : this.view === 'shop'
               ? `<div class="rw-card"><h3>Guild shop <small id="g-credits"></small></h3><p>Earn Guild Coins from the Guild Boss and by giving medals: Common ${GUILD_CREDITS_PER_MEDAL.common}, Rare ${GUILD_CREDITS_PER_MEDAL.rare}, Epic ${GUILD_CREDITS_PER_MEDAL.epic} each.</p><ul id="g-shop" class="rw-list"></ul></div>`
-              : this.view === 'boss'
+              : this.view === 'research'
+                ? `<div class="rw-card"><h3>Guild Research <small id="g-research-coins"></small></h3><p>Bonuses for every member. Put Guild Coins into a branch (1 coin = 1 point), and every Guild Boss attempt adds 10 + the boss's level to the focus branch. Up to rank ${GUILD_RESEARCH_MAX_RANK}.</p><ul id="g-research" class="rw-list"></ul></div>`
+                : this.view === 'boss'
                 ? `<div class="rw-card g-boss" id="g-boss"></div><div id="g-claims"></div><div class="rw-card"><h3>Today's damage <small id="g-board-note"></small></h3><ul id="g-board" class="rw-list"></ul></div>`
                 : `<div class="rw-card"><h3>Your request <small id="g-ask-note"></small></h3><div id="g-mine"></div></div><div class="rw-card"><h3>Guildmates' requests</h3><ul id="g-requests" class="rw-list"></ul></div>`;
       if (this.view === 'members' && this.me!.role !== 'member') {
@@ -494,6 +535,7 @@ export class Guild {
     else if (this.view === 'members') this.renderMembers();
     else if (this.view === 'shop') this.renderShop();
     else if (this.view === 'boss') this.renderBoss();
+    else if (this.view === 'research') this.renderResearch();
     else this.renderRequests();
   }
 
@@ -604,6 +646,32 @@ export class Guild {
     const btn = mine ? '' : `<button type="button" class="gem-btn" data-g="give:${r.id}" ${canGive ? '' : 'disabled'}>Give 1<small>+${GUILD_CREDITS_PER_MEDAL[h.rarity as keyof typeof GUILD_CREDITS_PER_MEDAL]} coins</small></button>`;
     const body = `<span class="face art" style="${faceStyle(h)}">${h.name[0]}</span><div class="rw-text"><span><b>${esc(h.name)}</b></span><div class="rw-bar"><i style="width:${pct}%"></i></div><small>${meta}</small></div>${btn}`;
     return mine ? `<div class="g-req">${body}</div>` : `<li class="g-req">${body}</li>`;
+  }
+
+  private renderResearch() {
+    $('g-research-coins').textContent = `${this.state.guildCredits.toLocaleString()} Guild Coins`;
+    const lead = this.me!.role !== 'member';
+    const focus = this.guild?.research_focus ?? 'combat';
+    setHtml(
+      $('g-research'),
+      GUILD_RESEARCH.map((b) => {
+        const points = this.research[b.id] ?? 0;
+        const rank = researchRank(points);
+        const max = rank >= GUILD_RESEARCH_MAX_RANK;
+        const from = researchPointsFor(rank);
+        const to = researchPointsFor(Math.min(GUILD_RESEARCH_MAX_RANK, rank + 1));
+        const pct = max ? 100 : Math.floor(((points - from) / (to - from)) * 100);
+        const now = Math.round(rank * b.perRank * 100);
+        const next = max ? 'max rank' : `next +${Math.round((rank + 1) * b.perRank * 100)}% at ${(to - points).toLocaleString()} more`;
+        const isFocus = b.id === focus;
+        const tag = isFocus ? ' <em class="g-focus">Boss focus</em>' : '';
+        const gifts = RESEARCH_GIFTS.map(
+          (n) => `<button type="button" class="gem-btn" data-g="research:${b.id}/${n}" ${max || this.state.guildCredits < n ? 'disabled' : ''}>+${n.toLocaleString()}<small>coins</small></button>`,
+        ).join('');
+        const focusBtn = lead && !isFocus && !max ? `<button type="button" class="wood-btn g-focus-btn" data-g="focus:${b.id}">Make boss focus</button>` : '';
+        return `<li class="g-research"><div class="rw-text"><span><b>${b.name}</b> rank ${rank}/${GUILD_RESEARCH_MAX_RANK}${tag}</span><small>+${now}% ${b.what} · ${next}</small><div class="rw-bar"><i style="width:${pct}%"></i></div>${focusBtn}</div><div class="g-research-btns">${gifts}</div></li>`;
+      }).join('') + '<li><div class="rw-text"><span><b>Expedition</b></span><small>+5% expedition rewards per rank. Comes with Expeditions.</small></div></li>',
+    );
   }
 
   private renderShop() {

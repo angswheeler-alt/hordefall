@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import Decimal from 'break_infinity.js';
-import { defended, bulkCost, enemyHp, fmt, upgradeCost, stallBulkCost, emberYield, emberCost, keeperLevel, keeperThreshold, relicCost, guildBossHp, guildBossAttemptCoins, guildBossKillCoins } from '../src/formulas';
+import { defended, bulkCost, enemyHp, fmt, upgradeCost, stallBulkCost, emberYield, emberCost, keeperLevel, keeperThreshold, relicCost, guildBossHp, guildBossAttemptCoins, guildBossKillCoins, researchPointsFor, researchRank } from '../src/formulas';
 import { HEROES, STALLS } from '../src/data';
 
 const hero = HEROES.find((h) => h.unlockCost !== 0)!;
@@ -106,5 +106,17 @@ describe('Guild Boss', () => {
     expect(guildBossAttemptCoins(5, hp.div(30), hp)).toBe(23);
     expect(guildBossAttemptCoins(5, hp, hp)).toBe(30);
     expect(guildBossKillCoins(5)).toBe(75);
+  });
+});
+
+describe('Guild Research ranks', () => {
+  it('match the server costs', () => {
+    expect(researchPointsFor(1)).toBe(300);
+    expect(researchPointsFor(10)).toBe(115_500);
+    expect(researchRank(299)).toBe(0);
+    expect(researchRank(300)).toBe(1);
+    expect(researchRank(1499)).toBe(1);
+    expect(researchRank(1500)).toBe(2);
+    expect(researchRank(1e9)).toBe(10);
   });
 });
