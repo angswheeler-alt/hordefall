@@ -74,47 +74,6 @@ const H = {
     },
   },
 
-  ember: {
-    dy: 2,
-    rows: {
-      1: '6:Y 13:Y',
-      2: '5:FY 12:FY 18:Y',
-      3: '4:FFF 11:FFF 17:FY',
-      4: '3:FFFF 9:FFFFFF 16:FFF',
-      5: '4:FFFFFFFFFFFFFFFFF',
-      6: '3:FFFFFFFFFFFFFFFFFFF',
-      7: '2:FFFFFFFFFFFFFFFFFFFFF',
-      8: '3:FFFFFFFFFFFFFFFFFFFF',
-      9: '2:FFFFFFFFFFFFFFFFFFFF',
-      10: '3:FFFFFFFFFFFSFSSFFF',
-      11: '4:FFFFFFFFFSSSSSSSSF',
-      12: '5:FFFFFFFFSkkSSkkSF',
-      13: '5:FFFFFFFFSieSSieSF',
-      14: '6:FFFFFFFSeeSSeeSF',
-      15: '6:FFFFFFSSrSSSSrSS 26:a',
-      16: '7:FFFFFSSSSmmmmS 25:aba',
-      17: '7:FFFFFSSSSSiSS 24:abcba',
-      18: '8:FFFF 13:SSSSS 24:abccba',
-      19: '4:CCC 8:FFF 12:RRRRRR 24:abcba',
-      20: '3:CCCCCCCCCRRRRRRRRRRSS 25:aba',
-      21: '4:CCCCCCCRRRRRRR 26:a',
-      22: '5:CCCCCSKKPKKK',
-      23: '6:CCC 11:RRRRRRR',
-      24: '10:RRRRRRRRR',
-      25: '11:TT 15:TT',
-      26: '10:TT 16:TT',
-      27: '9:OOO 16:OOO',
-      28: '9:OOOO 16:OOOO',
-    },
-    mats: {
-      F: ['#ffb070', '#f5603f', '#b83a24'], Y: '#ffd27a', k: '#7a1e14', S: SKIN, ...FACE,
-      C: ['#a83a3a', '#7a2626', '#4e1818'], R: ['#7a6a72', '#5a4a52', '#3a2e36'],
-      K: LEATHER, P: ['#e0b880', '#c8a070', '#8a6a44'],
-      T: ['#4a3e46', '#3a2e36', '#2a2028'], O: BOOTS,
-      a: '#ff7a2a', b: '#ffc040', c: '#fff0a0',
-    },
-  },
-
   flint: {
     dy: 3,
     rows: {
@@ -253,43 +212,6 @@ const H = {
       H: ['#a6e080', '#5aa848', '#2e6a28'], p: '#ff9ac0', Y: '#ffe066', S: SKIN, ...FACE,
       D: ['#c8e8a0', '#8ac060', '#4e7a34'], L: '#6a4a30', K: ['#e8d090', '#c0a060', '#806a3a'],
       N: LEAF, Z: WOOD, O: BOOTS,
-    },
-  },
-
-  thorn: {
-    dy: 3,
-    rows: {
-      3: '13:NN',
-      4: '11:AAAAAA',
-      5: '9:AAAAAAAAAA',
-      6: '8:AAAAAAAAAAAA',
-      7: '7:AAAAAAAAAAAAAA',
-      8: '6:AAAAAAAAAAAAAAAA',
-      9: '6:RRRRRRRRRRRRRRRR',
-      10: '7:HHHHSSSSSSSSSSS',
-      11: '7:HHHSSHHHHSHHHHS',
-      12: '7:HHHSSSeSSSSeSSS',
-      13: '7:HHSSSSSSSSSSSSSS',
-      14: '6:BBBBBBBBBBBBBBBBB',
-      15: '5:BBBBBBBBBBBBBBBBBB',
-      16: '5:BBBBBBBBBBBBBB',
-      17: '5:BBBBBBBBBBBB',
-      18: '4:AABBBBBBBBBBAAA',
-      19: '4:AAABBBBBBBBBAAAA',
-      20: '4:AAAABBBBBBBAAAA',
-      21: '4:AAAAANBBBBAAA',
-      22: '4:AAAAAAABBAA',
-      23: '5:KKKKKKKKKK',
-      24: '5:AANAAAAAAAA',
-      25: '6:TTTT 13:TTT',
-      26: '6:OOOO 13:OOOO',
-      27: '5:OOOOO 13:OOOOOO',
-    },
-    mats: {
-      H: ['#ffffff', '#e4e4dc', '#b0b0a4'], B: ['#f0f4e4', '#d4dcc4', '#9aa48a'], N: '#6cbf3a', S: SKIN, ...FACE,
-      A: ['#a07a52', '#7a5a3a', '#4e3a24'], R: ['#6a4a2e', '#563a22', '#3a2616'],
-      Z: ['#b08a5a', '#7a5a34', '#4e3a20'], V: LEAF,
-      K: LEATHER, T: ['#6a7a4a', '#4e5e34', '#344020'], O: BOOTS,
     },
   },
 
@@ -512,44 +434,6 @@ const H = {
     },
   },
 
-  rook: {
-    dy: 2,
-    rows: {
-      3: '13:UUUU',
-      4: '11:UUUUUUUU',
-      5: '9:UUUUUUUUUUUU',
-      6: '8:UUUUUUUUUUUUUU',
-      7: '7:UUUUUUUUUUUUUUU',
-      8: '7:UUUUUUUUUuuuuuuU',
-      9: '7:UUUUUUUUuSSSSSSU',
-      10: '7:UUUUUUUuSSeeSeeU',
-      11: '7:UUUUUUUuXXXXXXXU',
-      12: '7:UUUUUUuXXXXXXXXU',
-      13: '8:UUUUUXXXXXXXX',
-      14: '9:UUUUXXXXXX',
-      15: '8:UUUUUUUUUUUU',
-      16: '7:LLPLLLLLLLPLL',
-      17: '7:LLPLLLLLLLPLLL',
-      18: '7:LLPLLLLLLLPLLLL',
-      19: '7:LLPLLLLLLLPLL',
-      20: '7:LLSKKKKKKKPLL',
-      21: '6:LLLPLLLLLLLPLL',
-      22: '5:LLLLPLLLLLLLPLL',
-      23: '5:LLLLPLLLLLLLPLLL',
-      24: '4:LLLLLL 11:TTT 16:TTT 19:LL',
-      25: '4:LLLLL 11:TTT 16:TTT 20:L',
-      26: '11:TTT 16:TTT',
-      27: '10:OOOO 16:OOOO',
-      28: '10:OOOO 16:OOOOO',
-    },
-    mats: {
-      U: ['#6a5a8a', '#4a3e66', '#2c2440'], u: '#160f22', S: SKIN, ...FACE,
-      X: ['#3a3348', '#262230', '#16131c'], L: ['#5a5068', '#3c3448', '#241f2c'], P: ['#a06ab8', '#7a4a90', '#4e2c60'],
-      K: LEATHER, T: ['#3a3348', '#262230', '#16131c'], O: ['#4a4058', '#2e2838', '#1c1824'],
-      W: ['#8a7aa0', '#5a4a70', '#342a44'],
-    },
-  },
-
   dread: {
     dy: 5,
     rows: {
@@ -621,47 +505,6 @@ const H = {
       G: ['#fff0a0', '#f5d63f', '#b8901c'], L: '#fff8c0', D: '#c09a20', S: SKIN, ...FACE,
       C: ['#8ad4ff', '#3a9ae0', '#1f5a9a'], W: ['#ffffff', '#e6e8ee', '#aab0bc'], Y: GOLD,
       K: LEATHER, P: ['#e8eef8', '#b8c4d8', '#7a88a0'], O: ['#c8a070', '#9a7448', '#6a4c2c'], M: STEEL,
-    },
-  },
-
-  lumen: {
-    dy: 1,
-    rows: {
-      0: '22:R',
-      1: '20:R 21:QQQ 24:R',
-      2: '18:R 20:QYYYQ 26:R',
-      3: '20:QYYYQ',
-      4: '12:GGGGG 21:QQQ',
-      5: '10:GGGGGGGGG 20:R 22:Z 24:R',
-      6: '9:GGGGGGGGGGG 22:Z',
-      7: '9:TTTTTjTTTTT 22:Z',
-      8: '8:GGGGGGGSSSSG 22:Z',
-      9: '8:GGGGGSSSSSSSS 22:Z',
-      10: '8:GGGGSSSSSSSSS 22:Z',
-      11: '8:GGGGSSSeSSSeS 22:Z',
-      12: '8:GGGGSSeSeSeSe 22:Z',
-      13: '7:GGGGGSSrSSSSrS 22:Z',
-      14: '7:GGGGGSSSSSmSSS 22:Z',
-      15: '7:GGGG 12:SSSSSSS 22:Z',
-      16: '6:GGG 13:SSSS 22:Z',
-      17: '6:GG 10:WWWTTTTWW 22:Z',
-      18: '6:GG 10:WWWWTWWWW 22:Z',
-      19: '6:GG 10:WWWWTWWWWWW 22:Z',
-      20: '6:GG 10:WWWWTWWWWWSSZ',
-      21: '7:T 10:TTTTTTTTT 22:Z',
-      22: '9:WWWWWTWWWWW 22:Z',
-      23: '9:WWWWWTWWWWW 22:Z',
-      24: '8:WWWWWWTWWWWWW 22:Z',
-      25: '8:WWWWWWTWWWWWW 22:Z',
-      26: '7:WWWWWWWTWWWWWWW 22:Z',
-      27: '7:WWWWWWWTWWWWWWW 22:Z',
-      28: '6:TTTTTTTTTTTTTTTTZ',
-      29: '9:OO 16:OO 22:Z',
-    },
-    mats: {
-      G: ['#ffe890', '#f5d63f', '#c09a20'], S: SKIN, ...FACE, j: '#7ad8ff',
-      W: ['#fffbea', '#f2ead0', '#c8bc98'], T: GOLD, Z: WOOD,
-      Q: ['#ffe28a', '#d0a040', '#8a6420'], Y: '#fff4c0', R: '#ffe890', O: ['#c8a070', '#9a7448', '#6a4c2c'],
     },
   },
 
@@ -739,20 +582,6 @@ const H = {
   },
 };
 
-// Thorn's spear: held low in both hands, angled forward and up, with a thorn-barbed head.
-line(H.thorn.rows, 2, 26, 26, 14, 'Z');
-seg(H.thorn.rows, 12, 28, 'V');
-seg(H.thorn.rows, 13, 26, 'VVVV');
-seg(H.thorn.rows, 14, 27, 'VVVV');
-seg(H.thorn.rows, 15, 26, 'V');
-seg(H.thorn.rows, 21, 11, 'SS');
-seg(H.thorn.rows, 19, 17, 'SS');
 
-// Rook's hooked bow: held low and diagonal across the body.
-line(H.rook.rows, 13, 27, 27, 13, 'W');
-seg(H.rook.rows, 28, 12, 'WW');
-seg(H.rook.rows, 12, 28, 'W');
-seg(H.rook.rows, 11, 28, 'WW');
-seg(H.rook.rows, 20, 20, 'SS');
 
 module.exports = H;
