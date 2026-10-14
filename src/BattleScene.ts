@@ -1017,9 +1017,10 @@ export class BattleScene extends Phaser.Scene {
     const blind = procEffect(fx, 'blind', def.id);
     const blinded = procs(blind, h.attacks);
     const element = this.dealsAs(h);
-    // Assassination: every Nth attack blinks to the farthest enemy in reach.
+    // Assassination: every Nth attack blinks to the farthest enemy in reach, or to a boss in reach.
     if (procs(assassin, h.attacks)) {
-      const far = this.enemies.filter((e) => e.alive && e.x >= h.x && e.x - h.x <= ASSASSIN_REACH).sort((a, b) => b.x - a.x)[0];
+      const inReach = this.enemies.filter((e) => e.alive && e.x >= h.x && e.x - h.x <= ASSASSIN_REACH);
+      const far = inReach.find((e) => e.isBoss) ?? inReach.sort((a, b) => b.x - a.x)[0];
       if (far && far !== target) {
         this.puff(h.x, h.y, 0x9b59d0);
         h.x = Math.max(h.x, far.x - 16);

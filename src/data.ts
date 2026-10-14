@@ -315,7 +315,7 @@ export const HEROES: HeroDef[] = [
     basic: { name: 'Kunai', text: 'Very fast stabs at the closest enemy.' },
     ultimate: { name: 'Shuriken Storm', text: ULT('A storm of shadow shuriken hits') },
     trait: { name: 'Shadow Blade', text: `Dodges 10% of attacks and earns 2x gold from every kill. ${VS.dark}` },
-    sp1: { name: 'Assassination', text: 'Every 5th attack blinks to the farthest enemy in reach and backstabs it for 3x damage.', effect: { kind: 'assassinate', value: 3, every: 5 } },
+    sp1: { name: 'Assassination', text: 'Every 5th attack blinks to the farthest enemy in reach (a boss first) and backstabs it for 3x damage.', effect: { kind: 'assassinate', value: 3, every: 5 } },
     sp2: { name: 'Backstab', text: '+10% critical hit chance.', effect: { kind: 'crit', value: 0.1 } },
     aura: { name: 'Dread Veil', text: 'Enemies attack 10% slower.', effect: { kind: 'enemyHaste', value: 0.9, team: true } } },
   { id: 'vex', rarity: 'common', name: 'Vex', element: 'dark', type: 'Magician', baseAtk: 9, baseHp: 40, range: 150, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 40,
