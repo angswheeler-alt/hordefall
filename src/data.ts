@@ -713,13 +713,27 @@ export const GUILD_REQUEST_OPEN_HOURS = 24;
 export const GUILD_DONATE_MAX = 5;
 /** Guild Coins a donor earns per medal given, by the hero's rarity. */
 export const GUILD_CREDITS_PER_MEDAL: Record<Exclude<Rarity, 'legendary'>, number> = { common: 3, rare: 6, epic: 12 };
-export type GuildShopId = 'chest' | 'stone' | 'tickets';
-/** What Guild Coins buy. */
+export type GuildShopId = 'chest' | 'stone' | 'tickets' | 'embers' | 'banner' | 'horn';
+/** Always in stock. Embers are limited per day; the two boosts last GUILD_BOOST_MINUTES and stack up to GUILD_BOOST_MAX_MINUTES. */
 export const GUILD_SHOP: Array<{ id: GuildShopId; name: string; text: string; cost: number }> = [
   { id: 'chest', name: 'Hero Chest', text: '3 drops of Hero Crests, like the Gem chest.', cost: 60 },
   { id: 'stone', name: 'Enhance Stone', text: 'Raises a relic\'s level cap or crafts set pieces.', cost: 40 },
   { id: 'tickets', name: '5 Trial tickets', text: 'Up to the usual cap of 20.', cost: 30 },
+  { id: 'embers', name: 'Ember pouch', text: '1% of your lifetime Embers (at least 10). 3 a day.', cost: 80 },
+  { id: 'banner', name: 'Gold Banner', text: '+50% gold from enemies for 30 minutes.', cost: 50 },
+  { id: 'horn', name: 'War Horn', text: '+25% hero damage for 30 minutes.', cost: 50 },
 ];
+export const GUILD_EMBER_POUCHES_PER_DAY = 3;
+export const GUILD_BOOST_MINUTES = 30;
+export const GUILD_BOOST_MAX_MINUTES = 120;
+export const GUILD_BOOSTS = { banner: 0.5, horn: 0.25 } as const;
+/** Daily hero offers in the guild shop: how many, medals per offer and their price, by rarity. */
+export const GUILD_SHOP_OFFERS = 4;
+export const GUILD_OFFER_MEDALS = { common: 10, rare: 6, epic: 3 } as const;
+export const GUILD_OFFER_COST = { common: 50, rare: 80, epic: 120 } as const;
+/** Wild Medals: one medal for any non-Legendary hero the player picks, priced by rarity, up to a weekly cap. */
+export const GUILD_WILD_COST = { common: 8, rare: 15, epic: 30 } as const;
+export const GUILD_WILD_PER_WEEK = 20;
 
 /** Guild Boss: attempts per player per day (UTC), and how long each attempt lasts. */
 export const GUILD_BOSS_ATTEMPTS = 3;

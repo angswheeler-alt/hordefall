@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   HEROES, GUILD_MAX_MEMBERS, GUILD_REQUEST_GOALS, GUILD_REQUEST_HOURS, GUILD_REQUEST_OPEN_HOURS, GUILD_DONATE_MAX, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP,
-  GUILD_BOSS_ATTEMPTS, GUILD_BOSS_NAMES, GUILD_BOSS_PAR_ATTEMPTS, ELEMENT_COLORS, elementMultiplier, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, guildResearchPerAttempt,
+  GUILD_BOSS_ATTEMPTS, GUILD_BOSS_NAMES, GUILD_BOSS_PAR_ATTEMPTS, ELEMENT_COLORS, elementMultiplier, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, guildResearchPerAttempt, GUILD_WILD_PER_WEEK, GUILD_WILD_COST, GUILD_EMBER_POUCHES_PER_DAY,
   type HeroDef, type GuildShopId, type Element, type ResearchBranch,
 } from './data';
 import Decimal from 'break_infinity.js';
@@ -384,6 +384,47 @@ export class Guild {
     );
   }
 
+  /** Wild Medals: pick any non-Legendary hero, then how many. */
+  private pickWild() {
+    const left = this.state.wildMedalsLeft();
+    const faces = HEROES.filter(requestable)
+      .map((h) => {
+        const cost = this.state.wildMedalCost(h.id)!;
+        const owned = (this.state.levels[h.id] ?? 0) > 0;
+        return `<button type="button" class="g-pick" data-hero="${h.id}" ${this.state.guildCredits < cost ? 'disabled' : ''}><span class="face art" style="${faceStyle(h)}">${h.name[0]}</span><b>${esc(h.name)}</b><small>${owned ? '' : 'Locked · '}${cost} each</small></button>`;
+      })
+      .join('');
+    this.ui.showModal(
+      'Wild Medals',
+      `<p>Pick the hero these medals go to. ${left} of ${GUILD_WILD_PER_WEEK} left this week. You have ${this.state.guildCredits.toLocaleString()} Guild Coins.</p><div class="g-picks">${faces}</div>`,
+      'Cancel',
+    );
+    $('modal-body').querySelectorAll<HTMLButtonElement>('.g-pick').forEach((btn) =>
+      btn.addEventListener('click', () => this.wildAmount(hero(btn.dataset.hero!)!)),
+    );
+  }
+
+  private wildAmount(h: HeroDef) {
+    const cost = this.state.wildMedalCost(h.id)!;
+    const most = Math.min(this.state.wildMedalsLeft(), Math.floor(this.state.guildCredits / cost));
+    const amounts = [...new Set([1, 5, most].filter((n) => n >= 1 && n <= most))].sort((a, b) => a - b);
+    this.ui.showModal(
+      `Medals for ${esc(h.name)}`,
+      `<p>${cost} Guild Coins each.</p><div class="g-wild-amounts">${amounts.map((n) => `<button type="button" class="gem-btn" data-n="${n}">${n === most && n > 5 ? 'Max ' : ''}x${n}<small>${(n * cost).toLocaleString()} coins</small></button>`).join('')}</div>`,
+      'Cancel',
+    );
+    $('modal-body').querySelectorAll<HTMLButtonElement>('[data-n]').forEach((btn) =>
+      btn.addEventListener('click', () => {
+        const drops = this.state.buyWildMedals(h.id, Number(btn.dataset.n));
+        if (!drops) return;
+        play('chest');
+        this.ui.showModal('Wild Medals', `${dropCards(drops)}Bought with Guild Coins.`, 'Collect');
+        this.ui.render();
+        this.render();
+      }),
+    );
+  }
+
   private memberMenu(m: MemberRow) {
     const mine = this.me!.role;
     const options: Array<[string, string]> = [];
@@ -450,9 +491,17 @@ export class Guild {
       if (!got) return;
       play('chest');
       if (got.drops.length) this.ui.showModal('Hero Chest', `${dropCards(got.drops)}Bought with Guild Coins.`, 'Collect');
+      else if (got.embers) this.ui.showModal('Ember pouch', `<p>+${got.embers.toLocaleString()} Embers</p>`, 'Nice');
       this.ui.render();
       this.render();
-    }
+    } else if (kind === 'offer') {
+      const drops = this.state.buyGuildOffer(Number(arg));
+      if (!drops) return;
+      play('chest');
+      this.ui.showModal('Guild shop', `${dropCards(drops)}Bought with Guild Coins.`, 'Collect');
+      this.ui.render();
+      this.render();
+    } else if (kind === 'wild') this.pickWild();
   }
 
   // ---------- drawing ----------
@@ -521,7 +570,9 @@ export class Guild {
           : this.view === 'members'
             ? `<div class="rw-card"><ul id="g-members" class="rw-list"></ul></div><div id="g-edit-box"></div><button type="button" class="wood-btn rw-wide" data-g="leave">Leave guild</button>`
             : this.view === 'shop'
-              ? `<div class="rw-card"><h3>Guild shop <small id="g-credits"></small></h3><p>Earn Guild Coins from the Guild Boss and by giving medals: Common ${GUILD_CREDITS_PER_MEDAL.common}, Rare ${GUILD_CREDITS_PER_MEDAL.rare}, Epic ${GUILD_CREDITS_PER_MEDAL.epic} each.</p><ul id="g-shop" class="rw-list"></ul></div>`
+              ? `<div class="rw-card"><h3>Today's heroes <small id="g-credits"></small></h3><p id="g-offers-note"></p><div id="g-offers" class="g-offers"></div></div>
+                 <div class="rw-card"><h3>Wild Medals <small id="g-wild-note"></small></h3><p>Medals for any hero you pick: Common ${GUILD_WILD_COST.common}, Rare ${GUILD_WILD_COST.rare}, Epic ${GUILD_WILD_COST.epic} coins each.</p><button type="button" class="gem-btn rw-wide" data-g="wild" id="g-wild">Pick a hero</button></div>
+                 <div class="rw-card"><h3>Always in stock</h3><p>Earn Guild Coins from the Guild Boss and by giving medals: Common ${GUILD_CREDITS_PER_MEDAL.common}, Rare ${GUILD_CREDITS_PER_MEDAL.rare}, Epic ${GUILD_CREDITS_PER_MEDAL.epic} each.</p><ul id="g-shop" class="rw-list"></ul></div>`
               : this.view === 'research'
                 ? `<div class="rw-card"><h3>Guild Research <small id="g-research-coins"></small></h3><p>Bonuses for every member. Put Guild Coins into a branch (1 coin = 1 point), and every Guild Boss attempt adds 10 + the boss's level to the focus branch. Up to rank ${GUILD_RESEARCH_MAX_RANK}.</p><ul id="g-research" class="rw-list"></ul></div>`
                 : this.view === 'boss'
@@ -675,13 +726,33 @@ export class Guild {
   }
 
   private renderShop() {
-    $('g-credits').textContent = `${this.state.guildCredits.toLocaleString()} Guild Coins`;
+    const now = Date.now();
+    const shop = this.state.guildShopState(now);
+    const coins = this.state.guildCredits;
+    $('g-credits').textContent = `${coins.toLocaleString()} Guild Coins`;
+    const midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0);
+    $('g-offers-note').textContent = `A new set of heroes in ${untilText(midnight.getTime() - now)}. Each offer can be bought once.`;
+    setHtml(
+      $('g-offers'),
+      shop.offers
+        .map((o, i) => {
+          const h = hero(o.heroId)!;
+          return `<div class="g-offer${o.bought ? ' done' : ''}"><span class="face art" style="${faceStyle(h)}">${h.name[0]}</span><b>${esc(h.name)}</b><small>${o.crests} medals</small><button type="button" class="gem-btn" data-g="offer:${i}" ${o.bought || coins < o.cost ? 'disabled' : ''}>${o.bought ? 'Bought' : `${o.cost} coins`}</button></div>`;
+        })
+        .join(''),
+    );
+    const left = this.state.wildMedalsLeft(now);
+    $('g-wild-note').textContent = `${left}/${GUILD_WILD_PER_WEEK} left this week`;
+    ($('g-wild') as HTMLButtonElement).disabled = left <= 0 || coins < GUILD_WILD_COST.common;
     setHtml(
       $('g-shop'),
-      GUILD_SHOP.map(
-        (i) =>
-          `<li><div class="rw-text"><span><b>${i.name}</b></span><small>${i.text}</small></div><button type="button" class="gem-btn" data-g="buy:${i.id}" ${this.state.guildItemReady(i.id) ? '' : 'disabled'}>${i.cost} coins</button></li>`,
-      ).join(''),
+      GUILD_SHOP.map((i) => {
+        let note = '';
+        if (i.id === 'embers') note = ` · ${Math.max(0, GUILD_EMBER_POUCHES_PER_DAY - shop.pouches)} left today`;
+        if ((i.id === 'banner' || i.id === 'horn') && this.state.boosts[i.id] > now) note = ` · running, ${untilText(this.state.boosts[i.id] - now)} left`;
+        return `<li><div class="rw-text"><span><b>${i.name}</b></span><small>${i.text}${note}</small></div><button type="button" class="gem-btn" data-g="buy:${i.id}" ${this.state.guildItemReady(i.id, now) ? '' : 'disabled'}>${i.cost} coins</button></li>`;
+      }).join(''),
     );
   }
 }

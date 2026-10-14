@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Decimal from 'break_infinity.js';
 import { heroProfile, heroBuildEffects } from '../src/profiles';
-import { GameState, rarityOdds } from '../src/state';
+import { GameState, rarityOdds, weekKey } from '../src/state';
 import {
   HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, LINEUP_SIZE,
   TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, RELICS, RELIC_SETS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL,
@@ -612,5 +612,58 @@ describe('Guild Research', () => {
     expect(s.spendGuildCoins(200)).toBe(false);
     expect(s.spendGuildCoins(100)).toBe(true);
     expect(s.guildCredits).toBe(50);
+  });
+});
+
+describe('Guild shop', () => {
+  const day = new Date(2026, 9, 14, 12).getTime();
+
+  it('rolls daily hero offers that can each be bought once', () => {
+    const s = fresh();
+    s.guildCredits = 1000;
+    const shop = s.guildShopState(day);
+    expect(shop.offers.length).toBe(4);
+    expect(new Set(shop.offers.map((o) => o.heroId)).size).toBe(4);
+    const first = shop.offers[0];
+    const before = s.crests[first.heroId] ?? 0;
+    expect(s.buyGuildOffer(0, day)).not.toBeNull();
+    expect(s.crests[first.heroId]).toBe(before + first.crests);
+    expect(s.guildCredits).toBe(1000 - first.cost);
+    expect(s.buyGuildOffer(0, day)).toBeNull();
+    const ids = shop.offers.map((o) => o.heroId).join();
+    expect(s.guildShopState(day + 3600_000).offers.map((o) => o.heroId).join()).toBe(ids);
+    expect(s.guildShopState(day + 24 * 3600_000).offers.every((o) => !o.bought)).toBe(true);
+  });
+
+  it('Wild Medals go to a picked hero, up to the weekly cap', () => {
+    const s = fresh();
+    s.guildCredits = 10_000;
+    const common = HEROES.find((h) => h.rarity === 'common')!;
+    const legend = HEROES.find((h) => h.rarity === 'legendary');
+    if (legend) expect(s.buyWildMedals(legend.id, 1, day)).toBeNull();
+    expect(s.buyWildMedals(common.id, 15, day)).not.toBeNull();
+    expect(s.wildMedalsLeft(day)).toBe(5);
+    expect(s.buyWildMedals(common.id, 6, day)).toBeNull();
+    expect(s.guildCredits).toBe(10_000 - 15 * 8);
+    const nextWeek = day + 7 * 24 * 3600_000;
+    expect(weekKey(nextWeek)).not.toBe(weekKey(day));
+    expect(s.wildMedalsLeft(nextWeek)).toBe(20);
+  });
+
+  it('Ember pouches are limited per day and boosts stack to two hours', () => {
+    const s = fresh();
+    s.guildCredits = 10_000;
+    s.lifetimeEmbers = 5_000;
+    for (let i = 0; i < 3; i++) expect(s.buyGuildItem('embers', day)!.embers).toBeGreaterThanOrEqual(50);
+    expect(s.buyGuildItem('embers', day)).toBeNull();
+    expect(s.boostMult('banner', day)).toBe(1);
+    for (let i = 0; i < 4; i++) expect(s.buyGuildItem('banner', day)).not.toBeNull();
+    expect(s.buyGuildItem('banner', day)).toBeNull();
+    expect(s.boostMult('banner', day + 119 * 60_000)).toBe(1.5);
+    expect(s.boostMult('banner', day + 121 * 60_000)).toBe(1);
+    const again = new GameState();
+    again.load();
+    expect(again.boosts.banner).toBe(s.boosts.banner);
+    expect(again.guildShop.pouches).toBe(3);
   });
 });

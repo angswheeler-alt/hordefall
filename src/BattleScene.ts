@@ -961,7 +961,7 @@ export class BattleScene extends Phaser.Scene {
       h.riposte = false;
       // Samurai Mastery: crits take time off the Ultimate cooldown.
       if (crit && this.mastery(h, 'Samurai')) h.ultReadyAt -= 0.5;
-      let atk = (crit ? h.atk.times(critMult) : h.atk).times(beacon * rage);
+      let atk = (crit ? h.atk.times(critMult) : h.atk).times(beacon * rage * this.state.boostMult('horn'));
       if (nth && nth.every && h.attacks % nth.every === 0) atk = atk.times(nth.value);
       const splash = def.splash ? def.splash * (1 + st.aoeRadius) : 0;
       let targets: Unit[];
@@ -1177,7 +1177,8 @@ export class BattleScene extends Phaser.Scene {
         .times(source?.goldMult ?? 1)
         .times(this.mul('gold', null))
         .times(1 + this.state.relicBonus('gold'))
-        .times(1 + this.state.researchBonus('prosperity'));
+        .times(1 + this.state.researchBonus('prosperity'))
+        .times(this.state.boostMult('banner'));
       this.gainGold(gold, u.x, u.y);
       this.tweens.add({ targets: u.view, alpha: 0, scale: 1.5, y: u.y - 8, duration: 220, onComplete: () => u.view.destroy() });
       this.shatter(u.x, u.y, ELEMENT_COLORS[u.element]);
@@ -1265,7 +1266,7 @@ export class BattleScene extends Phaser.Scene {
     this.cameras.main.flash(120, 255, 255, 255);
     // Heroes built to the hero standard get their own 5★ twist instead of the bigger hit.
     const ult = def.ult;
-    const dmg = h.atk.times(ULT_MULTIPLIER * (plus && !ult ? ULT_STAR_BONUS : 1) * (1 + (h.stats?.ultAtk ?? 0)));
+    const dmg = h.atk.times(ULT_MULTIPLIER * (plus && !ult ? ULT_STAR_BONUS : 1) * (1 + (h.stats?.ultAtk ?? 0)) * this.state.boostMult('horn'));
     const x0 = h.x - 30, x1 = h.x + radius + 60;
     const hit = this.enemies.filter((e) => e.alive && e.x >= x0 && e.x <= x1);
     // Marks land before the hit so the Volley itself benefits.
@@ -1360,7 +1361,7 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: chest, x: -30, duration: 11000, onComplete: remove });
     this.tweens.add({ targets: chest, y: y - 8, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     chest.once('pointerdown', () => {
-      const gold = goldPerKill(this.state.stage).times(kind.killsWorth).times(1 + this.state.relicBonus('gold')).times(1 + this.state.researchBonus('prosperity'));
+      const gold = goldPerKill(this.state.stage).times(kind.killsWorth).times(1 + this.state.relicBonus('gold')).times(1 + this.state.researchBonus('prosperity')).times(this.state.boostMult('banner'));
       const wx = chest.x + this.cameras.main.scrollX;
       this.gainGold(gold, wx, chest.y + 10);
       this.shatter(wx, chest.y, 0xffe066);
