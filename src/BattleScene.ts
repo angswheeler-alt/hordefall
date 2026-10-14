@@ -267,10 +267,10 @@ export class BattleScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, WORLD_WIDTH, HEIGHT);
     // Each crystal floats above the ground, bobbing gently; its shadow shrinks and fades as it rises.
     const crystalAt = (x: number, key: string) => {
-      const shadow = this.add.ellipse(x, CRYSTAL_Y + 56, 40, 9, 0x000000, 0.35).setDepth(LANE_TOP - 1);
+      const shadow = this.add.ellipse(x, CRYSTAL_Y + 50, 40, 9, 0x000000, 0.35).setDepth(LANE_TOP - 1);
       this.tweens.add({ targets: shadow, alpha: 0.2, scaleX: 0.75, scaleY: 0.75, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       const view = this.add.image(x, CRYSTAL_Y, key).setDepth(LANE_TOP);
-      this.tweens.add({ targets: view, y: CRYSTAL_Y - 6, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      this.tweens.add({ targets: view, y: CRYSTAL_Y - 4, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       return view;
     };
     crystalAt(PLAYER_CRYSTAL_X, 'crystal-player');
