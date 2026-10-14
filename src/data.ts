@@ -207,7 +207,7 @@ export const HEROES: HeroDef[] = [
     ultPlus: 'The wall also shields every hero for 20% of their max HP.',
     trait: { name: 'Bramble Hide', text: `High HP and a longer reach. Reflects 20% of damage taken back at the attacker. ${VS.earth}` },
     signature: { kind: 'reflect', value: 0.2 },
-    sp1: { name: 'Taproot', text: 'Regenerates 3% of max HP every second.', effect: { kind: 'regen', value: 0.03 } },
+    sp1: { name: 'Taproot', text: 'Regenerates 2% of max HP every second.', effect: { kind: 'regen', value: 0.02 } },
     sp2: { name: 'Thornmail', text: 'Bramble Hide reflects 50% instead of 20%.', effect: { kind: 'reflect', value: 0.3 } },
     aura: { name: 'Old Growth', text: 'Team max HP +20%.', effect: { kind: 'hp', value: 1.2, team: true } } },
   { id: 'moss', rarity: 'common', name: 'Moss', element: 'earth', type: 'Magician', baseAtk: 7, baseHp: 48, range: 140, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 48,
