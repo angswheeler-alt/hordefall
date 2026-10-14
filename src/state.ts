@@ -3,7 +3,7 @@ import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_C
 import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
 import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
-import { RENAMED_HEROES } from './data';
+import { RENAMED_HEROES, PLAYABLE_HEROES } from './data';
 import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills';
 import { isKnight, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
@@ -475,7 +475,7 @@ export class GameState {
   private rollChest(): SummonDrop[] {
     const drops: SummonDrop[] = [];
     for (let i = 0; i < CHEST_DROPS; i++) {
-      const hero = pickByRarity(HEROES, CHEST_RARITY_WEIGHTS);
+      const hero = pickByRarity(PLAYABLE_HEROES, CHEST_RARITY_WEIGHTS);
       if (!hero) break;
       const crests = weighted(CREST_ROLLS[hero.rarity as keyof typeof CREST_ROLLS]);
       const locked = (this.levels[hero.id] ?? 0) === 0;
@@ -740,7 +740,7 @@ export class GameState {
     // Medals go to different random heroes of the element while there are enough of them.
     // Medals go to different heroes of the element where possible, picked by rarity weight.
     // Legendary heroes only come through special means, so they get none.
-    const pool = HEROES.filter((h) => h.element === element);
+    const pool = PLAYABLE_HEROES.filter((h) => h.element === element);
     for (let i = 0; i < level.medals; i++) {
       const left = pool.filter((h) => !result.medals.includes(h.id));
       const hero = pickByRarity(left.length ? left : pool, TRIAL_RARITY_WEIGHTS);
@@ -996,7 +996,7 @@ export class GameState {
     const today = dayKey(now);
     if (this.guildShop.day !== today) {
       const offers: GuildOffer[] = [];
-      const pool = HEROES.filter((h) => guildRarity(h));
+      const pool = PLAYABLE_HEROES.filter((h) => guildRarity(h));
       for (let tries = 0; offers.length < GUILD_SHOP_OFFERS && tries < 50; tries++) {
         const h = pickByRarity(pool.filter((x) => !offers.some((o) => o.heroId === x.id)), CHEST_RARITY_WEIGHTS);
         const r = h && guildRarity(h);
@@ -1067,9 +1067,9 @@ export class GameState {
     return this.receiveGuildMedals([{ heroId: offer.heroId, crests: offer.crests }]);
   }
 
-  /** Price of Wild Medals for a hero, or null for heroes they can't go to (Legendary). */
+  /** Price of Wild Medals for a hero, or null for heroes they can't go to (Legendary, or not released yet). */
   wildMedalCost(heroId: string): number | null {
-    const h = HEROES.find((x) => x.id === heroId);
+    const h = PLAYABLE_HEROES.find((x) => x.id === heroId);
     const r = h && guildRarity(h);
     return r ? GUILD_WILD_COST[r] : null;
   }
@@ -1102,7 +1102,7 @@ export class GameState {
   private rollMedalBundle(): Array<{ heroId: string; crests: number }> {
     const drops: Array<{ heroId: string; crests: number }> = [];
     for (let tries = 0; drops.length < MEDAL_BUNDLE_HEROES && tries < 50; tries++) {
-      const left = HEROES.filter((h) => !drops.some((d) => d.heroId === h.id));
+      const left = PLAYABLE_HEROES.filter((h) => !drops.some((d) => d.heroId === h.id));
       const hero = pickByRarity(left, CHEST_RARITY_WEIGHTS);
       if (!hero) break;
       drops.push({ heroId: hero.id, crests: CREST_ROLLS[hero.rarity as keyof typeof CREST_ROLLS][0][0] });

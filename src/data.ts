@@ -363,6 +363,13 @@ export const HEROES: HeroDef[] = [
 ];
 
 /** Old hero ids from saves before the 20-hero roster, and who replaced them. */
+/**
+ * Heroes players can get for now (Samuel, 2026-10-14): only these drop from chests, Trials, medal bundles and the
+ * guild, and only these (plus any a save already owns) show in Collection, until the others are fully made.
+ */
+export const RELEASED_HEROES: readonly string[] = ['brine', 'ember', 'thorn', 'lumen', 'rook'];
+export const PLAYABLE_HEROES: HeroDef[] = HEROES.filter((h) => RELEASED_HEROES.includes(h.id));
+
 export const RENAMED_HEROES: Record<string, string> = { marin: 'brine', tide: 'brine', bramble: 'thorn', pyra: 'ember', nox: 'shade', solenne: 'lumen' };
 
 /**

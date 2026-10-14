@@ -665,7 +665,7 @@ describe('Guild shop', () => {
   it('Wild Medals go to a picked hero, up to the weekly cap', () => {
     const s = fresh();
     s.guildCredits = 10_000;
-    const common = HEROES.find((h) => h.rarity === 'common')!;
+    const common = HEROES.find((h) => h.id === 'brine')!;
     const legend = HEROES.find((h) => h.rarity === 'legendary');
     if (legend) expect(s.buyWildMedals(legend.id, 1, day)).toBeNull();
     expect(s.buyWildMedals(common.id, 15, day)).not.toBeNull();

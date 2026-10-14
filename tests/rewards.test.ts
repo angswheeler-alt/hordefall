@@ -157,3 +157,18 @@ describe('saves', () => {
     expect(t.achieved.stage).toBe(2);
   });
 });
+
+describe('released heroes', () => {
+  it('chests, the medal bundle, the guild shop and Wild Medals only give released heroes', async () => {
+    const { RELEASED_HEROES } = await import('../src/data');
+    const s = fresh();
+    s.gems = 1e6;
+    const ids = new Set<string>();
+    for (let i = 0; i < 200; i++) for (const d of s.summon() ?? []) ids.add(d.heroId);
+    for (const d of s.medalBundleState(noon).drops) ids.add(d.heroId);
+    for (const o of s.guildShopState(noon).offers) ids.add(o.heroId);
+    for (const id of ids) expect(RELEASED_HEROES).toContain(id);
+    expect(s.wildMedalCost('marina')).toBeNull();
+    expect(s.wildMedalCost('brine')).not.toBeNull();
+  });
+});
