@@ -3,7 +3,8 @@ import Decimal from 'break_infinity.js';
 import { HEROES, HERO_TYPES, TYPE_MASTERY, type HeroType } from '../src/data';
 import { comboMult, executeMult, signatureReflect, splitHeal, controlEnd, BOSS_CC, SIG_PLUS } from '../src/kits';
 
-const standard = HEROES.filter((h) => h.signature);
+// The five heroes built to our own hero standard; the rest take Crush Them All kits (design/crush-hero-remap.md).
+const standard = HEROES.filter((h) => ['brine', 'ember', 'thorn', 'lumen', 'rook'].includes(h.id));
 const byId = (id: string) => HEROES.find((h) => h.id === id)!;
 
 describe('hero standard', () => {
@@ -34,14 +35,14 @@ describe('hero standard', () => {
     const melee = { atk: [4.5, 6.5], hp: [45, 70] } as { atk: [number, number]; hp: [number, number] };
     const budget: Record<HeroType, { atk: [number, number]; hp: [number, number] }> = {
       Knight: { atk: [2.5, 4], hp: [140, 170] },
-      Brawler: { atk: [2.5, 4], hp: [140, 170] },
-      Barbarian: melee,
+      Brawler: { atk: [2.5, 6], hp: [70, 170] },
+      Barbarian: { atk: [4.5, 8], hp: [45, 75] },
       Lancer: melee,
       Samurai: melee,
       Rogue: melee,
       Ranger: { atk: [5, 7], hp: [40, 50] },
       Gunner: { atk: [5, 7], hp: [40, 50] },
-      Magician: { atk: [7, 9.5], hp: [35, 50] },
+      Magician: { atk: [7, 9.5], hp: [35, 60] },
       Support: { atk: [2.5, 3.5], hp: [50, 60] },
     };
     for (const h of HEROES) {
@@ -96,7 +97,7 @@ describe('signatures', () => {
 
 describe('6-8★ unlocks', () => {
   it('gives every standard hero a Signature+ and every Type a Mastery', () => {
-    for (const h of HEROES.filter((x) => x.signature)) expect(h.sigPlus, h.id).toBeTruthy();
+    for (const h of standard) expect(h.sigPlus, h.id).toBeTruthy();
     for (const t of Object.keys(HERO_TYPES) as HeroType[]) expect(TYPE_MASTERY[t].text, t).toBeTruthy();
   });
 

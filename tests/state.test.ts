@@ -3,7 +3,7 @@ import Decimal from 'break_infinity.js';
 import { heroProfile, heroBuildEffects } from '../src/profiles';
 import { GameState, rarityOdds, weekKey } from '../src/state';
 import {
-  HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, LINEUP_SIZE,
+  HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, AURA_EVOLUTIONS, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, LINEUP_SIZE,
   TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, RELICS, RELIC_SETS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL,
 } from '../src/data';
 
@@ -184,6 +184,23 @@ describe('medals, unlocks and evolution', () => {
     const before = s.heroStats(ranger).critRate;
     s.stars[ranger.id] = MASTERY_EVOLUTIONS;
     expect(s.heroStats(ranger).critRate).toBeGreaterThanOrEqual(before + 0.1 - 1e-9);
+  });
+
+  it('element auras reach only heroes of that element', () => {
+    const s = fresh();
+    const byId = (id: string) => HEROES.find((h) => h.id === id)!;
+    for (const id of ['blaze', 'ember', 'thorn', 'flint']) s.levels[id] = 10;
+    const emberDef = s.heroPower(byId('ember')).defense;
+    const thornDef = s.heroPower(byId('thorn')).defense;
+    const emberCritDmg = s.heroStats(byId('ember')).critDmg;
+    const thornCritDmg = s.heroStats(byId('thorn')).critDmg;
+    s.stars.blaze = AURA_EVOLUTIONS;
+    s.stars.flint = AURA_EVOLUTIONS;
+    // Forge Guard (Flare): Fire heroes +40% Defense. Hot Blood (Flint): Fire heroes +20% crit damage.
+    expect(s.heroPower(byId('ember')).defense.div(emberDef).toNumber()).toBeCloseTo(1.4, 6);
+    expect(s.heroPower(byId('thorn')).defense.div(thornDef).toNumber()).toBeCloseTo(1, 6);
+    expect(s.heroStats(byId('ember')).critDmg - emberCritDmg).toBeCloseTo(0.2, 6);
+    expect(s.heroStats(byId('thorn')).critDmg).toBeCloseTo(thornCritDmg, 6);
   });
 
   it('a Support in the lineup rallies the whole team (+15% ATK) from 1★', () => {
@@ -416,8 +433,8 @@ describe('relics', () => {
     expect(s.heroStats(byId('brine')).ultAtk).toBeCloseTo(0.2);
     expect(s.heroStats(byId('marina')).aoeDmg).toBeCloseTo(0.1);
     expect(s.heroStats(byId('aegis')).knightShield).toBeCloseTo(0.5);
-    expect(s.heroStats(byId('flint')).bonusGold).toBeGreaterThan(1.9);
-    expect(s.heroStats(byId('briar')).poisonTime).toBeGreaterThanOrEqual(0.2);
+    expect(s.heroStats(byId('flint')).bonusGold).toBeCloseTo(1); // 2x gold, like Crush's Extra Gold
+    expect(s.heroStats(byId('briar')).critRate).toBeGreaterThanOrEqual(0.25);
   });
 
   it('drops relics that are no longer in the game from old saves', () => {

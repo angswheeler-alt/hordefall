@@ -35,7 +35,11 @@ export type Signature =
   /** Healing past full HP becomes a shield, up to `cap` of the ally's max HP. */
   | { kind: 'overheal'; cap: number }
   /** `mult` damage to enemies below `below` of their max HP. */
-  | { kind: 'execute'; below: number; mult: number };
+  | { kind: 'execute'; below: number; mult: number }
+  /** Hits have `chance` to slow the enemy (moves and attacks at `mult` speed) for `seconds`. */
+  | { kind: 'slow'; chance: number; mult: number; seconds: number }
+  /** Hits on an enemy at full HP always crit. */
+  | { kind: 'sureCrit' };
 
 /** What a standard hero's Ultimate does on top of the big hit (or full heal), and its 5★ twist. */
 export type UltEffect =
@@ -48,7 +52,11 @@ export type UltEffect =
   /** Brings back one fallen hero; 5★ brings back all of them. */
   | { kind: 'revive' }
   /** Marked enemies take `mult` damage for `seconds`. 5★: plusMult for plusSeconds. */
-  | { kind: 'mark'; mult: number; seconds: number; plusMult: number; plusSeconds: number };
+  | { kind: 'mark'; mult: number; seconds: number; plusMult: number; plusSeconds: number }
+  /** One blow on the toughest enemy in reach for `mult` x the Ultimate hit (no area). 5★: plusMult. */
+  | { kind: 'strike'; mult: number; plusMult: number }
+  /** After the hit, every non-Fire hero deals Earth damage for `seconds` (5★: plusSeconds). */
+  | { kind: 'earthen'; seconds: number; plusSeconds: number };
 
 export interface HeroDef {
   id: string;
@@ -64,6 +72,8 @@ export interface HeroDef {
   ultPlus?: string;
   /** The 6★ Signature+ twist's text (mechanics in BattleScene, by Signature kind). */
   sigPlus?: string;
+  /** Boss blows never stun this hero (Crush's Anti Knock-back). */
+  steadfast?: boolean;
   /** Attack and HP at gold level 1. */
   baseAtk: number;
   baseHp: number;
@@ -114,6 +124,8 @@ export type EffectKind =
   | 'atk' | 'hp' | 'crit' | 'dodge' | 'doubleStrike' | 'reflect' | 'regen' | 'lifesteal' | 'pierce'
   | 'damageTaken' | 'attackSpeed' | 'splash' | 'bossDamage' | 'gold' | 'healPower' | 'respawn' | 'everyNth'
   | 'vsBurning' | 'burnBurst' | 'beacon'
+  // def multiplies Defense; critDmg adds to crit damage (0.2 = +20%); slam: every `every`th attack also hits enemies near the target, x value.
+  | 'def' | 'critDmg' | 'slam'
   // Hero-sheet stats (added for the Crush-style stat page; chances are 0.05 = 5%).
   | 'frenzy' | 'effectRes' | 'stunChance' | 'freezeChance' | 'burnChance' | 'poisonChance' | 'ultAtk' | 'aoeDmg';
 
@@ -122,6 +134,8 @@ export interface Effect {
   value: number;
   team?: boolean;
   every?: number;
+  /** A team effect that reaches only heroes of this element (Crush's "Fire Heroes +DEF" auras). */
+  element?: Element;
 }
 
 export const ELEMENT_COLORS: Record<Element, number> = {
@@ -134,7 +148,8 @@ export const ELEMENT_COLORS: Record<Element, number> = {
 
 // The first 20 heroes: four per element. All Common. Brine is the free starter.
 // Brine, Ember, Thicket (id thorn), Lumen and Rook are built to the hero standard (Signature, unique Ultimate);
-// the rest keep their older kits until they are rebuilt. Thorn and Blaze were renamed Thicket and Flare
+// the others take the kit of the closest Crush Them All hero (same element and class) under our own names and text
+// (design/crush-hero-remap.md): Flare, Flint, Cinder, Briar and Moss so far; the rest keep their older kits until then. Thorn and Blaze were renamed Thicket and Flare
 // (names only; ids stay) because Crush Them All already has heroes with those names.
 // Type baselines (each hero varies a little): Knight high-HP front line, Magician ranged splash,
 // Ranger and Gunner long-range single target, Support healer, the other melee types quick and hard-hitting.
@@ -150,14 +165,14 @@ const HEAL_BASIC = 'Heals the most injured nearby ally for 3x ATK. Attacks when 
 
 export const HEROES: HeroDef[] = [
   // ---- Fire: passion and destruction ----
-  { id: 'blaze', rarity: 'common', name: 'Flare', element: 'fire', type: 'Barbarian', baseAtk: 5.5, baseHp: 55, range: 28, attackCooldown: 0.75, moveSpeed: 125, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
-    bio: 'A young red-haired swordsman whose blade catches fire when he gets excited, which is always.',
-    basic: { name: 'Searing Slash', text: 'Quick flaming slashes at the nearest enemy ahead.' },
-    ultimate: { name: 'Wildfire Arc', text: ULT('One huge burning sweep hits') },
-    trait: { name: 'Blazing Fury', text: `Heavy, fast melee damage. ${VS.fire}` },
-    sp1: { name: 'Flashfire', text: '20% chance for each attack to strike twice.', effect: { kind: 'doubleStrike', value: 0.2 } },
-    sp2: { name: 'Burning Edge', text: 'Deals 25% more damage to bosses.', effect: { kind: 'bossDamage', value: 1.25 } },
-    aura: { name: 'Kindled Spirit', text: 'Team ATK +15%.', effect: { kind: 'atk', value: 1.15, team: true } } },
+  { id: 'blaze', rarity: 'common', name: 'Flare', element: 'fire', type: 'Barbarian', baseAtk: 7.5, baseHp: 70, range: 30, attackCooldown: 1.3, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
+    bio: 'A young red-haired brute with a flaming war axe he swings like it weighs nothing. Nothing pushes him back.',
+    basic: { name: 'Axe Chop', text: 'Slow, crushing swings at the nearest enemy ahead.' },
+    ultimate: { name: 'Inferno Axe', text: ULT('A giant axe of fire crashes down on') },
+    trait: { name: 'Unmovable', text: `Boss blows never stun him. ${VS.fire}` },
+    sp1: { name: 'Flurry of Blows', text: 'Every 4th attack is three quick blows (3x damage).', effect: { kind: 'everyNth', value: 3, every: 4 } },
+    sp2: { name: 'Heavy Frame', text: '+20% HP.', effect: { kind: 'hp', value: 1.2 } },
+    aura: { name: 'Forge Guard', text: 'Fire heroes get +40% Defense.', effect: { kind: 'def', value: 1.4, team: true, element: 'fire' } } },
   { id: 'ember', rarity: 'common', name: 'Ember', element: 'fire', type: 'Magician', baseAtk: 8, baseHp: 40, range: 150, attackCooldown: 1.4, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 40,
     bio: 'An energetic arcanist with flame-shaped hair ornaments and a fire orb she never puts down.',
     basic: { name: 'Fire Orb', text: 'Ranged fireballs that splash every enemy near the target.' },
@@ -170,32 +185,36 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Wildfire', text: 'A Burning enemy that dies explodes for 2x ATK on enemies around it.', effect: { kind: 'burnBurst', value: 2 } },
     sp2: { name: 'Stoke the Flames', text: '+40% damage to Burning enemies.', effect: { kind: 'vsBurning', value: 1.4 } },
     aura: { name: 'Heat Shimmer', text: 'Team critical hit chance +5%.', effect: { kind: 'crit', value: 0.05, team: true } } },
-  { id: 'flint', rarity: 'common', name: 'Flint', element: 'fire', type: 'Rogue', baseAtk: 6, baseHp: 50, range: 24, attackCooldown: 0.6, moveSpeed: 145, unlockCost: 50, upgradeBaseCost: 15, goldMult: 2,
+  { id: 'flint', rarity: 'common', name: 'Flint', element: 'fire', type: 'Rogue', baseAtk: 6, baseHp: 50, range: 24, attackCooldown: 0.6, moveSpeed: 170, unlockCost: 50, upgradeBaseCost: 15, goldMult: 2,
+    ult: { kind: 'strike', mult: 3, plusMult: 4 },
+    ultPlus: 'The strike hits for 160x ATK.',
     bio: 'An agile flame striker with two daggers and armor that glows like banked coals.',
-    basic: { name: 'Spark Daggers', text: 'Very fast stabs at the closest enemy.' },
-    ultimate: { name: 'Cinder Storm', text: ULT('Dashes through') },
-    trait: { name: 'Flame Runner', text: `Runs fast and earns 2x gold from every kill. ${VS.fire}` },
-    sp1: { name: 'Spark Step', text: 'Dodges 25% of incoming attacks.', effect: { kind: 'dodge', value: 0.25 } },
-    sp2: { name: 'Ember Edge', text: '+20% critical hit chance.', effect: { kind: 'crit', value: 0.2 } },
-    aura: { name: 'Scorched Loot', text: 'Team earns 25% more gold from kills.', effect: { kind: 'gold', value: 1.25, team: true } } },
-  { id: 'cinder', rarity: 'common', name: 'Cinder', element: 'fire', type: 'Brawler', baseAtk: 3, baseHp: 160, range: 26, attackCooldown: 1.1, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
-    bio: 'A bulky inferno guardian who carries a shield of cooling magma and stands in front of everyone.',
-    basic: { name: 'Magma Bash', text: 'Slow, heavy shield blows that shove enemies back a step.' },
-    ultimate: { name: 'Eruption', text: ULT('Slams the shield down, bursting magma under') },
-    trait: { name: 'Inferno Guardian', text: `Very high HP. ${VS.fire}` },
-    sp1: { name: 'Magma Skin', text: 'Reflects 30% of damage taken back at the attacker.', effect: { kind: 'reflect', value: 0.3 } },
-    sp2: { name: 'Molten Core', text: 'Takes 25% less damage.', effect: { kind: 'damageTaken', value: 0.75 } },
-    aura: { name: 'Forge Wall', text: 'Whole team takes 10% less damage.', effect: { kind: 'damageTaken', value: 0.9, team: true } } },
+    basic: { name: 'Twin Sabers', text: 'Very fast slashes at the closest enemy.' },
+    ultimate: { name: 'Heat Strike', text: 'One blinding strike on the toughest enemy in reach for 120x ATK, with element bonuses.' },
+    trait: { name: 'Flame Runner', text: `Dodges 10% of attacks and earns 2x gold from every kill. ${VS.fire}` },
+    sp1: { name: 'Dancing Blades', text: '30% chance for each attack to strike twice.', effect: { kind: 'doubleStrike', value: 0.3 } },
+    sp2: { name: 'Ember Edge', text: '+10% critical hit chance.', effect: { kind: 'crit', value: 0.1 } },
+    aura: { name: 'Hot Blood', text: 'Fire heroes deal +20% critical damage.', effect: { kind: 'critDmg', value: 0.2, team: true, element: 'fire' } } },
+  { id: 'cinder', rarity: 'common', name: 'Cinder', element: 'fire', type: 'Brawler', baseAtk: 5.5, baseHp: 80, range: 26, attackCooldown: 1.0, moveSpeed: 120, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
+    signature: { kind: 'combo', perHit: 0.05, max: 0.3 },
+    bio: 'A soot-black brawler in steam-powered gauntlets who hits harder with every punch and never takes a step back.',
+    basic: { name: 'Piston Punch', text: 'Heavy punches at the nearest enemy ahead.' },
+    ultimate: { name: 'Magma Missiles', text: ULT('A rain of magma missiles hits') },
+    trait: { name: 'Stoked Fists', text: `Each hit in a row on the same enemy deals +5% damage, up to +30%; the streak ends when he switches target. Boss blows never stun him. ${VS.fire}` },
+    sp1: { name: 'Big Boom', text: 'Every 4th attack slams the ground for 2x damage to every enemy near the target.', effect: { kind: 'slam', value: 2, every: 4 } },
+    sp2: { name: 'Furnace Core', text: 'Takes 20% less damage.', effect: { kind: 'damageTaken', value: 0.8 } },
+    aura: { name: 'Iron Works', text: 'Fire heroes get +40% Defense.', effect: { kind: 'def', value: 1.4, team: true, element: 'fire' } } },
 
   // ---- Earth (Grass): life and growth ----
-  { id: 'briar', rarity: 'common', name: 'Briar', element: 'earth', type: 'Ranger', baseAtk: 5.5, baseHp: 45, range: 165, attackCooldown: 0.9, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'briar', rarity: 'common', name: 'Briar', element: 'earth', type: 'Ranger', baseAtk: 5.5, baseHp: 45, range: 185, attackCooldown: 0.9, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+    signature: { kind: 'sureCrit' },
     bio: 'A nimble leaf ranger in leaf-shaped armor who can put an arrow through a falling acorn.',
     basic: { name: 'Leaf Arrow', text: 'Long-range arrows at the nearest enemy.' },
-    ultimate: { name: 'Thornrain', text: ULT('A volley of thorned arrows hits') },
-    trait: { name: 'Leaf Ranger', text: `Long-range single-target damage. ${VS.earth}` },
-    sp1: { name: 'Split Shot', text: 'Arrows pierce 1 more enemy.', effect: { kind: 'pierce', value: 1 } },
+    ultimate: { name: 'Arrow Storm', text: ULT('A storm of leaf arrows hits') },
+    trait: { name: 'Hawkeye', text: `Shots at an enemy at full HP always crit. ${VS.earth}` },
+    sp1: { name: 'Multi Shot', text: 'Each shot also hits the next 2 enemies just behind the target.', effect: { kind: 'pierce', value: 2 } },
     sp2: { name: 'Quickdraw', text: 'Attacks 20% faster.', effect: { kind: 'attackSpeed', value: 0.8 } },
-    aura: { name: 'Canopy Cover', text: 'Whole team dodges 5% of attacks.', effect: { kind: 'dodge', value: 0.05, team: true } } },
+    aura: { name: "Hunter's Eye", text: 'Earth heroes deal +20% critical damage.', effect: { kind: 'critDmg', value: 0.2, team: true, element: 'earth' } } },
   { id: 'fern', rarity: 'common', name: 'Fern', element: 'earth', type: 'Support', baseAtk: 3, baseHp: 55, range: 130, attackCooldown: 1.2, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
     bio: 'A gentle sylvan healer whose wooden staff is still alive and occasionally flowers.',
     basic: { name: 'Sap Mend', text: HEAL_BASIC },
@@ -216,14 +235,17 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Taproot', text: 'Regenerates 2% of max HP every second.', effect: { kind: 'regen', value: 0.02 } },
     sp2: { name: 'Thornmail', text: 'Bramble Hide reflects 50% instead of 20%.', effect: { kind: 'reflect', value: 0.3 } },
     aura: { name: 'Old Growth', text: 'Team max HP +20%.', effect: { kind: 'hp', value: 1.2, team: true } } },
-  { id: 'moss', rarity: 'common', name: 'Moss', element: 'earth', type: 'Magician', baseAtk: 7, baseHp: 48, range: 140, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 48,
+  { id: 'moss', rarity: 'common', name: 'Moss', element: 'earth', type: 'Magician', baseAtk: 7, baseHp: 55, range: 140, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 48,
+    signature: { kind: 'slow', chance: 0.3, mult: 0.6, seconds: 2 },
+    ult: { kind: 'earthen', seconds: 8, plusSeconds: 15 },
+    ultPlus: 'Earth damage lasts 15 s.',
     bio: 'A hooded root druid whose staff is crowned with a seed that glows when something nearby is growing.',
     basic: { name: 'Spore Burst', text: 'Ranged spore clouds that splash every enemy near the target.' },
-    ultimate: { name: 'Root Eruption', text: ULT('Giant roots crash up beneath') },
-    trait: { name: 'Root Druid', text: `Wide area damage. ${VS.earth}` },
-    sp1: { name: 'Spore Cloud', text: 'Splash radius +50%.', effect: { kind: 'splash', value: 1.5 } },
+    ultimate: { name: 'Forest Strength', text: 'Giant roots hit every enemy ahead for 40x ATK. Then for 8 s every hero except Fire heroes deals Earth damage.' },
+    trait: { name: 'Sticky Spores', text: `Hits have a 30% chance to slow enemies to 60% speed for 2 s. ${VS.earth}` },
+    sp1: { name: 'Bee Swarm', text: 'Every 4th attack is a bee swarm: 2x damage, and it slows every enemy it hits.', effect: { kind: 'everyNth', value: 2, every: 4 } },
     sp2: { name: 'Deep Roots', text: 'Deals 30% more damage to bosses.', effect: { kind: 'bossDamage', value: 1.3 } },
-    aura: { name: 'Living Grove', text: 'Whole team attacks 10% faster.', effect: { kind: 'attackSpeed', value: 0.9, team: true } } },
+    aura: { name: 'Forest Might', text: 'Earth heroes get +40% ATK.', effect: { kind: 'atk', value: 1.4, team: true, element: 'earth' } } },
 
   // ---- Water: adaptability and wisdom ----
   { id: 'brine', rarity: 'common', name: 'Brine', element: 'water', type: 'Samurai', baseAtk: 5, baseHp: 65, range: 28, attackCooldown: 0.8, moveSpeed: 120, unlockCost: 0, upgradeBaseCost: 5, goldMult: 1,

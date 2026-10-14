@@ -55,15 +55,15 @@ export const HERO_PROFILES: Record<string, Partial<StatProfile> & { specialty: s
   ripple: { freezeChance: 0.08, critDmg: 2.4, crit: 0.1, specialty: 'Frost arrows: 8% chance to freeze, crits hit for +240% but land less often (10%)' },
   marina: { freezeChance: 0.12, aoeDmg: 0.1, hpMult: 0.85, specialty: 'Sea witch: 12% chance to freeze, +10% splash damage, less HP' },
   // Fire
-  blaze: { burnChance: 0.15, frenzy: 0.12, critDmg: 1.2, specialty: 'Blazing blade: 15% chance to burn, 12% Frenzy, softer crits (+120%)' },
+  blaze: { atkMult: 1.2, hpMult: 1.15, frenzy: 0.04, specialty: 'Fire axe: +20% ATK and +15% HP, but rarely goes into Frenzy (4%)' },
   ember: { effectTime: 0.25, aoeDmg: 0.1, defMult: 0.5, specialty: 'Pyromancer: every hit burns, burns last 25% longer, +10% splash damage, half the Defense' },
-  flint: { dodge: 0.2, goldBonus: 0.5, hpMult: 0.9, specialty: 'Quick feet: dodges 20% of attacks, 2x gold and 50% more on top, a little less HP' },
-  cinder: { stunChance: 0.1, effectTime: 0.15, atkMult: 0.9, specialty: 'Magma fists: 10% chance to stun, stuns last 15% longer, a little less ATK' },
+  flint: { crit: 0.3, dodge: 0.1, hpMult: 0.9, specialty: 'Desert dancer: 30% crit and dodges 10% of attacks, a little less HP' },
+  cinder: { crit: 0.2, atkMult: 1.1, stunChance: 0, specialty: 'Steam fists: 20% crit and +10% ATK, but never stuns' },
   // Earth
-  briar: { poisonChance: 0.12, effectTime: 0.2, crit: 0.1, specialty: 'Venom thorns: 12% chance to poison, poisons last 20% longer, crits less often (10%)' },
+  briar: { crit: 0.25, critDmg: 1.8, specialty: 'Master archer: 25% crit, but softer crits (+180%)' },
   fern: { dodge: 0.15, effectRes: 0.5, hpMult: 0.9, specialty: 'Light step: dodges 15% of attacks, 50% Effect Resistance, a little less HP' },
   thorn: { defMult: 5, effectRes: 0.55, crit: 0.02, specialty: 'Bark skin: 5x Defense and 55% Effect Resistance, rarely crits (2%)' },
-  moss: { poisonChance: 0.25, aoeDmg: 0.15, hpMult: 0.8, specialty: 'Spore druid: 25% chance to poison, +15% splash damage, low HP' },
+  moss: { hpMult: 1.15, aoeDmg: 0.1, crit: 0.05, specialty: 'Grove keeper: +15% HP and +10% splash damage, rarely crits (5%)' },
   // Dark
   shade: { dodge: 0.25, crit: 0.25, poisonChance: 0.08, hpMult: 0.75, specialty: 'Assassin: 25% dodge, 25% crit, poisoned blades (8%), low HP' },
   vex: { stunChance: 0.1, critDmg: 1.6, hpMult: 0.85, specialty: 'Hex: 10% chance to stun, crits hit for +160%, less HP' },
