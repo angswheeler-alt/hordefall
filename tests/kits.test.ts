@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import Decimal from 'break_infinity.js';
 import { HEROES, HERO_TYPES, TYPE_MASTERY, type HeroType } from '../src/data';
-import { comboMult, executeMult, signatureReflect, splitHeal, SIG_PLUS } from '../src/kits';
+import { comboMult, executeMult, signatureReflect, splitHeal, controlEnd, BOSS_CC, SIG_PLUS } from '../src/kits';
 
 const standard = HEROES.filter((h) => h.signature);
 const byId = (id: string) => HEROES.find((h) => h.id === id)!;
@@ -107,5 +107,18 @@ describe('6-8★ unlocks', () => {
     const lumen = HEROES.find((h) => h.id === 'lumen')!.signature;
     const max = new Decimal(100);
     expect(splitHeal(lumen, new Decimal(100), new Decimal(0), new Decimal(0), max, true).shield.toNumber()).toBe(100 * SIG_PLUS.overhealCap);
+  });
+});
+
+describe('boss crowd-control resistance', () => {
+  it('halves control on bosses and then makes them immune for a moment', () => {
+    expect(controlEnd(false, 10, 0, 0, 2)).toEqual({ until: 12, immuneUntil: 0 });
+    const first = controlEnd(true, 10, 0, 0, 2)!;
+    expect(first.until).toBe(11);
+    expect(first.immuneUntil).toBe(11 + BOSS_CC.immune);
+    expect(controlEnd(true, 12, first.until, first.immuneUntil, 2)).toBeNull();
+    expect(controlEnd(true, 13.5, first.until, first.immuneUntil, 2)?.until).toBe(14.5);
+    // Bramble Wall names its own boss duration.
+    expect(controlEnd(true, 0, 0, 0, 3, 1)?.until).toBe(1);
   });
 });
