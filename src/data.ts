@@ -138,6 +138,10 @@ export type EffectKind =
   // also hits enemies just behind the target and they take value x damage for 4 s. assassinate: every `every`th attack
   // blinks to the farthest enemy in reach for value x damage. enemyHaste: multiplies how fast enemies attack.
   | 'ward' | 'snowball' | 'assassinate' | 'enemyHaste'
+  // charm: every `every`th attack turns a regular enemy against its own side for value seconds. blind: every
+  // `every`th attack blinds enemies near the target (they miss value of their attacks for 3 s).
+  // enemyVuln: multiplies damage enemies take. moveSpeed: multiplies how fast heroes walk.
+  | 'charm' | 'blind' | 'enemyVuln' | 'moveSpeed'
   // Hero-sheet stats (added for the Crush-style stat page; chances are 0.05 = 5%).
   | 'frenzy' | 'effectRes' | 'stunChance' | 'freezeChance' | 'burnChance' | 'poisonChance' | 'ultAtk' | 'aoeDmg';
 
@@ -161,8 +165,7 @@ export const ELEMENT_COLORS: Record<Element, number> = {
 // The first 20 heroes: four per element. All Common. Brine is the free starter.
 // Brine, Ember, Thicket (id thorn), Lumen and Rook are built to the hero standard (Signature, unique Ultimate);
 // the others take the kit of the closest Crush Them All hero (same element and class) under our own names and text
-// (design/crush-hero-remap.md): batches 1-2 so far (Flare, Flint, Cinder, Briar, Moss; Fern, Brook, Ripple, Marina, Shade);
-// Vex, Dread, Dawn, Sol and Aegis keep their older kits until batch 3. Thorn and Blaze were renamed Thicket and Flare
+// (design/crush-hero-remap.md). Thorn and Blaze were renamed Thicket and Flare
 // (names only; ids stay) because Crush Them All already has heroes with those names.
 // Type baselines (each hero varies a little): Knight high-HP front line, Magician ranged splash,
 // Ranger and Gunner long-range single target, Support healer, the other melee types quick and hard-hitting.
@@ -315,14 +318,16 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Assassination', text: 'Every 5th attack blinks to the farthest enemy in reach and backstabs it for 3x damage.', effect: { kind: 'assassinate', value: 3, every: 5 } },
     sp2: { name: 'Backstab', text: '+10% critical hit chance.', effect: { kind: 'crit', value: 0.1 } },
     aura: { name: 'Dread Veil', text: 'Enemies attack 10% slower.', effect: { kind: 'enemyHaste', value: 0.9, team: true } } },
-  { id: 'vex', rarity: 'common', name: 'Vex', element: 'dark', type: 'Magician', baseAtk: 9, baseHp: 36, range: 150, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 40,
+  { id: 'vex', rarity: 'common', name: 'Vex', element: 'dark', type: 'Magician', baseAtk: 9, baseHp: 40, range: 150, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 40,
+    ult: { kind: 'weaken', mult: 0.5, seconds: 5, plusSeconds: 8 },
+    ultPlus: 'Enemies stay weakened for 8 s.',
     bio: 'A pale-haired void sorcerer channelling a violet orb that hums when nobody is looking at it.',
     basic: { name: 'Void Bolt', text: 'Ranged void blasts that splash every enemy near the target.' },
-    ultimate: { name: 'Collapse', text: ULT('A tear in the dark swallows') },
-    trait: { name: 'Void Sorcerer', text: `The hardest-hitting mage, and the most fragile. ${VS.dark}` },
-    sp1: { name: 'Void Rift', text: 'Splash radius +50%.', effect: { kind: 'splash', value: 1.5 } },
+    ultimate: { name: 'Hex Potion', text: 'A cursed potion bursts on every enemy ahead for 40x ATK, and for 5 s they deal half damage.' },
+    trait: { name: 'Void Sorcerer', text: `Hard-hitting magic from the back line. ${VS.dark}` },
+    sp1: { name: 'Possess', text: 'Every 6th attack takes over a regular enemy for 4 s: it fights the other enemies.', effect: { kind: 'charm', value: 4, every: 6 } },
     sp2: { name: 'Unravel', text: 'Deals 30% more damage to bosses.', effect: { kind: 'bossDamage', value: 1.3 } },
-    aura: { name: 'Forbidden Lore', text: 'Team critical hit chance +5%.', effect: { kind: 'crit', value: 0.05, team: true } } },
+    aura: { name: 'Night Pact', text: 'Dark heroes +15% HP.', effect: { kind: 'hp', value: 1.15, team: true, element: 'dark' } } },
   { id: 'rook', rarity: 'common', name: 'Rook', element: 'dark', type: 'Ranger', baseAtk: 6.5, baseHp: 46, range: 170, attackCooldown: 1.1, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A masked night stalker in dark leather with a hooked bow. Nobody has seen his face.',
     basic: { name: 'Hooked Arrow', text: 'Long-range arrows at the nearest enemy.' },
@@ -335,24 +340,25 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Barbed Shot', text: 'Arrows pierce 1 more enemy.', effect: { kind: 'pierce', value: 1 } },
     sp2: { name: 'Night Eyes', text: '+20% critical hit chance.', effect: { kind: 'crit', value: 0.2 } },
     aura: { name: "Hunter's Mark", text: 'Whole team deals 10% more damage to bosses.', effect: { kind: 'bossDamage', value: 1.1, team: true } } },
-  { id: 'dread', rarity: 'common', name: 'Dread', element: 'dark', type: 'Knight', baseAtk: 3.2, baseHp: 150, range: 26, attackCooldown: 1.05, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'dread', rarity: 'common', name: 'Dread', element: 'dark', type: 'Knight', baseAtk: 4, baseHp: 145, range: 26, attackCooldown: 1.0, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+    signature: { kind: 'knockback', push: 25 },
     bio: 'An imposing abyss guardian in corrupted armor behind a massive shield. He feeds on the fight.',
-    basic: { name: 'Abyss Bash', text: 'Slow, heavy shield blows that shove enemies back a step.' },
-    ultimate: { name: 'Black Tide', text: ULT('Darkness pours out over') },
-    trait: { name: 'Abyss Guardian', text: `High HP that heals itself from damage dealt once evolved. ${VS.dark}` },
-    sp1: { name: 'Corrupted Plate', text: 'Reflects 30% of damage taken back at the attacker.', effect: { kind: 'reflect', value: 0.3 } },
+    basic: { name: 'Abyss Blade', text: 'Heavy sword blows that shove enemies back a step.' },
+    ultimate: { name: 'Dark Strike', text: ULT('A wave of dark energy tears through') },
+    trait: { name: 'Abyss Guardian', text: `His blows push regular enemies back. ${VS.dark}` },
+    sp1: { name: 'Black Flurry', text: 'Every 4th attack is three quick blows (3x damage).', effect: { kind: 'everyNth', value: 3, every: 4 } },
     sp2: { name: 'Abyssal Hunger', text: 'Heals for 25% of the damage he deals.', effect: { kind: 'lifesteal', value: 0.25 } },
-    aura: { name: 'Dread Wall', text: 'Whole team takes 10% less damage.', effect: { kind: 'damageTaken', value: 0.9, team: true } } },
+    aura: { name: 'Shatter Armor', text: 'Enemies take 15% more damage.', effect: { kind: 'enemyVuln', value: 1.15, team: true } } },
 
   // ---- Light: hope and protection ----
   { id: 'dawn', rarity: 'common', name: 'Dawn', element: 'light', type: 'Lancer', baseAtk: 5, baseHp: 65, range: 36, attackCooldown: 0.85, moveSpeed: 120, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A bright-haired swordsman with a radiant sword, first into every fight and last to complain.',
-    basic: { name: 'Radiant Slash', text: 'Quick shining slashes at the nearest enemy ahead.' },
-    ultimate: { name: 'Daybreak', text: ULT('A blinding arc of light hits') },
-    trait: { name: 'Light Swordsman', text: `Fast melee damage, a little sturdier. ${VS.light}` },
-    sp1: { name: 'First Light', text: '20% chance for each attack to strike twice.', effect: { kind: 'doubleStrike', value: 0.2 } },
+    basic: { name: 'Radiant Thrust', text: 'Quick spear thrusts at the nearest enemy ahead.' },
+    ultimate: { name: 'Spear Wave', text: ULT('A wave of shining spears hits') },
+    trait: { name: 'Dawn Lancer', text: `Her thrusts often stun (20%). ${VS.light}` },
+    sp1: { name: 'Piercing Thrust', text: 'Each thrust also hits the next 3 enemies just behind the target.', effect: { kind: 'pierce', value: 3 } },
     sp2: { name: 'Radiant Edge', text: 'Deals 25% more damage to bosses.', effect: { kind: 'bossDamage', value: 1.25 } },
-    aura: { name: 'Morning Glory', text: 'Team ATK +15%.', effect: { kind: 'atk', value: 1.15, team: true } } },
+    aura: { name: 'Holy Bastion', text: 'Light heroes get +40% Defense.', effect: { kind: 'def', value: 1.4, team: true, element: 'light' } } },
   { id: 'lumen', rarity: 'common', name: 'Lumen', element: 'light', type: 'Support', baseAtk: 3, baseHp: 55, range: 130, attackCooldown: 1.15, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
     bio: 'A radiant cleric from the Lantern Queen\'s chapel, carrying a staff shaped like the sun.',
     basic: { name: 'Sunlight Mend', text: HEAL_BASIC },
@@ -365,22 +371,22 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Halo', text: 'Heals are 50% stronger.', effect: { kind: 'healPower', value: 1.5 } },
     sp2: { name: 'Beacon', text: 'The ally she heals deals 20% more damage for 4 seconds.', effect: { kind: 'beacon', value: 1.2 } },
     aura: { name: 'Sunlit', text: 'Whole team regenerates 1% of max HP every second.', effect: { kind: 'regen', value: 0.01, team: true } } },
-  { id: 'sol', rarity: 'common', name: 'Sol', element: 'light', type: 'Gunner', baseAtk: 6, baseHp: 48, range: 170, attackCooldown: 1.0, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'sol', rarity: 'common', name: 'Sol', element: 'light', type: 'Gunner', baseAtk: 6, baseHp: 48, range: 170, attackCooldown: 1.0, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 28,
     bio: 'An agile sun archer with a golden bow. Her arrows leave a streak of light in the air.',
-    basic: { name: 'Sun Arrow', text: 'Long-range arrows at the nearest enemy.' },
-    ultimate: { name: 'Solar Flare', text: ULT('A rain of sunlit arrows hits') },
-    trait: { name: 'Sun Archer', text: `Long-range single-target damage. ${VS.light}` },
-    sp1: { name: 'Sunpierce', text: 'Arrows pierce 1 more enemy.', effect: { kind: 'pierce', value: 1 } },
+    basic: { name: 'Sun Shell', text: 'Long-range explosive shots that splash enemies near the target.' },
+    ultimate: { name: 'Shell Rain', text: ULT('A rain of sun shells hits') },
+    trait: { name: 'Sun Gunner', text: `Explosive shots splash enemies near the target. ${VS.light}` },
+    sp1: { name: 'Flash Shell', text: 'Every 4th shot blinds the enemies it hits: they miss half their attacks for 3 s.', effect: { kind: 'blind', value: 0.5, every: 4 } },
     sp2: { name: 'Quickdraw', text: 'Attacks 20% faster.', effect: { kind: 'attackSpeed', value: 0.8 } },
-    aura: { name: 'Clear Sky', text: 'Team critical hit chance +5%.', effect: { kind: 'crit', value: 0.05, team: true } } },
-  { id: 'aegis', rarity: 'common', name: 'Aegis', element: 'light', type: 'Knight', baseAtk: 2.8, baseHp: 165, range: 26, attackCooldown: 1.0, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+    aura: { name: 'High Noon', text: 'Light heroes +40% ATK.', effect: { kind: 'atk', value: 1.4, team: true, element: 'light' } } },
+  { id: 'aegis', rarity: 'common', name: 'Aegis', element: 'light', type: 'Knight', baseAtk: 3.2, baseHp: 160, range: 26, attackCooldown: 1.0, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A heavily armored paladin guardian with a sun-emblem shield. Nothing gets past him that he does not allow.',
-    basic: { name: 'Sun Shield', text: 'Slow, heavy shield blows that shove enemies back a step.' },
-    ultimate: { name: 'Judgement', text: ULT('A pillar of light falls on') },
-    trait: { name: 'Paladin Guardian', text: `The highest HP of any hero. ${VS.light}` },
-    sp1: { name: 'Sun Ward', text: 'Takes 25% less damage.', effect: { kind: 'damageTaken', value: 0.75 } },
+    basic: { name: 'Gold Blade', text: 'Steady sword blows at the nearest enemy ahead.' },
+    ultimate: { name: 'Thunder Wave', text: ULT('A wave of golden thunder hits') },
+    trait: { name: 'Gold Guardian', text: `The toughest hero; his blows can stun (10%). ${VS.light}` },
+    sp1: { name: 'Gold Flurry', text: 'Every 4th attack is three quick blows (3x damage).', effect: { kind: 'everyNth', value: 3, every: 4 } },
     sp2: { name: 'Rally', text: 'Regenerates 3% of max HP every second.', effect: { kind: 'regen', value: 0.03 } },
-    aura: { name: 'Bulwark of Dawn', text: 'Team max HP +20%.', effect: { kind: 'hp', value: 1.2, team: true } } },
+    aura: { name: 'Swift Light', text: 'Light heroes move 25% faster.', effect: { kind: 'moveSpeed', value: 1.25, team: true, element: 'light' } } },
 ];
 
 /** Old hero ids from saves before the 20-hero roster, and who replaced them. */

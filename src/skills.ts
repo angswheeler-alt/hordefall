@@ -53,7 +53,7 @@ export function everyNth(effects: ActiveEffect[], heroId: string): Effect | unde
 }
 
 /** The hero's own every-Nth proc of this kind (slam, ward, snowball, assassinate), if any. */
-export function procEffect(effects: ActiveEffect[], kind: 'slam' | 'ward' | 'snowball' | 'assassinate', heroId: string): Effect | undefined {
+export function procEffect(effects: ActiveEffect[], kind: 'slam' | 'ward' | 'snowball' | 'assassinate' | 'charm' | 'blind', heroId: string): Effect | undefined {
   return reaching(effects, kind, heroId)[0];
 }
 

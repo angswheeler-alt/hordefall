@@ -66,14 +66,14 @@ export const HERO_PROFILES: Record<string, Partial<StatProfile> & { specialty: s
   moss: { hpMult: 1.15, aoeDmg: 0.1, crit: 0.05, specialty: 'Grove keeper: +15% HP and +10% splash damage, rarely crits (5%)' },
   // Dark
   shade: { dodge: 0.1, crit: 0.2, hpMult: 0.85, specialty: 'Shadow ninja: dodges 10% of attacks and 20% crit, less HP' },
-  vex: { stunChance: 0.1, critDmg: 1.6, hpMult: 0.85, specialty: 'Hex: 10% chance to stun, crits hit for +160%, less HP' },
+  vex: { critDmg: 1.6, effectRes: 0.3, hpMult: 0.9, specialty: 'Witch of the void: crits hit for +160% and 30% Effect Resistance, less HP' },
   rook: { critDmg: 3, crit: 0.12, ultAtk: 0.1, specialty: 'Nightstalker: crits hit for +300% and +10% Ultimate damage, but crits land less often (12%)' },
-  dread: { frenzy: 0.12, defMult: 3, shield: 0.25, specialty: 'Dark fury: 12% Frenzy and a 25% stronger Knight shield, less Defense than other Knights' },
+  dread: { atkMult: 1.2, defMult: 3.5, crit: 0.1, specialty: 'Dark blade: +20% ATK and 10% crit, less Defense than other Knights' },
   // Light
-  dawn: { stunChance: 0.06, effectTime: 0.2, effectRes: 0.3, critDmg: 1.2, specialty: 'Blinding blade: 6% chance to stun, stuns last 20% longer, 30% Effect Resistance, softer crits (+120%)' },
+  dawn: { stunChance: 0.2, effectRes: 0.3, critDmg: 1.2, specialty: 'Holy lance: 20% chance to stun, 30% Effect Resistance, softer crits (+120%)' },
   lumen: { effectRes: 0.5, defMult: 2, crit: 0.02, specialty: 'Lantern ward: 50% Effect Resistance and 2x Defense, rarely crits (2%)' },
-  sol: { burnChance: 0.12, critDmg: 2.4, crit: 0.1, specialty: 'Sunfire arrows: 12% chance to burn, crits hit for +240% but land less often (10%)' },
-  aegis: { defMult: 6, effectRes: 0.6, shield: 0.5, atkMult: 0.9, specialty: 'Holy wall: 6x Defense, 60% Effect Resistance and a 50% stronger Knight shield, a little less ATK' },
+  sol: { critDmg: 2.4, crit: 0.1, aoeDmg: 0.1, specialty: 'Sun shells: +10% splash damage, crits hit for +240% but land less often (10%)' },
+  aegis: { defMult: 5, effectRes: 0.6, stunChance: 0.1, atkMult: 0.95, specialty: 'Gold wall: 5x Defense, 60% Effect Resistance and 10% chance to stun, a little less ATK' },
 };
 
 /**

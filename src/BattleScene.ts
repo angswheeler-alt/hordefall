@@ -83,6 +83,8 @@ const SNOWBALL_REACH = 120;
 const SNOWBALL_SECONDS = 4;
 /** Assassination reaches enemies this far ahead. */
 const ASSASSIN_REACH = 220;
+/** Yolky Eggs blind for this long. */
+const BLIND_SECONDS = 3;
 const WILDFIRE_RADIUS = 40;
 const BEACON_SECONDS = 4;
 /** Lumen brings fallen heroes back this far behind her, with this share of their HP. */
@@ -159,6 +161,11 @@ interface Unit {
   /** Slowed (Sticky Spores): moves and attacks at slowMult speed until slowUntil. */
   slowUntil: number;
   slowMult: number;
+  /** Possess: fights the other enemies until charmUntil. */
+  charmUntil: number;
+  /** Yolky Eggs: misses blindMiss of its attacks until blindUntil. */
+  blindUntil: number;
+  blindMiss: number;
   /** Avalanche: deals weakMult damage until weakUntil. */
   weakUntil: number;
   weakMult: number;
@@ -433,6 +440,9 @@ export class BattleScene extends Phaser.Scene {
       frozenBlast: new Decimal(0),
       slowUntil: 0,
       slowMult: 1,
+      charmUntil: 0,
+      blindUntil: 0,
+      blindMiss: 0,
       weakUntil: 0,
       weakMult: 1,
       poisonUntil: 0,
@@ -832,7 +842,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
-    const target = this.nearest(h, this.enemies, 1);
+    const target = this.nearest(h, this.foes(), 1);
     const dist = target ? target.x - h.x : Infinity;
     if (target && dist <= h.range) {
       if (h.cooldownLeft <= 0) {
@@ -854,7 +864,7 @@ export class BattleScene extends Phaser.Scene {
       if (!target) return;
     }
     const stopAt = ENEMY_CRYSTAL_X - 14 - Math.min(h.range, 30);
-    h.x = Math.min(h.x + h.speed * dt, stopAt);
+    h.x = Math.min(h.x + h.speed * this.mul('moveSpeed', h) * dt, stopAt);
     h.view.x = h.x;
   }
 
@@ -864,10 +874,25 @@ export class BattleScene extends Phaser.Scene {
     return base * (h.hasteUntil > this.clock ? h.hasteMult : 1);
   }
 
+  /** Enemies the heroes fight: everyone but those Possessed for now. */
+  private foes(): Unit[] {
+    return this.enemies.filter((e) => !(e.charmUntil > this.clock));
+  }
+
   private stepEnemy(e: Unit, dt: number) {
     const slow = e.slowUntil > this.clock ? e.slowMult : 1;
     e.cooldownLeft -= dt * slow * this.mul('enemyHaste', null);
     if (e.rootedUntil > this.clock) return;
+    // Possessed: hits the closest other enemy in reach instead of the heroes.
+    if (e.charmUntil > this.clock) {
+      const victim = this.enemies.filter((o) => o.alive && o !== e && !(o.charmUntil > this.clock) && Math.abs(o.x - e.x) <= e.range + 20).sort((a, b) => Math.abs(a.x - e.x) - Math.abs(b.x - e.x))[0];
+      if (victim && e.cooldownLeft <= 0) {
+        e.cooldownLeft = e.cooldown;
+        this.lunge(e, victim.x > e.x ? 1 : -1);
+        this.damageUnit(victim, e.atk.times(elementMultiplier(e.element, victim.element)), null);
+      }
+      return;
+    }
     const target = this.nearest(e, this.heroes, -1);
     const dist = target ? e.x - target.x : Infinity;
     if (target && dist <= e.range) {
@@ -901,6 +926,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private enemyHits(e: Unit, target: Unit) {
+    if (e.blindUntil > this.clock && Math.random() < e.blindMiss) {
+      this.floatText(target.x, target.y - 26, 'MISS', '#fff6a0', 11);
+      return;
+    }
     if (Math.random() < (target.stats ? target.stats.dodge.value : this.sum('dodge', target))) {
       this.floatText(target.x, target.y - 26, 'MISS', '#c9b8ff', 11);
       if (this.mastery(target, 'Rogue')) target.riposte = true;
@@ -976,6 +1005,17 @@ export class BattleScene extends Phaser.Scene {
     const slam = procEffect(fx, 'slam', def.id);
     const snowball = procEffect(fx, 'snowball', def.id);
     const assassin = procEffect(fx, 'assassinate', def.id);
+    // Possess: every Nth attack turns a regular enemy near the target against its own side.
+    const charm = procEffect(fx, 'charm', def.id);
+    if (procs(charm, h.attacks) && !target.isBoss && target.alive) {
+      target.charmUntil = this.clock + charm!.value;
+      this.floatText(target.x, target.y - 34, 'POSSESSED', '#c9b8ff', 10);
+      const next = this.nearest(h, this.foes(), 1);
+      if (!next) return;
+      target = next;
+    }
+    const blind = procEffect(fx, 'blind', def.id);
+    const blinded = procs(blind, h.attacks);
     const element = this.dealsAs(h);
     // Assassination: every Nth attack blinks to the farthest enemy in reach.
     if (procs(assassin, h.attacks)) {
@@ -1043,6 +1083,10 @@ export class BattleScene extends Phaser.Scene {
         dealt = dealt.plus(amount);
         this.damageUnit(t, amount, h, crit);
         if (t.alive) this.applyEffects(h, t, amount, procced);
+        if (t.alive && blinded) {
+          t.blindUntil = this.clock + BLIND_SECONDS;
+          t.blindMiss = blind!.value;
+        }
         if (t.alive && rolled) {
           t.markMult = Math.max(t.markUntil > this.clock ? t.markMult : 1, snowball!.value);
           t.markUntil = Math.max(t.markUntil, this.clock + SNOWBALL_SECONDS);
@@ -1168,6 +1212,7 @@ export class BattleScene extends Phaser.Scene {
   private damageUnit(target: Unit, amount: Decimal, source: Unit | null, crit = false) {
     if (!target.alive) return;
     if (target.side === 'enemy' && target.markUntil > this.clock) amount = amount.times(target.markMult);
+    if (target.side === 'enemy') amount = amount.times(this.mul('enemyVuln', null));
     let toHp = amount;
     if (target.shield.gt(0)) {
       const soaked = Decimal.min(target.shield, amount);

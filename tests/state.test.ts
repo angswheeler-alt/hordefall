@@ -232,6 +232,10 @@ describe('medals, unlocks and evolution', () => {
     s.stars.brook = AURA_EVOLUTIONS;
     // Dread Veil (Shade): enemies attack 10% slower. Spring Blessing (Brook): Water heroes +15% HP.
     expect(mulEffect(s.effects(), 'enemyHaste', null)).toBeCloseTo(0.9, 6);
+    s.levels.dread = 10;
+    s.stars.dread = AURA_EVOLUTIONS;
+    // Shatter Armor (Dread): enemies take 15% more damage.
+    expect(mulEffect(s.effects(), 'enemyVuln', null)).toBeCloseTo(1.15, 6);
     expect(s.heroPower(starter, 10).hp.div(brineHp).toNumber()).toBeCloseTo(1.15, 6);
     expect(s.heroPower(byId('thorn')).hp.div(thornHp).toNumber()).toBeCloseTo(1, 6);
   });
@@ -466,7 +470,7 @@ describe('relics', () => {
     for (const id of ['brine', 'marina', 'aegis', 'flint', 'briar']) s.levels[id] = 1;
     expect(s.heroStats(byId('brine')).ultAtk).toBeCloseTo(0.2);
     expect(s.heroStats(byId('marina')).critRate).toBeCloseTo(0.2);
-    expect(s.heroStats(byId('aegis')).knightShield).toBeCloseTo(0.5);
+    expect(s.heroStats(byId('aegis')).stunChance).toBeCloseTo(0.1);
     expect(s.heroStats(byId('flint')).bonusGold).toBeCloseTo(1); // 2x gold, like Crush's Extra Gold
     expect(s.heroStats(byId('briar')).critRate).toBeGreaterThanOrEqual(0.25);
   });
