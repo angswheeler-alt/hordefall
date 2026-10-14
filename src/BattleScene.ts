@@ -16,6 +16,7 @@ import {
   enemyElement,
   bossElement,
   bossWeakness,
+  STRONG_VS,
   BOSS_ROTATION_START,
   type Element,
   type HeroDef,
@@ -35,6 +36,11 @@ import {
 import type { GameState } from './state';
 import { play } from './sfx';
 import coinSmallUrl from './assets/ui/coin-small.png';
+import crystalPlayerUrl from './assets/ui/crystal-player.png';
+import crystalEnemyUrl from './assets/ui/crystal-enemy.png';
+import chestWoodUrl from './assets/ui/chest-wood.png';
+import chestBronzeUrl from './assets/ui/chest-bronze.png';
+import chestGoldUrl from './assets/ui/chest-gold.png';
 import { sumEffect, mulEffect, everyNth } from './skills';
 import type { EffectKind } from './data';
 import { comboMult, executeMult, signatureReflect, splitHeal } from './kits';
@@ -230,6 +236,11 @@ export class BattleScene extends Phaser.Scene {
 
   preload() {
     this.load.image('coin', coinSmallUrl);
+    this.load.image('crystal-player', crystalPlayerUrl);
+    this.load.image('crystal-enemy', crystalEnemyUrl);
+    this.load.image('chest-wood', chestWoodUrl);
+    this.load.image('chest-bronze', chestBronzeUrl);
+    this.load.image('chest-gold', chestGoldUrl);
     for (const r of REGIONS) for (const layer of ['sky', 'far', 'ground']) this.load.image(`bg-${r}-${layer}`, `bg/${r}_${layer}.png`);
     // Hero sprites (32x32, feet on row 30). A hero without a file falls back to its placeholder block.
     for (const h of HEROES) this.load.image(`hero-${h.id}`, `heroes/${h.id}.png`);
@@ -307,24 +318,6 @@ export class BattleScene extends Phaser.Scene {
       g.fillStyle(0xffffff, 1).fillRect(8, 20, 12, 10).fillRect(26, 20, 12, 10);
       g.fillStyle(0x000000, 1).fillRect(9, 23, 5, 5).fillRect(27, 23, 5, 5).fillRect(8, 42, 30, 5);
     });
-    box('crystal-player', 30, 50, () => {
-      g.fillStyle(0x0b2a4a, 1).fillTriangle(15, 0, 30, 25, 0, 25).fillTriangle(0, 25, 30, 25, 15, 50);
-      g.fillStyle(0x6fd3ff, 1).fillTriangle(15, 4, 26, 25, 4, 25).fillTriangle(4, 25, 26, 25, 15, 46);
-    });
-    box('crystal-enemy', 30, 50, () => {
-      g.fillStyle(0x3a0b2a, 1).fillTriangle(15, 0, 30, 25, 0, 25).fillTriangle(0, 25, 30, 25, 15, 50);
-      g.fillStyle(0xd04a8a, 1).fillTriangle(15, 4, 26, 25, 4, 25).fillTriangle(4, 25, 26, 25, 15, 46);
-    });
-    const chest = (key: string, color: number) =>
-      box(key, 22, 16, () => {
-        g.fillStyle(0x000000, 1).fillRect(0, 0, 22, 16);
-        g.fillStyle(color, 1).fillRect(1, 1, 20, 14);
-        g.fillStyle(0x000000, 1).fillRect(1, 6, 20, 2);
-        g.fillStyle(0xfff3b0, 1).fillRect(9, 5, 4, 5);
-      });
-    chest('chest-wood', 0x9a6a3a);
-    chest('chest-bronze', 0xcd7f32);
-    chest('chest-gold', 0xffcc33);
     g.destroy();
   }
 
@@ -1291,7 +1284,7 @@ export class BattleScene extends Phaser.Scene {
     let roll = Math.random() * total;
     const kind = CHESTS.find((c) => (roll -= c.weight) < 0) ?? CHESTS[0];
     const y = Phaser.Math.Between(70, 130);
-    const chest = this.add.image(WIDTH + 20, y, kind.key).setScale(1.6).setDepth(900).setScrollFactor(0).setInteractive({ useHandCursor: true });
+    const chest = this.add.image(WIDTH + 20, y, kind.key).setScale(1.5).setDepth(900).setScrollFactor(0).setInteractive({ useHandCursor: true });
     // Destroying an object doesn't stop its tweens, and the bob loops forever, so both are killed with the chest.
     const remove = () => {
       this.tweens.killTweensOf(chest);
@@ -1436,9 +1429,12 @@ export class BattleScene extends Phaser.Scene {
   private drawHud() {
     const stage = this.state.stage;
     const boss = isBossStage(stage);
-    this.stageText.setText(`Stage ${stage}${boss ? '  BOSS' : ''}`);
-    const farming = !this.state.autoAdvance ? '  (farming)' : '';
-    this.infoText.setText(boss ? `Boss is weak to ${bossWeakness(stage)}${farming}` : `Enemies: ${enemyElement(stage)}${farming}`);
+    this.stageText.setText(`Stage ${stage}${boss ? ' · BOSS' : ''}`);
+    const foe = boss ? bossElement(stage) : enemyElement(stage);
+    const counter = boss ? bossWeakness(stage) : (Object.keys(STRONG_VS) as Element[]).find((e) => STRONG_VS[e] === foe)!;
+    const farming = !this.state.autoAdvance ? ' · farming' : '';
+    const cap = (e: Element) => e[0].toUpperCase() + e.slice(1);
+    this.infoText.setText(`${cap(foe)} ${boss ? 'boss' : 'foes'} · ${cap(counter)} hits x${elementMultiplier(counter, foe)}${farming}`);
 
     const ratio = this.crystal.maxHp.gt(0) ? Math.max(0, this.crystal.hp.div(this.crystal.maxHp).toNumber()) : 0;
     this.crystalBar.clear();
