@@ -1,7 +1,7 @@
 import Decimal from 'break_infinity.js';
 import type { HeroStats, BigStat, StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
 import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
@@ -152,13 +152,19 @@ export class UI {
     $('coll').hidden = true;
   }
 
+  /** Heroes the game shows: the released ones, plus any this save already owns. */
+  private shownHeroes() {
+    return HEROES.filter((h) => RELEASED_HEROES.includes(h.id) || (this.state.levels[h.id] ?? 0) > 0);
+  }
+
   private renderCollection() {
     const s = this.state;
-    const elements = [...new Set(HEROES.map((h) => h.element))];
-    const owned = HEROES.filter((h) => (s.levels[h.id] ?? 0) > 0).length;
-    $('coll-count').textContent = `${owned}/${HEROES.length}`;
+    const shown = this.shownHeroes();
+    const elements = [...new Set(shown.map((h) => h.element))];
+    const owned = shown.filter((h) => (s.levels[h.id] ?? 0) > 0).length;
+    $('coll-count').textContent = `${owned}/${shown.length}`;
     const groups = elements.map((el) => {
-      const tiles = HEROES.filter((h) => h.element === el)
+      const tiles = shown.filter((h) => h.element === el)
         .map((h) => {
           const recruited = (s.levels[h.id] ?? 0) > 0;
           const crests = s.crests[h.id] ?? 0;
@@ -608,8 +614,9 @@ export class UI {
       else if (!$('coll').hidden) this.closeCollection();
     });
     const step = (dir: number) => {
-      const i = HEROES.findIndex((h) => h.id === this.sheetHero);
-      this.openSheet(HEROES[(i + dir + HEROES.length) % HEROES.length].id);
+      const shown = this.shownHeroes();
+      const i = shown.findIndex((h) => h.id === this.sheetHero);
+      this.openSheet(shown[(i + dir + shown.length) % shown.length].id);
     };
     $('sheet-prev').addEventListener('click', () => step(-1));
     $('sheet-next').addEventListener('click', () => step(1));
@@ -627,10 +634,10 @@ export class UI {
   private confirmChest() {
     const s = this.state;
     // Real odds: only rarities that have heroes can drop, so the weights are re-normalised.
-    const odds = rarityOdds(HEROES, CHEST_RARITY_WEIGHTS)
+    const odds = rarityOdds(PLAYABLE_HEROES, CHEST_RARITY_WEIGHTS)
       .map(([r, pct]) => `<li><b>${cap(r)}</b><span>${+pct.toFixed(1)}% · ${CREST_ROLLS[r as keyof typeof CREST_ROLLS].map(([c]) => c).join('/')} medals</span></li>`)
       .join('');
-    const faces = HEROES.map((h) => `<span class="face art" title="${h.name}" style="${faceStyle(h)}">${h.name[0]}</span>`).join('');
+    const faces = PLAYABLE_HEROES.map((h) => `<span class="face art" title="${h.name}" style="${faceStyle(h)}">${h.name[0]}</span>`).join('');
     const afford = s.gems >= CHEST_COST;
     this.showModal(
       'Hero Chest',
