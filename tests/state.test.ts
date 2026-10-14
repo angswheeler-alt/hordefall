@@ -219,6 +219,14 @@ describe('trial tickets', () => {
     expect(wait).toBeLessThanOrEqual(TICKET_MINUTES * 60);
   });
 
+  it('open only after the stage 50 boss', () => {
+    const s = fresh();
+    const element = s.openTrials()[0];
+    expect(s.playTrial(element, 1)).toBeNull();
+    s.bestStage = 51;
+    expect(s.playTrial(element, 1)?.won).toBe(true);
+  });
+
   it('each trial level pays more than the last', () => {
     for (let i = 1; i < TRIAL_LEVELS.length; i++) expect(TRIAL_LEVELS[i].essence).toBeGreaterThan(TRIAL_LEVELS[i - 1].essence);
   });

@@ -513,6 +513,8 @@ export const TRIAL_LEVELS: TrialLevel[] = TRIAL_DIFFICULTY.map((difficulty, i) =
 }));
 export const TRIAL_TIERS = TRIAL_LEVELS.length;
 export const TRIAL_TIME = 30;
+/** Trials open once the stage 50 boss is beaten, so the 20 starting tickets don't flood a brand-new player with medals. */
+export const TRIAL_UNLOCK_STAGE = 51;
 export const TICKET_MINUTES = 30;
 export const TICKET_CAP = 20;
 export const TRIAL_BOSS_NAMES: Record<Element, string> = {
