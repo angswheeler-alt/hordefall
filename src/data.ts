@@ -496,7 +496,9 @@ export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
  * Trial levels from Samuel's table (original dungeon chart). Essence is the
  * resource reward, difficulty sets the boss strength (roughly the Ember level
  * the team needs), `req` is [heroes, Ember level] needed to enter, and medals
- * is how many random heroes of the element get a Hero Crest on a win.
+ * is how many Hero Crests random heroes of the element get on a win: one per
+ * level number (level 20 pays 20), so high Trials are the main way to raise
+ * stars, which push past the Rekindle wall.
  */
 export interface TrialLevel { essence: number; difficulty: number; req: [number, number] | null; medals: number }
 const TRIAL_DIFFICULTY = [1, 10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 950, 1100, 1300, 1500, 1700, 2000, 2300, 2600, 2900, 3200, 3600];
@@ -509,7 +511,7 @@ export const TRIAL_LEVELS: TrialLevel[] = TRIAL_DIFFICULTY.map((difficulty, i) =
   essence: 20 * 2 ** i,
   difficulty,
   req: TRIAL_REQS[i],
-  medals: i + 1 >= 16 ? 2 : 1,
+  medals: i + 1,
 }));
 export const TRIAL_TIERS = TRIAL_LEVELS.length;
 export const TRIAL_TIME = 30;
@@ -646,5 +648,6 @@ export const RELIC_ENHANCE_COSTS = [5, 10, 20, 40];
 export const RELIC_MAX_STARS = Math.max(...RELICS.map((r) => r.stars));
 /** Relic slots: 2 free, then up to 20 more bought with Gems once your best stage reaches each gate (22 in all, like the original). */
 export const RELIC_START_SLOTS = 2;
-export const RELIC_SLOT_COSTS = [100, 150, 200, 300, 400, 500, 650, 800, 1000, 1200, 1500, 1800, 2200, 2600, 3000, 3500, 4000, 4500, 5000, 6000];
+/** About 10,700 Gems for all 20 (was ~39,000, over two years of free Gems); the stage gates still pace them. */
+export const RELIC_SLOT_COSTS = [50, 75, 100, 125, 150, 200, 250, 300, 350, 400, 450, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1500];
 export const RELIC_SLOT_STAGES = [25, 50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000, 1200, 1400, 1600, 1800, 2000, 2500];

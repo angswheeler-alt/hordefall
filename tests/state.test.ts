@@ -228,7 +228,24 @@ describe('trial tickets', () => {
   });
 
   it('each trial level pays more than the last', () => {
-    for (let i = 1; i < TRIAL_LEVELS.length; i++) expect(TRIAL_LEVELS[i].essence).toBeGreaterThan(TRIAL_LEVELS[i - 1].essence);
+    for (let i = 1; i < TRIAL_LEVELS.length; i++) {
+      expect(TRIAL_LEVELS[i].essence).toBeGreaterThan(TRIAL_LEVELS[i - 1].essence);
+      expect(TRIAL_LEVELS[i].medals).toBeGreaterThan(TRIAL_LEVELS[i - 1].medals);
+    }
+  });
+
+  it('a win hands out all its medals, more than the element has heroes', () => {
+    const s = fresh();
+    s.bestStage = 51;
+    const element = s.openTrials()[0];
+    s.trialBest[element] = 7;
+    for (const h of HEROES) if (h.element === element) s.levels[h.id] = 1;
+    for (const h of HEROES) s.emberLevels[h.id] = 500;
+    const before = HEROES.reduce((t, h) => t + (s.crests[h.id] ?? 0), 0);
+    const r = s.playTrial(element, 8)!;
+    expect(r.won).toBe(true);
+    expect(r.medals).toHaveLength(TRIAL_LEVELS[7].medals);
+    expect(HEROES.reduce((t, h) => t + (s.crests[h.id] ?? 0), 0) - before).toBe(TRIAL_LEVELS[7].medals);
   });
 });
 
