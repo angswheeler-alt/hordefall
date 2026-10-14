@@ -1,12 +1,26 @@
 export type Element = 'water' | 'fire' | 'earth' | 'light' | 'dark';
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
-export type Job = 'Blademaster' | 'Mage' | 'Knight' | 'Rogue' | 'Ranger' | 'Support';
 /**
- * The hero standard (design/base-heroes.md): every hero has one of five Roles, which sets the stat
- * shape, plus a Class (several heroes can share one), a Signature passive of their own (on from 1★) and
- * an Ultimate that does something only they do, with a 5★ twist. Heroes not yet rebuilt to the standard leave these out.
+ * The hero standard (design/base-heroes.md): every hero has one of ten Types, the combat archetype
+ * that sets how it attacks, where it stands and its stat shape (many heroes share a Type), plus a
+ * Signature passive of their own (on from 1★) and an Ultimate that does something only they do, with a
+ * 5★ twist. Heroes not yet rebuilt to the standard leave the Signature and Ultimate effect out.
  */
-export type Role = 'Vanguard' | 'Striker' | 'Marksman' | 'Caster' | 'Mender';
+export type HeroType =
+  | 'Ranger' | 'Gunner' | 'Magician' | 'Knight' | 'Barbarian'
+  | 'Rogue' | 'Lancer' | 'Samurai' | 'Brawler' | 'Support';
+export const HERO_TYPES: Record<HeroType, string> = {
+  Ranger: 'Ranged damage: shoots arrows from behind the front line.',
+  Gunner: 'Ranged damage: firearms with heavy, piercing or explosive shots.',
+  Magician: 'Magic damage: spells that splash a small area.',
+  Knight: 'Defensive melee: armoured front line that starts each life with a shield.',
+  Barbarian: 'Heavy melee: brute force, big hits and Frenzy.',
+  Rogue: 'Agile damage: fast, evasive, lots of crits.',
+  Lancer: 'Reach melee: a spear that strikes from a step further back.',
+  Samurai: 'Precision melee: focused single-target strikes and huge crits.',
+  Brawler: 'Close combat: tough fists, combos and stuns.',
+  Support: 'Team utility: heals and protects the team.',
+};
 
 /** Signature passives. Numbers are fractions or multipliers. */
 export type Signature =
@@ -39,10 +53,8 @@ export interface HeroDef {
   name: string;
   element: Element;
   rarity: Rarity;
-  job: Job;
-  /** Set for heroes built to the hero standard. */
-  role?: Role;
-  heroClass?: string;
+  /** Combat archetype: sets the stat shape and the Knight shield (see HERO_TYPES). */
+  type: HeroType;
   /** The Signature's mechanics; its name and text are `trait`. */
   signature?: Signature;
   /** The Ultimate's own effect and the 5★ twist's text. */
@@ -117,10 +129,11 @@ export const ELEMENT_COLORS: Record<Element, number> = {
 };
 
 // The first 20 heroes: four per element. All Common. Brine is the free starter.
-// Brine, Ember, Thorn, Lumen and Rook are built to the hero standard (role, class, Signature, unique Ultimate);
-// the rest keep their older kits until they are rebuilt.
-// Job baselines (each hero varies a little): Blademaster quick melee, Knight high-HP front line,
-// Mage ranged splash, Rogue fast melee with 2x gold, Ranger long-range single target, Support healer.
+// Brine, Ember, Thicket (id thorn), Lumen and Rook are built to the hero standard (Signature, unique Ultimate);
+// the rest keep their older kits until they are rebuilt. Thorn and Blaze were renamed Thicket and Flare
+// (names only; ids stay) because Crush Them All already has heroes with those names.
+// Type baselines (each hero varies a little): Knight high-HP front line, Magician ranged splash,
+// Ranger and Gunner long-range single target, Support healer, the other melee types quick and hard-hitting.
 const VS: Record<Element, string> = {
   fire: 'Fire deals 4x to Earth and 0.5x to Water.',
   earth: 'Earth deals 4x to Water and 0.5x to Fire.',
@@ -133,15 +146,15 @@ const HEAL_BASIC = 'Heals the most injured nearby ally for 3x ATK. Attacks when 
 
 export const HEROES: HeroDef[] = [
   // ---- Fire: passion and destruction ----
-  { id: 'blaze', rarity: 'common', name: 'Blaze', element: 'fire', job: 'Blademaster', baseAtk: 5.5, baseHp: 55, range: 28, attackCooldown: 0.75, moveSpeed: 125, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'blaze', rarity: 'common', name: 'Flare', element: 'fire', type: 'Barbarian', baseAtk: 5.5, baseHp: 55, range: 28, attackCooldown: 0.75, moveSpeed: 125, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A young red-haired swordsman whose blade catches fire when he gets excited, which is always.',
     basic: { name: 'Searing Slash', text: 'Quick flaming slashes at the nearest enemy ahead.' },
     ultimate: { name: 'Wildfire Arc', text: ULT('One huge burning sweep hits') },
-    trait: { name: 'Blademaster', text: `Fast melee damage. ${VS.fire}` },
+    trait: { name: 'Blazing Fury', text: `Heavy, fast melee damage. ${VS.fire}` },
     sp1: { name: 'Flashfire', text: '20% chance for each attack to strike twice.', effect: { kind: 'doubleStrike', value: 0.2 } },
     sp2: { name: 'Burning Edge', text: 'Deals 25% more damage to bosses.', effect: { kind: 'bossDamage', value: 1.25 } },
     aura: { name: 'Kindled Spirit', text: 'Team ATK +15%.', effect: { kind: 'atk', value: 1.15, team: true } } },
-  { id: 'ember', rarity: 'common', name: 'Ember', element: 'fire', job: 'Mage', role: 'Caster', heroClass: 'Pyromancer', baseAtk: 8, baseHp: 40, range: 150, attackCooldown: 1.4, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 40,
+  { id: 'ember', rarity: 'common', name: 'Ember', element: 'fire', type: 'Magician', baseAtk: 8, baseHp: 40, range: 150, attackCooldown: 1.4, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 40,
     bio: 'An energetic arcanist with flame-shaped hair ornaments and a fire orb she never puts down.',
     basic: { name: 'Fire Orb', text: 'Ranged fireballs that splash every enemy near the target.' },
     ultimate: { name: 'Meteor', text: `${ULT('A meteor crashes into')} Leaves burning ground for 5 seconds that burns anything walking through it.` },
@@ -152,15 +165,15 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Wildfire', text: 'A Burning enemy that dies explodes for 2x ATK on enemies around it.', effect: { kind: 'burnBurst', value: 2 } },
     sp2: { name: 'Stoke the Flames', text: '+40% damage to Burning enemies.', effect: { kind: 'vsBurning', value: 1.4 } },
     aura: { name: 'Heat Shimmer', text: 'Team critical hit chance +5%.', effect: { kind: 'crit', value: 0.05, team: true } } },
-  { id: 'flint', rarity: 'common', name: 'Flint', element: 'fire', job: 'Rogue', baseAtk: 6, baseHp: 50, range: 24, attackCooldown: 0.6, moveSpeed: 145, unlockCost: 50, upgradeBaseCost: 15, goldMult: 2,
+  { id: 'flint', rarity: 'common', name: 'Flint', element: 'fire', type: 'Rogue', baseAtk: 6, baseHp: 50, range: 24, attackCooldown: 0.6, moveSpeed: 145, unlockCost: 50, upgradeBaseCost: 15, goldMult: 2,
     bio: 'An agile flame striker with two daggers and armor that glows like banked coals.',
     basic: { name: 'Spark Daggers', text: 'Very fast stabs at the closest enemy.' },
     ultimate: { name: 'Cinder Storm', text: ULT('Dashes through') },
-    trait: { name: 'Flame Striker', text: `Runs fast and earns 2x gold from every kill. ${VS.fire}` },
+    trait: { name: 'Flame Runner', text: `Runs fast and earns 2x gold from every kill. ${VS.fire}` },
     sp1: { name: 'Spark Step', text: 'Dodges 25% of incoming attacks.', effect: { kind: 'dodge', value: 0.25 } },
     sp2: { name: 'Ember Edge', text: '+20% critical hit chance.', effect: { kind: 'crit', value: 0.2 } },
     aura: { name: 'Scorched Loot', text: 'Team earns 25% more gold from kills.', effect: { kind: 'gold', value: 1.25, team: true } } },
-  { id: 'cinder', rarity: 'common', name: 'Cinder', element: 'fire', job: 'Knight', baseAtk: 3, baseHp: 160, range: 26, attackCooldown: 1.1, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'cinder', rarity: 'common', name: 'Cinder', element: 'fire', type: 'Brawler', baseAtk: 3, baseHp: 160, range: 26, attackCooldown: 1.1, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A bulky inferno guardian who carries a shield of cooling magma and stands in front of everyone.',
     basic: { name: 'Magma Bash', text: 'Slow, heavy shield blows that shove enemies back a step.' },
     ultimate: { name: 'Eruption', text: ULT('Slams the shield down, bursting magma under') },
@@ -170,7 +183,7 @@ export const HEROES: HeroDef[] = [
     aura: { name: 'Forge Wall', text: 'Whole team takes 10% less damage.', effect: { kind: 'damageTaken', value: 0.9, team: true } } },
 
   // ---- Earth (Grass): life and growth ----
-  { id: 'briar', rarity: 'common', name: 'Briar', element: 'earth', job: 'Ranger', baseAtk: 5.5, baseHp: 45, range: 165, attackCooldown: 0.9, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'briar', rarity: 'common', name: 'Briar', element: 'earth', type: 'Ranger', baseAtk: 5.5, baseHp: 45, range: 165, attackCooldown: 0.9, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A nimble leaf ranger in leaf-shaped armor who can put an arrow through a falling acorn.',
     basic: { name: 'Leaf Arrow', text: 'Long-range arrows at the nearest enemy.' },
     ultimate: { name: 'Thornrain', text: ULT('A volley of thorned arrows hits') },
@@ -178,7 +191,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Split Shot', text: 'Arrows pierce 1 more enemy.', effect: { kind: 'pierce', value: 1 } },
     sp2: { name: 'Quickdraw', text: 'Attacks 20% faster.', effect: { kind: 'attackSpeed', value: 0.8 } },
     aura: { name: 'Canopy Cover', text: 'Whole team dodges 5% of attacks.', effect: { kind: 'dodge', value: 0.05, team: true } } },
-  { id: 'fern', rarity: 'common', name: 'Fern', element: 'earth', job: 'Support', baseAtk: 3, baseHp: 55, range: 130, attackCooldown: 1.2, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
+  { id: 'fern', rarity: 'common', name: 'Fern', element: 'earth', type: 'Support', baseAtk: 3, baseHp: 55, range: 130, attackCooldown: 1.2, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
     bio: 'A gentle sylvan healer whose wooden staff is still alive and occasionally flowers.',
     basic: { name: 'Sap Mend', text: HEAL_BASIC },
     ultimate: { name: 'Spring Bloom', text: 'Fully heals every living hero.' },
@@ -186,7 +199,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Green Touch', text: 'Heals are 50% stronger.', effect: { kind: 'healPower', value: 1.5 } },
     sp2: { name: 'Seedbed', text: 'Fallen heroes respawn twice as fast.', effect: { kind: 'respawn', value: 0.5, team: true } },
     aura: { name: 'Bloom', text: 'Whole team regenerates 1% of max HP every second.', effect: { kind: 'regen', value: 0.01, team: true } } },
-  { id: 'thorn', rarity: 'common', name: 'Thorn', element: 'earth', job: 'Knight', role: 'Vanguard', heroClass: 'Briarwarden', baseAtk: 3.5, baseHp: 150, range: 34, attackCooldown: 1.0, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'thorn', rarity: 'common', name: 'Thicket', element: 'earth', type: 'Knight', baseAtk: 3.5, baseHp: 150, range: 34, attackCooldown: 1.0, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A sturdy thorn sentinel in bark armor. His thorn spear gives him a little more reach than other knights.',
     basic: { name: 'Thorn Thrust', text: 'Heavy spear thrusts with a little extra reach that shove enemies back.' },
     ultimate: { name: 'Bramble Wall', text: `${ULT('Thorns burst from the ground under')} Roots them in place for 3 seconds (bosses for 1).` },
@@ -197,7 +210,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Taproot', text: 'Regenerates 3% of max HP every second.', effect: { kind: 'regen', value: 0.03 } },
     sp2: { name: 'Thornmail', text: 'Bramble Hide reflects 50% instead of 20%.', effect: { kind: 'reflect', value: 0.3 } },
     aura: { name: 'Old Growth', text: 'Team max HP +20%.', effect: { kind: 'hp', value: 1.2, team: true } } },
-  { id: 'moss', rarity: 'common', name: 'Moss', element: 'earth', job: 'Mage', baseAtk: 7, baseHp: 48, range: 140, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 48,
+  { id: 'moss', rarity: 'common', name: 'Moss', element: 'earth', type: 'Magician', baseAtk: 7, baseHp: 48, range: 140, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 48,
     bio: 'A hooded root druid whose staff is crowned with a seed that glows when something nearby is growing.',
     basic: { name: 'Spore Burst', text: 'Ranged spore clouds that splash every enemy near the target.' },
     ultimate: { name: 'Root Eruption', text: ULT('Giant roots crash up beneath') },
@@ -207,7 +220,7 @@ export const HEROES: HeroDef[] = [
     aura: { name: 'Living Grove', text: 'Whole team attacks 10% faster.', effect: { kind: 'attackSpeed', value: 0.9, team: true } } },
 
   // ---- Water: adaptability and wisdom ----
-  { id: 'brine', rarity: 'common', name: 'Brine', element: 'water', job: 'Blademaster', role: 'Striker', heroClass: 'Corsair', baseAtk: 5, baseHp: 65, range: 28, attackCooldown: 0.8, moveSpeed: 120, unlockCost: 0, upgradeBaseCost: 5, goldMult: 1,
+  { id: 'brine', rarity: 'common', name: 'Brine', element: 'water', type: 'Samurai', baseAtk: 5, baseHp: 65, range: 28, attackCooldown: 0.8, moveSpeed: 120, unlockCost: 0, upgradeBaseCost: 5, goldMult: 1,
     bio: 'A young tidecoast sailor with a cutlass and a sea-blue scarf, sworn to bring the Lantern Queen home. The reason every early boss goes down.',
     basic: { name: 'Cutlass Slash', text: 'Fast cutlass slashes at the nearest enemy ahead.' },
     ultimate: { name: 'Rogue Wave', text: `${ULT('A crashing wave hits')} Washes regular enemies far back.` },
@@ -218,7 +231,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Undertow', text: '20% chance for each attack to strike twice.', effect: { kind: 'doubleStrike', value: 0.2 } },
     sp2: { name: 'Salt Spray', text: '+15% critical hit chance.', effect: { kind: 'crit', value: 0.15 } },
     aura: { name: 'Fair Winds', text: 'Whole team attacks 10% faster.', effect: { kind: 'attackSpeed', value: 0.9, team: true } } },
-  { id: 'brook', rarity: 'common', name: 'Brook', element: 'water', job: 'Support', baseAtk: 2.8, baseHp: 60, range: 140, attackCooldown: 1.2, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
+  { id: 'brook', rarity: 'common', name: 'Brook', element: 'water', type: 'Support', baseAtk: 2.8, baseHp: 60, range: 140, attackCooldown: 1.2, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
     bio: 'A calm wave cleric in flowing robes who heals through a water crystal that never stops trickling.',
     basic: { name: 'Clear Spring', text: HEAL_BASIC },
     ultimate: { name: 'High Tide', text: 'Fully heals every living hero.' },
@@ -226,7 +239,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Pure Water', text: 'Heals are 50% stronger.', effect: { kind: 'healPower', value: 1.5 } },
     sp2: { name: 'Still Waters', text: 'Takes 25% less damage.', effect: { kind: 'damageTaken', value: 0.75 } },
     aura: { name: 'Rain Song', text: 'Whole team takes 10% less damage.', effect: { kind: 'damageTaken', value: 0.9, team: true } } },
-  { id: 'ripple', rarity: 'common', name: 'Ripple', element: 'water', job: 'Ranger', baseAtk: 6, baseHp: 44, range: 175, attackCooldown: 1.0, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'ripple', rarity: 'common', name: 'Ripple', element: 'water', type: 'Ranger', baseAtk: 6, baseHp: 44, range: 175, attackCooldown: 1.0, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A fast aqua archer with a curved bow shaped like a breaking wave.',
     basic: { name: 'Wave Arrow', text: 'Long-range arrows at the nearest enemy.' },
     ultimate: { name: 'Tidal Volley', text: ULT('A wall of water arrows hits') },
@@ -234,7 +247,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Ricochet', text: 'Arrows pierce 1 more enemy.', effect: { kind: 'pierce', value: 1 } },
     sp2: { name: 'Crest Shot', text: '+20% critical hit chance.', effect: { kind: 'crit', value: 0.2 } },
     aura: { name: 'Flowing Aim', text: 'Whole team attacks 10% faster.', effect: { kind: 'attackSpeed', value: 0.9, team: true } } },
-  { id: 'marina', rarity: 'common', name: 'Marina', element: 'water', job: 'Mage', baseAtk: 8.5, baseHp: 38, range: 160, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 36,
+  { id: 'marina', rarity: 'common', name: 'Marina', element: 'water', type: 'Magician', baseAtk: 8.5, baseHp: 38, range: 160, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 36,
     bio: 'A mysterious sea witch hung with shells and pearls, who carries the sea in a single orb.',
     basic: { name: 'Water Orb', text: 'Ranged bursts of seawater that splash every enemy near the target.' },
     ultimate: { name: 'Maelstrom', text: ULT('A whirlpool swallows') },
@@ -244,7 +257,7 @@ export const HEROES: HeroDef[] = [
     aura: { name: 'Deep Current', text: 'Team ATK +10%.', effect: { kind: 'atk', value: 1.1, team: true } } },
 
   // ---- Dark: mystery and forbidden power ----
-  { id: 'shade', rarity: 'common', name: 'Shade', element: 'dark', job: 'Rogue', baseAtk: 6.5, baseHp: 46, range: 24, attackCooldown: 0.55, moveSpeed: 150, unlockCost: 50, upgradeBaseCost: 15, goldMult: 2,
+  { id: 'shade', rarity: 'common', name: 'Shade', element: 'dark', type: 'Rogue', baseAtk: 6.5, baseHp: 46, range: 24, attackCooldown: 0.55, moveSpeed: 150, unlockCost: 50, upgradeBaseCost: 15, goldMult: 2,
     bio: 'An agile shadow blade with twin crescent daggers, in it for the loot and not pretending otherwise.',
     basic: { name: 'Crescent Cuts', text: 'Very fast stabs at the closest enemy.' },
     ultimate: { name: 'Shadow Flurry', text: ULT('Blinks through') },
@@ -252,7 +265,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Smoke Step', text: 'Dodges 25% of incoming attacks.', effect: { kind: 'dodge', value: 0.25 } },
     sp2: { name: 'Backstab', text: '+20% critical hit chance.', effect: { kind: 'crit', value: 0.2 } },
     aura: { name: 'Nightfall', text: 'Team earns 25% more gold from kills.', effect: { kind: 'gold', value: 1.25, team: true } } },
-  { id: 'vex', rarity: 'common', name: 'Vex', element: 'dark', job: 'Mage', baseAtk: 9, baseHp: 36, range: 150, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 40,
+  { id: 'vex', rarity: 'common', name: 'Vex', element: 'dark', type: 'Magician', baseAtk: 9, baseHp: 36, range: 150, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 40,
     bio: 'A pale-haired void sorcerer channelling a violet orb that hums when nobody is looking at it.',
     basic: { name: 'Void Bolt', text: 'Ranged void blasts that splash every enemy near the target.' },
     ultimate: { name: 'Collapse', text: ULT('A tear in the dark swallows') },
@@ -260,7 +273,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Void Rift', text: 'Splash radius +50%.', effect: { kind: 'splash', value: 1.5 } },
     sp2: { name: 'Unravel', text: 'Deals 30% more damage to bosses.', effect: { kind: 'bossDamage', value: 1.3 } },
     aura: { name: 'Forbidden Lore', text: 'Team critical hit chance +5%.', effect: { kind: 'crit', value: 0.05, team: true } } },
-  { id: 'rook', rarity: 'common', name: 'Rook', element: 'dark', job: 'Ranger', role: 'Marksman', heroClass: 'Nightstalker', baseAtk: 6.5, baseHp: 46, range: 170, attackCooldown: 1.1, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'rook', rarity: 'common', name: 'Rook', element: 'dark', type: 'Ranger', baseAtk: 6.5, baseHp: 46, range: 170, attackCooldown: 1.1, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A masked night stalker in dark leather with a hooked bow. Nobody has seen his face.',
     basic: { name: 'Hooked Arrow', text: 'Long-range arrows at the nearest enemy.' },
     ultimate: { name: 'Nightfall Volley', text: `${ULT('Arrows out of the dark hit')} Marks them: they take 25% more damage from the whole team for 6 seconds.` },
@@ -271,7 +284,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Barbed Shot', text: 'Arrows pierce 1 more enemy.', effect: { kind: 'pierce', value: 1 } },
     sp2: { name: 'Night Eyes', text: '+20% critical hit chance.', effect: { kind: 'crit', value: 0.2 } },
     aura: { name: "Hunter's Mark", text: 'Whole team deals 10% more damage to bosses.', effect: { kind: 'bossDamage', value: 1.1, team: true } } },
-  { id: 'dread', rarity: 'common', name: 'Dread', element: 'dark', job: 'Knight', baseAtk: 3.2, baseHp: 150, range: 26, attackCooldown: 1.05, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'dread', rarity: 'common', name: 'Dread', element: 'dark', type: 'Knight', baseAtk: 3.2, baseHp: 150, range: 26, attackCooldown: 1.05, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'An imposing abyss guardian in corrupted armor behind a massive shield. He feeds on the fight.',
     basic: { name: 'Abyss Bash', text: 'Slow, heavy shield blows that shove enemies back a step.' },
     ultimate: { name: 'Black Tide', text: ULT('Darkness pours out over') },
@@ -281,7 +294,7 @@ export const HEROES: HeroDef[] = [
     aura: { name: 'Dread Wall', text: 'Whole team takes 10% less damage.', effect: { kind: 'damageTaken', value: 0.9, team: true } } },
 
   // ---- Light: hope and protection ----
-  { id: 'dawn', rarity: 'common', name: 'Dawn', element: 'light', job: 'Blademaster', baseAtk: 5, baseHp: 65, range: 28, attackCooldown: 0.85, moveSpeed: 120, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'dawn', rarity: 'common', name: 'Dawn', element: 'light', type: 'Lancer', baseAtk: 5, baseHp: 65, range: 36, attackCooldown: 0.85, moveSpeed: 120, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A bright-haired swordsman with a radiant sword, first into every fight and last to complain.',
     basic: { name: 'Radiant Slash', text: 'Quick shining slashes at the nearest enemy ahead.' },
     ultimate: { name: 'Daybreak', text: ULT('A blinding arc of light hits') },
@@ -289,7 +302,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'First Light', text: '20% chance for each attack to strike twice.', effect: { kind: 'doubleStrike', value: 0.2 } },
     sp2: { name: 'Radiant Edge', text: 'Deals 25% more damage to bosses.', effect: { kind: 'bossDamage', value: 1.25 } },
     aura: { name: 'Morning Glory', text: 'Team ATK +15%.', effect: { kind: 'atk', value: 1.15, team: true } } },
-  { id: 'lumen', rarity: 'common', name: 'Lumen', element: 'light', job: 'Support', role: 'Mender', heroClass: 'Lanternkeeper', baseAtk: 3, baseHp: 55, range: 130, attackCooldown: 1.15, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
+  { id: 'lumen', rarity: 'common', name: 'Lumen', element: 'light', type: 'Support', baseAtk: 3, baseHp: 55, range: 130, attackCooldown: 1.15, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
     bio: 'A radiant cleric from the Lantern Queen\'s chapel, carrying a staff shaped like the sun.',
     basic: { name: 'Sunlight Mend', text: HEAL_BASIC },
     ultimate: { name: 'Dawn Chorus', text: 'Fully heals every living hero and brings back one fallen hero.' },
@@ -300,7 +313,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Halo', text: 'Heals are 50% stronger.', effect: { kind: 'healPower', value: 1.5 } },
     sp2: { name: 'Beacon', text: 'The ally she heals deals 20% more damage for 4 seconds.', effect: { kind: 'beacon', value: 1.2 } },
     aura: { name: 'Sunlit', text: 'Whole team regenerates 1% of max HP every second.', effect: { kind: 'regen', value: 0.01, team: true } } },
-  { id: 'sol', rarity: 'common', name: 'Sol', element: 'light', job: 'Ranger', baseAtk: 6, baseHp: 48, range: 170, attackCooldown: 1.0, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'sol', rarity: 'common', name: 'Sol', element: 'light', type: 'Gunner', baseAtk: 6, baseHp: 48, range: 170, attackCooldown: 1.0, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'An agile sun archer with a golden bow. Her arrows leave a streak of light in the air.',
     basic: { name: 'Sun Arrow', text: 'Long-range arrows at the nearest enemy.' },
     ultimate: { name: 'Solar Flare', text: ULT('A rain of sunlit arrows hits') },
@@ -308,7 +321,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Sunpierce', text: 'Arrows pierce 1 more enemy.', effect: { kind: 'pierce', value: 1 } },
     sp2: { name: 'Quickdraw', text: 'Attacks 20% faster.', effect: { kind: 'attackSpeed', value: 0.8 } },
     aura: { name: 'Clear Sky', text: 'Team critical hit chance +5%.', effect: { kind: 'crit', value: 0.05, team: true } } },
-  { id: 'aegis', rarity: 'common', name: 'Aegis', element: 'light', job: 'Knight', baseAtk: 2.8, baseHp: 165, range: 26, attackCooldown: 1.0, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'aegis', rarity: 'common', name: 'Aegis', element: 'light', type: 'Knight', baseAtk: 2.8, baseHp: 165, range: 26, attackCooldown: 1.0, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A heavily armored paladin guardian with a sun-emblem shield. Nothing gets past him that he does not allow.',
     basic: { name: 'Sun Shield', text: 'Slow, heavy shield blows that shove enemies back a step.' },
     ultimate: { name: 'Judgement', text: ULT('A pillar of light falls on') },

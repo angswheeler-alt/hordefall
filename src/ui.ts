@@ -1,7 +1,7 @@
 import Decimal from 'break_infinity.js';
 import type { HeroStats, BigStat, StatPair } from './stats';
-import { heroProfile, heroBuildEffects, buildBonus, roleOf } from './profiles';
-import { HEROES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, LEGENDARY_MEDAL_RATE, MAX_STARS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
+import { HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, LEGENDARY_MEDAL_RATE, MAX_STARS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
 import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
@@ -682,7 +682,7 @@ export class UI {
     face.classList.add('art');
     face.setAttribute('style', faceStyle(def));
     $('sheet-name').textContent = def.name;
-    $('sheet-sub').textContent = heroTitle(def) + (def.role ? ` · ${def.role}` : '');
+    $('sheet-sub').textContent = heroTitle(def);
     $('sheet-bio').textContent = def.bio;
     $('sheet').hidden = false;
     this.renderSheet();
@@ -715,7 +715,7 @@ export class UI {
       const what = b.time > 0 ? ` (+${Math.round(b.time * 100)}% time${b.dmg > 0 ? (e === 'stun' ? ', +50% more' : ', +50% damage') : ''})` : '';
       return `${cap(e)} build: ${n} in team${what}`;
     });
-    const top = `<b>${roleOf(def)}</b> · ${prof.specialty}${builds.length ? `<br><small>${builds.join(' · ')}. 2 heroes with the same effect: +25% time; 3: +50% damage too.</small>` : ''}`;
+    const top = `<b>${def.type}</b> · ${HERO_TYPES[def.type]}<br>${prof.specialty}${builds.length ? `<br><small>${builds.join(' · ')}. 2 heroes with the same effect: +25% time; 3: +50% damage too.</small>` : ''}`;
     setHtml($('sheet-stats'), statPages(s.heroStats(def, shownLevel), gold > 0 ? String(eff) : 'Locked', this.statPage, top));
 
     $('sheet-gold-lvl').textContent = gold > 0 ? String(gold) : '(locked)';
@@ -1322,9 +1322,9 @@ function cap(s: string) {
   return s[0].toUpperCase() + s.slice(1);
 }
 
-/** "Water Corsair" for heroes built to the hero standard, "Water Mage" for the older kits. */
+/** "Water Samurai": element and Type. */
 function heroTitle(def: HeroDef) {
-  return `${cap(def.element)} ${def.heroClass ?? def.job}`;
+  return `${cap(def.element)} ${def.type}`;
 }
 
 /** A Stall cycle length: whole seconds, or one decimal under 10s. */
