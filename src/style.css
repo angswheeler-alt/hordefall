@@ -422,6 +422,12 @@ i.stone { display: inline-block; width: 12px; height: 12px; background: linear-g
 .rw-card h3 { margin: 0 0 8px; font-size: 16px; display: flex; align-items: baseline; gap: 8px; }
 .rw-card h3 small { margin-left: auto; color: var(--orange); font-size: 12px; font-weight: 700; }
 .rw-card p { margin: 2px 0 8px; font-size: 12px; color: #e8d3b0; }
+.bundle-heroes { display: flex; gap: 6px; margin-bottom: 8px; }
+.bundle-hero { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; background: rgba(0,0,0,.2); border-radius: 8px; padding: 6px 4px; text-align: center; }
+.bundle-hero b { font-size: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bundle-hero small { font-size: 11px; color: var(--orange); font-weight: 700; }
+.bundle-hero .face { width: 44px; height: 44px; border-radius: 10px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
+.bundle-hero.done { opacity: .5; }
 .rw-wide { width: 100%; min-height: 40px; }
 .login-days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 8px; }
 .login-days div { background: rgba(0,0,0,.25); border: 2px solid transparent; border-radius: 8px; padding: 6px 2px; text-align: center; display: flex; flex-direction: column; gap: 2px; min-width: 0; }

@@ -37,6 +37,13 @@ export const DAILIES: DailyDef[] = [
   { stat: 'minutes', text: 'Battle for 15 minutes', goal: 15 },
 ];
 
+// ---------- Daily Medal Bundle: free medals for finishing daily challenges ----------
+
+/** Heroes in each day's bundle, all different. */
+export const MEDAL_BUNDLE_HEROES = 3;
+/** Daily challenges to finish before the bundle can be claimed. */
+export const MEDAL_BUNDLE_DAILIES = 3;
+
 // ---------- login calendar: one claim a day, Gems every 5th day ----------
 
 export const LOGIN_CYCLE: Reward[] = [{ goldMinutes: 10 }, { chests: 1 }, { goldMinutes: 30 }, { chests: 1 }, { gems: 50 }];

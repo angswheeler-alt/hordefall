@@ -1,5 +1,5 @@
 import Decimal from 'break_infinity.js';
-import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
+import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
 import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE } from './data';
 import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
@@ -87,6 +87,8 @@ export class GameState {
   login = { count: 0, last: '' };
   /** Day of the last free Lucky Spin. */
   spinDay = '';
+  /** Today's free Daily Medal Bundle: the heroes and medals it holds, rolled once a day. */
+  medalBundle: { day: string; drops: Array<{ heroId: string; crests: number }>; claimed: boolean } = { day: '', drops: [], claimed: false };
   /** Achievement tiers already claimed, by achievement id. */
   achieved: Record<string, number> = {};
   /** Bootcamp goals already claimed. */
@@ -875,6 +877,43 @@ export class GameState {
     return { index, ...got };
   }
 
+  /**
+   * Today's Daily Medal Bundle: a few heroes' medals, rolled at the first look each day (Hero Chest
+   * odds, the smallest drop size), free once enough daily challenges are finished.
+   */
+  medalBundleState(now = Date.now()) {
+    const today = dayKey(now);
+    if (this.medalBundle.day !== today) this.medalBundle = { day: today, drops: this.rollMedalBundle(), claimed: false };
+    const done = this.dailies(now).filter((r) => r.progress >= r.def.goal).length;
+    return { drops: this.medalBundle.drops, claimed: this.medalBundle.claimed, done, need: MEDAL_BUNDLE_DAILIES, ready: !this.medalBundle.claimed && done >= MEDAL_BUNDLE_DAILIES };
+  }
+
+  private rollMedalBundle(): Array<{ heroId: string; crests: number }> {
+    const drops: Array<{ heroId: string; crests: number }> = [];
+    for (let tries = 0; drops.length < MEDAL_BUNDLE_HEROES && tries < 50; tries++) {
+      const left = HEROES.filter((h) => !drops.some((d) => d.heroId === h.id));
+      const hero = pickByRarity(left, CHEST_RARITY_WEIGHTS);
+      if (!hero) break;
+      drops.push({ heroId: hero.id, crests: CREST_ROLLS[hero.rarity as keyof typeof CREST_ROLLS][0][0] });
+    }
+    return drops;
+  }
+
+  /** Claim today's Daily Medal Bundle. Returns its drops, or null when it isn't ready. */
+  claimMedalBundle(now = Date.now()): SummonDrop[] | null {
+    if (!this.medalBundleState(now).ready) return null;
+    this.medalBundle.claimed = true;
+    const drops = this.medalBundle.drops.map(({ heroId, crests }) => {
+      const hero = HEROES.find((h) => h.id === heroId)!;
+      const before = this.crests[heroId] ?? 0;
+      const need = this.unlockCrests(hero);
+      this.addCrests(heroId, crests);
+      return { heroId, crests, isNew: (this.levels[heroId] ?? 0) === 0 && need !== null && before < need && before + crests >= need };
+    });
+    this.save();
+    return drops;
+  }
+
   /** Current value an achievement counts. */
   achievementValue(def: AchievementDef): number {
     switch (def.value) {
@@ -944,6 +983,7 @@ export class GameState {
     return (
       this.loginState(now).ready ||
       this.spinReady(now) ||
+      this.medalBundleState(now).ready ||
       this.dailies(now).some((r) => !r.claimed && r.progress >= r.def.goal) ||
       this.achievements().some((a) => a.ready) ||
       BOOTCAMP.some((b) => !this.bootcamp.includes(b.id) && this.bootcampDone(b))
@@ -997,6 +1037,7 @@ export class GameState {
       daily: this.daily,
       login: this.login,
       spinDay: this.spinDay,
+      medalBundle: this.medalBundle,
       achieved: this.achieved,
       bootcamp: this.bootcamp,
       stalls: this.stalls,
@@ -1086,6 +1127,10 @@ export class GameState {
       if (d.daily) this.daily = { day: String(d.daily.day ?? ''), counts: { ...(d.daily.counts ?? {}) }, claimed: [...(d.daily.claimed ?? [])] };
       if (d.login) this.login = { count: d.login.count ?? 0, last: String(d.login.last ?? '') };
       this.spinDay = String(d.spinDay ?? '');
+      if (d.medalBundle && Array.isArray(d.medalBundle.drops)) {
+        const drops = d.medalBundle.drops.filter((x: { heroId?: unknown; crests?: unknown }) => HEROES.some((h) => h.id === x?.heroId) && Number(x.crests) > 0);
+        this.medalBundle = { day: String(d.medalBundle.day ?? ''), drops: drops.map((x: { heroId: string; crests: number }) => ({ heroId: x.heroId, crests: Number(x.crests) })), claimed: !!d.medalBundle.claimed };
+      }
       this.achieved = { ...(d.achieved ?? {}) };
       this.bootcamp = [...(d.bootcamp ?? [])];
       this.tickets = d.tickets ?? TICKET_CAP;
