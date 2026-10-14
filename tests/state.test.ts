@@ -351,13 +351,13 @@ describe('relics', () => {
     expect(s.heroStats(starter).attacksPerSec.value).toBeGreaterThan(st.attacksPerSec.base);
     const burner = HEROES.find((h) => h.signature?.kind === 'burn');
     if (burner) expect(s.heroStats(burner).burnChance).toBe(1);
-    const knight = HEROES.find((h) => h.job === 'Knight')!;
+    const knight = HEROES.find((h) => h.type === 'Knight')!;
     expect(s.heroStats(knight).isKnight).toBe(true);
   });
 
   it('every hero has its own specialty, and builds of shared effects get stronger', () => {
     for (const h of HEROES) expect(heroProfile(h).specialty.length, h.id).toBeGreaterThan(0);
-    // No two heroes share the same stats: every full profile (role shape plus specialty) differs.
+    // No two heroes share the same stats: every full profile (Type shape plus specialty) differs.
     const shapes = HEROES.map((h) => {
       const { specialty: _, ...stats } = heroProfile(h);
       return JSON.stringify(stats);

@@ -78,7 +78,7 @@ export interface HeroStats {
   isKnight: boolean;
 }
 
-/** Knights (and Vanguards built to the hero standard) get the Knight shield. */
+/** Knights get the Knight shield. */
 export function isKnight(def: HeroDef): boolean {
-  return def.job === 'Knight' || def.role === 'Vanguard';
+  return def.type === 'Knight';
 }

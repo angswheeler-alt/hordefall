@@ -1,20 +1,26 @@
 import { describe, it, expect } from 'vitest';
 import Decimal from 'break_infinity.js';
-import { HEROES, type Role } from '../src/data';
+import { HEROES, HERO_TYPES, type HeroType } from '../src/data';
 import { comboMult, executeMult, signatureReflect, splitHeal } from '../src/kits';
 
-const standard = HEROES.filter((h) => h.role);
+const standard = HEROES.filter((h) => h.signature);
 const byId = (id: string) => HEROES.find((h) => h.id === id)!;
 
 describe('hero standard', () => {
-  it('has one standard hero per element, covering all five roles', () => {
+  it('has one standard hero per element, each a different Type', () => {
     expect(standard.map((h) => h.element).sort()).toEqual(['dark', 'earth', 'fire', 'light', 'water']);
-    expect(new Set(standard.map((h) => h.role)).size).toBe(5);
+    expect(new Set(standard.map((h) => h.type)).size).toBe(5);
   });
 
-  it('gives every standard hero a class, and a Signature and Ultimate of their own (classes can repeat)', () => {
+  it('gives every hero one of the ten Types, and all ten are in use', () => {
+    expect(Object.keys(HERO_TYPES)).toHaveLength(10);
+    for (const h of HEROES) expect(HERO_TYPES[h.type], h.id).toBeTruthy();
+    expect(new Set(HEROES.map((h) => h.type)).size).toBe(10);
+  });
+
+  it('gives every standard hero a Signature and Ultimate of their own (Types can repeat)', () => {
     for (const h of standard) {
-      expect(h.heroClass && h.signature && h.ult && h.ultPlus).toBeTruthy();
+      expect(h.signature && h.ult && h.ultPlus).toBeTruthy();
     }
     for (const key of ['signature', 'ult'] as const) {
       const seen = standard.map((h) => JSON.stringify(h[key]));
@@ -24,16 +30,22 @@ describe('hero standard', () => {
     expect(new Set(kits).size).toBe(kits.length);
   });
 
-  it('keeps stats inside each role budget', () => {
-    const budget: Record<Role, { atk: [number, number]; hp: [number, number] }> = {
-      Vanguard: { atk: [2.5, 4], hp: [130, 170] },
-      Striker: { atk: [4.5, 6.5], hp: [50, 70] },
-      Marksman: { atk: [5, 7], hp: [40, 50] },
-      Caster: { atk: [7, 9.5], hp: [35, 45] },
-      Mender: { atk: [2.5, 3.5], hp: [50, 60] },
+  it('keeps stats inside each Type budget', () => {
+    const melee = { atk: [4.5, 6.5], hp: [45, 70] } as { atk: [number, number]; hp: [number, number] };
+    const budget: Record<HeroType, { atk: [number, number]; hp: [number, number] }> = {
+      Knight: { atk: [2.5, 4], hp: [140, 170] },
+      Brawler: { atk: [2.5, 4], hp: [140, 170] },
+      Barbarian: melee,
+      Lancer: melee,
+      Samurai: melee,
+      Rogue: melee,
+      Ranger: { atk: [5, 7], hp: [40, 50] },
+      Gunner: { atk: [5, 7], hp: [40, 50] },
+      Magician: { atk: [7, 9.5], hp: [35, 50] },
+      Support: { atk: [2.5, 3.5], hp: [50, 60] },
     };
-    for (const h of standard) {
-      const b = budget[h.role!];
+    for (const h of HEROES) {
+      const b = budget[h.type];
       expect(h.baseAtk).toBeGreaterThanOrEqual(b.atk[0]);
       expect(h.baseAtk).toBeLessThanOrEqual(b.atk[1]);
       expect(h.baseHp).toBeGreaterThanOrEqual(b.hp[0]);
@@ -43,7 +55,7 @@ describe('hero standard', () => {
 
   it('keeps Brine as the free starter', () => {
     expect(byId('brine').unlockCost).toBe(0);
-    expect(byId('brine').role).toBe('Striker');
+    expect(byId('brine').type).toBe('Samurai');
   });
 });
 
