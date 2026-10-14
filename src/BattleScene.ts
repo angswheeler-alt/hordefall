@@ -37,7 +37,6 @@ import { play } from './sfx';
 import coinSmallUrl from './assets/ui/coin-small.png';
 import crystalPlayerUrl from './assets/ui/crystal-player.png';
 import crystalEnemyUrl from './assets/ui/crystal-enemy.png';
-import crystalBaseUrl from './assets/ui/crystal-base.png';
 import chestWoodUrl from './assets/ui/chest-wood.png';
 import chestBronzeUrl from './assets/ui/chest-bronze.png';
 import chestGoldUrl from './assets/ui/chest-gold.png';
@@ -63,7 +62,7 @@ const REGIONS = ['tidecoast', 'dunes', 'stormcrag', 'emberwastes', 'hollowmoon']
 /** The far layer is 180 px tall with its bottom edge on the ground line (y 170). */
 const FAR_Y = -10;
 const GROUND_Y = 170;
-/** Centre of the floating stage crystals (48x72 sprites over a stone base). */
+/** Centre of the floating stage crystals (48x72 sprites floating over a shadow). */
 const CRYSTAL_Y = LANE_TOP + 10;
 const WAVE_INTERVAL = 7;
 /** Burning deals its damage in ticks this many seconds apart. */
@@ -237,7 +236,6 @@ export class BattleScene extends Phaser.Scene {
     this.load.image('coin', coinSmallUrl);
     this.load.image('crystal-player', crystalPlayerUrl);
     this.load.image('crystal-enemy', crystalEnemyUrl);
-    this.load.image('crystal-base', crystalBaseUrl);
     this.load.image('chest-wood', chestWoodUrl);
     this.load.image('chest-bronze', chestBronzeUrl);
     this.load.image('chest-gold', chestGoldUrl);
@@ -267,17 +265,16 @@ export class BattleScene extends Phaser.Scene {
     this.ground = this.add.graphics();
     this.progressBar = this.add.graphics().setScrollFactor(0).setDepth(1000);
     this.cameras.main.setBounds(0, 0, WORLD_WIDTH, HEIGHT);
-    // Each crystal floats over a stone base, bobbing gently with a pulsing glow underneath.
-    const crystalAt = (x: number, key: string, glow: number) => {
-      this.add.image(x, CRYSTAL_Y + 47, 'crystal-base').setDepth(LANE_TOP - 1);
-      const light = this.add.ellipse(x, CRYSTAL_Y + 40, 44, 10, glow, 0.35).setDepth(LANE_TOP - 1).setBlendMode(Phaser.BlendModes.ADD);
-      this.tweens.add({ targets: light, alpha: 0.1, scaleX: 0.75, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    // Each crystal floats above the ground, bobbing gently; its shadow shrinks and fades as it rises.
+    const crystalAt = (x: number, key: string) => {
+      const shadow = this.add.ellipse(x, CRYSTAL_Y + 56, 40, 9, 0x000000, 0.35).setDepth(LANE_TOP - 1);
+      this.tweens.add({ targets: shadow, alpha: 0.2, scaleX: 0.75, scaleY: 0.75, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       const view = this.add.image(x, CRYSTAL_Y, key).setDepth(LANE_TOP);
-      this.tweens.add({ targets: view, y: CRYSTAL_Y - 4, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      this.tweens.add({ targets: view, y: CRYSTAL_Y - 6, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       return view;
     };
-    crystalAt(PLAYER_CRYSTAL_X, 'crystal-player', 0x6fd3ff);
-    this.crystalView = crystalAt(ENEMY_CRYSTAL_X, 'crystal-enemy', 0xff6fa8);
+    crystalAt(PLAYER_CRYSTAL_X, 'crystal-player');
+    this.crystalView = crystalAt(ENEMY_CRYSTAL_X, 'crystal-enemy');
     this.crystalShield = this.add.circle(ENEMY_CRYSTAL_X, CRYSTAL_Y, 44, 0xff3355, 0.18).setStrokeStyle(2, 0xff6680, 0.8).setDepth(LANE_TOP + 1);
     this.crystalBar = this.add.graphics().setDepth(1000);
 
