@@ -1,7 +1,7 @@
 import Decimal from 'break_infinity.js';
 import type { HeroStats, BigStat, StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, LEGENDARY_MEDAL_RATE, MAX_STARS, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
 import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
@@ -768,8 +768,9 @@ export class UI {
       [2, `${def.sp2.name}`, def.sp2.text],
       [AURA_EVOLUTIONS, `Aura: ${def.aura.name}`, def.aura.text],
       [ULT_PLUS_EVOLUTIONS, `${def.ultimate.name}+`, def.ultPlus ?? `Ultimate hits for ${ULT_MULTIPLIER * ULT_STAR_BONUS}x instead of ${ULT_MULTIPLIER}x.`],
-      [5, '6★ to 7★', 'Each extra star doubles all stats again.'],
-      [MAX_STARS, 'Legendary medals', `At 8★ every ${LEGENDARY_MEDAL_RATE} extra medals for this hero become a Legendary medal, used to get Legendary heroes.`],
+      ...(def.signature && def.sigPlus ? [[SIG_PLUS_EVOLUTIONS, `${def.trait.name}+`, def.sigPlus] as [number, string, string]] : []),
+      [MASTERY_EVOLUTIONS, `${def.type} Mastery: ${TYPE_MASTERY[def.type].name}`, TYPE_MASTERY[def.type].text],
+      [ASCENDED_EVOLUTIONS, 'Ascended', `The Ultimate recharges in ${ASCENDED_ULT_COOLDOWN} seconds instead of ${ULT_COOLDOWN}. Every ${LEGENDARY_MEDAL_RATE} extra medals for this hero become a Legendary medal, used to get Legendary heroes.`],
     ];
     if ($('sheet-unlocks').dataset.key !== `${id}:${stars}`) {
       $('sheet-unlocks').innerHTML = unlocks
@@ -1307,7 +1308,7 @@ export class UI {
       u.cd.textContent = !st.unlocked ? `Lv${ULT_UNLOCK_LEVEL}` : !st.alive ? 'down' : st.remaining > 0 ? `${Math.ceil(st.remaining)}` : '';
       u.cd.style.display = ready ? 'none' : 'flex';
       // Cooldown shade drains from the top as the ultimate recharges.
-      u.button.style.setProperty('--cd', !st.unlocked || !st.alive ? '1' : String(Math.min(1, st.remaining / ULT_COOLDOWN)));
+      u.button.style.setProperty('--cd', !st.unlocked || !st.alive ? '1' : String(Math.min(1, st.remaining / st.total)));
     }
   }
 }
