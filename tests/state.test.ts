@@ -3,7 +3,7 @@ import Decimal from 'break_infinity.js';
 import { heroProfile, heroBuildEffects } from '../src/profiles';
 import { GameState, rarityOdds } from '../src/state';
 import {
-  HEROES, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, LINEUP_SIZE,
+  HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, LINEUP_SIZE,
   TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, RELICS, RELIC_SETS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL,
 } from '../src/data';
 
@@ -171,12 +171,19 @@ describe('medals, unlocks and evolution', () => {
     expect(s.crests[starter.id]).toBe(25 % LEGENDARY_MEDAL_RATE);
   });
 
-  it('each star doubles stats', () => {
+  it('each star multiplies stats by 1.5, and 7★ adds the Type Mastery', () => {
     const s = fresh();
     const a = s.heroPower(starter, 10).atk;
     s.stars[starter.id] = 1;
-    // Star skills can add more, so at least double.
-    expect(s.heroPower(starter, 10).atk.gte(a.times(2))).toBe(true);
+    // Star skills can add more, so at least x1.5, and well short of the original's x2.
+    expect(s.heroPower(starter, 10).atk.gte(a.times(STAR_STAT_MULT))).toBe(true);
+    expect(STAR_STAT_MULT).toBe(1.5);
+    const ranger = HEROES.find((h) => h.type === 'Ranger')!;
+    s.levels[ranger.id] = 10;
+    s.stars[ranger.id] = MASTERY_EVOLUTIONS - 1;
+    const before = s.heroStats(ranger).critRate;
+    s.stars[ranger.id] = MASTERY_EVOLUTIONS;
+    expect(s.heroStats(ranger).critRate).toBeGreaterThanOrEqual(before + 0.1 - 1e-9);
   });
 
   it('opening a chest costs gems and gives crests', () => {

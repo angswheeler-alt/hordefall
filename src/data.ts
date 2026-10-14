@@ -60,6 +60,8 @@ export interface HeroDef {
   /** The Ultimate's own effect and the 5★ twist's text. */
   ult?: UltEffect;
   ultPlus?: string;
+  /** The 6★ Signature+ twist's text (mechanics in BattleScene, by Signature kind). */
+  sigPlus?: string;
   /** Attack and HP at gold level 1. */
   baseAtk: number;
   baseHp: number;
@@ -160,6 +162,7 @@ export const HEROES: HeroDef[] = [
     ultimate: { name: 'Meteor', text: `${ULT('A meteor crashes into')} Leaves burning ground for 5 seconds that burns anything walking through it.` },
     ult: { kind: 'meteor', seconds: 5, groundDps: 2, second: 0.5 },
     ultPlus: 'A second meteor lands a moment later for half damage.',
+    sigPlus: 'Burning stacks: a second burn adds on top of the first, for up to double damage.',
     trait: { name: 'Kindling', text: `Her hits set enemies Burning: 20% of the hit's damage every second for 3 seconds. ${VS.fire}` },
     signature: { kind: 'burn', share: 0.2, seconds: 3 },
     sp1: { name: 'Wildfire', text: 'A Burning enemy that dies explodes for 2x ATK on enemies around it.', effect: { kind: 'burnBurst', value: 2 } },
@@ -205,6 +208,7 @@ export const HEROES: HeroDef[] = [
     ultimate: { name: 'Bramble Wall', text: `${ULT('Thorns burst from the ground under')} Roots them in place for 3 seconds (bosses for 1).` },
     ult: { kind: 'root', seconds: 3, bossSeconds: 1, shield: 0.2 },
     ultPlus: 'The wall also shields every hero for 20% of their max HP.',
+    sigPlus: 'Each reflected hit has a 10% chance to stun the attacker for 1 second.',
     trait: { name: 'Bramble Hide', text: `High HP and a longer reach. Reflects 20% of damage taken back at the attacker. ${VS.earth}` },
     signature: { kind: 'reflect', value: 0.2 },
     sp1: { name: 'Taproot', text: 'Regenerates 2% of max HP every second.', effect: { kind: 'regen', value: 0.02 } },
@@ -226,6 +230,7 @@ export const HEROES: HeroDef[] = [
     ultimate: { name: 'Rogue Wave', text: `${ULT('A crashing wave hits')} Washes regular enemies far back.` },
     ult: { kind: 'washback', push: 160, haste: 0.7, hasteSeconds: 5 },
     ultPlus: 'The wave leaves the team attacking 30% faster for 5 seconds.',
+    sigPlus: 'After a kill, half the combo carries over to the next enemy.',
     trait: { name: 'Riptide Combo', text: `Each hit in a row on the same enemy deals 10% more, up to +50%. ${VS.water} Every boss before stage 600 is Fire, so Brine carries boss fights.` },
     signature: { kind: 'combo', perHit: 0.1, max: 0.5 },
     sp1: { name: 'Undertow', text: '20% chance for each attack to strike twice.', effect: { kind: 'doubleStrike', value: 0.2 } },
@@ -279,6 +284,7 @@ export const HEROES: HeroDef[] = [
     ultimate: { name: 'Nightfall Volley', text: `${ULT('Arrows out of the dark hit')} Marks them: they take 25% more damage from the whole team for 6 seconds.` },
     ult: { kind: 'mark', mult: 1.25, seconds: 6, plusMult: 1.4, plusSeconds: 12 },
     ultPlus: 'The Mark lasts 12 seconds and adds 40% instead of 25%.',
+    sigPlus: 'Executes from 40% HP instead of 30%, and each kill takes 2 seconds off the Ultimate cooldown.',
     trait: { name: 'Executioner', text: `Long-range single-target damage. Double damage to enemies below 30% HP. ${VS.dark}` },
     signature: { kind: 'execute', below: 0.3, mult: 2 },
     sp1: { name: 'Barbed Shot', text: 'Arrows pierce 1 more enemy.', effect: { kind: 'pierce', value: 1 } },
@@ -308,6 +314,7 @@ export const HEROES: HeroDef[] = [
     ultimate: { name: 'Dawn Chorus', text: 'Fully heals every living hero and brings back one fallen hero.' },
     ult: { kind: 'revive' },
     ultPlus: 'Brings back every fallen hero.',
+    sigPlus: 'Overhealing shields up to 40% of max HP instead of 20%.',
     trait: { name: 'Guiding Light', text: `Healing past full HP becomes a shield, up to 20% of the ally's max HP. ${VS.light}` },
     signature: { kind: 'overheal', cap: 0.2 },
     sp1: { name: 'Halo', text: 'Heals are 50% stronger.', effect: { kind: 'healPower', value: 1.5 } },
@@ -412,9 +419,10 @@ export const KEEPER_BONUS_PER_LEVEL = 0.1;
 /**
  * Hero Crests (medals) for each evolution, from Samuel's table: a hero unlocks
  * at 1★ and evolves up to 8★ (1★→2★ costs 10, ... 7★→8★ costs 5,000).
- * `stars` in the save counts evolutions, so 0 means 1★. Each evolution doubles
- * stats; 2★ and 3★ unlock SP1 and SP2, 4★ the hero's team Aura, 5★ a stronger
- * Ultimate. At 8★ further medals turn into Legendary medals.
+ * `stars` in the save counts evolutions, so 0 means 1★. Each evolution multiplies
+ * stats by STAR_STAT_MULT; 2★ and 3★ unlock SP1 and SP2, 4★ the hero's team Aura,
+ * 5★ a stronger Ultimate, 6★ Signature+, 7★ Type Mastery, 8★ Ascended (shorter
+ * Ultimate cooldown). At 8★ further medals turn into Legendary medals.
  */
 export const STAR_CRESTS = [10, 50, 250, 600, 1500, 2500, 5000];
 export const MAX_STARS = STAR_CRESTS.length;
@@ -430,6 +438,34 @@ export const AURA_EVOLUTIONS = 3;
 export const ULT_PLUS_EVOLUTIONS = 4;
 /** From 5★ the Ultimate hits harder (the prototype unlocks the Ultimate itself at Lv 30). */
 export const ULT_STAR_BONUS = 1.5;
+/**
+ * Each star multiplies ATK, HP and Defense by this, so 8★ is x17 a 1★ hero. Crush Them All doubles per star;
+ * Samuel picked x1.5 (2026-10-14) so the late stars unlock mechanics instead (design/star-progression-draft.md).
+ */
+export const STAR_STAT_MULT = 1.5;
+/** 6★: the hero's Signature gets its Signature+ twist (heroes built to the standard). */
+export const SIG_PLUS_EVOLUTIONS = 5;
+/** 7★: the hero's Type Mastery. */
+export const MASTERY_EVOLUTIONS = 6;
+/** 8★: Ascended, the Ultimate recharges in ASCENDED_ULT_COOLDOWN seconds instead of ULT_COOLDOWN. */
+export const ASCENDED_EVOLUTIONS = 7;
+export const ASCENDED_ULT_COOLDOWN = 20;
+/**
+ * 7★ Type Mastery: one bonus per Type. Masteries with an `effect` work through the star-skill effects;
+ * the rest (Barbarian, Rogue, Samurai, Brawler, Support's cleanse) are coded in BattleScene.
+ */
+export const TYPE_MASTERY: Record<HeroType, { name: string; text: string; effect?: Effect }> = {
+  Ranger: { name: 'Eagle Eye', text: '+10% critical hit chance.', effect: { kind: 'crit', value: 0.1 } },
+  Gunner: { name: 'Heavy Round', text: 'Every 5th shot deals 3x damage.', effect: { kind: 'everyNth', value: 3, every: 5 } },
+  Magician: { name: 'Wide Casting', text: 'Splash radius +25%.', effect: { kind: 'splash', value: 1.25 } },
+  Knight: { name: 'Bulwark', text: 'Takes 15% less damage.', effect: { kind: 'damageTaken', value: 0.85 } },
+  Barbarian: { name: 'Bloodrage', text: '+1% damage for every 2% of HP missing (up to +50%).' },
+  Rogue: { name: 'Riposte', text: 'After dodging a hit, the next attack is always a critical hit.' },
+  Lancer: { name: 'Long Reach', text: 'Attacks also hit the enemy just behind the target.', effect: { kind: 'pierce', value: 1 } },
+  Samurai: { name: 'Focus', text: 'Critical hits take 0.5 s off the Ultimate cooldown.' },
+  Brawler: { name: 'Haymaker', text: 'Every 4th hit in a row on the same enemy stuns it for 0.5 s.' },
+  Support: { name: 'Purify', text: 'Heals 20% more and clear stuns from the healed ally.', effect: { kind: 'healPower', value: 1.2 } },
+};
 /** An 8★ hero turns every this many new medals into one Legendary medal (for Legendary heroes later). */
 export const LEGENDARY_MEDAL_RATE = 10;
 

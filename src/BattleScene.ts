@@ -10,6 +10,11 @@ import {
   ULT_MULTIPLIER,
   ULT_STAR_BONUS,
   ULT_PLUS_EVOLUTIONS,
+  SIG_PLUS_EVOLUTIONS,
+  MASTERY_EVOLUTIONS,
+  ASCENDED_EVOLUTIONS,
+  ASCENDED_ULT_COOLDOWN,
+  type HeroType,
   ULT_UNLOCK_LEVEL,
   SPEED_UNLOCK_STAGE,
   elementMultiplier,
@@ -42,7 +47,7 @@ import chestBronzeUrl from './assets/ui/chest-bronze.png';
 import chestGoldUrl from './assets/ui/chest-gold.png';
 import { sumEffect, mulEffect, everyNth } from './skills';
 import type { EffectKind } from './data';
-import { comboMult, executeMult, signatureReflect, splitHeal } from './kits';
+import { comboMult, executeMult, signatureReflect, splitHeal, SIG_PLUS } from './kits';
 import { STAT_BASE, FREEZE_BLAST_RADIUS, BOSS_STUN_CHANCE, BOSS_STUN_SECONDS, type HeroStats } from './stats';
 import { heroProfile } from './profiles';
 
@@ -120,6 +125,8 @@ interface Unit {
   alive: boolean;
   respawnAt: number;
   ultReadyAt: number;
+  /** Rogue Mastery: the next attack crits after a dodge. */
+  riposte?: boolean;
   view: Phaser.GameObjects.Container;
   body: Phaser.GameObjects.Sprite;
   /** Set for frame-animated heroes: which animation is showing. */
@@ -187,6 +194,8 @@ export interface UltState {
   unlocked: boolean;
   alive: boolean;
   remaining: number;
+  /** Full cooldown in seconds (shorter for Ascended 8★ heroes). */
+  total: number;
 }
 
 export class BattleScene extends Phaser.Scene {
@@ -516,6 +525,20 @@ export class BattleScene extends Phaser.Scene {
   /** Whether a star skill is active: the hero is recruited and has at least `star` stars. */
   private has(heroId: string, star: number) {
     return this.state.hasStar(heroId, star);
+  }
+
+  /** Whether a hero has its 7★ Type Mastery and is of this Type. */
+  private mastery(h: Unit, type: HeroType) {
+    return h.def?.type === type && this.has(h.def.id, MASTERY_EVOLUTIONS);
+  }
+
+  /** Whether a hero has its 6★ Signature+. */
+  private sigPlus(h: Unit | undefined | null) {
+    return !!h?.def?.signature && this.has(h.def.id, SIG_PLUS_EVOLUTIONS);
+  }
+
+  private ultCooldown(heroId: string) {
+    return this.has(heroId, ASCENDED_EVOLUTIONS) ? ASCENDED_ULT_COOLDOWN : ULT_COOLDOWN;
   }
 
   /** Additive total of a star-skill effect reaching this unit (team-wide plus its own). null = team-wide only. */
@@ -856,6 +879,7 @@ export class BattleScene extends Phaser.Scene {
   private enemyHits(e: Unit, target: Unit) {
     if (Math.random() < (target.stats ? target.stats.dodge.value : this.sum('dodge', target))) {
       this.floatText(target.x, target.y - 26, 'MISS', '#c9b8ff', 11);
+      if (this.mastery(target, 'Rogue')) target.riposte = true;
       return;
     }
     const mult = elementMultiplier(e.element, target.element) * this.mul('damageTaken', target);
@@ -870,7 +894,14 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     const reflect = this.sum('reflect', target) + signatureReflect(target.def?.signature);
-    if (reflect > 0) this.damageUnit(e, dmg.times(reflect), target);
+    if (reflect > 0) {
+      this.damageUnit(e, dmg.times(reflect), target);
+      // Bramble Hide+ (6★): reflected hits can stun the attacker.
+      if (e.alive && target.def?.signature?.kind === 'reflect' && this.sigPlus(target) && Math.random() < SIG_PLUS.reflectStun) {
+        e.rootedUntil = Math.max(e.rootedUntil, this.clock + SIG_PLUS.reflectStunSeconds);
+        this.floatText(e.x, e.y - 30, 'STUN', '#ffd84a', 9);
+      }
+    }
   }
 
   private heroAttack(h: Unit, target: Unit) {
@@ -896,14 +927,26 @@ export class BattleScene extends Phaser.Scene {
     const vsBurning = this.mul('vsBurning', h);
     if (h.streakTarget === target) h.streak++;
     else {
+      // Riptide Combo+ (6★): after a kill, half the streak carries over.
+      const carry = sig?.kind === 'combo' && this.sigPlus(h) && h.streakTarget && !h.streakTarget.alive ? Math.floor(h.streak * SIG_PLUS.comboCarry) : 0;
       h.streakTarget = target;
-      h.streak = 0;
+      h.streak = carry;
+    }
+    // Barbarian Mastery: +1% damage per 2% HP missing, up to +50%.
+    const rage = this.mastery(h, 'Barbarian') ? 1 + Math.min(0.5, (1 - h.hp.div(h.maxHp).toNumber()) / 2) : 1;
+    // Brawler Mastery: every 4th hit in a row on one enemy stuns it.
+    if (this.mastery(h, 'Brawler') && (h.streak + 1) % 4 === 0) {
+      target.rootedUntil = Math.max(target.rootedUntil, this.clock + 0.5);
+      this.floatText(target.x, target.y - 30, 'STUN', '#ffd84a', 9);
     }
     const beacon = h.beaconUntil > this.clock ? h.beaconMult : 1;
     let dealt = new Decimal(0);
     for (let i = 0; i < strikes; i++) {
-      const crit = Math.random() < critChance;
-      let atk = (crit ? h.atk.times(critMult) : h.atk).times(beacon);
+      const crit = !!h.riposte || Math.random() < critChance;
+      h.riposte = false;
+      // Samurai Mastery: crits take time off the Ultimate cooldown.
+      if (crit && this.mastery(h, 'Samurai')) h.ultReadyAt -= 0.5;
+      let atk = (crit ? h.atk.times(critMult) : h.atk).times(beacon * rage);
       if (nth && nth.every && h.attacks % nth.every === 0) atk = atk.times(nth.value);
       const splash = def.splash ? def.splash * (1 + st.aoeRadius) : 0;
       let targets: Unit[];
@@ -919,7 +962,7 @@ export class BattleScene extends Phaser.Scene {
           elementMultiplier(h.element, t.element) *
           (t.isBoss ? bossMult : 1) *
           (t === target ? comboMult(sig, h.streak) : 1) *
-          executeMult(sig, t.maxHp.gt(0) ? t.hp.div(t.maxHp).toNumber() : 1) *
+          executeMult(sig, t.maxHp.gt(0) ? t.hp.div(t.maxHp).toNumber() : 1, this.sigPlus(h)) *
           (t.burnUntil > this.clock ? vsBurning : 1) *
           (splash ? 1 + st.aoeDmg : 1);
         const amount = atk.times(mult);
@@ -988,7 +1031,10 @@ export class BattleScene extends Phaser.Scene {
 
   /** Set an enemy Burning, keeping the stronger burn if it already burns. */
   private ignite(e: Unit, dps: Decimal, seconds: number, by: Unit) {
-    if (e.burnUntil <= this.clock || dps.gte(e.burnDps)) {
+    // Kindling+ (6★): a burn from the same hero adds on top, up to SIG_PLUS.burnStacks burns' worth.
+    if (e.burnUntil > this.clock && e.burnBy === by && by.def?.signature?.kind === 'burn' && this.sigPlus(by)) {
+      e.burnDps = Decimal.max(e.burnDps, Decimal.min(e.burnDps.plus(dps), dps.times(SIG_PLUS.burnStacks)));
+    } else if (e.burnUntil <= this.clock || dps.gte(e.burnDps)) {
       e.burnDps = dps;
       e.burnBy = by;
     }
@@ -1079,7 +1125,9 @@ export class BattleScene extends Phaser.Scene {
   private heal(target: Unit, amount: Decimal, healer?: Unit) {
     play('heal');
     this.sparks(target.x, target.y, 0x7dff9a, 5);
-    const split = splitHeal(healer?.def?.signature, amount, target.maxHp.minus(target.hp), target.shield, target.maxHp);
+    const split = splitHeal(healer?.def?.signature, amount, target.maxHp.minus(target.hp), target.shield, target.maxHp, this.sigPlus(healer));
+    // Support Mastery: healing clears stuns.
+    if (healer && this.mastery(healer, 'Support')) target.rootedUntil = Math.min(target.rootedUntil, this.clock);
     target.hp = Decimal.min(target.maxHp, target.hp.plus(split.hp));
     target.shield = split.shield;
     const beacon = healer ? this.mul('beacon', healer) : 1;
@@ -1093,6 +1141,8 @@ export class BattleScene extends Phaser.Scene {
 
   private kill(u: Unit, source: Unit | null) {
     u.alive = false;
+    // Executioner+ (6★): kills take time off the Ultimate cooldown.
+    if (u.side === 'enemy' && source?.def?.signature?.kind === 'execute' && this.sigPlus(source)) source.ultReadyAt -= SIG_PLUS.killUltRefund;
     if (u.side === 'enemy' && u.burnUntil > this.clock && u.burnBy?.alive) {
       // Wildfire: a Burning enemy that dies explodes.
       const by = u.burnBy;
@@ -1164,6 +1214,7 @@ export class BattleScene extends Phaser.Scene {
       unlocked: level >= ULT_UNLOCK_LEVEL,
       alive: !!h?.alive,
       remaining: h ? Math.max(0, h.ultReadyAt - this.clock) : 0,
+      total: this.ultCooldown(heroId),
     };
   }
 
@@ -1172,7 +1223,7 @@ export class BattleScene extends Phaser.Scene {
     if (!h || !h.alive || this.transitioning) return false;
     const s = this.getUltState(heroId);
     if (!s.unlocked || s.remaining > 0) return false;
-    h.ultReadyAt = this.clock + ULT_COOLDOWN;
+    h.ultReadyAt = this.clock + this.ultCooldown(heroId);
     const color = ELEMENT_COLORS[h.element];
     play('ult');
     this.freeze(0.08);
