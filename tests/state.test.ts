@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Decimal from 'break_infinity.js';
-import { heroProfile, heroBuildEffects } from '../src/profiles';
+import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS } from '../src/profiles';
 import { GameState, rarityOdds, weekKey } from '../src/state';
+import { mulEffect } from '../src/skills';
 import {
   HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, AURA_EVOLUTIONS, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, LINEUP_SIZE,
   TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, RELICS, RELIC_SETS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL,
@@ -221,6 +222,20 @@ describe('medals, unlocks and evolution', () => {
     expect(s.heroStats(byId('thorn')).critDmg).toBeCloseTo(thornCritDmg, 6);
   });
 
+  it('enemy-side auras reach the team-wide query, element HP auras only their element', () => {
+    const s = fresh();
+    const byId = (id: string) => HEROES.find((h) => h.id === id)!;
+    for (const id of ['shade', 'brook', 'thorn']) s.levels[id] = 10;
+    const brineHp = s.heroPower(starter, 10).hp;
+    const thornHp = s.heroPower(byId('thorn')).hp;
+    s.stars.shade = AURA_EVOLUTIONS;
+    s.stars.brook = AURA_EVOLUTIONS;
+    // Dread Veil (Shade): enemies attack 10% slower. Spring Blessing (Brook): Water heroes +15% HP.
+    expect(mulEffect(s.effects(), 'enemyHaste', null)).toBeCloseTo(0.9, 6);
+    expect(s.heroPower(starter, 10).hp.div(brineHp).toNumber()).toBeCloseTo(1.15, 6);
+    expect(s.heroPower(byId('thorn')).hp.div(thornHp).toNumber()).toBeCloseTo(1, 6);
+  });
+
   it('a Support in the lineup rallies the whole team (+15% ATK) from 1★', () => {
     const s = fresh();
     const a = s.heroPower(starter, 10).atk;
@@ -433,15 +448,16 @@ describe('relics', () => {
     });
     expect(new Set(shapes).size).toBe(HEROES.length);
     const s = fresh();
-    const freezers = HEROES.filter((h) => heroBuildEffects(h).includes('freeze'));
-    expect(freezers.length).toBeGreaterThanOrEqual(3);
+    // Builds: two heroes who share an effect make it last longer (roster changes, so use whichever pair exists).
+    const effect = BUILD_EFFECTS.find((e) => HEROES.filter((h) => heroBuildEffects(h).includes(e)).length >= 2)!;
+    const pair = HEROES.filter((h) => heroBuildEffects(h).includes(effect)).slice(0, 2);
+    const time = `${effect}Time` as 'freezeTime' | 'burnTime' | 'poisonTime' | 'stunTime';
     for (const h of HEROES) s.levels[h.id] = 0;
-    s.levels[freezers[0].id] = 1;
-    const solo = s.heroStats(freezers[0]);
-    for (const h of freezers.slice(0, 3)) s.levels[h.id] = 1;
-    const trio = s.heroStats(freezers[0]);
-    expect(trio.freezeTime).toBeGreaterThan(solo.freezeTime);
-    expect(trio.freezeBlast).toBeGreaterThan(solo.freezeBlast);
+    s.levels[pair[0].id] = 1;
+    const solo = s.heroStats(pair[0]);
+    s.levels[pair[1].id] = 1;
+    expect(s.heroStats(pair[0])[time]).toBeGreaterThan(solo[time]);
+    expect(buildBonus(3).dmg).toBeGreaterThan(buildBonus(2).dmg);
   });
 
   it('specialty bonuses reach the stat sheet', () => {
@@ -449,7 +465,7 @@ describe('relics', () => {
     const byId = (id: string) => HEROES.find((h) => h.id === id)!;
     for (const id of ['brine', 'marina', 'aegis', 'flint', 'briar']) s.levels[id] = 1;
     expect(s.heroStats(byId('brine')).ultAtk).toBeCloseTo(0.2);
-    expect(s.heroStats(byId('marina')).aoeDmg).toBeCloseTo(0.1);
+    expect(s.heroStats(byId('marina')).critRate).toBeCloseTo(0.2);
     expect(s.heroStats(byId('aegis')).knightShield).toBeCloseTo(0.5);
     expect(s.heroStats(byId('flint')).bonusGold).toBeCloseTo(1); // 2x gold, like Crush's Extra Gold
     expect(s.heroStats(byId('briar')).critRate).toBeGreaterThanOrEqual(0.25);

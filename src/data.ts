@@ -39,7 +39,11 @@ export type Signature =
   /** Hits have `chance` to slow the enemy (moves and attacks at `mult` speed) for `seconds`. */
   | { kind: 'slow'; chance: number; mult: number; seconds: number }
   /** Hits on an enemy at full HP always crit. */
-  | { kind: 'sureCrit' };
+  | { kind: 'sureCrit' }
+  /** Hits push regular enemies `push` px back. */
+  | { kind: 'knockback'; push: number }
+  /** When this hero falls, the enemy that did it is frozen for `seconds` and takes `mult` damage meanwhile. */
+  | { kind: 'curse'; seconds: number; mult: number };
 
 /** What a standard hero's Ultimate does on top of the big hit (or full heal), and its 5★ twist. */
 export type UltEffect =
@@ -56,7 +60,11 @@ export type UltEffect =
   /** One blow on the toughest enemy in reach for `mult` x the Ultimate hit (no area). 5★: plusMult. */
   | { kind: 'strike'; mult: number; plusMult: number }
   /** After the hit, every non-Fire hero deals Earth damage for `seconds` (5★: plusSeconds). */
-  | { kind: 'earthen'; seconds: number; plusSeconds: number };
+  | { kind: 'earthen'; seconds: number; plusSeconds: number }
+  /** Healers: on top of the full heal, shields every living hero for `share` of the caster's max HP (5★: plusShare). */
+  | { kind: 'teamShield'; share: number; plusShare: number }
+  /** Enemies hit deal `mult` damage for `seconds` (5★: plusSeconds). */
+  | { kind: 'weaken'; mult: number; seconds: number; plusSeconds: number };
 
 export interface HeroDef {
   id: string;
@@ -126,6 +134,10 @@ export type EffectKind =
   | 'vsBurning' | 'burnBurst' | 'beacon'
   // def multiplies Defense; critDmg adds to crit damage (0.2 = +20%); slam: every `every`th attack also hits enemies near the target, x value.
   | 'def' | 'critDmg' | 'slam'
+  // ward: every `every`th heal or attack shields a random ally for value x own max HP. snowball: every `every`th shot
+  // also hits enemies just behind the target and they take value x damage for 4 s. assassinate: every `every`th attack
+  // blinks to the farthest enemy in reach for value x damage. enemyHaste: multiplies how fast enemies attack.
+  | 'ward' | 'snowball' | 'assassinate' | 'enemyHaste'
   // Hero-sheet stats (added for the Crush-style stat page; chances are 0.05 = 5%).
   | 'frenzy' | 'effectRes' | 'stunChance' | 'freezeChance' | 'burnChance' | 'poisonChance' | 'ultAtk' | 'aoeDmg';
 
@@ -149,7 +161,8 @@ export const ELEMENT_COLORS: Record<Element, number> = {
 // The first 20 heroes: four per element. All Common. Brine is the free starter.
 // Brine, Ember, Thicket (id thorn), Lumen and Rook are built to the hero standard (Signature, unique Ultimate);
 // the others take the kit of the closest Crush Them All hero (same element and class) under our own names and text
-// (design/crush-hero-remap.md): Flare, Flint, Cinder, Briar and Moss so far; the rest keep their older kits until then. Thorn and Blaze were renamed Thicket and Flare
+// (design/crush-hero-remap.md): batches 1-2 so far (Flare, Flint, Cinder, Briar, Moss; Fern, Brook, Ripple, Marina, Shade);
+// Vex, Dread, Dawn, Sol and Aegis keep their older kits until batch 3. Thorn and Blaze were renamed Thicket and Flare
 // (names only; ids stay) because Crush Them All already has heroes with those names.
 // Type baselines (each hero varies a little): Knight high-HP front line, Magician ranged splash,
 // Ranger and Gunner long-range single target, Support healer, the other melee types quick and hard-hitting.
@@ -216,13 +229,15 @@ export const HEROES: HeroDef[] = [
     sp2: { name: 'Quickdraw', text: 'Attacks 20% faster.', effect: { kind: 'attackSpeed', value: 0.8 } },
     aura: { name: "Hunter's Eye", text: 'Earth heroes deal +20% critical damage.', effect: { kind: 'critDmg', value: 0.2, team: true, element: 'earth' } } },
   { id: 'fern', rarity: 'common', name: 'Fern', element: 'earth', type: 'Support', baseAtk: 3, baseHp: 55, range: 130, attackCooldown: 1.2, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
+    ult: { kind: 'teamShield', share: 1, plusShare: 1.5 },
+    ultPlus: 'Shields are worth 150% of her max HP.',
     bio: 'A gentle sylvan healer whose wooden staff is still alive and occasionally flowers.',
     basic: { name: 'Sap Mend', text: HEAL_BASIC },
-    ultimate: { name: 'Spring Bloom', text: 'Fully heals every living hero.' },
+    ultimate: { name: 'Faery Ward', text: "Fully heals every living hero and shields each one for 100% of Fern's max HP." },
     trait: { name: 'Sylvan Healer', text: `Keeps the team standing. ${VS.earth}` },
-    sp1: { name: 'Green Touch', text: 'Heals are 50% stronger.', effect: { kind: 'healPower', value: 1.5 } },
-    sp2: { name: 'Seedbed', text: 'Fallen heroes respawn twice as fast.', effect: { kind: 'respawn', value: 0.5, team: true } },
-    aura: { name: 'Bloom', text: 'Whole team regenerates 1% of max HP every second.', effect: { kind: 'regen', value: 0.01, team: true } } },
+    sp1: { name: 'Faery Shield', text: 'Every 3rd heal or attack also shields a random ally for 40% of her max HP.', effect: { kind: 'ward', value: 0.4, every: 3 } },
+    sp2: { name: 'Green Touch', text: 'Heals are 50% stronger.', effect: { kind: 'healPower', value: 1.5 } },
+    aura: { name: 'Wild Vigor', text: 'Whole team +15% HP.', effect: { kind: 'hp', value: 1.15, team: true } } },
   { id: 'thorn', rarity: 'common', name: 'Thicket', element: 'earth', type: 'Knight', baseAtk: 3.5, baseHp: 150, range: 34, attackCooldown: 1.0, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A sturdy thorn sentinel in bark armor. His thorn spear gives him a little more reach than other knights.',
     basic: { name: 'Thorn Thrust', text: 'Heavy spear thrusts with a little extra reach that shove enemies back.' },
@@ -261,39 +276,45 @@ export const HEROES: HeroDef[] = [
     sp2: { name: 'Salt Spray', text: '+15% critical hit chance.', effect: { kind: 'crit', value: 0.15 } },
     aura: { name: 'Fair Winds', text: 'Whole team attacks 10% faster.', effect: { kind: 'attackSpeed', value: 0.9, team: true } } },
   { id: 'brook', rarity: 'common', name: 'Brook', element: 'water', type: 'Support', baseAtk: 2.8, baseHp: 60, range: 140, attackCooldown: 1.2, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
+    signature: { kind: 'knockback', push: 30 },
+    ult: { kind: 'teamShield', share: 1, plusShare: 1.5 },
+    ultPlus: 'Shields are worth 150% of her max HP.',
     bio: 'A calm wave cleric in flowing robes who heals through a water crystal that never stops trickling.',
     basic: { name: 'Clear Spring', text: HEAL_BASIC },
-    ultimate: { name: 'High Tide', text: 'Fully heals every living hero.' },
-    trait: { name: 'Wave Cleric', text: `Keeps the team standing, from a little further back. ${VS.water}` },
-    sp1: { name: 'Pure Water', text: 'Heals are 50% stronger.', effect: { kind: 'healPower', value: 1.5 } },
+    ultimate: { name: 'Tidal Ward', text: "Fully heals every living hero and shields each one for 100% of Brook's max HP." },
+    trait: { name: 'Wave Cleric', text: `Keeps the team standing; her water bolts push enemies back. ${VS.water}` },
+    sp1: { name: 'Mini Tsunami', text: 'Every 4th attack is a small wave: 2x damage to every enemy near the target, pushing them back.', effect: { kind: 'slam', value: 2, every: 4 } },
     sp2: { name: 'Still Waters', text: 'Takes 25% less damage.', effect: { kind: 'damageTaken', value: 0.75 } },
-    aura: { name: 'Rain Song', text: 'Whole team takes 10% less damage.', effect: { kind: 'damageTaken', value: 0.9, team: true } } },
+    aura: { name: 'Spring Blessing', text: 'Water heroes +15% HP.', effect: { kind: 'hp', value: 1.15, team: true, element: 'water' } } },
   { id: 'ripple', rarity: 'common', name: 'Ripple', element: 'water', type: 'Ranger', baseAtk: 6, baseHp: 44, range: 175, attackCooldown: 1.0, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+    signature: { kind: 'curse', seconds: 4, mult: 1.5 },
+    ult: { kind: 'weaken', mult: 0.5, seconds: 6, plusSeconds: 10 },
+    ultPlus: 'Enemies stay weakened for 10 s.',
     bio: 'A fast aqua archer with a curved bow shaped like a breaking wave.',
     basic: { name: 'Wave Arrow', text: 'Long-range arrows at the nearest enemy.' },
-    ultimate: { name: 'Tidal Volley', text: ULT('A wall of water arrows hits') },
-    trait: { name: 'Aqua Archer', text: `The longest reach of any hero. ${VS.water}` },
-    sp1: { name: 'Ricochet', text: 'Arrows pierce 1 more enemy.', effect: { kind: 'pierce', value: 1 } },
+    ultimate: { name: 'Avalanche', text: 'Snow crashes on every enemy ahead for 40x ATK, and for 6 s they deal half damage.' },
+    trait: { name: 'Frost Curse', text: `When Ripple falls, the enemy that felled her freezes for 4 s and takes 50% more damage. ${VS.water}` },
+    sp1: { name: 'Runaway Snowball', text: 'Every 4th shot rolls a snowball through the enemies just behind the target; everyone hit takes 25% more damage for 4 s.', effect: { kind: 'snowball', value: 1.25, every: 4 } },
     sp2: { name: 'Crest Shot', text: '+20% critical hit chance.', effect: { kind: 'crit', value: 0.2 } },
-    aura: { name: 'Flowing Aim', text: 'Whole team attacks 10% faster.', effect: { kind: 'attackSpeed', value: 0.9, team: true } } },
-  { id: 'marina', rarity: 'common', name: 'Marina', element: 'water', type: 'Magician', baseAtk: 8.5, baseHp: 38, range: 160, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 36,
+    aura: { name: 'Snow Fury', text: 'Water heroes +40% ATK.', effect: { kind: 'atk', value: 1.4, team: true, element: 'water' } } },
+  { id: 'marina', rarity: 'common', name: 'Marina', element: 'water', type: 'Magician', baseAtk: 8.5, baseHp: 45, range: 160, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 36,
     bio: 'A mysterious sea witch hung with shells and pearls, who carries the sea in a single orb.',
     basic: { name: 'Water Orb', text: 'Ranged bursts of seawater that splash every enemy near the target.' },
-    ultimate: { name: 'Maelstrom', text: ULT('A whirlpool swallows') },
-    trait: { name: 'Sea Witch', text: `Heavy area damage from far back. ${VS.water}` },
-    sp1: { name: 'Whirlpool', text: 'Splash radius +50%.', effect: { kind: 'splash', value: 1.5 } },
-    sp2: { name: 'Undercurrent', text: 'Every 5th attack deals 2.5x damage.', effect: { kind: 'everyNth', value: 2.5, every: 5 } },
-    aura: { name: 'Deep Current', text: 'Team ATK +10%.', effect: { kind: 'atk', value: 1.1, team: true } } },
+    ultimate: { name: 'Heavy Rain', text: ULT('A crushing downpour hits') },
+    trait: { name: 'Sea Witch', text: `Area damage from far back. ${VS.water}` },
+    sp1: { name: 'Multi-Cast', text: '25% chance for each attack to cast twice.', effect: { kind: 'doubleStrike', value: 0.25 } },
+    sp2: { name: 'Whirlpool', text: 'Splash radius +30%.', effect: { kind: 'splash', value: 1.3 } },
+    aura: { name: "Ocean's Embrace", text: 'Water heroes +15% HP.', effect: { kind: 'hp', value: 1.15, team: true, element: 'water' } } },
 
   // ---- Dark: mystery and forbidden power ----
-  { id: 'shade', rarity: 'common', name: 'Shade', element: 'dark', type: 'Rogue', baseAtk: 6.5, baseHp: 46, range: 24, attackCooldown: 0.55, moveSpeed: 150, unlockCost: 50, upgradeBaseCost: 15, goldMult: 2,
+  { id: 'shade', rarity: 'common', name: 'Shade', element: 'dark', type: 'Rogue', baseAtk: 6.5, baseHp: 46, range: 24, attackCooldown: 0.55, moveSpeed: 170, unlockCost: 50, upgradeBaseCost: 15, goldMult: 2,
     bio: 'An agile shadow blade with twin crescent daggers, in it for the loot and not pretending otherwise.',
-    basic: { name: 'Crescent Cuts', text: 'Very fast stabs at the closest enemy.' },
-    ultimate: { name: 'Shadow Flurry', text: ULT('Blinks through') },
-    trait: { name: 'Shadow Blade', text: `Runs fastest and earns 2x gold from every kill. ${VS.dark}` },
-    sp1: { name: 'Smoke Step', text: 'Dodges 25% of incoming attacks.', effect: { kind: 'dodge', value: 0.25 } },
-    sp2: { name: 'Backstab', text: '+20% critical hit chance.', effect: { kind: 'crit', value: 0.2 } },
-    aura: { name: 'Nightfall', text: 'Team earns 25% more gold from kills.', effect: { kind: 'gold', value: 1.25, team: true } } },
+    basic: { name: 'Kunai', text: 'Very fast stabs at the closest enemy.' },
+    ultimate: { name: 'Shuriken Storm', text: ULT('A storm of shadow shuriken hits') },
+    trait: { name: 'Shadow Blade', text: `Dodges 10% of attacks and earns 2x gold from every kill. ${VS.dark}` },
+    sp1: { name: 'Assassination', text: 'Every 5th attack blinks to the farthest enemy in reach and backstabs it for 3x damage.', effect: { kind: 'assassinate', value: 3, every: 5 } },
+    sp2: { name: 'Backstab', text: '+10% critical hit chance.', effect: { kind: 'crit', value: 0.1 } },
+    aura: { name: 'Dread Veil', text: 'Enemies attack 10% slower.', effect: { kind: 'enemyHaste', value: 0.9, team: true } } },
   { id: 'vex', rarity: 'common', name: 'Vex', element: 'dark', type: 'Magician', baseAtk: 9, baseHp: 36, range: 150, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 40,
     bio: 'A pale-haired void sorcerer channelling a violet orb that hums when nobody is looking at it.',
     basic: { name: 'Void Bolt', text: 'Ranged void blasts that splash every enemy near the target.' },
