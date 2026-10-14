@@ -51,9 +51,9 @@ export const TYPE_PROFILES: Record<HeroType, StatProfile> = {
 export const HERO_PROFILES: Record<string, Partial<StatProfile> & { specialty: string }> = {
   // Water
   brine: { frenzy: 0.15, ultAtk: 0.2, effectRes: 0.05, specialty: 'Pirate rush: 15% Frenzy and +20% Ultimate damage, but only 5% Effect Resistance' },
-  brook: { effectRes: 0.6, freezeChance: 0.06, effectTime: 0.3, atkMult: 0.9, specialty: 'Cold spring: 60% Effect Resistance, 6% chance to freeze, freezes last 30% longer, a little less ATK' },
-  ripple: { freezeChance: 0.08, critDmg: 2.4, crit: 0.1, specialty: 'Frost arrows: 8% chance to freeze, crits hit for +240% but land less often (10%)' },
-  marina: { freezeChance: 0.12, aoeDmg: 0.1, hpMult: 0.85, specialty: 'Sea witch: 12% chance to freeze, +10% splash damage, less HP' },
+  brook: { effectRes: 0.6, atkMult: 0.9, specialty: 'Calm waters: 60% Effect Resistance, a little less ATK' },
+  ripple: { critDmg: 2.4, crit: 0.1, specialty: 'Snow sniper: crits hit for +240% but land less often (10%)' },
+  marina: { crit: 0.2, critDmg: 0.8, specialty: 'Storm caster: 20% crit, but softer crits (+80%)' },
   // Fire
   blaze: { atkMult: 1.2, hpMult: 1.15, frenzy: 0.04, specialty: 'Fire axe: +20% ATK and +15% HP, but rarely goes into Frenzy (4%)' },
   ember: { effectTime: 0.25, aoeDmg: 0.1, defMult: 0.5, specialty: 'Pyromancer: every hit burns, burns last 25% longer, +10% splash damage, half the Defense' },
@@ -65,15 +65,15 @@ export const HERO_PROFILES: Record<string, Partial<StatProfile> & { specialty: s
   thorn: { defMult: 5, effectRes: 0.55, crit: 0.02, specialty: 'Bark skin: 5x Defense and 55% Effect Resistance, rarely crits (2%)' },
   moss: { hpMult: 1.15, aoeDmg: 0.1, crit: 0.05, specialty: 'Grove keeper: +15% HP and +10% splash damage, rarely crits (5%)' },
   // Dark
-  shade: { dodge: 0.25, crit: 0.25, poisonChance: 0.08, hpMult: 0.75, specialty: 'Assassin: 25% dodge, 25% crit, poisoned blades (8%), low HP' },
-  vex: { stunChance: 0.1, critDmg: 1.6, hpMult: 0.85, specialty: 'Hex: 10% chance to stun, crits hit for +160%, less HP' },
+  shade: { dodge: 0.1, crit: 0.2, hpMult: 0.85, specialty: 'Shadow ninja: dodges 10% of attacks and 20% crit, less HP' },
+  vex: { critDmg: 1.6, effectRes: 0.3, hpMult: 0.9, specialty: 'Witch of the void: crits hit for +160% and 30% Effect Resistance, less HP' },
   rook: { critDmg: 3, crit: 0.12, ultAtk: 0.1, specialty: 'Nightstalker: crits hit for +300% and +10% Ultimate damage, but crits land less often (12%)' },
-  dread: { frenzy: 0.12, defMult: 3, shield: 0.25, specialty: 'Dark fury: 12% Frenzy and a 25% stronger Knight shield, less Defense than other Knights' },
+  dread: { atkMult: 1.2, defMult: 3.5, crit: 0.1, specialty: 'Dark blade: +20% ATK and 10% crit, less Defense than other Knights' },
   // Light
-  dawn: { stunChance: 0.06, effectTime: 0.2, effectRes: 0.3, critDmg: 1.2, specialty: 'Blinding blade: 6% chance to stun, stuns last 20% longer, 30% Effect Resistance, softer crits (+120%)' },
+  dawn: { stunChance: 0.2, effectRes: 0.3, critDmg: 1.2, specialty: 'Holy lance: 20% chance to stun, 30% Effect Resistance, softer crits (+120%)' },
   lumen: { effectRes: 0.5, defMult: 2, crit: 0.02, specialty: 'Lantern ward: 50% Effect Resistance and 2x Defense, rarely crits (2%)' },
-  sol: { burnChance: 0.12, critDmg: 2.4, crit: 0.1, specialty: 'Sunfire arrows: 12% chance to burn, crits hit for +240% but land less often (10%)' },
-  aegis: { defMult: 6, effectRes: 0.6, shield: 0.5, atkMult: 0.9, specialty: 'Holy wall: 6x Defense, 60% Effect Resistance and a 50% stronger Knight shield, a little less ATK' },
+  sol: { critDmg: 2.4, crit: 0.1, aoeDmg: 0.1, specialty: 'Sun shells: +10% splash damage, crits hit for +240% but land less often (10%)' },
+  aegis: { defMult: 5, effectRes: 0.6, stunChance: 0.1, atkMult: 0.95, specialty: 'Gold wall: 5x Defense, 60% Effect Resistance and 10% chance to stun, a little less ATK' },
 };
 
 /**

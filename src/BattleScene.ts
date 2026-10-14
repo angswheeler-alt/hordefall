@@ -45,7 +45,7 @@ import crystalEnemyUrl from './assets/ui/crystal-enemy.png';
 import chestWoodUrl from './assets/ui/chest-wood.png';
 import chestBronzeUrl from './assets/ui/chest-bronze.png';
 import chestGoldUrl from './assets/ui/chest-gold.png';
-import { sumEffect, mulEffect, everyNth, slamEffect } from './skills';
+import { sumEffect, mulEffect, everyNth, procEffect, procs } from './skills';
 import { HERO_ANIMS } from './heroAnims';
 import type { EffectKind } from './data';
 import { comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS } from './kits';
@@ -78,6 +78,13 @@ const WAVE_INTERVAL = 7;
 const BURN_TICK = 0.5;
 /** Big Boom slams hit enemies this close to the target. */
 const SLAM_RADIUS = 50;
+/** Runaway Snowball rolls through enemies this far behind the target, who take more damage for SNOWBALL_SECONDS. */
+const SNOWBALL_REACH = 120;
+const SNOWBALL_SECONDS = 4;
+/** Assassination reaches enemies this far ahead. */
+const ASSASSIN_REACH = 220;
+/** Yolky Eggs blind for this long. */
+const BLIND_SECONDS = 3;
 const WILDFIRE_RADIUS = 40;
 const BEACON_SECONDS = 4;
 /** Lumen brings fallen heroes back this far behind her, with this share of their HP. */
@@ -154,6 +161,14 @@ interface Unit {
   /** Slowed (Sticky Spores): moves and attacks at slowMult speed until slowUntil. */
   slowUntil: number;
   slowMult: number;
+  /** Possess: fights the other enemies until charmUntil. */
+  charmUntil: number;
+  /** Yolky Eggs: misses blindMiss of its attacks until blindUntil. */
+  blindUntil: number;
+  blindMiss: number;
+  /** Avalanche: deals weakMult damage until weakUntil. */
+  weakUntil: number;
+  weakMult: number;
   /** Poison: poisonDps per stack until poisonUntil. */
   poisonUntil: number;
   poisonStacks: number;
@@ -425,6 +440,11 @@ export class BattleScene extends Phaser.Scene {
       frozenBlast: new Decimal(0),
       slowUntil: 0,
       slowMult: 1,
+      charmUntil: 0,
+      blindUntil: 0,
+      blindMiss: 0,
+      weakUntil: 0,
+      weakMult: 1,
       poisonUntil: 0,
       poisonStacks: 0,
       poisonDps: new Decimal(0),
@@ -816,11 +836,13 @@ export class BattleScene extends Phaser.Scene {
         h.cooldownLeft = this.cooldownFor(h);
         this.heal(hurt, h.atk.times(3 * this.mul('healPower', h)), h);
         this.shot(h, hurt.x, hurt.y, 0xfff6a0);
+        h.attacks++;
+        this.ward(h);
         return;
       }
     }
 
-    const target = this.nearest(h, this.enemies, 1);
+    const target = this.nearest(h, this.foes(), 1);
     const dist = target ? target.x - h.x : Infinity;
     if (target && dist <= h.range) {
       if (h.cooldownLeft <= 0) {
@@ -842,7 +864,7 @@ export class BattleScene extends Phaser.Scene {
       if (!target) return;
     }
     const stopAt = ENEMY_CRYSTAL_X - 14 - Math.min(h.range, 30);
-    h.x = Math.min(h.x + h.speed * dt, stopAt);
+    h.x = Math.min(h.x + h.speed * this.mul('moveSpeed', h) * dt, stopAt);
     h.view.x = h.x;
   }
 
@@ -852,10 +874,25 @@ export class BattleScene extends Phaser.Scene {
     return base * (h.hasteUntil > this.clock ? h.hasteMult : 1);
   }
 
+  /** Enemies the heroes fight: everyone but those Possessed for now. */
+  private foes(): Unit[] {
+    return this.enemies.filter((e) => !(e.charmUntil > this.clock));
+  }
+
   private stepEnemy(e: Unit, dt: number) {
     const slow = e.slowUntil > this.clock ? e.slowMult : 1;
-    e.cooldownLeft -= dt * slow;
+    e.cooldownLeft -= dt * slow * this.mul('enemyHaste', null);
     if (e.rootedUntil > this.clock) return;
+    // Possessed: hits the closest other enemy in reach instead of the heroes.
+    if (e.charmUntil > this.clock) {
+      const victim = this.enemies.filter((o) => o.alive && o !== e && !(o.charmUntil > this.clock) && Math.abs(o.x - e.x) <= e.range + 20).sort((a, b) => Math.abs(a.x - e.x) - Math.abs(b.x - e.x))[0];
+      if (victim && e.cooldownLeft <= 0) {
+        e.cooldownLeft = e.cooldown;
+        this.lunge(e, victim.x > e.x ? 1 : -1);
+        this.damageUnit(victim, e.atk.times(elementMultiplier(e.element, victim.element)), null);
+      }
+      return;
+    }
     const target = this.nearest(e, this.heroes, -1);
     const dist = target ? e.x - target.x : Infinity;
     if (target && dist <= e.range) {
@@ -889,14 +926,28 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private enemyHits(e: Unit, target: Unit) {
+    if (e.blindUntil > this.clock && Math.random() < e.blindMiss) {
+      this.floatText(target.x, target.y - 26, 'MISS', '#fff6a0', 11);
+      return;
+    }
     if (Math.random() < (target.stats ? target.stats.dodge.value : this.sum('dodge', target))) {
       this.floatText(target.x, target.y - 26, 'MISS', '#c9b8ff', 11);
       if (this.mastery(target, 'Rogue')) target.riposte = true;
       return;
     }
-    const mult = elementMultiplier(e.element, target.element) * this.mul('damageTaken', target);
+    const mult = elementMultiplier(e.element, target.element) * this.mul('damageTaken', target) * (e.weakUntil > this.clock ? e.weakMult : 1);
     const dmg = defended(e.atk.times(mult), target.defense);
     this.damageUnit(target, dmg, null);
+    // Frost Curse: the enemy that fells this hero freezes and takes more damage.
+    const curse = target.def?.signature;
+    if (!target.alive && curse?.kind === 'curse' && e.alive) {
+      const until = this.control(e, curse.seconds);
+      if (until) {
+        e.markMult = Math.max(e.markUntil > this.clock ? e.markMult : 1, curse.mult);
+        e.markUntil = Math.max(e.markUntil, until);
+        this.floatText(e.x, e.y - 30, 'CURSED', '#9fdcff', 10);
+      }
+    }
     // Boss hits can stun a hero; Effect Resistance is the chance to shrug it off.
     if (e.isBoss && target.alive && !target.def?.steadfast && Math.random() < BOSS_STUN_CHANCE) {
       if (Math.random() < (target.stats?.effectRes.value ?? 0)) this.floatText(target.x, target.y - 26, 'RESIST', '#9effa8', 9);
@@ -920,12 +971,25 @@ export class BattleScene extends Phaser.Scene {
     return this.earthenUntil > this.clock && h.element !== 'fire' ? 'earth' : h.element;
   }
 
+  /** Faery Shield: every Nth heal or attack shields a random living ally. */
+  private ward(h: Unit) {
+    const w = procEffect(this.state.effects(), 'ward', h.def!.id);
+    if (!procs(w, h.attacks)) return;
+    const living = this.heroes.filter((a) => a.alive);
+    const a = living[Math.floor(Math.random() * living.length)];
+    if (!a) return;
+    a.shield = Decimal.max(a.shield, h.maxHp.times(w!.value));
+    this.drawHpBar(a);
+    this.puff(a.x, a.y, 0x9be07a);
+  }
+
   private heroAttack(h: Unit, target: Unit) {
     const def = h.def!;
     if (def.range > 60) this.shot(h, target.x, target.y, ELEMENT_COLORS[def.element]);
     else this.lunge(h, 1);
     if (h.anim) this.setAnim(h, 'attack');
     h.attacks++;
+    this.ward(h);
     const st = h.stats!;
     const critChance = st.critRate;
     const critMult = 1 + st.critDmg;
@@ -937,8 +1001,33 @@ export class BattleScene extends Phaser.Scene {
     }
     const strikes = Math.random() < this.sum('doubleStrike', h) ? 2 : 1;
     const nth = everyNth(this.state.effects(), def.id);
-    const slam = slamEffect(this.state.effects(), def.id);
+    const fx = this.state.effects();
+    const slam = procEffect(fx, 'slam', def.id);
+    const snowball = procEffect(fx, 'snowball', def.id);
+    const assassin = procEffect(fx, 'assassinate', def.id);
+    // Possess: every Nth attack turns a regular enemy near the target against its own side.
+    const charm = procEffect(fx, 'charm', def.id);
+    if (procs(charm, h.attacks) && !target.isBoss && target.alive) {
+      target.charmUntil = this.clock + charm!.value;
+      this.floatText(target.x, target.y - 34, 'POSSESSED', '#c9b8ff', 10);
+      const next = this.nearest(h, this.foes(), 1);
+      if (!next) return;
+      target = next;
+    }
+    const blind = procEffect(fx, 'blind', def.id);
+    const blinded = procs(blind, h.attacks);
     const element = this.dealsAs(h);
+    // Assassination: every Nth attack blinks to the farthest enemy in reach, or to a boss in reach.
+    if (procs(assassin, h.attacks)) {
+      const inReach = this.enemies.filter((e) => e.alive && e.x >= h.x && e.x - h.x <= ASSASSIN_REACH);
+      const far = inReach.find((e) => e.isBoss) ?? inReach.sort((a, b) => b.x - a.x)[0];
+      if (far && far !== target) {
+        this.puff(h.x, h.y, 0x9b59d0);
+        h.x = Math.max(h.x, far.x - 16);
+        h.view.x = h.x;
+        target = far;
+      }
+    }
     const bossMult = this.mul('bossDamage', h);
     const lifesteal = this.sum('lifesteal', h);
     const sig = def.signature;
@@ -968,8 +1057,10 @@ export class BattleScene extends Phaser.Scene {
       const procced = !!(nth && nth.every && h.attacks % nth.every === 0);
       if (procced) atk = atk.times(nth!.value);
       // Big Boom: every Nth attack slams every enemy near the target.
-      const slammed = !!(slam && slam.every && h.attacks % slam.every === 0);
+      const slammed = procs(slam, h.attacks);
       if (slammed) atk = atk.times(slam!.value);
+      if (procs(assassin, h.attacks)) atk = atk.times(assassin!.value);
+      const rolled = procs(snowball, h.attacks);
       const splash = def.splash ? def.splash * (1 + st.aoeRadius) : slammed ? SLAM_RADIUS : 0;
       let targets: Unit[];
       if (splash) targets = this.enemies.filter((e) => e.alive && Math.abs(e.x - target.x) <= splash);
@@ -978,6 +1069,8 @@ export class BattleScene extends Phaser.Scene {
         const pierce = Math.round(this.sum('pierce', h));
         const behind = pierce > 0 ? this.enemies.filter((e) => e.alive && e !== target && e.x > target.x && e.x - target.x <= 60).sort((a, b) => a.x - b.x).slice(0, pierce) : [];
         targets = [target, ...behind];
+        // Runaway Snowball: every Nth shot rolls through the enemies just behind the target.
+        if (rolled) targets = [target, ...this.enemies.filter((e) => e.alive && e !== target && e.x > target.x && e.x - target.x <= SNOWBALL_REACH)];
       }
       for (const t of targets) {
         const mult =
@@ -991,6 +1084,14 @@ export class BattleScene extends Phaser.Scene {
         dealt = dealt.plus(amount);
         this.damageUnit(t, amount, h, crit);
         if (t.alive) this.applyEffects(h, t, amount, procced);
+        if (t.alive && blinded) {
+          t.blindUntil = this.clock + BLIND_SECONDS;
+          t.blindMiss = blind!.value;
+        }
+        if (t.alive && rolled) {
+          t.markMult = Math.max(t.markUntil > this.clock ? t.markMult : 1, snowball!.value);
+          t.markUntil = Math.max(t.markUntil, this.clock + SNOWBALL_SECONDS);
+        }
       }
     }
     if (lifesteal > 0 && h.alive && h.hp.lt(h.maxHp)) {
@@ -1003,6 +1104,11 @@ export class BattleScene extends Phaser.Scene {
   private applyEffects(h: Unit, t: Unit, amount: Decimal, procced = false) {
     const st = h.stats!;
     const sig = h.def?.signature;
+    // Knock-back: hits push regular enemies back.
+    if (sig?.kind === 'knockback' && !t.isBoss) {
+      t.x = Math.min(t.x + sig.push, ENEMY_CRYSTAL_X - 12);
+      this.tweens.add({ targets: t.view, x: t.x, duration: 160, ease: 'Quad.out' });
+    }
     // Sticky Spores: a chance to slow (Bee Swarm attacks always slow).
     if (sig?.kind === 'slow' && (procced || Math.random() < sig.chance) && !(t.isBoss && t.ccImmuneUntil > this.clock)) {
       if (t.slowUntil <= this.clock) this.floatText(t.x, t.y - 30, 'SLOW', '#b5e48c', 9);
@@ -1107,6 +1213,7 @@ export class BattleScene extends Phaser.Scene {
   private damageUnit(target: Unit, amount: Decimal, source: Unit | null, crit = false) {
     if (!target.alive) return;
     if (target.side === 'enemy' && target.markUntil > this.clock) amount = amount.times(target.markMult);
+    if (target.side === 'enemy') amount = amount.times(this.mul('enemyVuln', null));
     let toHp = amount;
     if (target.shield.gt(0)) {
       const soaked = Decimal.min(target.shield, amount);
@@ -1262,6 +1369,15 @@ export class BattleScene extends Phaser.Scene {
     const plus = this.has(def.id, ULT_PLUS_EVOLUTIONS);
     if (def.heals) {
       for (const a of this.heroes) if (a.alive) this.heal(a, a.maxHp, h);
+      // Faery Ward / Tidal Ward: every living hero also gets a shield worth part of the caster's HP.
+      if (def.ult?.kind === 'teamShield') {
+        const shield = h.maxHp.times(plus ? def.ult.plusShare : def.ult.share);
+        for (const a of this.heroes) {
+          if (!a.alive) continue;
+          a.shield = Decimal.max(a.shield, shield);
+          this.drawHpBar(a);
+        }
+      }
       if (def.ult?.kind === 'revive') {
         const fallen = this.heroes.filter((a) => !a.alive);
         for (const a of plus ? fallen : fallen.slice(0, 1)) {
@@ -1337,6 +1453,13 @@ export class BattleScene extends Phaser.Scene {
         }
         break;
       }
+      case 'weaken':
+        for (const e of living) {
+          e.weakMult = ult.mult;
+          e.weakUntil = this.clock + (plus ? ult.plusSeconds : ult.seconds);
+          this.floatText(e.x, e.y - 40, 'WEAKENED', '#9fdcff', 9);
+        }
+        break;
       case 'earthen':
         this.earthenUntil = this.clock + (plus ? ult.plusSeconds : ult.seconds);
         this.banner('FOREST STRENGTH', '#9be07a');

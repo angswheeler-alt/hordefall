@@ -52,7 +52,12 @@ export function everyNth(effects: ActiveEffect[], heroId: string): Effect | unde
   return reaching(effects, 'everyNth', heroId)[0];
 }
 
-/** The hero's own every-Nth slam (hits enemies near the target), if any. */
-export function slamEffect(effects: ActiveEffect[], heroId: string): Effect | undefined {
-  return reaching(effects, 'slam', heroId)[0];
+/** The hero's own every-Nth proc of this kind (slam, ward, snowball, assassinate), if any. */
+export function procEffect(effects: ActiveEffect[], kind: 'slam' | 'ward' | 'snowball' | 'assassinate' | 'charm' | 'blind', heroId: string): Effect | undefined {
+  return reaching(effects, kind, heroId)[0];
+}
+
+/** Whether an every-Nth proc fires on this attack count. */
+export function procs(effect: Effect | undefined, attacks: number): boolean {
+  return !!(effect && effect.every && attacks % effect.every === 0);
 }
