@@ -888,7 +888,10 @@ export class UI {
     const el = this.trialEl();
     const result = s.playTrial(el, tier);
     if (!result) return;
-    const medalNames = result.medals.map((id) => HEROES.find((h) => h.id === id)!.name).join(', ');
+    // Group repeats: "Brine x3, Ripple x2".
+    const medalCounts = new Map<string, number>();
+    for (const id of result.medals) medalCounts.set(id, (medalCounts.get(id) ?? 0) + 1);
+    const medalNames = [...medalCounts].map(([id, n]) => `${HEROES.find((h) => h.id === id)!.name}${n > 1 ? ` x${n}` : ''}`).join(', ');
     this.showModal(
       `${TRIAL_BOSS_NAMES[el]} · Level ${tier}`,
       `<div class="trial-fight">
