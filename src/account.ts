@@ -24,6 +24,9 @@ const friendlyError = (message: string) => {
   return message;
 };
 
+/** Where this device remembers which cloud revision its save was last synced with. */
+const revKey = (userId: string) => `hordefall-cloud-rev:${userId}`;
+
 const summary = (d: SaveData) => `stage ${(d.bestStage ?? d.stage ?? 1).toLocaleString()}, ${d.rekindles ?? 0} Rekindle${d.rekindles === 1 ? '' : 's'}`;
 
 /**
@@ -37,12 +40,34 @@ export class Account {
   private lastUpload = 0;
   /** True while the player has to pick between this device's save and the cloud's. */
   private choosing = false;
+  /** False until the first pull after sign-in settles; uploads wait for it so a stale device can't win a race. */
+  private synced = false;
+  /** lastSeen of the save this page loaded, before this session's play moved it. */
+  private readonly loadedLastSeen: number;
+  /** Told when the signed-in player may have changed (the guild panel listens). */
+  readonly listeners: Array<() => void> = [];
+
+  /** The database client, or null when online accounts are off. */
+  get client(): SupabaseClient | null {
+    return this.db;
+  }
+
+  /** The signed-in player's id, or null for a guest. */
+  get userId(): string | null {
+    return this.user?.id ?? null;
+  }
+
+  /** Open the sign-in dialog (from the guild panel). */
+  signIn() {
+    if (this.db && !this.user) this.openSignIn();
+  }
 
   constructor(
     private state: GameState,
     /** Replace this device's save with `data` and restart the game. */
     private reloadWith: (data: SaveData) => void,
   ) {
+    this.loadedLastSeen = state.lastSeen;
     $('acct-signin').addEventListener('click', () => this.openSignIn());
     $('acct-signout').addEventListener('click', () => void this.signOut());
     $('acct-sync').addEventListener('click', () => void this.upload());
@@ -58,7 +83,8 @@ export class Account {
     this.db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     this.render('Connecting…');
     void this.start();
-    setInterval(() => void this.upload(), UPLOAD_SECONDS * 1000);
+    // Uploads every 30s; if the first sync failed (offline at start), it is retried instead.
+    setInterval(() => void (this.user && !this.synced && !this.choosing ? this.pull('conflict') : this.upload()), UPLOAD_SECONDS * 1000);
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) void this.upload();
     });
@@ -68,33 +94,98 @@ export class Account {
     const { data } = await this.db!.auth.getSession();
     this.user = data.session?.user ?? null;
     this.render();
-    if (this.user) await this.pull(false);
+    if (this.user) await this.pull('start');
   }
 
-  /** Bring the cloud save in line with this device. `firstSignIn` asks before replacing either side. */
-  private async pull(firstSignIn: boolean) {
+  /** The cloud revision this device's save was last synced with (null: never synced). */
+  private get knownRev(): number | null {
+    try {
+      const v = localStorage.getItem(revKey(this.user!.id));
+      return v === null ? null : Number(v);
+    } catch {
+      return null;
+    }
+  }
+
+  private set knownRev(rev: number | null) {
+    try {
+      if (rev === null) localStorage.removeItem(revKey(this.user!.id));
+      else localStorage.setItem(revKey(this.user!.id), String(rev));
+    } catch {
+      // Storage blocked: every start counts as a first sync.
+    }
+  }
+
+  /**
+   * Bring the cloud save in line with this device. Every upload bumps a
+   * revision number in the cloud save, and each device remembers the revision
+   * it last synced. If the cloud moved on since then, another device played:
+   * take its save when this device hasn't played since, otherwise ask.
+   * `mode`: 'start' when the game opens, 'signin' right after signing in
+   * (asks before replacing a played device's save), 'conflict' when an upload
+   * found the cloud had moved on mid-session (both sides played, so it asks).
+   */
+  private async pull(mode: 'start' | 'signin' | 'conflict') {
+    if (this.pulling) return;
+    this.pulling = true;
+    this.synced = false;
+    try {
+      await this.reconcile(mode);
+    } finally {
+      this.pulling = false;
+    }
+  }
+
+  private pulling = false;
+
+  private async reconcile(mode: 'start' | 'signin' | 'conflict') {
     const cloud = await this.fetchCloud();
-    if (cloud === undefined) return;
+    if (cloud === undefined) return; // retried on the next upload tick
     const local = this.state.toJSON();
     if (!cloud) {
+      this.knownRev = null;
+      this.synced = true;
+      await this.upload(0);
+      return;
+    }
+    const cloudRev = Number(cloud.rev ?? 0);
+    if (mode === 'start' && this.knownRev === null && cloud.rev === undefined) {
+      // A cloud save from before revisions: the most recently played save wins, as it used to.
+      if ((cloud.lastSeen ?? 0) > this.loadedLastSeen) this.replace(cloud);
+      else {
+        this.synced = true;
+        await this.upload(0);
+      }
+      return;
+    }
+    if (this.knownRev === cloudRev) {
+      // Nobody else saved since this device last synced: this device is current.
+      this.synced = true;
       await this.upload();
       return;
     }
-    if (!firstSignIn) {
-      // The device that played last wins: a fresher cloud save means another device played since.
-      if ((cloud.lastSeen ?? 0) > (local.lastSeen ?? 0)) this.replace(cloud);
-      else await this.upload();
-      return;
+    if (mode === 'start') {
+      // Another device saved. If this device's save is older than that one, it hasn't played since: take the cloud's.
+      if ((cloud.lastSeen ?? 0) >= this.loadedLastSeen) {
+        this.replace(cloud);
+        return;
+      }
+    } else if (mode === 'signin') {
+      const freshDevice = (local.bestStage ?? 1) <= 1 && !local.rekindles;
+      if (freshDevice) {
+        this.replace(cloud);
+        return;
+      }
     }
-    const freshDevice = (local.bestStage ?? 1) <= 1 && !local.rekindles;
-    if (freshDevice) {
-      this.replace(cloud);
-      return;
-    }
+    this.askWhichSave(cloud, local, cloudRev);
+  }
+
+  /** Both sides have progress the other lacks: the player picks, and the other is replaced. */
+  private askWhichSave(cloud: SaveData, local: SaveData, cloudRev: number) {
     this.choosing = true;
     this.openDialog(
       'Which save do you want?',
-      `<p>This account already has a cloud save (<b>${summary(cloud)}</b>). This device has <b>${summary(local)}</b>.</p>
+      `<p>This account's cloud save (<b>${summary(cloud)}</b>) was played on another device. This device has <b>${summary(local)}</b>.</p>
        <p>The one you don't pick is replaced.</p>
        <div class="modal-actions"><button type="button" id="acct-keep-device">This device</button><button type="button" id="acct-keep-cloud" class="hot">Cloud save</button></div>`,
       false,
@@ -105,12 +196,14 @@ export class Account {
     $('acct-keep-device').addEventListener('click', async () => {
       this.choosing = false;
       this.closeDialog();
-      await this.upload();
+      this.synced = true;
+      await this.upload(cloudRev);
     });
   }
 
   private replace(data: SaveData) {
     this.choosing = true; // stops uploads while the page reloads
+    this.knownRev = Number(data.rev ?? 0);
     this.reloadWith(data);
   }
 
@@ -124,20 +217,37 @@ export class Account {
     return (data?.data as SaveData | undefined) ?? null;
   }
 
-  private async upload() {
-    if (!this.db || !this.user || this.choosing) return;
+  /**
+   * Save to the cloud, but only over the revision this device last synced
+   * (`over` overrides it after the player chose this device's save). If another
+   * device saved in between, nothing is written and the player is asked.
+   */
+  private async upload(over: number | null = this.knownRev) {
+    if (!this.db || !this.user || this.choosing || !this.synced || GameState.frozen) return;
     this.state.save();
-    const data = this.state.toJSON();
-    const { error } = await this.db.from('saves').upsert({
-      user_id: this.user.id,
-      data,
-      best_stage: data.bestStage ?? 1,
-      updated_at: new Date().toISOString(),
-    });
+    const rev = (over ?? 0) + 1;
+    const data: SaveData = { ...this.state.toJSON(), rev };
+    const row = { user_id: this.user.id, data, best_stage: data.bestStage ?? 1, updated_at: new Date().toISOString() };
+    let error: { message: string } | null;
+    let written = true;
+    if (over === 0 && this.knownRev === null) {
+      // First save for this account (or a device that never synced).
+      ({ error } = await this.db.from('saves').upsert(row));
+    } else {
+      const res = await this.db.from('saves').update(row).eq('user_id', this.user.id).eq('data->>rev', String(over ?? 0)).select('user_id');
+      error = res.error;
+      written = !!res.data?.length;
+    }
     if (error) {
       this.render(`Cloud save failed: ${error.message}`);
       return;
     }
+    if (!written) {
+      // Another device saved since this one last synced.
+      await this.pull('conflict');
+      return;
+    }
+    this.knownRev = rev;
     this.lastUpload = Date.now();
     this.render();
   }
@@ -171,7 +281,7 @@ export class Account {
     this.user = data.session.user;
     this.closeDialog();
     this.render();
-    await this.pull(true);
+    await this.pull('signin');
   }
 
   private async signOut() {
@@ -207,7 +317,7 @@ export class Account {
 
   private render(message?: string) {
     const signedIn = !!this.user;
-    let status = message;
+    let status = message ? escape(message) : undefined;
     if (!status) {
       if (!signedIn) status = 'Playing as a guest. Progress saves on this device only.';
       else if (this.lastUpload) status = `Signed in as ${escape(usernameOf(this.user!))}. Saved to the cloud at ${new Date(this.lastUpload).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`;
@@ -217,5 +327,6 @@ export class Account {
     $('acct-signin').hidden = signedIn || !this.db;
     $('acct-signout').hidden = !signedIn;
     $('acct-sync').hidden = !signedIn;
+    for (const listener of this.listeners) listener();
   }
 }

@@ -1,17 +1,19 @@
-// Pixel maps for the 20 heroes, four per element. Each has its own build, height, silhouette, face and
-// pose so they read as different people, not one body in different outfits. Rows are drawn from the top
-// and shifted down by dy so the feet land on row 30. See sprite.js for the row format.
+// Pixel maps for the heroes that aren't frame-animated yet. Each has its own build, height, silhouette,
+// face and pose so they read as different people, not one body in different outfits. Rows are drawn from
+// the top and shifted down by dy so the feet land on row 30. See sprite.js for the row format.
+// Animated heroes (Brine, Ember, Lumen, Rook, Thorn) come from their sprite sheets via animate.js; remove
+// a hero from this file when they get sheets, or heroes.js would overwrite their standing pose.
 //
-// Fire:  Blaze (flaming sword raised), Ember (flame mane, fireball), Flint (goggles, leaping with
-//        daggers), Cinder (horned helm, magma shield, hammer)
-// Earth: Briar (elf archer, kneeling shot), Fern (flowered hair, living staff), Thorn (bearded, thorn
-//        spear), Moss (hooded druid, seed staff)
-// Water: Brine (frame-animated from sprite sheets: see brine/frames.js), Brook (veiled cleric, water crystal), Ripple (ponytail archer,
-//        wave bow), Marina (witch hat, water orb)
-// Dark:  Shade (hooded, crouching, twin daggers), Vex (white hair, orb held at the chest), Rook
-//        (masked, long coat, hooked bow), Dread (spiked helm, tower shield, cape)
-// Light: Dawn (lunging sword thrust, cape), Lumen (bell robe, sun staff), Sol (sun headband, running
-//        with a golden bow), Aegis (plumed helm, sun kite shield)
+// Fire:  Blaze (flaming sword raised), Flint (goggles, leaping with daggers), Cinder (horned helm,
+//        magma shield, hammer)
+// Earth: Briar (elf archer, kneeling shot), Fern (flowered hair, living staff), Moss (hooded druid,
+//        seed staff)
+// Water: Brook (veiled cleric, water crystal), Ripple (ponytail archer, wave bow), Marina (witch hat,
+//        water orb)
+// Dark:  Shade (hooded, crouching, twin daggers), Vex (white hair, orb held at the chest), Dread (spiked
+//        helm, tower shield, cape)
+// Light: Dawn (lunging sword thrust, cape), Sol (sun headband, running with a golden bow), Aegis (plumed
+//        helm, sun kite shield)
 const SKIN = ['#ffe0c0', '#f5c69c', '#d79a74'];
 const PALE = ['#fff0e8', '#f0d8d0', '#c8a8a8'];
 const FACE = { e: '#2e1a16', i: '#ffffff', m: '#8a3a30', r: '#f2a08a' }; // eye, eye light, mouth, blush

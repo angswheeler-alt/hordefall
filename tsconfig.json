@@ -12,5 +12,5 @@
     "noEmit": true,
     "paths": { "break_infinity.js": ["./node_modules/break_infinity.js/dist/index.d.ts"] }
   },
-  "include": ["src"]
+  "include": ["src", "tests"]
 }

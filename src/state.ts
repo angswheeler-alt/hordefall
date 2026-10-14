@@ -1,9 +1,12 @@
 import Decimal from 'break_infinity.js';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, ROAD_START, ROAD_STEP, ROAD_LENGTH, ROAD_GEMS, REKINDLE_BOOSTS, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, MILESTONE_GEMS, RELICS, RELIC_LEVELS_PER_TIER, RELIC_TIERS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE } from './data';
-import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp } from './formulas';
-import type { HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
+import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
+import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins } from './formulas';
+import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES } from './data';
-import { activeEffects, mulEffect, type ActiveEffect } from './skills';
+import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills';
+import { isKnight, type HeroStats } from './stats';
+import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
 
 const SAVE_KEY = 'hordefall-save-v1';
 
@@ -21,6 +24,15 @@ export interface OfflineReport {
   market: Decimal;
 }
 
+export interface RekindleResult {
+  embers: number;
+  /** One line per Rekindle Wheel spin. */
+  wheel: string[];
+  /** Hero Chest drops from the wheel and from player level gifts. */
+  drops: SummonDrop[];
+  levelsGained: number;
+}
+
 export type SaveData = Record<string, any>;
 
 export interface TrialResult {
@@ -31,6 +43,8 @@ export interface TrialResult {
   bossLeft: number;
   teamLeft: number;
   essence: number;
+  /** Enhance Stones won (Trial level 6 and up). */
+  stones: number;
   /** One Hero Crest per medal, to these heroes (a hero can appear twice). */
   medals: string[];
 }
@@ -45,6 +59,28 @@ export interface StallState {
  * All persistent game state. Saves to localStorage for the prototype; the GDD
  * calls for a server-authoritative save later, with local storage as a cache.
  */
+/** Research ranks kept to whole numbers from 1 to the max rank; unknown branches dropped. */
+function cleanResearch(ranks: Partial<Record<ResearchBranch, number>>): Partial<Record<ResearchBranch, number>> {
+  const clean: Partial<Record<ResearchBranch, number>> = {};
+  for (const b of GUILD_RESEARCH) {
+    const r = Math.min(GUILD_RESEARCH_MAX_RANK, Math.max(0, Math.floor(Number(ranks[b.id]) || 0)));
+    if (r) clean[b.id] = r;
+  }
+  return clean;
+}
+
+interface GuildOffer { heroId: string; crests: number; cost: number; bought: boolean }
+interface GuildShopState { day: string; offers: GuildOffer[]; pouches: number; week: string; wild: number }
+type GuildRarity = keyof typeof GUILD_OFFER_MEDALS;
+const guildRarity = (h: HeroDef): GuildRarity | null => (h.rarity in GUILD_OFFER_MEDALS ? (h.rarity as GuildRarity) : null);
+
+/** The Monday that starts this week (local time), as a day key. */
+export function weekKey(now = Date.now()): string {
+  const d = new Date(now);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return dayKey(d.getTime());
+}
+
 export class GameState {
   gold = new Decimal(0);
   stage = 1;
@@ -65,8 +101,20 @@ export class GameState {
   stalls: Record<string, StallState> = Object.fromEntries(STALLS.map((s) => [s.id, { level: 0, progress: 0 }]));
   /** Every Ember ever earned; sets the Keeper level. */
   lifetimeEmbers = 0;
-  /** Ember Road markers already paid out. */
-  roadClaimed = 0;
+  /** Lifetime counters for achievements and Bootcamp. */
+  stats: Record<StatKey, number> = Object.fromEntries(STAT_KEYS.map((k) => [k, 0])) as Record<StatKey, number>;
+  /** Today's daily challenge progress; reset when the local day changes. */
+  daily: { day: string; counts: Partial<Record<StatKey, number>>; claimed: StatKey[] } = { day: dayKey(), counts: {}, claimed: [] };
+  /** Login calendar: days claimed so far (position in the 5-day cycle is this mod 5) and the last day claimed. */
+  login = { count: 0, last: '' };
+  /** Day of the last free Lucky Spin. */
+  spinDay = '';
+  /** Today's free Daily Medal Bundle: the heroes and medals it holds, rolled once a day. */
+  medalBundle: { day: string; drops: Array<{ heroId: string; crests: number }>; claimed: boolean } = { day: '', drops: [], claimed: false };
+  /** Achievement tiers already claimed, by achievement id. */
+  achieved: Record<string, number> = {};
+  /** Bootcamp goals already claimed. */
+  bootcamp: string[] = [];
   /** Hero Crests (copies) per hero, for evolution. Nothing drops them yet. */
   crests: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, 0]));
   /** Evolution stars per hero (0-7). Permanent. */
@@ -79,10 +127,22 @@ export class GameState {
   autoUlt = false;
   muted = false;
   buyAmount: 1 | 10 | 'max' = 1;
-  /** Relic total levels (0 = not crafted), equipped relic ids, and owned slots. */
+  /** Relic levels (0 = not crafted), Enhances done per relic, equipped relic ids, owned slots and Enhance Stones. */
   relics: Record<string, number> = {};
+  relicEnhance: Record<string, number> = {};
   equipped: string[] = [];
   relicSlots = RELIC_START_SLOTS;
+  enhanceStones = 0;
+  /** Earned by giving medals to guildmates; spent in the guild shop. */
+  guildCredits = 0;
+  /** Guild shop: today's hero offers, Ember pouches bought today and Wild Medals bought this week. */
+  guildShop: GuildShopState = { day: '', offers: [], pouches: 0, week: '', wild: 0 };
+  /** When the guild shop's Gold Banner and War Horn run out (ms). */
+  boosts: { banner: number; horn: number } = { banner: 0, horn: 0 };
+  /** Counts for Guild Quests not yet sent to the server. */
+  guildQuestPending = { kills: 0, stages: 0, trials: 0 };
+  /** Guild Research ranks of the player's guild, cached from the server (empty outside a guild). */
+  guildResearch: Partial<Record<ResearchBranch, number>> = {};
   /** Legendary medals, made by 8★ heroes from extra medals; Legendary heroes will use them. */
   legendaryMedals = 0;
   /** Market Row's own buy amount, separate from the heroes'. */
@@ -108,9 +168,6 @@ export class GameState {
   }
 
   reachStage(stage: number) {
-    // First time past each 10-stage mark pays a few Gems.
-    const newMarks = Math.floor(stage / 10) - Math.floor(this.bestStage / 10);
-    if (newMarks > 0) this.gems += newMarks * MILESTONE_GEMS;
     this.stage = stage;
     this.bestStage = Math.max(this.bestStage, stage);
     this.runBestStage = Math.max(this.runBestStage, stage);
@@ -121,40 +178,149 @@ export class GameState {
     return activeEffects((id, star) => this.hasStar(id, star));
   }
 
-  /** ATK and HP after levels, stars (x2 each), ATK/HP star skills and relics. `level` overrides the hero's current level. */
-  heroPower(def: HeroDef, level = this.heroLevel(def.id)): { atk: Decimal; hp: Decimal } {
-    const starMult = Math.pow(2, this.stars[def.id] ?? 0);
-    const atkRelics = 1 + this.relicBonus('atk') + this.relicBonus(def.element);
+  /** ATK and HP after levels, stars (x STAR_STAT_MULT each), ATK/HP star skills and relics. `level` overrides the hero's current level. */
+  heroPower(def: HeroDef, level = this.heroLevel(def.id)): { atk: Decimal; hp: Decimal; defense: Decimal } {
+    const starMult = Math.pow(STAR_STAT_MULT, this.stars[def.id] ?? 0);
+    const atkRelics = (1 + this.relicBonus('atk') + this.relicBonus(def.element)) * (1 + this.researchBonus('combat'));
+    const hpRelics = 1 + this.relicBonus('hp') + this.relicBonus(`${def.element}Hp`);
     const fx = this.effects();
+    const prof = heroProfile(def);
     return {
-      atk: heroAtk(def, level).times(starMult * mulEffect(fx, 'atk', def.id) * atkRelics),
-      hp: heroHp(def, level).times(starMult * mulEffect(fx, 'hp', def.id) * (1 + this.relicBonus('hp'))),
+      atk: heroAtk(def, level).times(starMult * prof.atkMult * mulEffect(fx, 'atk', def.id) * atkRelics),
+      hp: heroHp(def, level).times(starMult * prof.hpMult * mulEffect(fx, 'hp', def.id) * hpRelics),
+      defense: heroDef(def, level).times(starMult * prof.defMult * (1 + this.relicBonus('def') + this.relicBonus(`${def.element}Def`))),
     };
   }
 
-  /** Total bonus (0.25 = +25%) from equipped relics with this effect. */
+  /** How many heroes in the lineup bring each build effect (freeze, burn, poison, stun). */
+  buildCounts(): Record<BuildEffect, number> {
+    const counts = Object.fromEntries(BUILD_EFFECTS.map((e) => [e, 0])) as Record<BuildEffect, number>;
+    for (const h of HEROES) if (this.inLineup(h.id)) for (const e of heroBuildEffects(h)) counts[e]++;
+    return counts;
+  }
+
+  /** Every number on the hero's stat pages, as battle uses them. */
+  heroStats(def: HeroDef, level = this.heroLevel(def.id)): HeroStats {
+    const fx = this.effects();
+    const sum = (kind: Parameters<typeof sumEffect>[1]) => sumEffect(fx, kind, def.id);
+    const mul = (kind: Parameters<typeof mulEffect>[1]) => mulEffect(fx, kind, def.id);
+    const starMult = Math.pow(STAR_STAT_MULT, this.stars[def.id] ?? 0);
+    const power = this.heroPower(def, level);
+    const sig = def.signature;
+    const cooldown = (def.attackCooldown * mul('attackSpeed')) / (1 + this.relicBonus('speed'));
+    const splashMult = def.splash ? mul('splash') : 1;
+    const prof = heroProfile(def);
+    const counts = this.buildCounts();
+    const build = Object.fromEntries(BUILD_EFFECTS.map((e) => [e, heroBuildEffects(def).includes(e) ? buildBonus(counts[e]) : { time: 0, dmg: 0 }])) as Record<BuildEffect, { time: number; dmg: number }>;
+    return {
+      atk: { value: power.atk, base: heroAtk(def, level).times(starMult * prof.atkMult) },
+      hp: { value: power.hp, base: heroHp(def, level).times(starMult * prof.hpMult) },
+      def: { value: power.defense, base: heroDef(def, level).times(starMult * prof.defMult) },
+      critRate: prof.crit + sum('crit') + this.relicBonus('crit'),
+      critDmg: (1 + prof.critDmg) * (1 + this.relicBonus('critDmg')) - 1,
+      attacksPerSec: { value: 1 / cooldown, base: 1 / def.attackCooldown },
+      range: { value: def.range, base: def.range },
+      moveSpeed: { value: def.moveSpeed, base: def.moveSpeed },
+      effectRes: { value: prof.effectRes + sum('effectRes'), base: prof.effectRes },
+      frenzy: { value: prof.frenzy + sum('frenzy'), base: prof.frenzy },
+      dodge: { value: prof.dodge + sum('dodge') + this.relicBonus('dodge'), base: prof.dodge },
+      stunChance: prof.stunChance + sum('stunChance'),
+      stunTime: this.relicBonus('stunTime') + prof.effectTime + build.stun.time + build.stun.dmg,
+      aoeRadius: splashMult - 1,
+      aoeDmg: def.splash ? prof.aoeDmg + sum('aoeDmg') : 0,
+      ultAtk: prof.ultAtk + sum('ultAtk'),
+      knightShield: isKnight(def) ? prof.shield + this.relicBonus('knightShield') : 0,
+      bonusGold: def.goldMult * (1 + prof.goldBonus) * mulEffect(fx, 'gold', null) * (1 + this.relicBonus('gold')) * (1 + this.researchBonus('prosperity')) - 1,
+      freezeChance: prof.freezeChance + sum('freezeChance'),
+      freezeTime: this.relicBonus('freezeTime') + prof.effectTime + build.freeze.time,
+      freezeBlast: build.freeze.dmg,
+      // Kindling-style Signatures burn on every hit.
+      burnChance: sig?.kind === 'burn' ? 1 : prof.burnChance + sum('burnChance'),
+      burnTime: this.relicBonus('burnTime') + prof.effectTime + build.burn.time,
+      burnDmg: build.burn.dmg,
+      poisonChance: prof.poisonChance + sum('poisonChance'),
+      poisonTime: this.relicBonus('poisonTime') + prof.effectTime + build.poison.time,
+      poisonDmg: build.poison.dmg,
+      hasAoe: !!def.splash,
+      isKnight: isKnight(def),
+    };
+  }
+
+  /** Bonus (0.25 = +25%) from one relic's effect at its current level. */
+  relicEffect(def: RelicDef, effect: RelicEffect, level = this.relics[def.id] ?? 0): number {
+    let total = 0;
+    for (const [e, v] of def.fx) if (e === effect) total += (v * level) / RELIC_BASE_MAX / 100;
+    return total;
+  }
+
+  /** Total bonus (0.25 = +25%; crit and dodge are chance, 0.05 = +5 points) from equipped relics and completed sets with this effect. */
   relicBonus(effect: RelicEffect): number {
     let total = 0;
-    for (const id of this.equipped) {
+    // Cheaper hero levels work without a slot, so the bench refund (at today's price) never pays back more than was spent.
+    const ids = effect === 'cost' ? Object.keys(this.relics) : this.equipped;
+    for (const id of ids) {
       const def = RELICS.find((r) => r.id === id);
-      if (def && def.effect === effect) total += (def.perLevel * (this.relics[id] ?? 0)) / 100;
+      if (def) total += this.relicEffect(def, effect);
+    }
+    for (const set of RELIC_SETS) {
+      if (!this.setComplete(set.id)) continue;
+      for (const [e, v] of set.bonus) if (e === effect) total += v / 100;
     }
     return total;
   }
 
-  relicMaxLevel() {
-    return RELIC_LEVELS_PER_TIER * RELIC_TIERS;
+  /** Pieces of a set crafted, and how many it has. Sets count crafted pieces, equipped or not. */
+  setPieces(setId: string): { owned: number; total: number } {
+    const pieces = RELICS.filter((r) => r.set === setId);
+    return { owned: pieces.filter((r) => (this.relics[r.id] ?? 0) > 0).length, total: pieces.length };
   }
 
-  /** Essence of each kind for the relic's next level, or null at max. */
+  setComplete(setId: string): boolean {
+    const p = this.setPieces(setId);
+    return p.total > 0 && p.owned === p.total;
+  }
+
+  /** Multiplier on hero level gold costs from relics: -768% means costs divide by 8.68. */
+  levelCostMult(): number {
+    return 1 / (1 + this.relicBonus('cost'));
+  }
+
+  /** Multiplier on Stall upgrade costs from relics. */
+  stallCostMult(): number {
+    return 1 / (1 + this.relicBonus('stallCost'));
+  }
+
+  /** Seconds for one cycle of a Stall, after relics that make Stalls faster. */
+  stallCycle(def: StallDef): number {
+    return def.cycle / (1 + this.relicBonus('stallTime'));
+  }
+
+  /** Highest relic star the player may craft: 1★ from the start, then one more for each star with a relic at full base level. */
+  relicStarsOpen(): number {
+    let open = 1;
+    while (open < RELIC_MAX_STARS && RELICS.some((r) => r.stars === open && (this.relics[r.id] ?? 0) >= RELIC_BASE_MAX)) open++;
+    return open;
+  }
+
+  relicOpen(def: RelicDef): boolean {
+    return def.stars <= this.relicStarsOpen() || (this.relics[def.id] ?? 0) > 0;
+  }
+
+  /** Current level cap: the base max plus 5 for each Enhance. */
+  relicMaxLevel(def: RelicDef): number {
+    return RELIC_BASE_MAX + RELIC_ENHANCE_LEVELS * (this.relicEnhance[def.id] ?? 0);
+  }
+
+  /** Essence of each kind for the relic's next level, or null at its cap. */
   relicNextCost(def: RelicDef): number | null {
     const level = this.relics[def.id] ?? 0;
-    return level >= this.relicMaxLevel() ? null : relicCost(level, RELIC_LEVELS_PER_TIER);
+    return level >= this.relicMaxLevel(def) ? null : relicCost(level, def.craft);
   }
 
   canUpgradeRelic(def: RelicDef): boolean {
     const cost = this.relicNextCost(def);
-    return cost !== null && def.essences.every((e) => (this.essences[e] ?? 0) >= cost);
+    if (!this.relicOpen(def) || cost === null || !def.essences.every((e) => (this.essences[e] ?? 0) >= cost)) return false;
+    return (this.relics[def.id] ?? 0) > 0 || this.enhanceStones >= (def.stones ?? 0);
   }
 
   /** Craft (level 0) or upgrade a relic with Essence. A newly crafted relic goes into a free slot. */
@@ -164,8 +330,26 @@ export class GameState {
     const cost = this.relicNextCost(def)!;
     for (const e of def.essences) this.essences[e] -= cost;
     const crafted = !this.relics[id];
+    if (crafted) this.enhanceStones -= def.stones ?? 0;
     this.relics[id] = (this.relics[id] ?? 0) + 1;
     if (crafted && this.equipped.length < this.relicSlots) this.equipped.push(id);
+    this.save();
+    return true;
+  }
+
+  /** Enhance Stones for the relic's next Enhance: only at its cap, null when it can't be enhanced further. */
+  enhanceCost(def: RelicDef): number | null {
+    const done = this.relicEnhance[def.id] ?? 0;
+    if (done >= RELIC_ENHANCE_COSTS.length || (this.relics[def.id] ?? 0) < this.relicMaxLevel(def)) return null;
+    return RELIC_ENHANCE_COSTS[done];
+  }
+
+  enhanceRelic(id: string): boolean {
+    const def = RELICS.find((r) => r.id === id)!;
+    const cost = this.enhanceCost(def);
+    if (cost === null || this.enhanceStones < cost) return false;
+    this.enhanceStones -= cost;
+    this.relicEnhance[id] = (this.relicEnhance[id] ?? 0) + 1;
     this.save();
     return true;
   }
@@ -187,9 +371,14 @@ export class GameState {
     return RELIC_SLOT_COSTS[this.relicSlots - RELIC_START_SLOTS] ?? null;
   }
 
+  /** Best stage needed before the next slot can be bought, or null when all are bought. */
+  nextSlotStage(): number | null {
+    return RELIC_SLOT_STAGES[this.relicSlots - RELIC_START_SLOTS] ?? null;
+  }
+
   buyRelicSlot(): boolean {
     const cost = this.nextSlotCost();
-    if (cost === null || this.gems < cost) return false;
+    if (cost === null || this.gems < cost || this.bestStage < (this.nextSlotStage() ?? 0)) return false;
     this.gems -= cost;
     this.relicSlots += 1;
     this.save();
@@ -213,7 +402,7 @@ export class GameState {
   goldSpent(id: string): Decimal {
     const def = HEROES.find((h) => h.id === id)!;
     let total = new Decimal(0);
-    for (let l = 1; l < (this.levels[id] ?? 0); l++) total = total.plus(upgradeCost(def, l));
+    for (let l = 1; l < (this.levels[id] ?? 0); l++) total = total.plus(upgradeCost(def, l, this.levelCostMult()));
     return total;
   }
 
@@ -276,6 +465,14 @@ export class GameState {
   summon(): SummonDrop[] | null {
     if (this.gems < CHEST_COST) return null;
     this.gems -= CHEST_COST;
+    this.track('summons');
+    const drops = this.rollChest();
+    this.save();
+    return drops;
+  }
+
+  /** The drops of one Hero Chest, paid for or not. */
+  private rollChest(): SummonDrop[] {
     const drops: SummonDrop[] = [];
     for (let i = 0; i < CHEST_DROPS; i++) {
       const hero = pickByRarity(HEROES, CHEST_RARITY_WEIGHTS);
@@ -289,7 +486,6 @@ export class GameState {
       const isNew = locked && need !== null && before < need && before + crests >= need;
       drops.push({ heroId: hero.id, crests, isNew });
     }
-    this.save();
     return drops;
   }
 
@@ -300,7 +496,7 @@ export class GameState {
 
   evolve(id: string): boolean {
     const cost = this.evolveCost(id);
-    if (cost === null || (this.crests[id] ?? 0) < cost) return false;
+    if (cost === null || (this.levels[id] ?? 0) <= 0 || (this.crests[id] ?? 0) < cost) return false;
     this.crests[id] -= cost;
     this.stars[id] = (this.stars[id] ?? 0) + 1;
     this.addCrests(id, 0); // at 8★, leftover medals turn into Legendary medals
@@ -323,7 +519,7 @@ export class GameState {
       let pick: HeroDef | null = null;
       let best: Decimal | null = null;
       for (const h of team) {
-        const c = upgradeCost(h, this.levels[h.id]);
+        const c = upgradeCost(h, this.levels[h.id], this.levelCostMult());
         if (!best || c.lt(best)) {
           best = c;
           pick = h;
@@ -334,6 +530,7 @@ export class GameState {
       this.levels[pick.id] += 1;
       bought++;
     }
+    this.track('levels', bought);
     return bought;
   }
 
@@ -363,7 +560,7 @@ export class GameState {
   stallReady(id: string) {
     const st = this.stalls[id];
     const def = STALLS.find((d) => d.id === id)!;
-    return st.level > 0 && !this.stallAuto(id) && st.progress >= def.cycle;
+    return st.level > 0 && !this.stallAuto(id) && st.progress >= this.stallCycle(def);
   }
 
   /** Advance every open Stall; auto-collect ones pay out, the rest wait for a tap. Returns gold auto-collected. */
@@ -373,14 +570,15 @@ export class GameState {
       const st = this.stalls[def.id];
       if (st.level === 0) continue;
       st.progress += dt;
+      const cycle = this.stallCycle(def);
       if (this.stallAuto(def.id)) {
-        const cycles = Math.floor(st.progress / def.cycle);
+        const cycles = Math.floor(st.progress / cycle);
         if (cycles > 0) {
           earned = earned.plus(this.stallIncome(def).times(cycles));
-          st.progress -= cycles * def.cycle;
+          st.progress -= cycles * cycle;
         }
       } else {
-        st.progress = Math.min(st.progress, def.cycle);
+        st.progress = Math.min(st.progress, cycle);
       }
     }
     this.gold = this.gold.plus(earned);
@@ -400,7 +598,7 @@ export class GameState {
   buyStall(id: string): boolean {
     const def = STALLS.find((d) => d.id === id)!;
     const st = this.stalls[id];
-    const { levels, cost } = stallBulkCost(def, st.level, this.stallBuyAmount, this.gold);
+    const { levels, cost } = stallBulkCost(def, st.level, this.stallBuyAmount, this.gold, this.stallCostMult());
     if (levels === 0 || cost.gt(this.gold)) return false;
     this.gold = this.gold.minus(cost);
     st.level += levels;
@@ -419,7 +617,7 @@ export class GameState {
       let pick: StallDef | null = null;
       let best: Decimal | null = null;
       for (const d of open) {
-        const c = stallUpgradeCost(d, this.stalls[d.id].level);
+        const c = stallUpgradeCost(d, this.stalls[d.id].level, this.stallCostMult());
         if (!best || c.lt(best)) {
           best = c;
           pick = d;
@@ -430,13 +628,14 @@ export class GameState {
       this.stalls[pick.id].level += 1;
       bought++;
     }
+    this.track('levels', bought);
     return bought;
   }
 
   /** Gold per second from auto-collect Stalls, used for offline time. */
   marketAutoPerSec(): Decimal {
     let total = new Decimal(0);
-    for (const def of STALLS) if (this.stallAuto(def.id)) total = total.plus(this.stallIncome(def).div(def.cycle));
+    for (const def of STALLS) if (this.stallAuto(def.id)) total = total.plus(this.stallIncome(def).div(this.stallCycle(def)));
     return total;
   }
 
@@ -452,6 +651,8 @@ export class GameState {
   /** Add tickets earned since the clock started; returns seconds until the next one (0 when full). */
   refreshTickets(now = Date.now()): number {
     const period = TICKET_MINUTES * 60000;
+    // A clock set back (or a save from a device whose clock runs fast) would freeze regeneration.
+    if (this.ticketClock > now) this.ticketClock = now;
     if (this.tickets >= TICKET_CAP) {
       this.ticketClock = now;
       return 0;
@@ -475,15 +676,18 @@ export class GameState {
     const team = this.trialTeam();
     let dps = new Decimal(0);
     let hp = new Decimal(0);
+    let defense = new Decimal(0);
     let incoming = 0;
     for (const m of team) {
-      dps = dps.plus(m.atk.div(m.def.attackCooldown).times(elementMultiplier(m.def.element, element) * (1 + this.relicBonus('trial'))));
+      dps = dps.plus(m.atk.div(m.def.attackCooldown).times(elementMultiplier(m.def.element, element) * (1 + this.researchBonus('elemental'))));
       hp = hp.plus(m.hp);
+      defense = defense.plus(m.defense);
       incoming += elementMultiplier(element, m.def.element);
     }
     const level = TRIAL_LEVELS[tier - 1];
     const bossHp = trialHp(level);
-    const bossDps = trialDps(level).times(team.length ? incoming / team.length : 1);
+    // The boss's damage each second counts as one hit against the team's average Defense.
+    const bossDps = defended(trialDps(level).times(team.length ? incoming / team.length : 1), team.length ? defense.div(team.length) : new Decimal(0));
     const killTime = dps.gt(0) ? bossHp.div(dps).toNumber() : Infinity;
     const wipeTime = bossDps.gt(0) ? hp.div(bossDps).toNumber() : Infinity;
     const seconds = Math.min(killTime, wipeTime, TRIAL_TIME);
@@ -508,6 +712,11 @@ export class GameState {
     return !req || this.heroesAtEmber(req[1]) >= req[0];
   }
 
+  /** Trials as a whole open after the stage 50 boss. */
+  trialsUnlocked() {
+    return this.bestStage >= TRIAL_UNLOCK_STAGE;
+  }
+
   trialUnlocked(element: string) {
     return Math.min(TRIAL_TIERS, (this.trialBest[element] ?? 0) + 1);
   }
@@ -515,15 +724,19 @@ export class GameState {
   /** Spend a ticket on an open Trial. A loss gives the ticket back. */
   playTrial(element: Element, tier: number): TrialResult | null {
     this.refreshTickets();
-    if (!this.trialOpen(element) || this.tickets <= 0 || tier < 1 || tier > this.trialUnlocked(element) || !this.trialReqMet(tier)) return null;
+    if (!this.trialsUnlocked() || !this.trialOpen(element) || this.tickets <= 0 || tier < 1 || tier > this.trialUnlocked(element) || !this.trialReqMet(tier)) return null;
     const sim = this.simulateTrial(tier, element);
     const level = TRIAL_LEVELS[tier - 1];
-    const result: TrialResult = { won: sim.won, seconds: sim.seconds, bossLeft: sim.bossLeft, teamLeft: sim.teamLeft, essence: 0, medals: [] };
+    const result: TrialResult = { won: sim.won, seconds: sim.seconds, bossLeft: sim.bossLeft, teamLeft: sim.teamLeft, essence: 0, stones: 0, medals: [] };
     if (!sim.won) return result;
     if (this.tickets >= TICKET_CAP) this.ticketClock = Date.now();
     this.tickets -= 1;
-    result.essence = level.essence;
+    this.track('trials');
+    const explore = 1 + this.researchBonus('exploration');
+    result.essence = Math.round(level.essence * explore);
     this.essences[element] = (this.essences[element] ?? 0) + result.essence;
+    result.stones = Math.round(trialStones(tier) * explore);
+    this.enhanceStones += result.stones;
     // Medals go to different random heroes of the element while there are enough of them.
     // Medals go to different heroes of the element where possible, picked by rarity weight.
     // Legendary heroes only come through special means, so they get none.
@@ -550,37 +763,29 @@ export class GameState {
   }
 
   pendingEmbers() {
-    return emberYield(this.runBestStage, REKINDLE_STAGE, this.keeperBonus());
-  }
-
-  /** Ember Road markers reached by the best stage ever. */
-  roadReached() {
-    if (this.bestStage < ROAD_START) return 0;
-    return Math.min(ROAD_LENGTH, 1 + Math.floor((this.bestStage - ROAD_START) / ROAD_STEP));
-  }
-
-  /** Gems waiting on Ember Road markers reached since the last Rekindle. */
-  pendingRoadGems() {
-    return Math.max(0, this.roadReached() - this.roadClaimed) * ROAD_GEMS;
+    return Math.floor(emberYield(this.runBestStage, REKINDLE_STAGE, this.keeperBonus()) * (1 + this.relicBonus('embers')));
   }
 
   /**
    * Prestige reset (GDD section 7): back to stage 1 and gold level 1, keep
    * Embers and Ember levels. `mult` is a Gem-bought 2x or 3x payout.
    */
-  rekindle(mult = 1): { embers: number; gems: number } | null {
+  rekindle(mult = 1): RekindleResult | null {
     const base = this.pendingEmbers();
     if (base <= 0) return null;
     const boost = REKINDLE_BOOSTS.find((b) => b.mult === mult);
     if (mult !== 1 && (!boost || this.gems < boost.gems)) return null;
     if (boost) this.gems -= boost.gems;
-    const gained = base * mult;
-    const roadGems = this.pendingRoadGems();
-    this.gems += roadGems;
-    this.roadClaimed = this.roadReached();
+    const levelBefore = this.keeperLevel();
+    const wheel = this.spinWheel(base);
+    const gained = base * mult + wheel.embers;
     this.embers += gained;
     this.lifetimeEmbers += gained;
     this.rekindles += 1;
+    // Every new player level comes with a gift: a free Hero Chest.
+    const levelsGained = this.keeperLevel() - levelBefore;
+    const gifts: SummonDrop[] = [];
+    for (let i = 0; i < levelsGained; i++) gifts.push(...this.rollChest());
     this.gold = new Decimal(0);
     this.stage = 1;
     this.runBestStage = 1;
@@ -590,7 +795,410 @@ export class GameState {
     this.secondsPerStage = 20;
     this.goldPerSec = 0;
     this.save();
-    return { embers: gained, gems: roadGems };
+    return { embers: gained, wheel: wheel.lines, drops: [...wheel.drops, ...gifts], levelsGained };
+  }
+
+  /** Rekindle Wheel slots unlocked by this run's best stage. */
+  roadReached() {
+    if (this.runBestStage < ROAD_START) return 0;
+    return Math.min(ROAD_LENGTH, 1 + Math.floor((this.runBestStage - ROAD_START) / ROAD_STEP));
+  }
+
+  /** Spin the Rekindle Wheel once per unlocked slot. Ember prizes are a share of `base` and are added by the caller. */
+  private spinWheel(base: number) {
+    const lines: string[] = [];
+    const drops: SummonDrop[] = [];
+    let embers = 0;
+    for (let i = 0; i < this.roadReached(); i++) {
+      const prize = weighted(WHEEL_PRIZES.map((p) => [p.prize, p.weight] as [WheelPrize, number]));
+      if (prize.kind === 'chest') {
+        drops.push(...this.rollChest());
+        lines.push('Hero Chest');
+      } else if (prize.kind === 'tickets') {
+        this.refreshTickets();
+        this.tickets = Math.min(TICKET_CAP, this.tickets + prize.amount);
+        lines.push(`${prize.amount} Trial tickets`);
+      } else if (prize.kind === 'stones') {
+        this.enhanceStones += prize.amount;
+        lines.push(`${prize.amount} Enhance Stones`);
+      } else if (prize.kind === 'essence') {
+        const els = Object.keys(ESSENCE_NAMES) as Element[];
+        const el = els[Math.floor(Math.random() * els.length)];
+        this.essences[el] = (this.essences[el] ?? 0) + prize.amount;
+        lines.push(`${prize.amount} ${ESSENCE_NAMES[el]}`);
+      } else {
+        const extra = Math.floor(base * prize.share);
+        embers += extra;
+        lines.push(`+${Math.round(prize.share * 100)}% Embers`);
+      }
+    }
+    return { lines, drops, embers };
+  }
+
+  // ---------- free Gem sources (rewards.ts) ----------
+
+  /** Start a fresh set of daily challenges when the local day has changed. */
+  private rollDay(now = Date.now()) {
+    const today = dayKey(now);
+    if (this.daily.day !== today) this.daily = { day: today, counts: {}, claimed: [] };
+  }
+
+  /** Count progress toward daily challenges, achievements and Bootcamp. */
+  track(stat: StatKey, n = 1) {
+    if (n <= 0) return;
+    this.rollDay();
+    this.stats[stat] += n;
+    this.daily.counts[stat] = (this.daily.counts[stat] ?? 0) + n;
+    if (stat === 'kills' || stat === 'stages' || stat === 'trials') this.guildQuestPending[stat] += n;
+  }
+
+  /** Today's challenges with progress, and whether each is claimed. */
+  dailies(now = Date.now()) {
+    this.rollDay(now);
+    return DAILIES.map((def) => ({ def, progress: Math.min(def.goal, this.daily.counts[def.stat] ?? 0), claimed: this.daily.claimed.includes(def.stat) }));
+  }
+
+  claimDaily(stat: StatKey): boolean {
+    const row = this.dailies().find((r) => r.def.stat === stat);
+    if (!row || row.claimed || row.progress < row.def.goal) return false;
+    this.daily.claimed.push(stat);
+    this.gems += DAILY_GEMS;
+    this.save();
+    return true;
+  }
+
+  /** Gold worth `minutes` of income, with a floor so new players still get something. */
+  goldFor(minutes: number): Decimal {
+    return Decimal.max(new Decimal(this.goldPerSec).times(minutes * 60), goldPerKill(this.stage).times(20 * minutes));
+  }
+
+  /** Pay out a reward. Free Hero Chests roll like bought ones. */
+  grant(r: Reward): { gems: number; gold: Decimal; drops: SummonDrop[] } {
+    const gems = r.gems ?? 0;
+    const gold = r.goldMinutes ? this.goldFor(r.goldMinutes) : new Decimal(0);
+    this.gems += gems;
+    this.gold = this.gold.plus(gold);
+    const drops: SummonDrop[] = [];
+    for (let i = 0; i < (r.chests ?? 0); i++) drops.push(...this.rollChest());
+    return { gems, gold, drops };
+  }
+
+  /** Which day of the 5-day login calendar is next (0-4), and whether it can be claimed today. */
+  loginState(now = Date.now()) {
+    return { day: this.login.count % LOGIN_CYCLE.length, ready: this.login.last !== dayKey(now) };
+  }
+
+  claimLogin(now = Date.now()) {
+    const { day, ready } = this.loginState(now);
+    if (!ready) return null;
+    this.login = { count: this.login.count + 1, last: dayKey(now) };
+    const got = this.grant(LOGIN_CYCLE[day]);
+    this.save();
+    return got;
+  }
+
+  spinReady(now = Date.now()) {
+    return this.spinDay !== dayKey(now);
+  }
+
+  /** Use today's free Lucky Spin. Returns the slice it landed on. */
+  spin(now = Date.now()) {
+    if (!this.spinReady(now)) return null;
+    this.spinDay = dayKey(now);
+    const index = weighted(SPIN_SLICES.map((sl, i) => [i, sl.weight] as [number, number]));
+    const got = this.grant(SPIN_SLICES[index].reward);
+    this.save();
+    return { index, ...got };
+  }
+
+  // ---------- guilds (the server side is in guild.ts) ----------
+
+  /** Remove medals given to a guildmate and pay guild credits for them. Returns the credits, or null if the medals aren't there. */
+  giveGuildMedals(id: string, n: number): number | null {
+    const hero = HEROES.find((h) => h.id === id);
+    if (!hero || hero.rarity === 'legendary' || n <= 0 || (this.crests[id] ?? 0) < n) return null;
+    this.crests[id] -= n;
+    const credits = n * GUILD_CREDITS_PER_MEDAL[hero.rarity];
+    this.guildCredits += credits;
+    this.save();
+    return credits;
+  }
+
+  /** Medals guildmates gave to this player's requests. */
+  receiveGuildMedals(gifts: Array<{ heroId: string; crests: number }>): SummonDrop[] {
+    const drops: SummonDrop[] = [];
+    for (const { heroId, crests } of gifts) {
+      const hero = HEROES.find((h) => h.id === heroId);
+      if (!hero || crests <= 0) continue;
+      const before = this.crests[heroId] ?? 0;
+      const need = this.unlockCrests(hero);
+      this.addCrests(heroId, crests);
+      drops.push({ heroId, crests, isNew: (this.levels[heroId] ?? 0) === 0 && need !== null && before < need && before + crests >= need });
+    }
+    if (drops.length) this.save();
+    return drops;
+  }
+
+  /** Damage one Guild Boss attempt deals: the Trial team (Ember levels) hitting for the whole fight. */
+  guildBossDamage(element: Element): Decimal {
+    let dps = new Decimal(0);
+    for (const m of this.trialTeam()) dps = dps.plus(m.atk.div(m.def.attackCooldown).times(elementMultiplier(m.def.element, element)));
+    return dps.times(GUILD_BOSS_SECONDS * (1 + this.researchBonus('elemental'))).floor();
+  }
+
+  /** A Guild Research bonus as a fraction (0.1 = +10%), from the cached ranks. */
+  researchBonus(branch: ResearchBranch): number {
+    const rank = Math.min(GUILD_RESEARCH_MAX_RANK, Math.max(0, Math.floor(this.guildResearch[branch] ?? 0)));
+    return rank * (GUILD_RESEARCH.find((b) => b.id === branch)?.perRank ?? 0);
+  }
+
+  /** Store the guild's research ranks (an empty object when not in a guild); true when they changed. */
+  setGuildResearch(ranks: Partial<Record<ResearchBranch, number>>): boolean {
+    const clean = cleanResearch(ranks);
+    if (JSON.stringify(clean) === JSON.stringify(this.guildResearch)) return false;
+    this.guildResearch = clean;
+    this.save();
+    return true;
+  }
+
+  /** Spend Guild Coins on research (after the server took them). */
+  spendGuildCoins(n: number): boolean {
+    if (!(n > 0) || this.guildCredits < n) return false;
+    this.guildCredits -= n;
+    this.save();
+    return true;
+  }
+
+  /** Pay one Guild Boss attempt: Guild Coins (more for a bigger share of the boss) and some gold. */
+  payGuildBossAttempt(level: number, damage: Decimal, hp: Decimal): { coins: number; gold: Decimal } {
+    const coins = guildBossAttemptCoins(level, damage, hp, GUILD_BOSS_PAR_ATTEMPTS);
+    const gold = this.goldFor(GUILD_BOSS_GOLD_MINUTES);
+    this.guildCredits += coins;
+    this.gold = this.gold.plus(gold);
+    this.save();
+    return { coins, gold };
+  }
+
+  /** Reward for a beaten Guild Boss: Guild Coins, a Hero Chest and 1% of lifetime Embers (at least 10). */
+  payGuildBossKill(level: number): { coins: number; embers: number; drops: SummonDrop[] } {
+    const coins = guildBossKillCoins(level);
+    const embers = Math.max(10, Math.round(this.lifetimeEmbers * 0.01));
+    this.guildCredits += coins;
+    this.embers += embers;
+    this.lifetimeEmbers += embers;
+    const drops = this.rollChest();
+    this.save();
+    return { coins, embers, drops };
+  }
+
+  /** Guild shop stock for today: rolls new hero offers on a new day and resets the weekly Wild Medal count. */
+  guildShopState(now = Date.now()) {
+    const today = dayKey(now);
+    if (this.guildShop.day !== today) {
+      const offers: GuildOffer[] = [];
+      const pool = HEROES.filter((h) => guildRarity(h));
+      for (let tries = 0; offers.length < GUILD_SHOP_OFFERS && tries < 50; tries++) {
+        const h = pickByRarity(pool.filter((x) => !offers.some((o) => o.heroId === x.id)), CHEST_RARITY_WEIGHTS);
+        const r = h && guildRarity(h);
+        if (h && r) offers.push({ heroId: h.id, crests: GUILD_OFFER_MEDALS[r], cost: GUILD_OFFER_COST[r], bought: false });
+      }
+      this.guildShop = { ...this.guildShop, day: today, offers, pouches: 0 };
+    }
+    const week = weekKey(now);
+    if (this.guildShop.week !== week) this.guildShop = { ...this.guildShop, week, wild: 0 };
+    return this.guildShop;
+  }
+
+  guildItemReady(id: GuildShopId, now = Date.now()): boolean {
+    const item = GUILD_SHOP.find((i) => i.id === id)!;
+    if (this.guildCredits < item.cost) return false;
+    if (id === 'tickets') {
+      this.refreshTickets();
+      return this.tickets < TICKET_CAP;
+    }
+    if (id === 'embers') return this.guildShopState(now).pouches < GUILD_EMBER_POUCHES_PER_DAY;
+    if (id === 'banner' || id === 'horn') return this.boosts[id] - now < (GUILD_BOOST_MAX_MINUTES - GUILD_BOOST_MINUTES) * 60_000 + 1000;
+    return true;
+  }
+
+  /** Spend Guild Coins on an always-in-stock item. A Hero Chest returns its drops, a pouch its Embers. */
+  buyGuildItem(id: GuildShopId, now = Date.now()): { drops: SummonDrop[]; embers: number } | null {
+    if (!this.guildItemReady(id, now)) return null;
+    this.guildCredits -= GUILD_SHOP.find((i) => i.id === id)!.cost;
+    let drops: SummonDrop[] = [];
+    let embers = 0;
+    if (id === 'chest') drops = this.rollChest();
+    else if (id === 'stone') this.enhanceStones += 1;
+    else if (id === 'tickets') this.tickets = Math.min(TICKET_CAP, this.tickets + 5);
+    else if (id === 'embers') {
+      embers = Math.max(10, Math.round(this.lifetimeEmbers * 0.01));
+      this.embers += embers;
+      this.lifetimeEmbers += embers;
+      this.guildShop.pouches += 1;
+    } else {
+      this.boosts[id] = Math.min(now + GUILD_BOOST_MAX_MINUTES * 60_000, Math.max(now, this.boosts[id]) + GUILD_BOOST_MINUTES * 60_000);
+    }
+    this.save();
+    return { drops, embers };
+  }
+
+  /** Pay a Guild Quest reward the server allowed: 'track1'..'track4' or a quest's personal reward. */
+  payGuildQuest(reward: string): { coins: number; drops: SummonDrop[] } {
+    const step = /^track([1-4])$/.exec(reward);
+    const tier = step ? GUILD_QUEST_TRACK[Number(step[1]) - 1] : null;
+    const coins = tier ? tier.coins : GUILD_QUEST_PERSONAL_COINS;
+    const drops = tier?.chest ? this.rollChest() : [];
+    this.guildCredits += coins;
+    this.save();
+    return { coins, drops };
+  }
+
+  /** A guild shop boost's multiplier right now (1 when it isn't running). */
+  boostMult(id: 'banner' | 'horn', now = Date.now()): number {
+    return this.boosts[id] > now ? 1 + GUILD_BOOSTS[id] : 1;
+  }
+
+  /** Buy one of today's hero offers. */
+  buyGuildOffer(index: number, now = Date.now()): SummonDrop[] | null {
+    const offer = this.guildShopState(now).offers[index];
+    if (!offer || offer.bought || this.guildCredits < offer.cost) return null;
+    this.guildCredits -= offer.cost;
+    offer.bought = true;
+    return this.receiveGuildMedals([{ heroId: offer.heroId, crests: offer.crests }]);
+  }
+
+  /** Price of Wild Medals for a hero, or null for heroes they can't go to (Legendary). */
+  wildMedalCost(heroId: string): number | null {
+    const h = HEROES.find((x) => x.id === heroId);
+    const r = h && guildRarity(h);
+    return r ? GUILD_WILD_COST[r] : null;
+  }
+
+  /** Wild Medals still on sale this week. */
+  wildMedalsLeft(now = Date.now()): number {
+    return Math.max(0, GUILD_WILD_PER_WEEK - this.guildShopState(now).wild);
+  }
+
+  /** Buy n Wild Medals for a hero the player picked. */
+  buyWildMedals(heroId: string, n: number, now = Date.now()): SummonDrop[] | null {
+    const cost = this.wildMedalCost(heroId);
+    if (cost === null || !(n >= 1) || n > this.wildMedalsLeft(now) || this.guildCredits < cost * n) return null;
+    this.guildCredits -= cost * n;
+    this.guildShop.wild += n;
+    return this.receiveGuildMedals([{ heroId, crests: n }]);
+  }
+
+  /**
+   * Today's Daily Medal Bundle: a few heroes' medals, rolled at the first look each day (Hero Chest
+   * odds, the smallest drop size), free once enough daily challenges are finished.
+   */
+  medalBundleState(now = Date.now()) {
+    const today = dayKey(now);
+    if (this.medalBundle.day !== today) this.medalBundle = { day: today, drops: this.rollMedalBundle(), claimed: false };
+    const done = this.dailies(now).filter((r) => r.progress >= r.def.goal).length;
+    return { drops: this.medalBundle.drops, claimed: this.medalBundle.claimed, done, need: MEDAL_BUNDLE_DAILIES, ready: !this.medalBundle.claimed && done >= MEDAL_BUNDLE_DAILIES };
+  }
+
+  private rollMedalBundle(): Array<{ heroId: string; crests: number }> {
+    const drops: Array<{ heroId: string; crests: number }> = [];
+    for (let tries = 0; drops.length < MEDAL_BUNDLE_HEROES && tries < 50; tries++) {
+      const left = HEROES.filter((h) => !drops.some((d) => d.heroId === h.id));
+      const hero = pickByRarity(left, CHEST_RARITY_WEIGHTS);
+      if (!hero) break;
+      drops.push({ heroId: hero.id, crests: CREST_ROLLS[hero.rarity as keyof typeof CREST_ROLLS][0][0] });
+    }
+    return drops;
+  }
+
+  /** Claim today's Daily Medal Bundle. Returns its drops, or null when it isn't ready. */
+  claimMedalBundle(now = Date.now()): SummonDrop[] | null {
+    if (!this.medalBundleState(now).ready) return null;
+    this.medalBundle.claimed = true;
+    const drops = this.medalBundle.drops.map(({ heroId, crests }) => {
+      const hero = HEROES.find((h) => h.id === heroId)!;
+      const before = this.crests[heroId] ?? 0;
+      const need = this.unlockCrests(hero);
+      this.addCrests(heroId, crests);
+      return { heroId, crests, isNew: (this.levels[heroId] ?? 0) === 0 && need !== null && before < need && before + crests >= need };
+    });
+    this.save();
+    return drops;
+  }
+
+  /** Current value an achievement counts. */
+  achievementValue(def: AchievementDef): number {
+    switch (def.value) {
+      case 'bestStage':
+        return this.bestStage;
+      case 'rekindles':
+        return this.rekindles;
+      case 'heroes':
+        return HEROES.filter((h) => (this.levels[h.id] ?? 0) > 0).length;
+      case 'stars':
+        return HEROES.reduce((t, h) => t + ((this.levels[h.id] ?? 0) > 0 ? (this.stars[h.id] ?? 0) + 1 : 0), 0);
+      default:
+        return this.stats[def.value];
+    }
+  }
+
+  /** Each achievement's next tier (null once all are claimed), its progress and whether it's ready. */
+  achievements() {
+    return ACHIEVEMENTS.map((def) => {
+      const tier = this.achieved[def.id] ?? 0;
+      const next = def.tiers[tier] ?? null;
+      const value = this.achievementValue(def);
+      return { def, tier, next, value, ready: !!next && value >= next[0] };
+    });
+  }
+
+  claimAchievement(id: string): boolean {
+    const row = this.achievements().find((a) => a.def.id === id);
+    if (!row || !row.ready || !row.next) return false;
+    this.achieved[id] = row.tier + 1;
+    this.gems += row.next[1];
+    this.save();
+    return true;
+  }
+
+  bootcampDone(def: BootcampDef): boolean {
+    const c = def.check;
+    switch (c.kind) {
+      case 'heroLevel':
+        return HEROES.some((h) => (this.levels[h.id] ?? 0) >= c.level);
+      case 'stage':
+        return this.bestStage >= c.stage;
+      case 'stat':
+        return this.stats[c.stat] >= c.count;
+      case 'team':
+        return this.lineupCount() >= c.size;
+      case 'star':
+        return HEROES.some((h) => (this.levels[h.id] ?? 0) > 0 && (this.stars[h.id] ?? 0) + 1 >= c.stars);
+      case 'rekindle':
+        return this.rekindles > 0;
+      case 'relic':
+        return this.equipped.length > 0;
+    }
+  }
+
+  claimBootcamp(id: string): boolean {
+    const def = BOOTCAMP.find((b) => b.id === id);
+    if (!def || this.bootcamp.includes(id) || !this.bootcampDone(def)) return false;
+    this.bootcamp.push(id);
+    this.gems += def.gems;
+    this.save();
+    return true;
+  }
+
+  /** True when any free reward is waiting (drives the Shop tab badge). */
+  rewardsWaiting(now = Date.now()): boolean {
+    return (
+      this.loginState(now).ready ||
+      this.spinReady(now) ||
+      this.medalBundleState(now).ready ||
+      this.dailies(now).some((r) => !r.claimed && r.progress >= r.def.goal) ||
+      this.achievements().some((a) => a.ready) ||
+      BOOTCAMP.some((b) => !this.bootcamp.includes(b.id) && this.bootcampDone(b))
+    );
   }
 
   addGold(amount: Decimal) {
@@ -609,8 +1217,19 @@ export class GameState {
     this.secondsPerStage = this.secondsPerStage * 0.7 + seconds * 0.3;
   }
 
+  /**
+   * Set before the page reloads with a different save (a wipe or a cloud
+   * save), so nothing in this page writes the old state back.
+   */
+  static frozen = false;
+
   save() {
-    this.lastSeen = Date.now();
+    if (GameState.frozen) return;
+    // lastSeen marks when the game last ran. A hidden tab is paused (and paid
+    // as offline time when it comes back), so it doesn't move the mark; and the
+    // mark never moves backwards, so winding the clock back can't replay
+    // offline earnings.
+    if (typeof document === 'undefined' || !document.hidden) this.lastSeen = Math.max(this.lastSeen, Date.now());
     GameState.writeLocal(this.toJSON());
   }
 
@@ -625,7 +1244,18 @@ export class GameState {
       emberLevels: this.emberLevels,
       rekindles: this.rekindles,
       lifetimeEmbers: this.lifetimeEmbers,
-      roadClaimed: this.roadClaimed,
+      stats: this.stats,
+      daily: this.daily,
+      login: this.login,
+      spinDay: this.spinDay,
+      medalBundle: this.medalBundle,
+      guildShop: this.guildShop,
+      guildQuestPending: this.guildQuestPending,
+      boosts: this.boosts,
+      guildCredits: this.guildCredits,
+      guildResearch: this.guildResearch,
+      achieved: this.achieved,
+      bootcamp: this.bootcamp,
       stalls: this.stalls,
       benched: this.benched,
       tickets: this.tickets,
@@ -643,6 +1273,8 @@ export class GameState {
       buyAmount: this.buyAmount,
       stallBuyAmount: this.stallBuyAmount,
       relics: this.relics,
+      relicEnhance: this.relicEnhance,
+      enhanceStones: this.enhanceStones,
       equipped: this.equipped,
       relicSlots: this.relicSlots,
       legendaryMedals: this.legendaryMedals,
@@ -661,10 +1293,17 @@ export class GameState {
   }
 
   static readLocal(): SaveData | null {
+    let raw: string | null = null;
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
+      raw = localStorage.getItem(SAVE_KEY);
       return raw ? JSON.parse(raw) : null;
     } catch {
+      // A damaged save: set it aside rather than letting the next autosave replace it.
+      try {
+        if (raw) localStorage.setItem(`${SAVE_KEY}-unreadable-${Date.now()}`, raw);
+      } catch {
+        /* ignore */
+      }
       return null;
     }
   }
@@ -699,8 +1338,33 @@ export class GameState {
       this.emberLevels = { ...this.emberLevels, ...(d.emberLevels ?? {}) };
       this.rekindles = d.rekindles ?? 0;
       this.lifetimeEmbers = d.lifetimeEmbers ?? this.embers;
-      this.roadClaimed = d.roadClaimed ?? 0;
       this.benched = { ...(d.benched ?? {}) };
+      this.stats = { ...this.stats, ...(d.stats ?? {}) };
+      if (d.daily) this.daily = { day: String(d.daily.day ?? ''), counts: { ...(d.daily.counts ?? {}) }, claimed: [...(d.daily.claimed ?? [])] };
+      if (d.login) this.login = { count: d.login.count ?? 0, last: String(d.login.last ?? '') };
+      this.spinDay = String(d.spinDay ?? '');
+      this.guildCredits = Math.max(0, Number(d.guildCredits) || 0);
+      this.guildResearch = d.guildResearch && typeof d.guildResearch === 'object' ? cleanResearch(d.guildResearch) : {};
+      const shop = d.guildShop;
+      if (shop && typeof shop === 'object') {
+        const offers = Array.isArray(shop.offers) ? shop.offers.filter((o: GuildOffer) => HEROES.some((h) => h.id === o?.heroId) && Number(o.crests) > 0 && Number(o.cost) > 0) : [];
+        this.guildShop = {
+          day: String(shop.day ?? ''),
+          offers: offers.map((o: GuildOffer) => ({ heroId: o.heroId, crests: Number(o.crests), cost: Number(o.cost), bought: !!o.bought })),
+          pouches: Math.max(0, Number(shop.pouches) || 0),
+          week: String(shop.week ?? ''),
+          wild: Math.max(0, Number(shop.wild) || 0),
+        };
+      }
+      const q = d.guildQuestPending;
+      if (q && typeof q === 'object') this.guildQuestPending = { kills: Math.max(0, Number(q.kills) || 0), stages: Math.max(0, Number(q.stages) || 0), trials: Math.max(0, Number(q.trials) || 0) };
+      if (d.boosts && typeof d.boosts === 'object') this.boosts = { banner: Number(d.boosts.banner) || 0, horn: Number(d.boosts.horn) || 0 };
+      if (d.medalBundle && Array.isArray(d.medalBundle.drops)) {
+        const drops = d.medalBundle.drops.filter((x: { heroId?: unknown; crests?: unknown }) => HEROES.some((h) => h.id === x?.heroId) && Number(x.crests) > 0);
+        this.medalBundle = { day: String(d.medalBundle.day ?? ''), drops: drops.map((x: { heroId: string; crests: number }) => ({ heroId: x.heroId, crests: Number(x.crests) })), claimed: !!d.medalBundle.claimed };
+      }
+      this.achieved = { ...(d.achieved ?? {}) };
+      this.bootcamp = [...(d.bootcamp ?? [])];
       this.tickets = d.tickets ?? TICKET_CAP;
       this.ticketClock = d.ticketClock ?? Date.now();
       this.trialBest = { ...(d.trialBest ?? {}) };
@@ -719,20 +1383,73 @@ export class GameState {
       this.muted = !!d.muted;
       this.buyAmount = d.buyAmount ?? 1;
       this.stallBuyAmount = d.stallBuyAmount ?? 1;
-      this.relics = { ...(d.relics ?? {}) };
+      // Relics no longer in the game (the list changed to follow the original) are dropped.
+      this.relics = Object.fromEntries(Object.entries(d.relics ?? {}).filter(([id]) => RELICS.some((r) => r.id === id))) as Record<string, number>;
+      this.relicEnhance = { ...(d.relicEnhance ?? {}) };
+      this.enhanceStones = d.enhanceStones ?? 0;
+      // Older saves ran relics to level 50 across tiers I-V: keep those levels as Enhances.
+      for (const def of RELICS) {
+        const lv = this.relics[def.id] ?? 0;
+        if (lv > this.relicMaxLevel(def)) {
+          this.relicEnhance[def.id] = Math.min(RELIC_ENHANCE_COSTS.length, Math.ceil((lv - RELIC_BASE_MAX) / RELIC_ENHANCE_LEVELS));
+          this.relics[def.id] = Math.min(lv, this.relicMaxLevel(def));
+        }
+      }
       this.relicSlots = d.relicSlots ?? RELIC_START_SLOTS;
       this.legendaryMedals = d.legendaryMedals ?? 0;
       this.equipped = (d.equipped ?? []).filter((id: string) => this.relics[id]).slice(0, this.relicSlots);
       this.goldPerSec = d.goldPerSec ?? 0;
       this.secondsPerStage = d.secondsPerStage ?? 20;
       this.lastSeen = d.lastSeen ?? Date.now();
+      this.sanitize();
       return true;
     } catch {
+      // Keep the unreadable save aside so it can be recovered, instead of being overwritten by a fresh game.
+      try {
+        localStorage.setItem(`${SAVE_KEY}-unreadable-${Date.now()}`, JSON.stringify(d));
+      } catch {
+        /* ignore */
+      }
       return false;
     }
   }
 
+  /** Repair values a hand-edited, cloud-merged or older save could carry, so the game never runs on nonsense. */
+  private sanitize() {
+    const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
+    if (!this.gold || Number.isNaN(this.gold.mantissa) || this.gold.lt(0)) this.gold = new Decimal(0);
+    this.stage = Math.max(1, Math.floor(num(this.stage, 1)));
+    this.bestStage = Math.max(this.stage, Math.floor(num(this.bestStage, this.stage)));
+    this.runBestStage = Math.max(this.stage, Math.floor(num(this.runBestStage, this.stage)));
+    this.gems = Math.max(0, Math.floor(num(this.gems, START_GEMS)));
+    this.embers = Math.max(0, num(this.embers, 0));
+    this.tickets = Math.min(TICKET_CAP, Math.max(0, Math.floor(num(this.tickets, TICKET_CAP))));
+    this.ticketClock = num(this.ticketClock, Date.now());
+    this.lastSeen = num(this.lastSeen, Date.now());
+    for (const k of STAT_KEYS) this.stats[k] = Math.max(0, num(this.stats[k], 0));
+    this.login.count = Math.max(0, Math.floor(num(this.login.count, 0)));
+    for (const h of HEROES) {
+      this.levels[h.id] = Math.max(0, Math.floor(num(this.levels[h.id], 0)));
+      this.emberLevels[h.id] = Math.max(0, Math.floor(num(this.emberLevels[h.id], 0)));
+      this.crests[h.id] = Math.max(0, Math.floor(num(this.crests[h.id], 0)));
+      this.stars[h.id] = Math.min(MAX_STARS, Math.max(0, Math.floor(num(this.stars[h.id], 0))));
+    }
+    // The free starter is always recruited.
+    for (const h of HEROES) if (h.unlockCost === 0 && this.levels[h.id] === 0) this.levels[h.id] = 1;
+    // At most LINEUP_SIZE fighters (extras are benched, keeping their levels), and never none.
+    let fighting = 0;
+    for (const h of HEROES) {
+      if (this.levels[h.id] === 0 || this.benched[h.id]) continue;
+      if (++fighting > LINEUP_SIZE) this.benched[h.id] = true;
+    }
+    if (fighting === 0) {
+      const first = HEROES.find((h) => this.levels[h.id] > 0);
+      if (first) delete this.benched[first.id];
+    }
+  }
+
   static wipe() {
+    GameState.frozen = true;
     try {
       localStorage.removeItem(SAVE_KEY);
     } catch {
@@ -751,7 +1468,7 @@ export class GameState {
     const market = this.marketAutoPerSec().times(capped);
     const gold = new Decimal(this.goldPerSec).times(capped).plus(market);
     // Stalls waiting for a tap fill up while you're away.
-    for (const def of STALLS) if (this.stalls[def.id].level > 0 && !this.stallAuto(def.id)) this.stalls[def.id].progress = def.cycle;
+    for (const def of STALLS) if (this.stalls[def.id].level > 0 && !this.stallAuto(def.id)) this.stalls[def.id].progress = this.stallCycle(def);
     let stages = 0;
     if (this.autoAdvance && this.secondsPerStage > 0 && this.stage % BOSS_EVERY !== 0) {
       const nextBoss = Math.ceil((this.stage + 1) / BOSS_EVERY) * BOSS_EVERY;
@@ -764,6 +1481,11 @@ export class GameState {
   }
 }
 
+/** Enhance Stones for a Trial win: none below level 6, then 1, 2 from level 16, 3 at level 26. */
+export function trialStones(tier: number): number {
+  return tier >= 26 ? 3 : tier >= 16 ? 2 : tier >= 6 ? 1 : 0;
+}
+
 /** Pick from `[value, weight]` pairs by weight. */
 function weighted<T>(table: Array<[T, number]>): T {
   let roll = Math.random() * table.reduce((t, [, w]) => t + w, 0);
@@ -771,6 +1493,13 @@ function weighted<T>(table: Array<[T, number]>): T {
 }
 
 /** A random hero: a rarity by weight among rarities present in `heroes`, then a hero of it. Never Legendary. */
+/** Drop chance (percent) per rarity, counting only rarities some hero in `heroes` has. Matches pickByRarity. */
+export function rarityOdds(heroes: HeroDef[], weights: Partial<Record<Rarity, number>>): Array<[Rarity, number]> {
+  const present = (Object.keys(weights) as Rarity[]).filter((r) => heroes.some((h) => h.rarity === r) && (weights[r] ?? 0) > 0);
+  const total = present.reduce((t, r) => t + (weights[r] ?? 0), 0);
+  return present.map((r) => [r, total > 0 ? ((weights[r] ?? 0) / total) * 100 : 0]);
+}
+
 function pickByRarity(heroes: HeroDef[], weights: Partial<Record<Rarity, number>>): HeroDef | null {
   const present = (Object.keys(weights) as Rarity[]).filter((r) => heroes.some((h) => h.rarity === r));
   if (!present.length) return null;

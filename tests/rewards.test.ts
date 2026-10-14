@@ -1,0 +1,159 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { GameState } from '../src/state';
+import { HEROES, START_GEMS, ROAD_START, ROAD_STEP, ROAD_LENGTH, REKINDLE_STAGE, RELICS } from '../src/data';
+import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, BOOTCAMP, ACHIEVEMENTS, dayKey } from '../src/rewards';
+
+function fresh() {
+  GameState.frozen = false;
+  localStorage.clear();
+  return new GameState();
+}
+
+const DAY = 24 * 3600 * 1000;
+const noon = new Date(2026, 9, 13, 12).getTime();
+
+beforeEach(() => {
+  vi.useRealTimers();
+});
+
+describe('stage progress', () => {
+  it('pays no Gems for stages or bosses any more', () => {
+    const s = fresh();
+    s.reachStage(500);
+    expect(s.gems).toBe(START_GEMS);
+  });
+});
+
+describe('daily challenges', () => {
+  it('pay 5 Gems each, 25 a day, once each', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(noon);
+    const s = fresh();
+    expect(DAILIES.length * DAILY_GEMS).toBe(25);
+    for (const d of DAILIES) {
+      expect(s.claimDaily(d.stat)).toBe(false);
+      s.track(d.stat, d.goal);
+      expect(s.claimDaily(d.stat)).toBe(true);
+      expect(s.claimDaily(d.stat)).toBe(false);
+    }
+    expect(s.gems).toBe(START_GEMS + 25);
+  });
+
+  it('reset on a new day but lifetime stats keep counting', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(noon);
+    const s = fresh();
+    s.track('kills', 300);
+    s.claimDaily('kills');
+    vi.setSystemTime(noon + DAY);
+    const row = s.dailies().find((r) => r.def.stat === 'kills')!;
+    expect(row.progress).toBe(0);
+    expect(row.claimed).toBe(false);
+    expect(s.stats.kills).toBe(300);
+    expect(s.daily.day).toBe(dayKey(noon + DAY));
+  });
+});
+
+describe('login calendar', () => {
+  it('claims once a day and pays Gems on day 5', () => {
+    const s = fresh();
+    let gems = s.gems;
+    for (let i = 0; i < LOGIN_CYCLE.length; i++) {
+      const now = noon + i * DAY;
+      expect(s.claimLogin(now)).not.toBeNull();
+      expect(s.claimLogin(now)).toBeNull();
+      const paid = s.gems - gems;
+      gems = s.gems;
+      expect(paid).toBe(LOGIN_CYCLE[i].gems ?? 0);
+    }
+    expect(LOGIN_CYCLE[4].gems).toBeGreaterThan(0);
+    expect(s.loginState(noon + 5 * DAY)).toEqual({ day: 0, ready: true });
+  });
+
+  it('gives free Hero Chests without spending Gems', () => {
+    const s = fresh();
+    s.claimLogin(noon);
+    const got = s.claimLogin(noon + DAY)!;
+    expect(got.drops.length).toBeGreaterThan(0);
+    expect(s.gems).toBe(START_GEMS);
+    expect(s.stats.summons).toBe(0);
+  });
+});
+
+describe('Lucky Spin', () => {
+  it('spins once a day', () => {
+    const s = fresh();
+    expect(s.spin(noon)).not.toBeNull();
+    expect(s.spin(noon + 1000)).toBeNull();
+    expect(s.spin(noon + DAY)).not.toBeNull();
+  });
+});
+
+describe('achievements', () => {
+  it('pay each tier once, in order', () => {
+    const s = fresh();
+    const stage = ACHIEVEMENTS.find((a) => a.id === 'stage')!;
+    expect(s.claimAchievement('stage')).toBe(false);
+    s.reachStage(stage.tiers[1][0]);
+    expect(s.claimAchievement('stage')).toBe(true);
+    expect(s.claimAchievement('stage')).toBe(true);
+    expect(s.claimAchievement('stage')).toBe(false);
+    expect(s.gems).toBe(START_GEMS + stage.tiers[0][1] + stage.tiers[1][1]);
+  });
+});
+
+describe('Bootcamp', () => {
+  it('pays when a goal is met, once', () => {
+    const s = fresh();
+    const lv = BOOTCAMP.find((b) => b.id === 'lv10')!;
+    expect(s.claimBootcamp('lv10')).toBe(false);
+    s.levels[HEROES[0].id] = 10;
+    expect(s.claimBootcamp('lv10')).toBe(true);
+    expect(s.claimBootcamp('lv10')).toBe(false);
+    expect(s.gems).toBe(START_GEMS + lv.gems);
+  });
+
+  it('counts equipped relics', () => {
+    const s = fresh();
+    expect(s.bootcampDone(BOOTCAMP.find((b) => b.id === 'relic')!)).toBe(false);
+    s.relics[RELICS[0].id] = 1;
+    s.equipped = [RELICS[0].id];
+    expect(s.bootcampDone(BOOTCAMP.find((b) => b.id === 'relic')!)).toBe(true);
+  });
+});
+
+describe('Rekindle Wheel', () => {
+  it('unlocks slots by this run’s best stage and spins once per slot without paying Gems', () => {
+    const s = fresh();
+    s.reachStage(REKINDLE_STAGE + 1);
+    expect(s.roadReached()).toBe(0);
+    s.reachStage(ROAD_START + 2 * ROAD_STEP);
+    expect(s.roadReached()).toBe(3);
+    const gems = s.gems;
+    const r = s.rekindle(1)!;
+    expect(r.wheel.length).toBe(3);
+    expect(s.gems).toBe(gems);
+    expect(s.roadReached()).toBe(0);
+    s.reachStage(ROAD_START + 100 * ROAD_STEP);
+    expect(s.roadReached()).toBe(ROAD_LENGTH);
+  });
+});
+
+describe('saves', () => {
+  it('keep reward progress', () => {
+    const s = fresh();
+    s.track('kills', 42);
+    s.claimLogin(noon);
+    s.spin(noon);
+    s.bootcamp.push('lv10');
+    s.achieved.stage = 2;
+    s.save();
+    const t = new GameState();
+    t.load();
+    expect(t.stats.kills).toBe(42);
+    expect(t.login.count).toBe(1);
+    expect(t.spinDay).toBe(dayKey(noon));
+    expect(t.bootcamp).toEqual(['lv10']);
+    expect(t.achieved.stage).toBe(2);
+  });
+});

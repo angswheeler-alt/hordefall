@@ -79,9 +79,18 @@ export function keeperLevel(lifetimeEmbers: number): number {
   return level;
 }
 
-/** Embers to raise a hero's Ember level from `level` to `level + 1`. */
+/**
+ * Embers to raise a hero's Ember level from `level` to `level + 1`: 7% more
+ * per level. Rekindle pays 6% more per stage, so each extra stage of a
+ * Rekindle buys a bit less than one Ember level. With 5% (about 1.2 levels
+ * per stage) every Rekindle reached ~40% further than the last and a bot
+ * hit stage 1,200 in 10 hours of play; now the gain per Rekindle shrinks
+ * and progress levels off near stage 2,000 until stars and relics push it.
+ * The first Rekindle (~100 Embers) still buys ~15 levels on each of 5 heroes.
+ */
+export const EMBER_COST_GROWTH = 1.07;
 export function emberCost(level: number): number {
-  return 1 + Math.floor(level / 10);
+  return Math.ceil(Math.pow(EMBER_COST_GROWTH, level));
 }
 
 export function heroAtk(def: HeroDef, level: number): Decimal {
@@ -92,19 +101,31 @@ export function heroHp(def: HeroDef, level: number): Decimal {
   return levelScale(level).times(def.baseHp);
 }
 
+/** Defense grows with level like ATK and HP. Without a baseDef it is a small share of HP, so tanky heroes defend best. */
+export const DEF_PER_HP = 0.001;
+export function heroDef(def: HeroDef, level: number): Decimal {
+  return levelScale(level).times(def.baseDef ?? def.baseHp * DEF_PER_HP);
+}
+
+/** Damage after Defense: atk² / (atk + def). Defense equal to the hit halves it; it never blocks a hit fully. */
+export function defended(amount: Decimal, def: Decimal): Decimal {
+  if (def.lte(0) || amount.lte(0)) return amount;
+  return amount.times(amount.div(amount.plus(def)));
+}
+
 /** Gold to go from `level` to `level + 1`. Level 0 means locked, so this is the recruit cost. */
-export function upgradeCost(def: HeroDef, level: number): Decimal {
-  if (level === 0) return new Decimal(def.unlockCost);
-  return Decimal.pow(COST_GROWTH, level - 1).times(def.upgradeBaseCost);
+export function upgradeCost(def: HeroDef, level: number, mult = 1): Decimal {
+  if (level === 0) return new Decimal(def.unlockCost).times(mult);
+  return Decimal.pow(COST_GROWTH, level - 1).times(def.upgradeBaseCost * mult);
 }
 
 /** Total cost and count for buying up to `count` levels (or as many as affordable when count is 'max'). */
-export function bulkCost(def: HeroDef, level: number, count: number | 'max', gold: Decimal): { levels: number; cost: Decimal } {
+export function bulkCost(def: HeroDef, level: number, count: number | 'max', gold: Decimal, mult = 1): { levels: number; cost: Decimal } {
   let total = new Decimal(0);
   let n = 0;
   const limit = count === 'max' ? 1000 : count;
   while (n < limit) {
-    const next = total.plus(upgradeCost(def, level + n));
+    const next = total.plus(upgradeCost(def, level + n, mult));
     if (count === 'max' && next.gt(gold)) break;
     total = next;
     n++;
@@ -141,18 +162,18 @@ export function stallIncome(def: StallDef, level: number): Decimal {
 }
 
 /** Gold to raise a Stall from `level` to `level + 1`; level 0 means opening it. */
-export function stallUpgradeCost(def: StallDef, level: number): Decimal {
-  if (level === 0) return new Decimal(def.unlockCost);
-  return Decimal.pow(1.07, level - 1).times(def.unlockCost * 0.4);
+export function stallUpgradeCost(def: StallDef, level: number, mult = 1): Decimal {
+  if (level === 0) return new Decimal(def.unlockCost).times(mult);
+  return Decimal.pow(1.07, level - 1).times(def.unlockCost * 0.4 * mult);
 }
 
 /** Total cost and count for buying up to `count` Stall levels (or as many as affordable for 'max'). Opening buys exactly one. */
-export function stallBulkCost(def: StallDef, level: number, count: number | 'max', gold: Decimal): { levels: number; cost: Decimal } {
+export function stallBulkCost(def: StallDef, level: number, count: number | 'max', gold: Decimal, mult = 1): { levels: number; cost: Decimal } {
   let total = new Decimal(0);
   let n = 0;
   const limit = count === 'max' ? 1000 : count;
   while (n < limit) {
-    const next = total.plus(stallUpgradeCost(def, level + n));
+    const next = total.plus(stallUpgradeCost(def, level + n, mult));
     if (count === 'max' && next.gt(gold)) break;
     total = next;
     n++;
@@ -178,11 +199,43 @@ export function trialDps(level: { difficulty: number; req: [number, number] | nu
 }
 
 /**
- * Essence of each of a relic's two kinds to go from total level `level` to the
- * next (0 = crafting). Doubles every 2 levels, so level 50 lines up with the
- * top Trial's reward; the step into a new tier costs three times as much.
+ * Essence of each of a relic's two kinds to go from level `level` to the next
+ * (0 = crafting, which costs `craft`). Doubles every 2 levels.
  */
-export function relicCost(level: number, levelsPerTier: number): number {
-  const base = Math.round(20 * Math.pow(2, level / 2));
-  return level > 0 && level % levelsPerTier === 0 ? base * 3 : base;
+export function relicCost(level: number, craft: number): number {
+  return Math.round(craft * Math.pow(2, level / 2));
+}
+
+// ---------- Guild Boss (mirrors supabase/guilds.sql) ----------
+
+/** Boss health for a level: about 15 attempts by five 1-star heroes at Ember level 30 x level. */
+export function guildBossHp(level: number): Decimal {
+  return Decimal.pow(2, 1.5 * level).times(14400 * 30 * level).round();
+}
+
+/**
+ * Guild Coins for one attempt: everyone who tries gets the base (10 + boss level),
+ * and dealing a full share of the boss (1/15 of its health) doubles it.
+ */
+export function guildBossAttemptCoins(level: number, damage: Decimal, hp: Decimal, parAttempts = 15): number {
+  const base = 10 + level;
+  const share = hp.gt(0) ? Math.min(1, damage.div(hp.div(parAttempts)).toNumber()) : 0;
+  return Math.round(base * (1 + share));
+}
+
+/** Guild Coins for every member who hit a boss that was beaten. */
+export function guildBossKillCoins(level: number): number {
+  return 5 * (10 + level);
+}
+
+/** Points needed to reach a Guild Research rank: 300 x (1^2 + ... + rank^2). */
+export function researchPointsFor(rank: number): number {
+  return (300 * rank * (rank + 1) * (2 * rank + 1)) / 6;
+}
+
+/** Guild Research rank for a branch's points, capped at 10. */
+export function researchRank(points: number): number {
+  let r = 0;
+  while (r < 10 && points >= researchPointsFor(r + 1)) r++;
+  return r;
 }

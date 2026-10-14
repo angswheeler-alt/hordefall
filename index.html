@@ -13,7 +13,8 @@
     <div id="app">
       <div id="stagewrap">
         <div id="game"></div>
-        <div id="ults"></div>
+        <div id="ultbar"><div id="ults"></div><button id="autoult" class="toggle glass">Auto ult</button></div>
+        <button id="speed" class="toggle glass">2x</button>
         <button id="settings-btn" aria-label="Settings" title="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.6 7.6 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.6 7.6 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.6 7.6 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.6 7.6 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button>
       </div>
       <div id="wallet">
@@ -22,8 +23,6 @@
         <div class="pill gold-pill"><span class="coin"></span><b id="gold">0</b><small id="gps">0/s</small></div>
       </div>
       <div id="controls">
-        <button id="speed" class="toggle">2x</button>
-        <button id="autoult" class="toggle">Auto ult</button>
         <button id="boss" class="hot" hidden>Fight boss</button>
         <button id="rekindle" class="ember-btn" hidden>Rekindle</button>
       </div>
@@ -32,10 +31,10 @@
           <div class="hero-head">
             <button id="team-btn" class="wood-btn">Manage<br>Team</button>
             <button id="chest-btn" class="wood-btn chest-btn"><span class="chest-ico" aria-hidden="true"></span>Hero Chest</button>
-            <button id="collection-btn" class="wood-btn">Collection</button>
           </div>
-          <div class="hero-sub"><button id="levelall" class="wood-btn small levelall">Level all</button><button id="buyamt" class="wood-btn small">Buy x1</button></div>
+          <div class="hero-sub"><button id="collection-btn" class="wood-btn small collection-btn">Collection</button><button id="levelall" class="wood-btn small levelall">Level all</button><button id="buyamt" class="wood-btn small">Buy x1</button></div>
           <div id="heroes"></div>
+          <p class="heroes-note">Only your team shows here. Unlock and swap heroes in Manage Team, or browse everyone in Collection.</p>
         </section>
         <section class="panel" data-tab="market" hidden>
           <div class="panel-head"><h2>Market Row</h2></div>
@@ -45,7 +44,7 @@
         </section>
         <section class="panel" data-tab="relics" hidden>
           <div class="panel-head"><h2>Relics</h2><span id="relic-slots" class="trial-tickets"></span></div>
-          <p class="market-note">Equipped relics boost your whole team, also in Trials. Craft and upgrade them with Trial Essence. Every 10 levels a relic moves up a tier.</p>
+          <p class="market-note">Equipped relics give their bonus, also in Trials. Craft and level them with Trial Essence. Max a relic at level 20 to open relics with one more star, then use Enhance Stones to raise its cap. A set gives its bonus once every piece is crafted.</p>
           <div class="relic-bar"><div id="relic-ess" class="trial-ess"></div><button id="relic-buyslot" class="gem-btn small">Slot</button></div>
           <div id="relics"></div>
         </section>
@@ -77,6 +76,26 @@
         </section>
         <section class="panel" data-tab="shop" hidden>
           <div class="panel-head"><h2>Shop</h2></div>
+          <div id="rewards">
+          <div class="rw-card">
+            <h3>Daily login <small>Gems every 5th day</small></h3>
+            <div id="login-days" class="login-days"></div>
+            <button id="login-claim" class="hot rw-wide">Claim</button>
+          </div>
+          <div class="rw-card spin-card">
+            <div class="spin-wrap"><div id="spin-wheel" class="spin-wheel"></div><i class="spin-pin" aria-hidden="true"></i></div>
+            <div class="spin-side"><h3>Lucky Spin</h3><p>One free spin every day.</p><button id="spin-btn" class="hot">Free spin</button></div>
+          </div>
+          <div class="rw-card">
+            <h3>Daily challenges <small id="daily-note"></small></h3>
+            <ul id="daily-list" class="rw-list"></ul>
+          </div>
+          <div class="rw-card">
+            <h3>Daily Medal Bundle <small id="bundle-note"></small></h3>
+            <p>Free medals for today's daily challenges. A new bundle every day.</p>
+            <div id="bundle-heroes" class="bundle-heroes"></div>
+            <button id="bundle-claim" class="hot rw-wide">Claim</button>
+          </div>
           <div class="shop-card">
             <div class="shop-art chest" aria-hidden="true"></div>
             <div class="shop-text"><b>Hero Chest</b><p>3 drops of Hero Crests (medals). Crests unlock new heroes (10 for a common) and evolve them.</p></div>
@@ -87,11 +106,19 @@
             <div class="shop-text"><b>Gem pouch</b><p>Free in the prototype. Real Gem packs come later.</p></div>
             <button id="freegems" class="gem-btn">+100 Gems</button>
           </div>
-          <div class="soon-card"><h3>More to come</h3><p class="soon-when">Coming in a later build</p><ul><li>Lucky Chest: a daily Epic hero.</li><li>Relic slots and hero slots.</li><li>Offers and Gem packs.</li></ul></div>
+          <div class="rw-card">
+            <h3>Bootcamp <small id="boot-note"></small></h3>
+            <ul id="boot-list" class="rw-list"></ul>
+          </div>
+          <div class="rw-card">
+            <h3>Achievements</h3>
+            <ul id="ach-list" class="rw-list"></ul>
+          </div>
+          </div>
         </section>
         <section class="panel" data-tab="guild" hidden>
           <div class="panel-head"><h2>Guild</h2></div>
-          <div class="soon-card"><h3>Guilds</h3><p class="soon-when">Opens after your first Rekindle once accounts are online</p><ul><li>Up to 30 members with chat and officer ranks.</li><li>Ask for Hero Crests and donate to guildmates for guild credits.</li><li>Titan Hunt and Siege Wars, plus a guild shop.</li></ul></div>
+          <div id="guild-root"></div>
         </section>
       </main>
       <nav id="tabbar" aria-label="Main">
@@ -141,6 +168,12 @@
           <p class="meta">Hero Chests give copies of heroes as Hero Crests. Spend Crests to evolve: each star doubles all stats, and the first four unlock new skills.</p>
           <ul id="sheet-unlocks" class="abilities"></ul>
         </section>
+      </div>
+    </div>
+    <div id="coll" hidden>
+      <div class="coll-page" role="dialog" aria-modal="true" aria-labelledby="coll-title">
+        <header class="coll-head"><button id="coll-back" class="wood-btn coll-back" aria-label="Back">&#x2190;</button><h2 id="coll-title">Collection</h2><span id="coll-count"></span></header>
+        <div id="coll-body" class="coll-body"></div>
       </div>
     </div>
     <div id="rk" hidden>
