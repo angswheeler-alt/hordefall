@@ -2,8 +2,6 @@
 // reference art) long flowing hair. This gives every attack frame the run cycle's long-hair head: the
 // ponytail behind her head is cleared, then the first run frame's head and hair are pasted on, lined up
 // by the face (skin pixels), which, unlike the top of the figure, the raised staff never confuses.
-const { makeRunCycle } = require('../runfix');
-
 module.exports = function fix(frames, helpers) {
   const { FW, FH } = helpers;
   const isSkin = p => p[3] && p[0] > 215 && p[1] > 160 && p[2] > 115 && p[0] - p[2] > 45 && p[0] - p[1] < 70;
@@ -28,6 +26,4 @@ module.exports = function fix(frames, helpers) {
       if (tx >= 0 && ty >= 0 && tx < FW && ty < FH) c.set(tx, ty, p.slice(0, 3));
     }
   }
-  // Her run sheet repeats one stride; build a cycle where the legs come together on the passing frames.
-  frames.run = makeRunCycle(frames.run, helpers, { hip: 0.8 });
 };
