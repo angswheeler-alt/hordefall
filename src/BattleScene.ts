@@ -16,7 +16,6 @@ import {
   enemyElement,
   bossElement,
   bossWeakness,
-  STRONG_VS,
   BOSS_ROTATION_START,
   type Element,
   type HeroDef,
@@ -217,7 +216,6 @@ export class BattleScene extends Phaser.Scene {
   private groundTiles!: Phaser.GameObjects.TileSprite;
   private ground!: Phaser.GameObjects.Graphics;
   private stageText!: Phaser.GameObjects.Text;
-  private infoText!: Phaser.GameObjects.Text;
   private bossBar!: Phaser.GameObjects.Graphics;
   private bannerText!: Phaser.GameObjects.Text;
   /** Real seconds left in a hit-stop freeze, which sells the weight of big hits. */
@@ -273,7 +271,6 @@ export class BattleScene extends Phaser.Scene {
     this.crystalBar = this.add.graphics().setDepth(1000);
 
     this.stageText = this.add.text(10, 8, '', { fontFamily: 'monospace', fontSize: '18px', color: '#ffffff', stroke: '#000', strokeThickness: 4 }).setDepth(1000).setScrollFactor(0);
-    this.infoText = this.add.text(10, 32, '', { fontFamily: 'monospace', fontSize: '12px', color: '#ffe9a8', stroke: '#000', strokeThickness: 3 }).setDepth(1000).setScrollFactor(0);
     this.bossBar = this.add.graphics().setDepth(1000).setScrollFactor(0);
     this.bannerText = this.add
       .text(WIDTH / 2, 110, '', { fontFamily: 'monospace', fontSize: '28px', color: '#ffffff', stroke: '#000', strokeThickness: 6 })
@@ -1430,11 +1427,6 @@ export class BattleScene extends Phaser.Scene {
     const stage = this.state.stage;
     const boss = isBossStage(stage);
     this.stageText.setText(`Stage ${stage}${boss ? ' · BOSS' : ''}`);
-    const foe = boss ? bossElement(stage) : enemyElement(stage);
-    const counter = boss ? bossWeakness(stage) : (Object.keys(STRONG_VS) as Element[]).find((e) => STRONG_VS[e] === foe)!;
-    const farming = !this.state.autoAdvance ? ' · farming' : '';
-    const cap = (e: Element) => e[0].toUpperCase() + e.slice(1);
-    this.infoText.setText(`${cap(foe)} ${boss ? 'boss' : 'foes'} · ${cap(counter)} hits x${elementMultiplier(counter, foe)}${farming}`);
 
     const ratio = this.crystal.maxHp.gt(0) ? Math.max(0, this.crystal.hp.div(this.crystal.maxHp).toNumber()) : 0;
     this.crystalBar.clear();
