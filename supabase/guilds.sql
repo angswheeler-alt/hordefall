@@ -404,17 +404,123 @@ begin
   return json_build_object('attempt', used + 1, 'level', boss.level, 'hp', boss.hp, 'damage', boss.damage, 'killed', killed, 'research', 10 + boss.level, 'focus', focus);
 end $$;
 
+-- ---------- Guild Quests ----------
+-- Weekly (Monday 00:00 UTC) shared goals: defeat enemies, clear stages, win Trials and
+-- Guild Boss attempts. Goals scale with members (at least 5). The game reports its counts;
+-- boss attempts come from guild_boss_hits. Each member's weekly count per quest is capped at
+-- 5 x the per-member goal. Rewards: a shared track at 25/50/75/100% (for members who helped
+-- this week) and a small personal reward per quest. The game pays them when a claim succeeds.
+
+create table if not exists public.guild_quest_progress (
+  guild_id uuid not null references public.guilds (id) on delete cascade,
+  week date not null,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  username text not null,
+  kills bigint not null default 0,
+  stages bigint not null default 0,
+  trials bigint not null default 0,
+  primary key (guild_id, week, user_id)
+);
+alter table public.guild_quest_progress enable row level security;
+drop policy if exists "Members read their guild quests" on public.guild_quest_progress;
+create policy "Members read their guild quests" on public.guild_quest_progress for select to authenticated using (guild_id = public.my_guild());
+
+create table if not exists public.guild_quest_claims (
+  guild_id uuid not null references public.guilds (id) on delete cascade,
+  week date not null,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  reward text not null,
+  primary key (guild_id, week, user_id, reward)
+);
+alter table public.guild_quest_claims enable row level security;
+drop policy if exists "Players read their quest claims" on public.guild_quest_claims;
+create policy "Players read their quest claims" on public.guild_quest_claims for select to authenticated using (user_id = auth.uid());
+
+create or replace function public.guild_quest_week() returns date
+language sql stable as $$ select date_trunc('week', now() at time zone 'utc')::date $$;
+
+-- Per-member goals (matches GUILD_QUESTS in src/data.ts): the guild goal is this x max(5, members),
+-- the personal reward needs half of it.
+create or replace function public.guild_quest_goal(p_kind text) returns bigint
+language sql immutable as $$
+  select case p_kind when 'kills' then 2000 when 'stages' then 150 when 'trials' then 10 when 'boss' then 12 end
+$$;
+
+-- This week's quests for the player's guild: goal, guild progress and the player's own share.
+create or replace function public.guild_quests() returns json
+language plpgsql security definer set search_path = public as $$
+declare g uuid := public.my_guild(); wk date := public.guild_quest_week(); n integer; result json;
+begin
+  if g is null then raise exception 'Join a guild first.'; end if;
+  select greatest(5, count(*)) into n from guild_members where guild_id = g;
+  with prog as (
+    select 'kills' kind, coalesce(sum(kills), 0) total, coalesce(sum(kills) filter (where user_id = auth.uid()), 0) mine from guild_quest_progress where guild_id = g and week = wk
+    union all select 'stages', coalesce(sum(stages), 0), coalesce(sum(stages) filter (where user_id = auth.uid()), 0) from guild_quest_progress where guild_id = g and week = wk
+    union all select 'trials', coalesce(sum(trials), 0), coalesce(sum(trials) filter (where user_id = auth.uid()), 0) from guild_quest_progress where guild_id = g and week = wk
+    union all select 'boss', count(*), count(*) filter (where user_id = auth.uid()) from guild_boss_hits where guild_id = g and day >= wk and day < wk + 7
+  )
+  select json_build_object(
+    'week', wk,
+    'members', n,
+    'quests', (select json_agg(json_build_object('kind', kind, 'goal', public.guild_quest_goal(kind) * n, 'progress', total, 'mine', mine, 'personal', public.guild_quest_goal(kind) / 2)) from prog),
+    'claimed', (select coalesce(json_agg(reward), '[]'::json) from guild_quest_claims where guild_id = g and week = wk and user_id = auth.uid())
+  ) into result;
+  return result;
+end $$;
+
+-- The game reports what it counted since the last report.
+create or replace function public.report_guild_quests(p_kills integer, p_stages integer, p_trials integer) returns void
+language plpgsql security definer set search_path = public as $$
+declare g uuid := public.my_guild(); wk date := public.guild_quest_week();
+begin
+  if g is null then return; end if;
+  insert into guild_quest_progress (guild_id, week, user_id, username) values (g, wk, auth.uid(), public.guild_username()) on conflict do nothing;
+  update guild_quest_progress set
+    kills = least(kills + greatest(coalesce(p_kills, 0), 0), 5 * public.guild_quest_goal('kills')),
+    stages = least(stages + greatest(coalesce(p_stages, 0), 0), 5 * public.guild_quest_goal('stages')),
+    trials = least(trials + greatest(coalesce(p_trials, 0), 0), 5 * public.guild_quest_goal('trials'))
+    where guild_id = g and week = wk and user_id = auth.uid();
+end $$;
+
+-- Claim a reward this week: 'track1'..'track4' (25% steps of the guild's average completion,
+-- for members who helped) or a quest kind for its personal reward. True when newly claimed.
+create or replace function public.claim_guild_quest(p_reward text) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare g uuid := public.my_guild(); wk date := public.guild_quest_week(); q json; pct numeric := 0; helped boolean := false; item json; tier integer;
+begin
+  if g is null then raise exception 'Join a guild first.'; end if;
+  q := public.guild_quests();
+  for item in select * from json_array_elements(q -> 'quests') loop
+    pct := pct + least(1, (item ->> 'progress')::numeric / (item ->> 'goal')::numeric) / 4;
+    if (item ->> 'mine')::numeric > 0 then helped := true; end if;
+    if item ->> 'kind' = p_reward and (item ->> 'mine')::numeric < (item ->> 'personal')::numeric then
+      raise exception 'Do your part of that quest first.';
+    end if;
+  end loop;
+  if p_reward in ('track1', 'track2', 'track3', 'track4') then
+    tier := substr(p_reward, 6)::integer;
+    if pct < tier * 0.25 then raise exception 'The guild hasn''t reached that step yet.'; end if;
+    if not helped then raise exception 'Help with a quest this week to claim guild rewards.'; end if;
+  elsif p_reward not in ('kills', 'stages', 'trials', 'boss') then
+    raise exception 'Unknown reward.';
+  end if;
+  insert into guild_quest_claims (guild_id, week, user_id, reward) values (g, wk, auth.uid(), p_reward) on conflict do nothing;
+  return found;
+end $$;
+
 revoke all on function public.my_guild(), public.guild_username(), public.guild_role(),
   public.create_guild(text, text, integer, integer), public.join_guild(uuid, integer), public.leave_guild(),
   public.set_guild_role(uuid, text), public.kick_guild_member(uuid), public.update_guild(text, integer),
   public.touch_guild_member(integer), public.post_guild_message(text), public.request_guild_medals(text, integer),
   public.donate_guild_medals(bigint, integer), public.collect_guild_medals(),
   public.guild_boss_today(), public.hit_guild_boss(numeric), public.claim_guild_boss(date),
-  public.add_guild_research(uuid, text, bigint), public.contribute_guild_research(text, integer), public.set_guild_research_focus(text) from public, anon;
+  public.add_guild_research(uuid, text, bigint), public.contribute_guild_research(text, integer), public.set_guild_research_focus(text),
+  public.guild_quests(), public.report_guild_quests(integer, integer, integer), public.claim_guild_quest(text) from public, anon;
 grant execute on function public.my_guild(), public.guild_username(), public.guild_role(),
   public.create_guild(text, text, integer, integer), public.join_guild(uuid, integer), public.leave_guild(),
   public.set_guild_role(uuid, text), public.kick_guild_member(uuid), public.update_guild(text, integer),
   public.touch_guild_member(integer), public.post_guild_message(text), public.request_guild_medals(text, integer),
   public.donate_guild_medals(bigint, integer), public.collect_guild_medals(),
   public.guild_boss_today(), public.hit_guild_boss(numeric), public.claim_guild_boss(date),
-  public.contribute_guild_research(text, integer), public.set_guild_research_focus(text) to authenticated;
+  public.contribute_guild_research(text, integer), public.set_guild_research_focus(text),
+  public.guild_quests(), public.report_guild_quests(integer, integer, integer), public.claim_guild_quest(text) to authenticated;

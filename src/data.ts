@@ -764,3 +764,20 @@ export const GUILD_RESEARCH_MAX_RANK = 10;
 export const GUILD_RESEARCH_RANK_COST = 300;
 /** Points one Guild Boss attempt adds to the focus branch (matches guilds.sql). */
 export const guildResearchPerAttempt = (level: number) => 10 + level;
+
+/** Guild Quests: weekly shared goals (per member, times max(5, members)); half of perMember earns the personal reward. Matches guild_quest_goal in guilds.sql. */
+export type GuildQuestKind = 'kills' | 'stages' | 'trials' | 'boss';
+export const GUILD_QUESTS: { kind: GuildQuestKind; name: string; perMember: number }[] = [
+  { kind: 'kills', name: 'Defeat enemies', perMember: 2000 },
+  { kind: 'stages', name: 'Clear stages', perMember: 150 },
+  { kind: 'trials', name: 'Win Trials', perMember: 10 },
+  { kind: 'boss', name: 'Guild Boss attempts', perMember: 12 },
+];
+/** Shared weekly track at 25/50/75/100% of the guild's average quest completion. */
+export const GUILD_QUEST_TRACK: { coins: number; chest: boolean }[] = [
+  { coins: 40, chest: false },
+  { coins: 60, chest: false },
+  { coins: 80, chest: false },
+  { coins: 120, chest: true },
+];
+export const GUILD_QUEST_PERSONAL_COINS = 15;

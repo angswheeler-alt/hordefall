@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
 import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES } from './data';
@@ -139,6 +139,8 @@ export class GameState {
   guildShop: GuildShopState = { day: '', offers: [], pouches: 0, week: '', wild: 0 };
   /** When the guild shop's Gold Banner and War Horn run out (ms). */
   boosts: { banner: number; horn: number } = { banner: 0, horn: 0 };
+  /** Counts for Guild Quests not yet sent to the server. */
+  guildQuestPending = { kills: 0, stages: 0, trials: 0 };
   /** Guild Research ranks of the player's guild, cached from the server (empty outside a guild). */
   guildResearch: Partial<Record<ResearchBranch, number>> = {};
   /** Legendary medals, made by 8★ heroes from extra medals; Legendary heroes will use them. */
@@ -847,6 +849,7 @@ export class GameState {
     this.rollDay();
     this.stats[stat] += n;
     this.daily.counts[stat] = (this.daily.counts[stat] ?? 0) + n;
+    if (stat === 'kills' || stat === 'stages' || stat === 'trials') this.guildQuestPending[stat] += n;
   }
 
   /** Today's challenges with progress, and whether each is claimed. */
@@ -1037,6 +1040,17 @@ export class GameState {
     }
     this.save();
     return { drops, embers };
+  }
+
+  /** Pay a Guild Quest reward the server allowed: 'track1'..'track4' or a quest's personal reward. */
+  payGuildQuest(reward: string): { coins: number; drops: SummonDrop[] } {
+    const step = /^track([1-4])$/.exec(reward);
+    const tier = step ? GUILD_QUEST_TRACK[Number(step[1]) - 1] : null;
+    const coins = tier ? tier.coins : GUILD_QUEST_PERSONAL_COINS;
+    const drops = tier?.chest ? this.rollChest() : [];
+    this.guildCredits += coins;
+    this.save();
+    return { coins, drops };
   }
 
   /** A guild shop boost's multiplier right now (1 when it isn't running). */
@@ -1236,6 +1250,7 @@ export class GameState {
       spinDay: this.spinDay,
       medalBundle: this.medalBundle,
       guildShop: this.guildShop,
+      guildQuestPending: this.guildQuestPending,
       boosts: this.boosts,
       guildCredits: this.guildCredits,
       guildResearch: this.guildResearch,
@@ -1341,6 +1356,8 @@ export class GameState {
           wild: Math.max(0, Number(shop.wild) || 0),
         };
       }
+      const q = d.guildQuestPending;
+      if (q && typeof q === 'object') this.guildQuestPending = { kills: Math.max(0, Number(q.kills) || 0), stages: Math.max(0, Number(q.stages) || 0), trials: Math.max(0, Number(q.trials) || 0) };
       if (d.boosts && typeof d.boosts === 'object') this.boosts = { banner: Number(d.boosts.banner) || 0, horn: Number(d.boosts.horn) || 0 };
       if (d.medalBundle && Array.isArray(d.medalBundle.drops)) {
         const drops = d.medalBundle.drops.filter((x: { heroId?: unknown; crests?: unknown }) => HEROES.some((h) => h.id === x?.heroId) && Number(x.crests) > 0);

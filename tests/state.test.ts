@@ -667,3 +667,23 @@ describe('Guild shop', () => {
     expect(again.guildShop.pouches).toBe(3);
   });
 });
+
+describe('Guild Quests', () => {
+  it('counts kills, stages and Trials for the next report and pays rewards', () => {
+    const s = fresh();
+    s.track('kills', 7);
+    s.track('stages');
+    s.track('summons');
+    expect(s.guildQuestPending).toEqual({ kills: 7, stages: 1, trials: 0 });
+    s.save();
+    const again = new GameState();
+    again.load();
+    expect(again.guildQuestPending).toEqual({ kills: 7, stages: 1, trials: 0 });
+    expect(s.payGuildQuest('kills')).toEqual({ coins: 15, drops: [] });
+    expect(s.payGuildQuest('track2').coins).toBe(60);
+    const last = s.payGuildQuest('track4');
+    expect(last.coins).toBe(120);
+    expect(last.drops.length).toBe(CHEST_DROPS);
+    expect(s.guildCredits).toBe(15 + 60 + 120);
+  });
+});
