@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import Decimal from 'break_infinity.js';
-import { HEROES, HERO_TYPES, type HeroType } from '../src/data';
-import { comboMult, executeMult, signatureReflect, splitHeal } from '../src/kits';
+import { HEROES, HERO_TYPES, TYPE_MASTERY, type HeroType } from '../src/data';
+import { comboMult, executeMult, signatureReflect, splitHeal, controlEnd, BOSS_CC, SIG_PLUS } from '../src/kits';
 
 const standard = HEROES.filter((h) => h.signature);
 const byId = (id: string) => HEROES.find((h) => h.id === id)!;
@@ -91,5 +91,34 @@ describe('signatures', () => {
     const c = splitHeal(brine, d(30), d(10), d(0), d(100));
     expect(c.hp.toNumber()).toBe(10);
     expect(c.shield.toNumber()).toBe(0);
+  });
+});
+
+describe('6-8★ unlocks', () => {
+  it('gives every standard hero a Signature+ and every Type a Mastery', () => {
+    for (const h of HEROES.filter((x) => x.signature)) expect(h.sigPlus, h.id).toBeTruthy();
+    for (const t of Object.keys(HERO_TYPES) as HeroType[]) expect(TYPE_MASTERY[t].text, t).toBeTruthy();
+  });
+
+  it('Executioner+ works from 40% HP and Guiding Light+ shields up to 40%', () => {
+    const rook = HEROES.find((h) => h.id === 'rook')!.signature;
+    expect(executeMult(rook, 0.35)).toBe(1);
+    expect(executeMult(rook, 0.35, true)).toBe(2);
+    const lumen = HEROES.find((h) => h.id === 'lumen')!.signature;
+    const max = new Decimal(100);
+    expect(splitHeal(lumen, new Decimal(100), new Decimal(0), new Decimal(0), max, true).shield.toNumber()).toBe(100 * SIG_PLUS.overhealCap);
+  });
+});
+
+describe('boss crowd-control resistance', () => {
+  it('halves control on bosses and then makes them immune for a moment', () => {
+    expect(controlEnd(false, 10, 0, 0, 2)).toEqual({ until: 12, immuneUntil: 0 });
+    const first = controlEnd(true, 10, 0, 0, 2)!;
+    expect(first.until).toBe(11);
+    expect(first.immuneUntil).toBe(11 + BOSS_CC.immune);
+    expect(controlEnd(true, 12, first.until, first.immuneUntil, 2)).toBeNull();
+    expect(controlEnd(true, 13.5, first.until, first.immuneUntil, 2)?.until).toBe(14.5);
+    // Bramble Wall names its own boss duration.
+    expect(controlEnd(true, 0, 0, 0, 3, 1)?.until).toBe(1);
   });
 });
