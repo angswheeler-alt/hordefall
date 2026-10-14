@@ -1,15 +1,18 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   HEROES, GUILD_MAX_MEMBERS, GUILD_REQUEST_GOALS, GUILD_REQUEST_HOURS, GUILD_REQUEST_OPEN_HOURS, GUILD_DONATE_MAX, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP,
-  type HeroDef, type GuildShopId,
+  GUILD_BOSS_ATTEMPTS, GUILD_BOSS_NAMES, GUILD_BOSS_PAR_ATTEMPTS, ELEMENT_COLORS, elementMultiplier,
+  type HeroDef, type GuildShopId, type Element,
 } from './data';
+import Decimal from 'break_infinity.js';
+import { fmt, guildBossAttemptCoins, guildBossKillCoins } from './formulas';
 import type { GameState } from './state';
 import type { Account } from './account';
 import { faceStyle, dropCards, type UI } from './ui';
 import { play } from './sfx';
 
-// Guilds: browse, create and join; members and ranks; chat; medal requests
-// and donations for guild credits; and a guild shop. The rules are enforced
+// Guilds: browse, create and join; the daily Guild Boss; members and ranks;
+// chat; medal requests and donations for Guild Coins; and a guild shop. The rules are enforced
 // on the server (supabase/guilds.sql); this file only reads and asks.
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -22,15 +25,19 @@ type Role = 'leader' | 'officer' | 'member';
 interface GuildRow { id: string; name: string; description: string; min_stage: number; created_at: string; guild_members?: Array<{ count: number }> }
 interface MemberRow { user_id: string; guild_id: string; username: string; role: Role; best_stage: number; joined_at: string }
 interface MessageRow { id: number; user_id: string; username: string; body: string; created_at: string }
+interface BossRow { guild_id: string; day: string; level: number; element: Element; hp: number | string; damage: number | string; killed_at: string | null }
+interface HitRow { user_id: string; username: string; damage: number | string; day: string }
 interface RequestRow { id: number; user_id: string; username: string; hero_id: string; goal: number; received: number; collected: number; created_at: string }
 
-type View = 'requests' | 'chat' | 'members' | 'shop';
-const VIEWS: Array<[View, string]> = [['requests', 'Requests'], ['chat', 'Chat'], ['members', 'Members'], ['shop', 'Shop']];
+type View = 'boss' | 'requests' | 'chat' | 'members' | 'shop';
+const VIEWS: Array<[View, string]> = [['boss', 'Boss'], ['requests', 'Requests'], ['chat', 'Chat'], ['members', 'Members'], ['shop', 'Shop']];
 const ROLE_ORDER: Record<Role, number> = { leader: 0, officer: 1, member: 2 };
 const ROLE_NAME: Record<Role, string> = { leader: 'Leader', officer: 'Officer', member: 'Member' };
 
 const hero = (id: string) => HEROES.find((h) => h.id === id);
 const requestable = (h: HeroDef) => h.rarity !== 'legendary';
+const utcDay = () => new Date().toISOString().slice(0, 10);
+const big = (v: number | string) => new Decimal(v);
 const goalFor = (h: HeroDef) => GUILD_REQUEST_GOALS[h.rarity as keyof typeof GUILD_REQUEST_GOALS];
 const ago = (iso: string) => {
   const mins = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
@@ -43,7 +50,13 @@ const untilText = (ms: number) => {
 
 export class Guild {
   private mode: 'off' | 'browse' | 'home' | null = null;
-  private view: View = 'requests';
+  private view: View = 'boss';
+  private boss: BossRow | null = null;
+  /** Today's boss hits in this guild. */
+  private hits: HitRow[] = [];
+  /** Beaten bosses (by day) this player hit and hasn't claimed yet. */
+  private claimable: BossRow[] = [];
+  private fighting = false;
   private me: MemberRow | null = null;
   private guild: GuildRow | null = null;
   private members: MemberRow[] = [];
@@ -153,6 +166,7 @@ export class Guild {
     this.messages = (messages.data as MessageRow[]).reverse();
     this.requests = requests.data as RequestRow[];
     this.lastAsk = last.data?.length ? Date.parse((last.data[0] as { created_at: string }).created_at) : 0;
+    await this.fetchBoss();
     const ids = this.requests.map((r) => r.id);
     this.given.clear();
     if (ids.length) {
@@ -161,6 +175,76 @@ export class Guild {
       for (const row of d.data as Array<{ request_id: number; amount: number }>) this.given.set(row.request_id, (this.given.get(row.request_id) ?? 0) + row.amount);
     }
     await this.collect();
+  }
+
+  private async fetchBoss() {
+    const db = this.db!;
+    const uid = this.account.userId!;
+    const gid = this.me!.guild_id;
+    const boss = await db.rpc('guild_boss_today');
+    if (boss.error) throw boss.error;
+    this.boss = boss.data as BossRow;
+    const weekAgo = new Date(Date.now() - 7 * 24 * HOUR).toISOString().slice(0, 10);
+    const [hits, mine, beaten, claims] = await Promise.all([
+      db.from('guild_boss_hits').select('user_id, username, damage, day').eq('guild_id', gid).eq('day', this.boss.day),
+      db.from('guild_boss_hits').select('day').eq('guild_id', gid).eq('user_id', uid).gte('day', weekAgo),
+      db.from('guild_boss_days').select('*').eq('guild_id', gid).gte('day', weekAgo).not('killed_at', 'is', null),
+      db.from('guild_boss_claims').select('day').eq('guild_id', gid).eq('user_id', uid).gte('day', weekAgo),
+    ]);
+    for (const r of [hits, mine, beaten, claims]) if (r.error) throw r.error;
+    this.hits = hits.data as HitRow[];
+    const hitDays = new Set((mine.data as Array<{ day: string }>).map((r) => r.day));
+    const claimed = new Set((claims.data as Array<{ day: string }>).map((r) => r.day));
+    this.claimable = (beaten.data as BossRow[]).filter((b) => hitDays.has(b.day) && !claimed.has(b.day));
+  }
+
+  private async fightBoss() {
+    const boss = this.boss;
+    if (!boss || this.fighting) return;
+    this.fighting = true;
+    this.render();
+    try {
+      const damage = this.state.guildBossDamage(boss.element);
+      const res = await this.db!.rpc('hit_guild_boss', { p_damage: damage.toString() });
+      if (res.error) {
+        this.ui.showModal('Guild Boss', esc(this.message(res.error)), 'Okay');
+        return;
+      }
+      const r = res.data as { attempt: number; level: number; hp: number | string; damage: number | string; killed: boolean };
+      const hp = big(r.hp);
+      const pay = this.state.payGuildBossAttempt(r.level, damage, hp);
+      play(r.killed ? 'chest' : 'coin');
+      const pct = hp.gt(0) ? damage.div(hp).times(100).toNumber() : 0;
+      const share = pct > 100 ? 'more than its whole health' : `${pct >= 0.1 ? pct.toFixed(1) : '<0.1'}% of its health`;
+      let html = `<p>Your team dealt <b>${fmt(damage)}</b> damage (${share}).</p><p>+${pay.coins} Guild Coins · +${fmt(pay.gold)} gold</p>`;
+      if (r.killed) {
+        html += '<p><b>Boss beaten!</b> Everyone who hit it today can claim the kill reward. A stronger boss comes tomorrow.</p>';
+      }
+      this.ui.showModal(`Attempt ${r.attempt}/${GUILD_BOSS_ATTEMPTS}`, html, 'Nice');
+      this.ui.render();
+    } finally {
+      this.fighting = false;
+      await this.refresh();
+    }
+  }
+
+  private async claimBoss(day: string) {
+    const res = await this.db!.rpc('claim_guild_boss', { p_day: day });
+    if (res.error) {
+      this.ui.showModal('Guild Boss', esc(this.message(res.error)), 'Okay');
+      return;
+    }
+    if (res.data !== null && res.data !== undefined) {
+      const got = this.state.payGuildBossKill(Number(res.data));
+      play('chest');
+      this.ui.showModal(
+        'Boss reward',
+        `<p>+${got.coins} Guild Coins · +${got.embers.toLocaleString()} Embers · a Hero Chest</p>${dropCards(got.drops)}`,
+        'Collect',
+      );
+      this.ui.render();
+    }
+    await this.refresh();
   }
 
   /** Bring in medals guildmates gave since the last look. */
@@ -294,7 +378,7 @@ export class Guild {
     const alone = this.members.length <= 1;
     this.ui.showModal(
       'Leave the guild?',
-      `${alone ? 'You are the last member, so the guild will close.' : this.me!.role === 'leader' ? 'An officer (or the longest-serving member) becomes leader.' : 'You can join another guild right away.'} Your open medal request is dropped. Guild credits stay with you.`,
+      `${alone ? 'You are the last member, so the guild will close.' : this.me!.role === 'leader' ? 'An officer (or the longest-serving member) becomes leader.' : 'You can join another guild right away.'} Your open medal request is dropped. Guild Coins stay with you.`,
       'Leave',
       () => void this.call('leave_guild'),
       true,
@@ -313,6 +397,8 @@ export class Guild {
       this.view = arg as View;
       this.render();
     } else if (kind === 'ask') this.pickHero();
+    else if (kind === 'fight') void this.fightBoss();
+    else if (kind === 'claim') void this.claimBoss(arg);
     else if (kind === 'give') {
       const req = this.requests.find((r) => r.id === Number(arg));
       if (req) void this.donate(req);
@@ -324,7 +410,7 @@ export class Guild {
       const got = this.state.buyGuildItem(arg as GuildShopId);
       if (!got) return;
       play('chest');
-      if (got.drops.length) this.ui.showModal('Hero Chest', `${dropCards(got.drops)}Bought with guild credits.`, 'Collect');
+      if (got.drops.length) this.ui.showModal('Hero Chest', `${dropCards(got.drops)}Bought with Guild Coins.`, 'Collect');
       this.ui.render();
       this.render();
     }
@@ -343,7 +429,7 @@ export class Guild {
     if (mode === 'off') {
       const text = locked ?? (this.error ? this.error : 'Loading your guild…');
       const button = !this.account.userId && this.db ? '<button type="button" class="hot" data-g="signin">Sign in</button>' : this.error && !locked ? '<button type="button" data-g="retry">Try again</button>' : '';
-      setHtml($('g-off'), `<h3>Guilds</h3><p class="soon-when">${esc(text)}</p><ul><li>Up to ${GUILD_MAX_MEMBERS} members with chat and officer ranks.</li><li>Ask guildmates for a hero's medals and give medals to earn guild credits.</li><li>Spend credits in the guild shop.</li></ul>${button}`);
+      setHtml($('g-off'), `<h3>Guilds</h3><p class="soon-when">${esc(text)}</p><ul><li>Up to ${GUILD_MAX_MEMBERS} members with chat and officer ranks.</li><li>Ask guildmates for a hero's medals and give medals to earn Guild Coins.</li><li>Fight a daily Guild Boss together and spend Guild Coins in the guild shop.</li></ul>${button}`);
     } else if (mode === 'browse') this.renderBrowse();
     else this.renderHome();
   }
@@ -383,7 +469,7 @@ export class Guild {
 
   private renderHome() {
     const g = this.guild!;
-    $('g-name').innerHTML = `${esc(g.name)} <small>${this.members.length}/${GUILD_MAX_MEMBERS} · ${this.state.guildCredits.toLocaleString()} credits</small>`;
+    $('g-name').innerHTML = `${esc(g.name)} <small>${this.members.length}/${GUILD_MAX_MEMBERS} · ${this.state.guildCredits.toLocaleString()} Guild Coins</small>`;
     $('g-desc').textContent = g.description || (this.error ? '' : 'No description yet.');
     if (this.error) $('g-desc').textContent = this.error;
     for (const b of $('guild-root').querySelectorAll<HTMLButtonElement>('[data-view]')) b.classList.toggle('on', b.dataset.view === this.view);
@@ -396,8 +482,10 @@ export class Guild {
           : this.view === 'members'
             ? `<div class="rw-card"><ul id="g-members" class="rw-list"></ul></div><div id="g-edit-box"></div><button type="button" class="wood-btn rw-wide" data-g="leave">Leave guild</button>`
             : this.view === 'shop'
-              ? `<div class="rw-card"><h3>Guild shop <small id="g-credits"></small></h3><p>Earn credits by giving medals: Common ${GUILD_CREDITS_PER_MEDAL.common}, Rare ${GUILD_CREDITS_PER_MEDAL.rare}, Epic ${GUILD_CREDITS_PER_MEDAL.epic} each.</p><ul id="g-shop" class="rw-list"></ul></div>`
-              : `<div class="rw-card"><h3>Your request <small id="g-ask-note"></small></h3><div id="g-mine"></div></div><div class="rw-card"><h3>Guildmates' requests</h3><ul id="g-requests" class="rw-list"></ul></div>`;
+              ? `<div class="rw-card"><h3>Guild shop <small id="g-credits"></small></h3><p>Earn Guild Coins from the Guild Boss and by giving medals: Common ${GUILD_CREDITS_PER_MEDAL.common}, Rare ${GUILD_CREDITS_PER_MEDAL.rare}, Epic ${GUILD_CREDITS_PER_MEDAL.epic} each.</p><ul id="g-shop" class="rw-list"></ul></div>`
+              : this.view === 'boss'
+                ? `<div class="rw-card g-boss" id="g-boss"></div><div id="g-claims"></div><div class="rw-card"><h3>Today's damage <small id="g-board-note"></small></h3><ul id="g-board" class="rw-list"></ul></div>`
+                : `<div class="rw-card"><h3>Your request <small id="g-ask-note"></small></h3><div id="g-mine"></div></div><div class="rw-card"><h3>Guildmates' requests</h3><ul id="g-requests" class="rw-list"></ul></div>`;
       if (this.view === 'members' && this.me!.role !== 'member') {
         $('g-edit-box').innerHTML = `<div class="rw-card"><h3>Guild settings</h3><form id="g-edit" class="g-form"><input name="description" maxlength="140" placeholder="A line about your guild" value="${esc(g.description)}"><label>Minimum stage to join <input name="min" type="number" min="0" step="50" value="${g.min_stage}"></label><button type="submit" class="rw-wide">Save</button></form></div>`;
       }
@@ -405,7 +493,63 @@ export class Guild {
     if (this.view === 'chat') this.renderChat();
     else if (this.view === 'members') this.renderMembers();
     else if (this.view === 'shop') this.renderShop();
+    else if (this.view === 'boss') this.renderBoss();
     else this.renderRequests();
+  }
+
+  private renderBoss() {
+    const boss = this.boss;
+    if (!boss) {
+      setHtml($('g-boss'), '<p>Loading the boss…</p>');
+      return;
+    }
+    const uid = this.me!.user_id;
+    const hp = big(boss.hp);
+    const dealt = big(boss.damage);
+    const left = Decimal.max(0, hp.minus(dealt));
+    const used = this.hits.filter((h) => h.user_id === uid).length;
+    const killed = !!boss.killed_at;
+    const mine = this.state.guildBossDamage(boss.element);
+    const team = this.state.trialTeam();
+    const strong = team.filter((m) => elementMultiplier(m.def.element, boss.element) > 1).length;
+    const weak = team.filter((m) => elementMultiplier(m.def.element, boss.element) < 1).length;
+    const tip = strong ? `${strong} of your heroes hit it extra hard.` : weak ? `${weak} of your heroes are weak against it.` : 'No hero in your team has the element edge.';
+    const now = new Date();
+    const reset = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1) - now.getTime();
+    const coins = guildBossAttemptCoins(boss.level, mine, hp, GUILD_BOSS_PAR_ATTEMPTS);
+    const btn = killed
+      ? '<button type="button" class="rw-wide" disabled>Beaten! A stronger boss comes tomorrow</button>'
+      : `<button type="button" class="hot rw-wide" data-g="fight" ${used >= GUILD_BOSS_ATTEMPTS || this.fighting || !team.length ? 'disabled' : ''}>${this.fighting ? 'Fighting…' : used >= GUILD_BOSS_ATTEMPTS ? 'No attempts left today' : `Fight (${GUILD_BOSS_ATTEMPTS - used} left) · about ${fmt(mine)} damage`}</button>`;
+    setHtml(
+      $('g-boss'),
+      `<div class="g-boss-top"><span class="g-boss-face" style="background:#${ELEMENT_COLORS[boss.element].toString(16).padStart(6, '0')}">${GUILD_BOSS_NAMES[boss.element][0]}</span>
+        <div><b>${GUILD_BOSS_NAMES[boss.element]}</b><small>Level ${boss.level} · ${boss.element} · new boss in ${untilText(reset)}</small></div></div>
+       <div class="g-boss-bar"><i style="width:${hp.gt(0) ? Math.max(0, Math.min(100, left.div(hp).times(100).toNumber())) : 0}%"></i><span>${killed ? 'Beaten' : `${fmt(left)} / ${fmt(hp)}`}</span></div>
+       <p>Every member gets ${GUILD_BOSS_ATTEMPTS} attempts a day with their Trial team (Ember levels). Each attempt pays at least ${10 + boss.level} Guild Coins and more for bigger hits (about ${coins} for yours), plus gold. Beat it together for ${guildBossKillCoins(boss.level)} Guild Coins, a Hero Chest and Embers each. ${tip}</p>${btn}`,
+    );
+    setHtml(
+      $('g-claims'),
+      this.claimable
+        .map((b) => `<div class="rw-card g-claim"><div class="rw-text"><span><b>Level ${b.level} boss beaten</b></span><small>${b.day === utcDay() ? 'today' : b.day} · ${guildBossKillCoins(b.level)} Guild Coins, a Hero Chest and Embers</small></div><button type="button" class="hot" data-g="claim:${b.day}">Claim</button></div>`)
+        .join(''),
+    );
+    const totals = new Map<string, { name: string; dmg: Decimal; n: number }>();
+    for (const h of this.hits) {
+      const t = totals.get(h.user_id) ?? { name: h.username, dmg: new Decimal(0), n: 0 };
+      t.dmg = t.dmg.plus(big(h.damage));
+      t.n++;
+      totals.set(h.user_id, t);
+    }
+    const rows = [...totals.entries()].sort((a, b) => b[1].dmg.cmp(a[1].dmg));
+    $('g-board-note').textContent = `${rows.length}/${this.members.length} joined in`;
+    setHtml(
+      $('g-board'),
+      rows.length
+        ? rows
+            .map(([id, t], i) => `<li class="${id === uid ? 'g-me' : ''}"><div class="rw-text"><span><b>${i + 1}. ${esc(t.name)}</b></span><small>${fmt(t.dmg)} damage · ${hp.gt(0) ? t.dmg.div(hp).times(100).toNumber().toFixed(1) : 0}% · ${t.n}/${GUILD_BOSS_ATTEMPTS} attempts</small></div></li>`)
+            .join('')
+        : '<li><div class="rw-text"><span>No one has fought today yet. Be the first!</span></div></li>',
+    );
   }
 
   private renderChat() {
@@ -457,18 +601,18 @@ export class Guild {
       ? `${r.received}/${r.goal} given · ${full ? 'full' : left > 0 ? `open ${untilText(left)}` : 'closed'}`
       : `${esc(r.username)} · ${r.received}/${r.goal} · you have ${have} · gave ${given}/${GUILD_DONATE_MAX}`;
     const canGive = !mine && !full && left > 0 && have > 0 && given < GUILD_DONATE_MAX;
-    const btn = mine ? '' : `<button type="button" class="gem-btn" data-g="give:${r.id}" ${canGive ? '' : 'disabled'}>Give 1<small>+${GUILD_CREDITS_PER_MEDAL[h.rarity as keyof typeof GUILD_CREDITS_PER_MEDAL]} credits</small></button>`;
+    const btn = mine ? '' : `<button type="button" class="gem-btn" data-g="give:${r.id}" ${canGive ? '' : 'disabled'}>Give 1<small>+${GUILD_CREDITS_PER_MEDAL[h.rarity as keyof typeof GUILD_CREDITS_PER_MEDAL]} coins</small></button>`;
     const body = `<span class="face art" style="${faceStyle(h)}">${h.name[0]}</span><div class="rw-text"><span><b>${esc(h.name)}</b></span><div class="rw-bar"><i style="width:${pct}%"></i></div><small>${meta}</small></div>${btn}`;
     return mine ? `<div class="g-req">${body}</div>` : `<li class="g-req">${body}</li>`;
   }
 
   private renderShop() {
-    $('g-credits').textContent = `${this.state.guildCredits.toLocaleString()} credits`;
+    $('g-credits').textContent = `${this.state.guildCredits.toLocaleString()} Guild Coins`;
     setHtml(
       $('g-shop'),
       GUILD_SHOP.map(
         (i) =>
-          `<li><div class="rw-text"><span><b>${i.name}</b></span><small>${i.text}</small></div><button type="button" class="gem-btn" data-g="buy:${i.id}" ${this.state.guildItemReady(i.id) ? '' : 'disabled'}>${i.cost} credits</button></li>`,
+          `<li><div class="rw-text"><span><b>${i.name}</b></span><small>${i.text}</small></div><button type="button" class="gem-btn" data-g="buy:${i.id}" ${this.state.guildItemReady(i.id) ? '' : 'disabled'}>${i.cost} coins</button></li>`,
       ).join(''),
     );
   }

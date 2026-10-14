@@ -711,12 +711,28 @@ export const GUILD_REQUEST_HOURS = 8;
 export const GUILD_REQUEST_OPEN_HOURS = 24;
 /** Most medals one guildmate can give to one request. */
 export const GUILD_DONATE_MAX = 5;
-/** Guild credits a donor earns per medal given, by the hero's rarity. */
+/** Guild Coins a donor earns per medal given, by the hero's rarity. */
 export const GUILD_CREDITS_PER_MEDAL: Record<Exclude<Rarity, 'legendary'>, number> = { common: 3, rare: 6, epic: 12 };
 export type GuildShopId = 'chest' | 'stone' | 'tickets';
-/** What guild credits buy. */
+/** What Guild Coins buy. */
 export const GUILD_SHOP: Array<{ id: GuildShopId; name: string; text: string; cost: number }> = [
   { id: 'chest', name: 'Hero Chest', text: '3 drops of Hero Crests, like the Gem chest.', cost: 60 },
   { id: 'stone', name: 'Enhance Stone', text: 'Raises a relic\'s level cap or crafts set pieces.', cost: 40 },
   { id: 'tickets', name: '5 Trial tickets', text: 'Up to the usual cap of 20.', cost: 30 },
 ];
+
+/** Guild Boss: attempts per player per day (UTC), and how long each attempt lasts. */
+export const GUILD_BOSS_ATTEMPTS = 3;
+export const GUILD_BOSS_SECONDS = 30;
+/** Rough number of solid attempts a boss is built to take; one such attempt earns the full damage bonus. */
+export const GUILD_BOSS_PAR_ATTEMPTS = 15;
+/** Gold per attempt, in minutes of income. */
+export const GUILD_BOSS_GOLD_MINUTES = 30;
+/** Boss for each day's element (the server picks the element). */
+export const GUILD_BOSS_NAMES: Record<Element, string> = {
+  water: 'Leviathan of the Deep',
+  fire: 'Cinder Tyrant',
+  earth: 'Mountain Behemoth',
+  light: 'Radiant Seraph',
+  dark: 'Night Devourer',
+};

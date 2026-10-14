@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import Decimal from 'break_infinity.js';
-import { defended, bulkCost, enemyHp, fmt, upgradeCost, stallBulkCost, emberYield, emberCost, keeperLevel, keeperThreshold, relicCost } from '../src/formulas';
+import { defended, bulkCost, enemyHp, fmt, upgradeCost, stallBulkCost, emberYield, emberCost, keeperLevel, keeperThreshold, relicCost, guildBossHp, guildBossAttemptCoins, guildBossKillCoins } from '../src/formulas';
 import { HEROES, STALLS } from '../src/data';
 
 const hero = HEROES.find((h) => h.unlockCost !== 0)!;
@@ -91,5 +91,20 @@ describe('Ember economy', () => {
     expect(defended(new Decimal(100), new Decimal(100)).toNumber()).toBeCloseTo(50);
     expect(defended(new Decimal(100), new Decimal(0)).toNumber()).toBe(100);
     expect(defended(new Decimal(100), new Decimal(1e9)).toNumber()).toBeGreaterThan(0);
+  });
+});
+
+describe('Guild Boss', () => {
+  it('health matches the server formula in supabase/guilds.sql', () => {
+    expect(guildBossHp(1).toNumber()).toBe(1221881);
+    expect(guildBossHp(10).toNumber()).toBe(141557760000);
+  });
+
+  it('every attempt pays the base, and a full share doubles it', () => {
+    const hp = guildBossHp(5);
+    expect(guildBossAttemptCoins(5, new Decimal(0), hp)).toBe(15);
+    expect(guildBossAttemptCoins(5, hp.div(30), hp)).toBe(23);
+    expect(guildBossAttemptCoins(5, hp, hp)).toBe(30);
+    expect(guildBossKillCoins(5)).toBe(75);
   });
 });

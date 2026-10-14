@@ -1,6 +1,6 @@
 -- Hordefall guilds. Paste this into the Supabase SQL editor and run it once,
--- after setup.sql. Running it again is safe: it only replaces the functions
--- and policies.
+-- after setup.sql. Running it again is safe (and needed after an update): it
+-- adds what is missing and replaces the functions and policies.
 --
 -- Players can read their own guild's data (and browse the guild list), but
 -- every change goes through the functions below, which check the rules:
@@ -248,13 +248,121 @@ begin
     returning r.hero_id, d.diff;
 end $$;
 
+-- ---------- Guild Boss ----------
+-- One boss per guild per day (UTC). Every member gets 3 attempts a day and
+-- their damage fills a shared health bar. A boss killed today comes back one
+-- level higher tomorrow; one that survives comes back at the same level.
+
+create table if not exists public.guild_boss_days (
+  guild_id uuid not null references public.guilds (id) on delete cascade,
+  day date not null,
+  level integer not null,
+  element text not null,
+  hp numeric not null,
+  damage numeric not null default 0,
+  killed_at timestamptz,
+  primary key (guild_id, day)
+);
+
+create table if not exists public.guild_boss_hits (
+  id bigint generated always as identity primary key,
+  guild_id uuid not null references public.guilds (id) on delete cascade,
+  day date not null,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  username text not null,
+  damage numeric not null check (damage >= 0),
+  created_at timestamptz not null default now()
+);
+create index if not exists guild_boss_hits_day on public.guild_boss_hits (guild_id, day);
+create index if not exists guild_boss_hits_user on public.guild_boss_hits (user_id, day);
+
+create table if not exists public.guild_boss_claims (
+  guild_id uuid not null references public.guilds (id) on delete cascade,
+  day date not null,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  primary key (guild_id, day, user_id)
+);
+
+alter table public.guild_boss_days enable row level security;
+alter table public.guild_boss_hits enable row level security;
+alter table public.guild_boss_claims enable row level security;
+
+drop policy if exists "Members read their guild boss" on public.guild_boss_days;
+create policy "Members read their guild boss" on public.guild_boss_days for select to authenticated using (guild_id = public.my_guild());
+drop policy if exists "Members read their guild boss hits" on public.guild_boss_hits;
+create policy "Members read their guild boss hits" on public.guild_boss_hits for select to authenticated using (guild_id = public.my_guild());
+drop policy if exists "Players read their own boss claims" on public.guild_boss_claims;
+create policy "Players read their own boss claims" on public.guild_boss_claims for select to authenticated using (user_id = auth.uid());
+
+-- Boss health for a level: about 15 attempts by a team of five 1-star heroes
+-- at Ember level 30 x level (src/guild.ts mirrors this as guildBossHp).
+create or replace function public.guild_boss_hp(p_level integer) returns numeric
+language sql immutable as $$
+  select round(14400 * (30 * p_level) * power(2::numeric, 1.5 * p_level))
+$$;
+
+-- Today's boss for the caller's guild, made on the first look of the day.
+create or replace function public.guild_boss_today() returns public.guild_boss_days
+language plpgsql security definer set search_path = public as $$
+declare g uuid := public.my_guild(); today date := (now() at time zone 'utc')::date; row guild_boss_days; prev guild_boss_days; lvl integer;
+begin
+  if g is null then raise exception 'Join a guild first.'; end if;
+  select * into row from guild_boss_days where guild_id = g and day = today;
+  if found then return row; end if;
+  select * into prev from guild_boss_days where guild_id = g order by day desc limit 1;
+  lvl := case when prev.guild_id is null then 1 when prev.killed_at is not null then prev.level + 1 else prev.level end;
+  insert into guild_boss_days (guild_id, day, level, element, hp)
+    values (g, today, lvl, (array['water', 'fire', 'earth', 'light', 'dark'])[1 + ((today - date '2026-01-01') % 5)], public.guild_boss_hp(lvl))
+    on conflict (guild_id, day) do nothing;
+  select * into row from guild_boss_days where guild_id = g and day = today;
+  return row;
+end $$;
+
+-- One attempt: the game works out the damage from the player's team and sends it.
+-- Returns the attempt number, the boss after the hit, and whether this hit killed it.
+create or replace function public.hit_guild_boss(p_damage numeric) returns json
+language plpgsql security definer set search_path = public as $$
+declare boss guild_boss_days; used integer; dmg numeric; killed boolean := false;
+begin
+  boss := public.guild_boss_today();
+  select * into boss from guild_boss_days where guild_id = boss.guild_id and day = boss.day for update;
+  if boss.killed_at is not null then raise exception 'Today''s boss is already beaten. A stronger one comes tomorrow.'; end if;
+  select count(*) into used from guild_boss_hits where user_id = auth.uid() and day = boss.day;
+  if used >= 3 then raise exception 'No attempts left today.'; end if;
+  dmg := greatest(0, coalesce(p_damage, 0));
+  insert into guild_boss_hits (guild_id, day, user_id, username, damage) values (boss.guild_id, boss.day, auth.uid(), public.guild_username(), dmg);
+  update guild_boss_days set damage = least(hp, damage + dmg),
+    killed_at = case when damage + dmg >= hp then now() else null end
+    where guild_id = boss.guild_id and day = boss.day
+    returning * into boss;
+  killed := boss.killed_at is not null;
+  return json_build_object('attempt', used + 1, 'level', boss.level, 'hp', boss.hp, 'damage', boss.damage, 'killed', killed);
+end $$;
+
+-- The kill reward, once per beaten boss for every member who hit it (up to 7 days back).
+-- Returns the boss level, or null when there is nothing to claim.
+create or replace function public.claim_guild_boss(p_day date) returns integer
+language plpgsql security definer set search_path = public as $$
+declare g uuid := public.my_guild(); lvl integer;
+begin
+  select level into lvl from guild_boss_days
+    where guild_id = g and day = p_day and killed_at is not null and day > (now() at time zone 'utc')::date - 7;
+  if lvl is null then return null; end if;
+  if not exists (select 1 from guild_boss_hits where guild_id = g and day = p_day and user_id = auth.uid()) then return null; end if;
+  insert into guild_boss_claims (guild_id, day, user_id) values (g, p_day, auth.uid()) on conflict do nothing;
+  if not found then return null; end if;
+  return lvl;
+end $$;
+
 revoke all on function public.my_guild(), public.guild_username(), public.guild_role(),
   public.create_guild(text, text, integer, integer), public.join_guild(uuid, integer), public.leave_guild(),
   public.set_guild_role(uuid, text), public.kick_guild_member(uuid), public.update_guild(text, integer),
   public.touch_guild_member(integer), public.post_guild_message(text), public.request_guild_medals(text, integer),
-  public.donate_guild_medals(bigint, integer), public.collect_guild_medals() from public, anon;
+  public.donate_guild_medals(bigint, integer), public.collect_guild_medals(),
+  public.guild_boss_today(), public.hit_guild_boss(numeric), public.claim_guild_boss(date) from public, anon;
 grant execute on function public.my_guild(), public.guild_username(), public.guild_role(),
   public.create_guild(text, text, integer, integer), public.join_guild(uuid, integer), public.leave_guild(),
   public.set_guild_role(uuid, text), public.kick_guild_member(uuid), public.update_guild(text, integer),
   public.touch_guild_member(integer), public.post_guild_message(text), public.request_guild_medals(text, integer),
-  public.donate_guild_medals(bigint, integer), public.collect_guild_medals() to authenticated;
+  public.donate_guild_medals(bigint, integer), public.collect_guild_medals(),
+  public.guild_boss_today(), public.hit_guild_boss(numeric), public.claim_guild_boss(date) to authenticated;
