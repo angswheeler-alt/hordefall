@@ -567,3 +567,12 @@ div.g-req { margin-bottom: 8px; }
 .g-research-btns small { display: block; }
 .g-focus { white-space: nowrap; font-style: normal; font-size: 11px; padding: 1px 6px; border-radius: 8px; background: #f2c26b; color: #2b190c; margin-left: 4px; }
 .g-focus-btn { padding: 3px 8px; font-size: 12px; align-self: flex-start; margin-top: 2px; }
+.g-offers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.g-offer { display: flex; flex-direction: column; align-items: center; gap: 2px; background: #0003; border-radius: 8px; padding: 6px 4px; text-align: center; min-width: 0; }
+.g-offer b { font-size: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.g-offer small { font-size: 11px; color: var(--orange); font-weight: 700; }
+.g-offer .face { width: 44px; height: 44px; border-radius: 10px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
+.g-offer button { width: 100%; padding: 6px 2px; font-size: 12px; margin-top: 2px; }
+.g-offer.done { opacity: 0.55; }
+.g-wild-amounts { display: flex; gap: 6px; justify-content: center; margin: 8px 0; }
+.g-wild-amounts button { display: flex; flex-direction: column; align-items: center; min-width: 76px; }

@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
 import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES } from './data';
@@ -69,6 +69,18 @@ function cleanResearch(ranks: Partial<Record<ResearchBranch, number>>): Partial<
   return clean;
 }
 
+interface GuildOffer { heroId: string; crests: number; cost: number; bought: boolean }
+interface GuildShopState { day: string; offers: GuildOffer[]; pouches: number; week: string; wild: number }
+type GuildRarity = keyof typeof GUILD_OFFER_MEDALS;
+const guildRarity = (h: HeroDef): GuildRarity | null => (h.rarity in GUILD_OFFER_MEDALS ? (h.rarity as GuildRarity) : null);
+
+/** The Monday that starts this week (local time), as a day key. */
+export function weekKey(now = Date.now()): string {
+  const d = new Date(now);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return dayKey(d.getTime());
+}
+
 export class GameState {
   gold = new Decimal(0);
   stage = 1;
@@ -123,6 +135,10 @@ export class GameState {
   enhanceStones = 0;
   /** Earned by giving medals to guildmates; spent in the guild shop. */
   guildCredits = 0;
+  /** Guild shop: today's hero offers, Ember pouches bought today and Wild Medals bought this week. */
+  guildShop: GuildShopState = { day: '', offers: [], pouches: 0, week: '', wild: 0 };
+  /** When the guild shop's Gold Banner and War Horn run out (ms). */
+  boosts: { banner: number; horn: number } = { banner: 0, horn: 0 };
   /** Guild Research ranks of the player's guild, cached from the server (empty outside a guild). */
   guildResearch: Partial<Record<ResearchBranch, number>> = {};
   /** Legendary medals, made by 8★ heroes from extra medals; Legendary heroes will use them. */
@@ -972,26 +988,90 @@ export class GameState {
     return { coins, embers, drops };
   }
 
-  guildItemReady(id: GuildShopId): boolean {
+  /** Guild shop stock for today: rolls new hero offers on a new day and resets the weekly Wild Medal count. */
+  guildShopState(now = Date.now()) {
+    const today = dayKey(now);
+    if (this.guildShop.day !== today) {
+      const offers: GuildOffer[] = [];
+      const pool = HEROES.filter((h) => guildRarity(h));
+      for (let tries = 0; offers.length < GUILD_SHOP_OFFERS && tries < 50; tries++) {
+        const h = pickByRarity(pool.filter((x) => !offers.some((o) => o.heroId === x.id)), CHEST_RARITY_WEIGHTS);
+        const r = h && guildRarity(h);
+        if (h && r) offers.push({ heroId: h.id, crests: GUILD_OFFER_MEDALS[r], cost: GUILD_OFFER_COST[r], bought: false });
+      }
+      this.guildShop = { ...this.guildShop, day: today, offers, pouches: 0 };
+    }
+    const week = weekKey(now);
+    if (this.guildShop.week !== week) this.guildShop = { ...this.guildShop, week, wild: 0 };
+    return this.guildShop;
+  }
+
+  guildItemReady(id: GuildShopId, now = Date.now()): boolean {
     const item = GUILD_SHOP.find((i) => i.id === id)!;
     if (this.guildCredits < item.cost) return false;
     if (id === 'tickets') {
       this.refreshTickets();
       return this.tickets < TICKET_CAP;
     }
+    if (id === 'embers') return this.guildShopState(now).pouches < GUILD_EMBER_POUCHES_PER_DAY;
+    if (id === 'banner' || id === 'horn') return this.boosts[id] - now < (GUILD_BOOST_MAX_MINUTES - GUILD_BOOST_MINUTES) * 60_000 + 1000;
     return true;
   }
 
-  /** Spend guild credits. A Hero Chest returns its drops. */
-  buyGuildItem(id: GuildShopId): { drops: SummonDrop[] } | null {
-    if (!this.guildItemReady(id)) return null;
+  /** Spend Guild Coins on an always-in-stock item. A Hero Chest returns its drops, a pouch its Embers. */
+  buyGuildItem(id: GuildShopId, now = Date.now()): { drops: SummonDrop[]; embers: number } | null {
+    if (!this.guildItemReady(id, now)) return null;
     this.guildCredits -= GUILD_SHOP.find((i) => i.id === id)!.cost;
     let drops: SummonDrop[] = [];
+    let embers = 0;
     if (id === 'chest') drops = this.rollChest();
     else if (id === 'stone') this.enhanceStones += 1;
-    else this.tickets = Math.min(TICKET_CAP, this.tickets + 5);
+    else if (id === 'tickets') this.tickets = Math.min(TICKET_CAP, this.tickets + 5);
+    else if (id === 'embers') {
+      embers = Math.max(10, Math.round(this.lifetimeEmbers * 0.01));
+      this.embers += embers;
+      this.lifetimeEmbers += embers;
+      this.guildShop.pouches += 1;
+    } else {
+      this.boosts[id] = Math.min(now + GUILD_BOOST_MAX_MINUTES * 60_000, Math.max(now, this.boosts[id]) + GUILD_BOOST_MINUTES * 60_000);
+    }
     this.save();
-    return { drops };
+    return { drops, embers };
+  }
+
+  /** A guild shop boost's multiplier right now (1 when it isn't running). */
+  boostMult(id: 'banner' | 'horn', now = Date.now()): number {
+    return this.boosts[id] > now ? 1 + GUILD_BOOSTS[id] : 1;
+  }
+
+  /** Buy one of today's hero offers. */
+  buyGuildOffer(index: number, now = Date.now()): SummonDrop[] | null {
+    const offer = this.guildShopState(now).offers[index];
+    if (!offer || offer.bought || this.guildCredits < offer.cost) return null;
+    this.guildCredits -= offer.cost;
+    offer.bought = true;
+    return this.receiveGuildMedals([{ heroId: offer.heroId, crests: offer.crests }]);
+  }
+
+  /** Price of Wild Medals for a hero, or null for heroes they can't go to (Legendary). */
+  wildMedalCost(heroId: string): number | null {
+    const h = HEROES.find((x) => x.id === heroId);
+    const r = h && guildRarity(h);
+    return r ? GUILD_WILD_COST[r] : null;
+  }
+
+  /** Wild Medals still on sale this week. */
+  wildMedalsLeft(now = Date.now()): number {
+    return Math.max(0, GUILD_WILD_PER_WEEK - this.guildShopState(now).wild);
+  }
+
+  /** Buy n Wild Medals for a hero the player picked. */
+  buyWildMedals(heroId: string, n: number, now = Date.now()): SummonDrop[] | null {
+    const cost = this.wildMedalCost(heroId);
+    if (cost === null || !(n >= 1) || n > this.wildMedalsLeft(now) || this.guildCredits < cost * n) return null;
+    this.guildCredits -= cost * n;
+    this.guildShop.wild += n;
+    return this.receiveGuildMedals([{ heroId, crests: n }]);
   }
 
   /**
@@ -1155,6 +1235,8 @@ export class GameState {
       login: this.login,
       spinDay: this.spinDay,
       medalBundle: this.medalBundle,
+      guildShop: this.guildShop,
+      boosts: this.boosts,
       guildCredits: this.guildCredits,
       guildResearch: this.guildResearch,
       achieved: this.achieved,
@@ -1248,6 +1330,18 @@ export class GameState {
       this.spinDay = String(d.spinDay ?? '');
       this.guildCredits = Math.max(0, Number(d.guildCredits) || 0);
       this.guildResearch = d.guildResearch && typeof d.guildResearch === 'object' ? cleanResearch(d.guildResearch) : {};
+      const shop = d.guildShop;
+      if (shop && typeof shop === 'object') {
+        const offers = Array.isArray(shop.offers) ? shop.offers.filter((o: GuildOffer) => HEROES.some((h) => h.id === o?.heroId) && Number(o.crests) > 0 && Number(o.cost) > 0) : [];
+        this.guildShop = {
+          day: String(shop.day ?? ''),
+          offers: offers.map((o: GuildOffer) => ({ heroId: o.heroId, crests: Number(o.crests), cost: Number(o.cost), bought: !!o.bought })),
+          pouches: Math.max(0, Number(shop.pouches) || 0),
+          week: String(shop.week ?? ''),
+          wild: Math.max(0, Number(shop.wild) || 0),
+        };
+      }
+      if (d.boosts && typeof d.boosts === 'object') this.boosts = { banner: Number(d.boosts.banner) || 0, horn: Number(d.boosts.horn) || 0 };
       if (d.medalBundle && Array.isArray(d.medalBundle.drops)) {
         const drops = d.medalBundle.drops.filter((x: { heroId?: unknown; crests?: unknown }) => HEROES.some((h) => h.id === x?.heroId) && Number(x.crests) > 0);
         this.medalBundle = { day: String(d.medalBundle.day ?? ''), drops: drops.map((x: { heroId: string; crests: number }) => ({ heroId: x.heroId, crests: Number(x.crests) })), claimed: !!d.medalBundle.claimed };
