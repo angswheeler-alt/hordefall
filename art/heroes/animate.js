@@ -135,6 +135,9 @@ function buildHero(id) {
     return c;
   };
   const frames = { attack: small.attack.map(draw), run: small.run.map(draw) };
+  // Optional per-hero touch-up (art/heroes/<id>/fix.js), e.g. to make the sheets agree on a detail.
+  const fixFile = path.join(dir, 'fix.js');
+  if (fs.existsSync(fixFile)) require(fixFile)(frames, { FW, FH, Canvas });
   const strip = (list, file) => {
     const s = new Canvas(FW * list.length, FH);
     list.forEach((c, i) => s.draw(c, i * FW, 0));
