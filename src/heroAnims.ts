@@ -14,7 +14,7 @@ export interface HeroAnim {
 export const HERO_ANIMS: Record<string, HeroAnim> = {
   brine: { frame: [59,60], feet: [30,59], headTop: 9, run: 6, attack: 5, hitFrame: 2 },
   ember: { frame: [61,64], feet: [30,63], headTop: 14, run: 5, attack: 5, hitFrame: 2 },
-  lumen: { frame: [71,65], feet: [40,64], headTop: 14, run: 5, attack: 5, hitFrame: 2 },
-  rook: { frame: [57,54], feet: [27,53], headTop: 2, run: 5, attack: 5, hitFrame: 1 },
+  lumen: { frame: [71,65], feet: [40,64], headTop: 14, run: 4, attack: 5, hitFrame: 2 },
+  rook: { frame: [57,54], feet: [27,53], headTop: 2, run: 4, attack: 5, hitFrame: 1 },
   thorn: { frame: [62,55], feet: [28,54], headTop: 2, run: 5, attack: 5, hitFrame: 2 },
 };
