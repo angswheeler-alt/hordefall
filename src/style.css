@@ -521,3 +521,33 @@ i.ess-fire { background-image: url('./assets/ui/ess-fire.png') !important; }
 i.ess-earth { background-image: url('./assets/ui/ess-earth.png') !important; }
 i.ess-light { background-image: url('./assets/ui/ess-light.png') !important; }
 i.ess-dark { background-image: url('./assets/ui/ess-dark.png') !important; }
+
+/* ---------- guild ---------- */
+.g-form { display: flex; flex-direction: column; gap: 6px; }
+.g-form input, .g-chat-form input { font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid #000; background: #1c0f06; color: #fff4dd; min-width: 0; }
+.g-form label { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #e8d3b0; }
+.g-form label input { width: 90px; }
+.g-head h3 small { color: var(--orange); }
+.g-head p { margin: 0 0 8px; }
+.g-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.g-tabs button { padding: 6px 2px; font-size: 13px; font-weight: 700; background: #00000040; border-color: var(--wood-deep); color: #fff4dd; }
+.g-tabs button.on { background: linear-gradient(180deg, #f2c26b, #b8792f); color: #2b190c; }
+.g-req { display: flex; align-items: center; gap: 8px; }
+div.g-req { margin-bottom: 8px; }
+.g-req .face, .g-pick .face { flex: none; width: 40px; height: 40px; border-radius: 8px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
+.g-req button { flex: none; display: flex; flex-direction: column; align-items: center; min-width: 84px; }
+.g-req button small { font-size: 10px; font-weight: 600; opacity: .9; }
+.g-chat { list-style: none; margin: 0 0 8px; padding: 0; max-height: 46vh; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.g-chat li { background: #00000033; border-radius: 8px; padding: 6px 8px; font-size: 13px; }
+.g-chat li.me { background: #f39a1e26; }
+.g-chat li small { color: #d9bf98; font-size: 11px; }
+.g-chat li p { margin: 2px 0 0; color: #fff4dd; font-size: 13px; overflow-wrap: anywhere; }
+.g-chat .g-empty { color: #e8d3b0; }
+.g-chat-form { display: flex; gap: 6px; }
+.g-chat-form input { flex: 1; }
+.g-picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; max-height: 50vh; overflow-y: auto; margin-top: 8px; }
+.g-pick { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; }
+.g-pick b { font-size: 12px; }
+.g-pick small { font-size: 10px; color: var(--muted); }
+.g-menu { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+#guild-root .soon-card button { margin-top: 10px; }

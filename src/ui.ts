@@ -24,7 +24,7 @@ const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
  * stylesheet that uses it (assets/ in a build), not the page, so portraits went missing there.
  */
 const heroArt = (id: string) => `url('${new URL(`heroes/${id}.png`, document.baseURI).href}')`;
-const faceStyle = (def: HeroDef) => `background-color:${hex(ELEMENT_COLORS[def.element])};--art:${heroArt(def.id)}`;
+export const faceStyle = (def: HeroDef) => `background-color:${hex(ELEMENT_COLORS[def.element])};--art:${heroArt(def.id)}`;
 const SWORD = '<i class="ico ico-atk" aria-hidden="true"></i>';
 const HEART = '<i class="ico ico-hp" aria-hidden="true"></i>';
 const ULT_ICONS: Record<string, string> = {
@@ -784,7 +784,7 @@ export class UI {
 
   private modalAction: (() => void) | null = null;
 
-  private showModal(title: string, html: string, ok: string, action: (() => void) | null = null, cancel = false, cancelLabel = 'Not yet') {
+  showModal(title: string, html: string, ok: string, action: (() => void) | null = null, cancel = false, cancelLabel = 'Not yet') {
     $('modal-title').textContent = title;
     $('modal-body').innerHTML = html;
     $('modal-ok').textContent = ok;
@@ -1313,7 +1313,7 @@ export class UI {
 }
 
 /** Hero Chest drops as cards, one per hero (repeat drops for a hero are added together). */
-function dropCards(drops: SummonDrop[]): string {
+export function dropCards(drops: SummonDrop[]): string {
   if (!drops.length) return '';
   const merged = new Map<string, SummonDrop>();
   for (const d of drops) {
