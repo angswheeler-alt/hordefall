@@ -557,3 +557,25 @@ describe('guild medals and credits', () => {
     expect(t.guildCredits).toBe(s.guildCredits);
   });
 });
+
+describe('Guild Boss rewards', () => {
+  it('damage uses the Trial team and the element edge', () => {
+    const s = fresh();
+    const plain = s.guildBossDamage(starter.element === 'light' ? 'water' : 'light');
+    expect(plain.gt(0)).toBe(true);
+    const weakTo = (['water', 'fire', 'earth'] as const).find((e) => e !== starter.element && ({ water: 'fire', fire: 'earth', earth: 'water' } as Record<string, string>)[starter.element] === e);
+    if (weakTo) expect(s.guildBossDamage(weakTo).toNumber()).toBeCloseTo(plain.toNumber() * 4, -1);
+  });
+
+  it('attempts and kills pay Guild Coins, gold, Embers and a chest', () => {
+    const s = fresh();
+    const a = s.payGuildBossAttempt(3, new Decimal(0), new Decimal(1000));
+    expect(a.coins).toBe(13);
+    expect(a.gold.gt(0)).toBe(true);
+    s.lifetimeEmbers = 50_000;
+    const k = s.payGuildBossKill(3);
+    expect(k).toMatchObject({ coins: 65, embers: 500 });
+    expect(k.drops.length).toBe(CHEST_DROPS);
+    expect(s.guildCredits).toBe(13 + 65);
+  });
+});

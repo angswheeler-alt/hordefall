@@ -205,3 +205,25 @@ export function trialDps(level: { difficulty: number; req: [number, number] | nu
 export function relicCost(level: number, craft: number): number {
   return Math.round(craft * Math.pow(2, level / 2));
 }
+
+// ---------- Guild Boss (mirrors supabase/guilds.sql) ----------
+
+/** Boss health for a level: about 15 attempts by five 1-star heroes at Ember level 30 x level. */
+export function guildBossHp(level: number): Decimal {
+  return Decimal.pow(2, 1.5 * level).times(14400 * 30 * level).round();
+}
+
+/**
+ * Guild Coins for one attempt: everyone who tries gets the base (10 + boss level),
+ * and dealing a full share of the boss (1/15 of its health) doubles it.
+ */
+export function guildBossAttemptCoins(level: number, damage: Decimal, hp: Decimal, parAttempts = 15): number {
+  const base = 10 + level;
+  const share = hp.gt(0) ? Math.min(1, damage.div(hp.div(parAttempts)).toNumber()) : 0;
+  return Math.round(base * (1 + share));
+}
+
+/** Guild Coins for every member who hit a boss that was beaten. */
+export function guildBossKillCoins(level: number): number {
+  return 5 * (10 + level);
+}
