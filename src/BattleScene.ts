@@ -64,8 +64,6 @@ const WILDFIRE_RADIUS = 40;
 const BEACON_SECONDS = 4;
 /** Lumen brings fallen heroes back this far behind her. */
 const REVIVE_BEHIND = 14;
-/** How far behind the front Knight other heroes stop while walking. */
-const KNIGHT_LEAD = 2;
 const MAX_ENEMIES = 14;
 /** Melee feet sit this far below a unit's y (the old 30 px placeholders were centred on it). */
 const FOOT_Y = 15;
@@ -805,12 +803,7 @@ export class BattleScene extends Phaser.Scene {
       }
       if (!target) return;
     }
-    let stopAt = ENEMY_CRYSTAL_X - 14 - Math.min(h.range, 30);
-    // Knights lead: nobody walks past the front living Knight, so the tank meets the enemy first.
-    if (!h.stats?.isKnight) {
-      const front = this.heroes.filter((k) => k.alive && k.stats?.isKnight).reduce((m, k) => Math.max(m, k.x), -Infinity);
-      if (front > -Infinity) stopAt = Math.min(stopAt, Math.max(h.x, front - KNIGHT_LEAD));
-    }
+    const stopAt = ENEMY_CRYSTAL_X - 14 - Math.min(h.range, 30);
     h.x = Math.min(h.x + h.speed * dt, stopAt);
     h.view.x = h.x;
   }
