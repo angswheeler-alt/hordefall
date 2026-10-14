@@ -53,8 +53,11 @@ export const HEIGHT = 300;
 const PLAYER_CRYSTAL_X = 36;
 const ENEMY_CRYSTAL_X = WORLD_WIDTH - 36;
 /** Enemy camps along the lane, as fractions of its length. They wait until a hero gets close. */
-const CAMPS = [0.3, 0.55, 0.8];
-const CAMP_AGGRO = 170;
+/** Stage-start groups (one per old camp) march in one behind another from past the right edge. */
+const START_GROUPS = 3;
+const GROUP_GAP = 400;
+/** Enemies spawn just past the world's right edge (the camera never shows it) and walk in. */
+const ENEMY_SPAWN_X = WORLD_WIDTH + 12;
 const LANE_TOP = 175;
 const LANE_BOTTOM = 255;
 /** Background art per 50-stage region, in order; files are public/bg/<region>_{sky,far,ground}.png. */
@@ -115,8 +118,6 @@ interface Unit {
   isBoss: boolean;
   /** Attacks made, for every-Nth-attack skills. */
   attacks: number;
-  /** Camp enemies hold position until a hero comes within CAMP_AGGRO. */
-  waiting: boolean;
   alive: boolean;
   respawnAt: number;
   ultReadyAt: number;
@@ -394,7 +395,6 @@ export class BattleScene extends Phaser.Scene {
       element: opts.element,
       goldMult: opts.goldMult ?? 1,
       isBoss: !!opts.isBoss,
-      waiting: false,
       attacks: 0,
       alive: true,
       respawnAt: 0,
@@ -528,23 +528,24 @@ export class BattleScene extends Phaser.Scene {
     return mulEffect(this.state.effects(), kind, u?.def?.id ?? null);
   }
 
-  private spawnEnemy(boss = false, campX?: number) {
+  /** `behind` pushes a regular enemy further past the right edge so groups arrive one after another. */
+  private spawnEnemy(boss = false, behind = 0) {
     const stage = this.state.stage;
     const element = boss ? bossElement(stage) : enemyElement(stage);
     const u = this.makeUnit({
       side: 'enemy',
       texture: boss ? 'boss' : 'enemy',
-      x: campX !== undefined ? campX + Phaser.Math.Between(-20, 20) : ENEMY_CRYSTAL_X - (boss ? 50 : Phaser.Math.Between(15, 40)),
+      x: boss ? ENEMY_CRYSTAL_X - 50 : ENEMY_SPAWN_X + behind + Phaser.Math.Between(0, 30),
       hp: boss ? bossHp(stage) : enemyHp(stage),
       atk: boss ? bossAtk(stage) : enemyAtk(stage),
       range: boss ? 40 : 22,
       cooldown: boss ? 1.6 : 1.1,
-      speed: boss ? 18 : Phaser.Math.Between(28, 40),
+      // Fast enough that the two sides meet around the middle of the lane.
+      speed: boss ? 18 : Phaser.Math.Between(60, 75),
       element,
       isBoss: boss,
       label: boss ? BOSS_NAMES[(stage / 50 - 1) % BOSS_NAMES.length] : undefined,
     });
-    u.waiting = campX !== undefined;
     this.enemies.push(u);
   }
 
@@ -582,19 +583,20 @@ export class BattleScene extends Phaser.Scene {
       this.cameras.main.shake(400, 0.01);
       play('boss');
     }
-    for (const f of CAMPS) {
-      // Camps start as single enemies and grow to three, so a lone starter hero can win early stages.
+    for (let g = 0; g < START_GROUPS; g++) {
+      // Groups start as single enemies and grow to three, so a lone starter hero can win early stages.
       const count = Math.min(3, 1 + Math.floor((stage - 1) / 8) + (Math.random() < 0.3 ? 1 : 0));
-      for (let i = 0; i < count; i++) this.spawnEnemy(false, PLAYER_CRYSTAL_X + (ENEMY_CRYSTAL_X - PLAYER_CRYSTAL_X) * f);
+      for (let i = 0; i < count; i++) this.spawnEnemy(false, g * GROUP_GAP);
     }
-    this.spawnWave();
+    // The opening wave queues up behind the groups instead of piling onto the first one.
+    this.spawnWave(START_GROUPS * GROUP_GAP);
     this.state.emit();
   }
 
-  private spawnWave() {
+  private spawnWave(behind = 0) {
     const size = Math.min(3, 1 + Math.floor((this.state.stage - 1) / 15));
     const count = Math.min(size, MAX_ENEMIES - this.enemies.length);
-    for (let i = 0; i < count; i++) this.spawnEnemy(false);
+    for (let i = 0; i < count; i++) this.spawnEnemy(false, behind);
   }
 
   /** Knights start each stage and each life with a shield (Knight Shield HP raises it). */
@@ -817,10 +819,6 @@ export class BattleScene extends Phaser.Scene {
   private stepEnemy(e: Unit, dt: number) {
     e.cooldownLeft -= dt;
     if (e.rootedUntil > this.clock) return;
-    if (e.waiting) {
-      if (!this.heroes.some((h) => h.alive && Math.abs(e.x - h.x) < CAMP_AGGRO)) return;
-      e.waiting = false;
-    }
     const target = this.nearest(e, this.heroes, -1);
     const dist = target ? e.x - target.x : Infinity;
     if (target && dist <= e.range) {
