@@ -529,7 +529,7 @@ i.ess-dark { background-image: url('./assets/ui/ess-dark.png') !important; }
 .g-form label input { width: 90px; }
 .g-head h3 small { color: var(--orange); }
 .g-head p { margin: 0 0 8px; }
-.g-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.g-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
 .g-tabs button { padding: 6px 2px; font-size: 13px; font-weight: 700; background: #00000040; border-color: var(--wood-deep); color: #fff4dd; }
 .g-tabs button.on { background: linear-gradient(180deg, #f2c26b, #b8792f); color: #2b190c; }
 .g-req { display: flex; align-items: center; gap: 8px; }
@@ -576,3 +576,8 @@ div.g-req { margin-bottom: 8px; }
 .g-offer.done { opacity: 0.55; }
 .g-wild-amounts { display: flex; gap: 6px; justify-content: center; margin: 8px 0; }
 .g-wild-amounts button { display: flex; flex-direction: column; align-items: center; min-width: 76px; }
+.g-track-bar { height: 10px; margin: 4px 0 8px; }
+.g-track { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.g-step { display: flex; flex-direction: column; align-items: center; padding: 6px 2px; font-size: 13px; }
+.g-step small { font-size: 10px; }
+.g-step.done { opacity: 0.55; }
