@@ -664,3 +664,23 @@ export const RELIC_START_SLOTS = 2;
 /** About 10,700 Gems for all 20 (was ~39,000, over two years of free Gems); the stage gates still pace them. */
 export const RELIC_SLOT_COSTS = [50, 75, 100, 125, 150, 200, 250, 300, 350, 400, 450, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1500];
 export const RELIC_SLOT_STAGES = [25, 50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000, 1200, 1400, 1600, 1800, 2000, 2500];
+
+// ---------- guilds (server rules live in supabase/guilds.sql) ----------
+
+export const GUILD_MAX_MEMBERS = 30;
+/** Medals a guild request asks for, by the hero's rarity. Rarer heroes ask for fewer. Legendary heroes can't be requested. */
+export const GUILD_REQUEST_GOALS: Record<Exclude<Rarity, 'legendary'>, number> = { common: 20, rare: 10, epic: 5 };
+/** Hours between a player's guild requests, and how long a request stays open. */
+export const GUILD_REQUEST_HOURS = 8;
+export const GUILD_REQUEST_OPEN_HOURS = 24;
+/** Most medals one guildmate can give to one request. */
+export const GUILD_DONATE_MAX = 5;
+/** Guild credits a donor earns per medal given, by the hero's rarity. */
+export const GUILD_CREDITS_PER_MEDAL: Record<Exclude<Rarity, 'legendary'>, number> = { common: 3, rare: 6, epic: 12 };
+export type GuildShopId = 'chest' | 'stone' | 'tickets';
+/** What guild credits buy. */
+export const GUILD_SHOP: Array<{ id: GuildShopId; name: string; text: string; cost: number }> = [
+  { id: 'chest', name: 'Hero Chest', text: '3 drops of Hero Crests, like the Gem chest.', cost: 60 },
+  { id: 'stone', name: 'Enhance Stone', text: 'Raises a relic\'s level cap or crafts set pieces.', cost: 40 },
+  { id: 'tickets', name: '5 Trial tickets', text: 'Up to the usual cap of 20.', cost: 30 },
+];

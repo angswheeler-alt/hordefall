@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId } from './data';
 import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES } from './data';
@@ -111,6 +111,8 @@ export class GameState {
   equipped: string[] = [];
   relicSlots = RELIC_START_SLOTS;
   enhanceStones = 0;
+  /** Earned by giving medals to guildmates; spent in the guild shop. */
+  guildCredits = 0;
   /** Legendary medals, made by 8★ heroes from extra medals; Legendary heroes will use them. */
   legendaryMedals = 0;
   /** Market Row's own buy amount, separate from the heroes'. */
@@ -877,6 +879,56 @@ export class GameState {
     return { index, ...got };
   }
 
+  // ---------- guilds (the server side is in guild.ts) ----------
+
+  /** Remove medals given to a guildmate and pay guild credits for them. Returns the credits, or null if the medals aren't there. */
+  giveGuildMedals(id: string, n: number): number | null {
+    const hero = HEROES.find((h) => h.id === id);
+    if (!hero || hero.rarity === 'legendary' || n <= 0 || (this.crests[id] ?? 0) < n) return null;
+    this.crests[id] -= n;
+    const credits = n * GUILD_CREDITS_PER_MEDAL[hero.rarity];
+    this.guildCredits += credits;
+    this.save();
+    return credits;
+  }
+
+  /** Medals guildmates gave to this player's requests. */
+  receiveGuildMedals(gifts: Array<{ heroId: string; crests: number }>): SummonDrop[] {
+    const drops: SummonDrop[] = [];
+    for (const { heroId, crests } of gifts) {
+      const hero = HEROES.find((h) => h.id === heroId);
+      if (!hero || crests <= 0) continue;
+      const before = this.crests[heroId] ?? 0;
+      const need = this.unlockCrests(hero);
+      this.addCrests(heroId, crests);
+      drops.push({ heroId, crests, isNew: (this.levels[heroId] ?? 0) === 0 && need !== null && before < need && before + crests >= need });
+    }
+    if (drops.length) this.save();
+    return drops;
+  }
+
+  guildItemReady(id: GuildShopId): boolean {
+    const item = GUILD_SHOP.find((i) => i.id === id)!;
+    if (this.guildCredits < item.cost) return false;
+    if (id === 'tickets') {
+      this.refreshTickets();
+      return this.tickets < TICKET_CAP;
+    }
+    return true;
+  }
+
+  /** Spend guild credits. A Hero Chest returns its drops. */
+  buyGuildItem(id: GuildShopId): { drops: SummonDrop[] } | null {
+    if (!this.guildItemReady(id)) return null;
+    this.guildCredits -= GUILD_SHOP.find((i) => i.id === id)!.cost;
+    let drops: SummonDrop[] = [];
+    if (id === 'chest') drops = this.rollChest();
+    else if (id === 'stone') this.enhanceStones += 1;
+    else this.tickets = Math.min(TICKET_CAP, this.tickets + 5);
+    this.save();
+    return { drops };
+  }
+
   /**
    * Today's Daily Medal Bundle: a few heroes' medals, rolled at the first look each day (Hero Chest
    * odds, the smallest drop size), free once enough daily challenges are finished.
@@ -1038,6 +1090,7 @@ export class GameState {
       login: this.login,
       spinDay: this.spinDay,
       medalBundle: this.medalBundle,
+      guildCredits: this.guildCredits,
       achieved: this.achieved,
       bootcamp: this.bootcamp,
       stalls: this.stalls,
@@ -1127,6 +1180,7 @@ export class GameState {
       if (d.daily) this.daily = { day: String(d.daily.day ?? ''), counts: { ...(d.daily.counts ?? {}) }, claimed: [...(d.daily.claimed ?? [])] };
       if (d.login) this.login = { count: d.login.count ?? 0, last: String(d.login.last ?? '') };
       this.spinDay = String(d.spinDay ?? '');
+      this.guildCredits = Math.max(0, Number(d.guildCredits) || 0);
       if (d.medalBundle && Array.isArray(d.medalBundle.drops)) {
         const drops = d.medalBundle.drops.filter((x: { heroId?: unknown; crests?: unknown }) => HEROES.some((h) => h.id === x?.heroId) && Number(x.crests) > 0);
         this.medalBundle = { day: String(d.medalBundle.day ?? ''), drops: drops.map((x: { heroId: string; crests: number }) => ({ heroId: x.heroId, crests: Number(x.crests) })), claimed: !!d.medalBundle.claimed };
