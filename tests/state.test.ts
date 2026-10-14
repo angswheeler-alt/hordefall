@@ -482,3 +482,40 @@ describe('save repair', () => {
     expect(localStorage.getItem(kept[0])).toContain('1e10');
   });
 });
+
+describe('Daily Medal Bundle', () => {
+  it('holds different heroes, opens after three daily challenges, and pays once a day', () => {
+    const s = fresh();
+    const day1 = new Date(2026, 9, 14, 12).getTime();
+    const b = s.medalBundleState(day1);
+    expect(b.drops.length).toBe(3);
+    expect(new Set(b.drops.map((d) => d.heroId)).size).toBe(3);
+    expect(b.drops.every((d) => HEROES.find((h) => h.id === d.heroId)!.rarity !== 'legendary')).toBe(true);
+    expect(b.ready).toBe(false);
+    expect(s.claimMedalBundle(day1)).toBeNull();
+
+    vi.useFakeTimers();
+    vi.setSystemTime(day1);
+    s.track('kills', 300);
+    s.track('stages', 20);
+    expect(s.medalBundleState(day1).ready).toBe(false);
+    s.track('minutes', 15);
+    expect(s.medalBundleState(day1).ready).toBe(true);
+    expect(s.rewardsWaiting(day1)).toBe(true);
+
+    const before = b.drops.map((d) => s.crests[d.heroId] ?? 0);
+    const drops = s.claimMedalBundle(day1)!;
+    expect(drops.map((d) => d.heroId)).toEqual(b.drops.map((d) => d.heroId));
+    b.drops.forEach((d, i) => expect(s.crests[d.heroId]).toBe(before[i] + d.crests));
+    expect(s.claimMedalBundle(day1)).toBeNull();
+
+    // Same bundle after a reload; a new one the next day.
+    s.save();
+    const again = new GameState();
+    again.load();
+    expect(again.medalBundleState(day1)).toMatchObject({ claimed: true, drops: b.drops });
+    const next = again.medalBundleState(day1 + 86_400_000);
+    expect(next.claimed).toBe(false);
+    expect(next.done).toBe(0);
+  });
+});

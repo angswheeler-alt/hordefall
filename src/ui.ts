@@ -1045,6 +1045,14 @@ export class UI {
       }, 3200);
       this.render();
     });
+    $('bundle-claim').addEventListener('click', () => {
+      const drops = this.state.claimMedalBundle();
+      if (!drops) return;
+      play('chest');
+      this.scene()?.syncHeroes();
+      this.showModal('Daily Medal Bundle', `${dropCards(drops)}Come back tomorrow for a new bundle.`, 'Collect');
+      this.render();
+    });
     $('rewards').addEventListener('click', (e) => {
       const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-claim]');
       if (!btn || btn.disabled) return;
@@ -1114,6 +1122,20 @@ export class UI {
     }
     const earned = daily.filter((r) => r.claimed).length * DAILY_GEMS;
     $('daily-note').textContent = `${earned}/${DAILIES.length * DAILY_GEMS} Gems today`;
+
+    const bundle = s.medalBundleState(now);
+    setHtml(
+      $('bundle-heroes'),
+      bundle.drops
+        .map(({ heroId, crests }) => {
+          const def = HEROES.find((h) => h.id === heroId)!;
+          return `<div class="bundle-hero${bundle.claimed ? ' done' : ''}"><span class="face art" style="${faceStyle(def)}">${def.name[0]}</span><b>${def.name}</b><small>+${crests} Crests</small></div>`;
+        })
+        .join(''),
+    );
+    $('bundle-note').textContent = bundle.claimed ? 'Claimed' : `${Math.min(bundle.done, bundle.need)}/${bundle.need} challenges`;
+    $<HTMLButtonElement>('bundle-claim').disabled = !bundle.ready;
+    $('bundle-claim').textContent = bundle.claimed ? 'New bundle tomorrow' : bundle.ready ? 'Claim free' : `Finish ${bundle.need} daily challenges`;
 
     const bootList = $('boot-list');
     let bootLeft = 0;
