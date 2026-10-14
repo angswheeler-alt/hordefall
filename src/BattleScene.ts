@@ -45,7 +45,7 @@ import crystalEnemyUrl from './assets/ui/crystal-enemy.png';
 import chestWoodUrl from './assets/ui/chest-wood.png';
 import chestBronzeUrl from './assets/ui/chest-bronze.png';
 import chestGoldUrl from './assets/ui/chest-gold.png';
-import { sumEffect, mulEffect, everyNth } from './skills';
+import { sumEffect, mulEffect, everyNth, slamEffect } from './skills';
 import { HERO_ANIMS } from './heroAnims';
 import type { EffectKind } from './data';
 import { comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS } from './kits';
@@ -76,6 +76,8 @@ const CRYSTAL_Y = LANE_TOP + 10;
 const WAVE_INTERVAL = 7;
 /** Burning deals its damage in ticks this many seconds apart. */
 const BURN_TICK = 0.5;
+/** Big Boom slams hit enemies this close to the target. */
+const SLAM_RADIUS = 50;
 const WILDFIRE_RADIUS = 40;
 const BEACON_SECONDS = 4;
 /** Lumen brings fallen heroes back this far behind her, with this share of their HP. */
@@ -149,6 +151,9 @@ interface Unit {
   frozenUntil: number;
   frozenBlast: Decimal;
   frozenBy?: Unit;
+  /** Slowed (Sticky Spores): moves and attacks at slowMult speed until slowUntil. */
+  slowUntil: number;
+  slowMult: number;
   /** Poison: poisonDps per stack until poisonUntil. */
   poisonUntil: number;
   poisonStacks: number;
@@ -192,6 +197,8 @@ export class BattleScene extends Phaser.Scene {
   private heroes: Unit[] = [];
   private enemies: Unit[] = [];
   private zones: Zone[] = [];
+  /** Forest Strength: until then, every non-Fire hero deals Earth damage. */
+  private earthenUntil = 0;
   private crystal = { hp: new Decimal(1), maxHp: new Decimal(1) };
   private crystalView!: Phaser.GameObjects.Image;
   private crystalShield!: Phaser.GameObjects.Arc;
@@ -416,6 +423,8 @@ export class BattleScene extends Phaser.Scene {
       hasteMult: 1,
       frozenUntil: 0,
       frozenBlast: new Decimal(0),
+      slowUntil: 0,
+      slowMult: 1,
       poisonUntil: 0,
       poisonStacks: 0,
       poisonDps: new Decimal(0),
@@ -844,7 +853,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private stepEnemy(e: Unit, dt: number) {
-    e.cooldownLeft -= dt;
+    const slow = e.slowUntil > this.clock ? e.slowMult : 1;
+    e.cooldownLeft -= dt * slow;
     if (e.rootedUntil > this.clock) return;
     const target = this.nearest(e, this.heroes, -1);
     const dist = target ? e.x - target.x : Infinity;
@@ -858,7 +868,7 @@ export class BattleScene extends Phaser.Scene {
     }
     // Bosses guard the crystal; regular enemies march at the heroes.
     if (e.isBoss && e.x < ENEMY_CRYSTAL_X - 120) return;
-    e.x = Math.max(e.x - e.speed * dt, PLAYER_CRYSTAL_X + 30);
+    e.x = Math.max(e.x - e.speed * slow * dt, PLAYER_CRYSTAL_X + 30);
     e.view.x = e.x;
   }
 
@@ -888,7 +898,7 @@ export class BattleScene extends Phaser.Scene {
     const dmg = defended(e.atk.times(mult), target.defense);
     this.damageUnit(target, dmg, null);
     // Boss hits can stun a hero; Effect Resistance is the chance to shrug it off.
-    if (e.isBoss && target.alive && Math.random() < BOSS_STUN_CHANCE) {
+    if (e.isBoss && target.alive && !target.def?.steadfast && Math.random() < BOSS_STUN_CHANCE) {
       if (Math.random() < (target.stats?.effectRes.value ?? 0)) this.floatText(target.x, target.y - 26, 'RESIST', '#9effa8', 9);
       else {
         target.rootedUntil = this.clock + BOSS_STUN_SECONDS;
@@ -903,6 +913,11 @@ export class BattleScene extends Phaser.Scene {
         if (this.control(e, SIG_PLUS.reflectStunSeconds)) this.floatText(e.x, e.y - 30, 'STUN', '#ffd84a', 9);
       }
     }
+  }
+
+  /** The element a hero deals damage as: Earth for non-Fire heroes during Forest Strength. */
+  private dealsAs(h: Unit): Element {
+    return this.earthenUntil > this.clock && h.element !== 'fire' ? 'earth' : h.element;
   }
 
   private heroAttack(h: Unit, target: Unit) {
@@ -922,6 +937,8 @@ export class BattleScene extends Phaser.Scene {
     }
     const strikes = Math.random() < this.sum('doubleStrike', h) ? 2 : 1;
     const nth = everyNth(this.state.effects(), def.id);
+    const slam = slamEffect(this.state.effects(), def.id);
+    const element = this.dealsAs(h);
     const bossMult = this.mul('bossDamage', h);
     const lifesteal = this.sum('lifesteal', h);
     const sig = def.signature;
@@ -942,13 +959,18 @@ export class BattleScene extends Phaser.Scene {
     const beacon = h.beaconUntil > this.clock ? h.beaconMult : 1;
     let dealt = new Decimal(0);
     for (let i = 0; i < strikes; i++) {
-      const crit = !!h.riposte || Math.random() < critChance;
+      // Hawkeye: shots at an enemy at full HP always crit.
+      const crit = !!h.riposte || (sig?.kind === 'sureCrit' && target.hp.gte(target.maxHp)) || Math.random() < critChance;
       h.riposte = false;
       // Samurai Mastery: crits take time off the Ultimate cooldown.
       if (crit && this.mastery(h, 'Samurai')) h.ultReadyAt -= 0.5;
       let atk = (crit ? h.atk.times(critMult) : h.atk).times(beacon * rage * this.state.boostMult('horn'));
-      if (nth && nth.every && h.attacks % nth.every === 0) atk = atk.times(nth.value);
-      const splash = def.splash ? def.splash * (1 + st.aoeRadius) : 0;
+      const procced = !!(nth && nth.every && h.attacks % nth.every === 0);
+      if (procced) atk = atk.times(nth!.value);
+      // Big Boom: every Nth attack slams every enemy near the target.
+      const slammed = !!(slam && slam.every && h.attacks % slam.every === 0);
+      if (slammed) atk = atk.times(slam!.value);
+      const splash = def.splash ? def.splash * (1 + st.aoeRadius) : slammed ? SLAM_RADIUS : 0;
       let targets: Unit[];
       if (splash) targets = this.enemies.filter((e) => e.alive && Math.abs(e.x - target.x) <= splash);
       else {
@@ -959,7 +981,7 @@ export class BattleScene extends Phaser.Scene {
       }
       for (const t of targets) {
         const mult =
-          elementMultiplier(h.element, t.element) *
+          elementMultiplier(element, t.element) *
           (t.isBoss ? bossMult : 1) *
           (t === target ? comboMult(sig, h.streak) : 1) *
           executeMult(sig, t.maxHp.gt(0) ? t.hp.div(t.maxHp).toNumber() : 1, this.sigPlus(h)) *
@@ -968,7 +990,7 @@ export class BattleScene extends Phaser.Scene {
         const amount = atk.times(mult);
         dealt = dealt.plus(amount);
         this.damageUnit(t, amount, h, crit);
-        if (t.alive) this.applyEffects(h, t, amount);
+        if (t.alive) this.applyEffects(h, t, amount, procced);
       }
     }
     if (lifesteal > 0 && h.alive && h.hp.lt(h.maxHp)) {
@@ -978,9 +1000,15 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Roll the hero's stun, freeze, burn and poison chances on an enemy it just hit for `amount`. */
-  private applyEffects(h: Unit, t: Unit, amount: Decimal) {
+  private applyEffects(h: Unit, t: Unit, amount: Decimal, procced = false) {
     const st = h.stats!;
     const sig = h.def?.signature;
+    // Sticky Spores: a chance to slow (Bee Swarm attacks always slow).
+    if (sig?.kind === 'slow' && (procced || Math.random() < sig.chance) && !(t.isBoss && t.ccImmuneUntil > this.clock)) {
+      if (t.slowUntil <= this.clock) this.floatText(t.x, t.y - 30, 'SLOW', '#b5e48c', 9);
+      t.slowMult = sig.mult;
+      t.slowUntil = this.clock + sig.seconds;
+    }
     if (st.stunChance > 0 && Math.random() < st.stunChance) {
       if (this.control(t, STAT_BASE.stunSeconds * (1 + st.stunTime))) this.floatText(t.x, t.y - 30, 'STUN', '#ffd84a', 9);
     }
@@ -1244,14 +1272,26 @@ export class BattleScene extends Phaser.Scene {
       this.cameras.main.flash(200, 255, 245, 180);
       return true;
     }
+    const ult = def.ult;
+    const dmg = h.atk.times(ULT_MULTIPLIER * (plus && !ult ? ULT_STAR_BONUS : 1) * (1 + (h.stats?.ultAtk ?? 0)) * this.state.boostMult('horn'));
+    if (ult?.kind === 'strike') {
+      // Heat Strike: one blow on the toughest enemy in reach, no area.
+      const target = this.enemies.filter((e) => e.alive && e.x >= h.x - 30 && e.x <= h.x + 260).sort((a, b) => b.hp.cmp(a.hp))[0];
+      if (target) {
+        h.x = Math.max(h.x, target.x - 20);
+        h.view.x = h.x;
+        this.sparks(target.x, target.y - 6, color, 10);
+        this.cameras.main.shake(200, 0.012);
+        this.damageUnit(target, dmg.times((plus ? ult.plusMult : ult.mult) * elementMultiplier(this.dealsAs(h), target.element)), h, true);
+      }
+      return true;
+    }
     const radius = 170;
     const ring = this.add.circle(h.x + 60, h.y, 10, color, 0.45).setDepth(999);
     this.tweens.add({ targets: ring, radius, alpha: 0, duration: 380, onComplete: () => ring.destroy() });
     this.cameras.main.shake(300, 0.015);
     this.cameras.main.flash(120, 255, 255, 255);
     // Heroes built to the hero standard get their own 5★ twist instead of the bigger hit.
-    const ult = def.ult;
-    const dmg = h.atk.times(ULT_MULTIPLIER * (plus && !ult ? ULT_STAR_BONUS : 1) * (1 + (h.stats?.ultAtk ?? 0)) * this.state.boostMult('horn'));
     const x0 = h.x - 30, x1 = h.x + radius + 60;
     const hit = this.enemies.filter((e) => e.alive && e.x >= x0 && e.x <= x1);
     // Marks land before the hit so the Volley itself benefits.
@@ -1262,7 +1302,7 @@ export class BattleScene extends Phaser.Scene {
         this.floatText(e.x, e.y - 40, 'MARKED', '#c9b8ff', 9);
       }
     }
-    for (const e of hit) this.damageUnit(e, dmg.times(elementMultiplier(h.element, e.element)), h);
+    for (const e of hit) this.damageUnit(e, dmg.times(elementMultiplier(this.dealsAs(h), e.element)), h);
     if (!this.bossAlive() && ENEMY_CRYSTAL_X - h.x <= radius + 60) this.damageCrystal(dmg);
     if (ult) this.ultExtras(h, ult, hit, plus, x0, x1, dmg);
     return true;
@@ -1297,6 +1337,10 @@ export class BattleScene extends Phaser.Scene {
         }
         break;
       }
+      case 'earthen':
+        this.earthenUntil = this.clock + (plus ? ult.plusSeconds : ult.seconds);
+        this.banner('FOREST STRENGTH', '#9be07a');
+        break;
       case 'root':
         for (const e of living) {
           if (this.control(e, ult.seconds, ult.bossSeconds)) this.floatText(e.x, e.y - 40, 'ROOTED', '#9be07a', 9);

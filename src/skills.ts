@@ -26,9 +26,15 @@ export function activeEffects(hasStar: (id: string, star: number) => boolean): A
   return out;
 }
 
-/** Effects of one kind that reach `heroId`: team-wide ones, plus the hero's own. null = team-wide only. */
+/**
+ * Effects of one kind that reach `heroId`: team-wide ones, plus the hero's own. null = team-wide only.
+ * A team effect with an element reaches only heroes of that element (and never the null query).
+ */
 function reaching(effects: ActiveEffect[], kind: EffectKind, heroId: string | null): Effect[] {
-  return effects.filter((a) => a.effect.kind === kind && (a.effect.team || (heroId !== null && a.owner === heroId))).map((a) => a.effect);
+  const element = heroId === null ? null : HEROES.find((h) => h.id === heroId)?.element;
+  return effects
+    .filter((a) => a.effect.kind === kind && (a.owner === heroId || (a.effect.team && (!a.effect.element || a.effect.element === element))))
+    .map((a) => a.effect);
 }
 
 /** Additive total, for chances and fractions (crit, dodge, reflect, regen...). */
@@ -44,4 +50,9 @@ export function mulEffect(effects: ActiveEffect[], kind: EffectKind, heroId: str
 /** The hero's own "every Nth attack" effect, if any. */
 export function everyNth(effects: ActiveEffect[], heroId: string): Effect | undefined {
   return reaching(effects, 'everyNth', heroId)[0];
+}
+
+/** The hero's own every-Nth slam (hits enemies near the target), if any. */
+export function slamEffect(effects: ActiveEffect[], heroId: string): Effect | undefined {
+  return reaching(effects, 'slam', heroId)[0];
 }

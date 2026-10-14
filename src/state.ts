@@ -188,7 +188,7 @@ export class GameState {
     return {
       atk: heroAtk(def, level).times(starMult * prof.atkMult * mulEffect(fx, 'atk', def.id) * atkRelics),
       hp: heroHp(def, level).times(starMult * prof.hpMult * mulEffect(fx, 'hp', def.id) * hpRelics),
-      defense: heroDef(def, level).times(starMult * prof.defMult * (1 + this.relicBonus('def') + this.relicBonus(`${def.element}Def`))),
+      defense: heroDef(def, level).times(starMult * prof.defMult * mulEffect(fx, 'def', def.id) * (1 + this.relicBonus('def') + this.relicBonus(`${def.element}Def`))),
     };
   }
 
@@ -217,7 +217,7 @@ export class GameState {
       hp: { value: power.hp, base: heroHp(def, level).times(starMult * prof.hpMult) },
       def: { value: power.defense, base: heroDef(def, level).times(starMult * prof.defMult) },
       critRate: prof.crit + sum('crit') + this.relicBonus('crit'),
-      critDmg: (1 + prof.critDmg) * (1 + this.relicBonus('critDmg')) - 1,
+      critDmg: (1 + prof.critDmg + sum('critDmg')) * (1 + this.relicBonus('critDmg')) - 1,
       attacksPerSec: { value: 1 / cooldown, base: 1 / def.attackCooldown },
       range: { value: def.range, base: def.range },
       moveSpeed: { value: def.moveSpeed, base: def.moveSpeed },
