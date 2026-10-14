@@ -80,6 +80,13 @@ describe('Ember economy', () => {
     expect(levelsFor(emberYield(1000, 125))).toBeLessThan(1300);
   });
 
+  it('each extra Rekindle stage buys less than one Ember level, so progress levels off', () => {
+    // At 1.2 levels per stage every Rekindle went ~40% further than the last, without end.
+    const gain = levelsFor(emberYield(1100, 125)) - levelsFor(emberYield(1000, 125));
+    expect(gain).toBeLessThan(100);
+    expect(gain).toBeGreaterThan(70);
+  });
+
   it('Defense equal to a hit halves it and never blocks it fully', () => {
     expect(defended(new Decimal(100), new Decimal(100)).toNumber()).toBeCloseTo(50);
     expect(defended(new Decimal(100), new Decimal(0)).toNumber()).toBe(100);

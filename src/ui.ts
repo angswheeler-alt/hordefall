@@ -875,8 +875,9 @@ export class UI {
       : 'No hero requirement';
     setHtml($('tr-odds'), `Difficulty <b>${level.difficulty.toLocaleString()}</b> · reward <b>${fmt(level.essence)}</b> Essence · ${level.medals} medal${level.medals === 1 ? '' : 's'}<br>${req}<br>Boss HP <b>${fmt(trialHp(level))}</b> · team damage in ${TRIAL_TIME}s <b>${fmt(sim.dps.times(TRIAL_TIME))}</b> · <span class="${sim.won ? 'win' : 'lose'}">${sim.won ? 'You should win' : 'Too strong for now'}</span>`);
     const fight = $<HTMLButtonElement>('tr-fight');
-    fight.disabled = s.tickets <= 0 || !reqMet;
-    fight.textContent = !reqMet ? 'Locked' : s.tickets > 0 ? 'Fight · 1 ticket' : 'No tickets';
+    const unlocked = s.trialsUnlocked();
+    fight.disabled = !unlocked || s.tickets <= 0 || !reqMet;
+    fight.textContent = !unlocked ? 'Beat the stage 50 boss' : !reqMet ? 'Locked' : s.tickets > 0 ? 'Fight · 1 ticket' : 'No tickets';
     setHtml($('tr-ess'), TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}"></i>${fmt(s.essences[e] ?? 0)}</span>`).join(''));
   }
 
