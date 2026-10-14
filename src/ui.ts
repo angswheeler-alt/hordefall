@@ -78,7 +78,7 @@ export class UI {
   constructor(
     private state: GameState,
     private scene: () => BattleScene | undefined,
-    private hooks: { simulateAway: () => void; wipe: () => void; rekindle: (mult: number) => void },
+    private hooks: { simulateAway: () => void; resetAccount: () => Promise<string | null>; rekindle: (mult: number) => void },
   ) {
     this.buildHeroes();
     this.buildUlts();
@@ -516,15 +516,7 @@ export class UI {
       this.render();
     });
     $('sim').addEventListener('click', () => this.hooks.simulateAway());
-    // Two taps to reset: confirm() dialogs are blocked in some embedded viewers.
-    let armed = 0;
-    const wipe = $('wipe');
-    wipe.addEventListener('click', () => {
-      if (Date.now() - armed < 3000) return this.hooks.wipe();
-      armed = Date.now();
-      wipe.textContent = 'Tap again to erase';
-      setTimeout(() => (wipe.textContent = 'Reset save'), 3000);
-    });
+    $('acct-reset').addEventListener('click', () => this.confirmReset());
     $('modal-ok').addEventListener('click', () => {
       $('modal').hidden = true;
       const action = this.modalAction;
@@ -791,6 +783,32 @@ export class UI {
   }
 
   private modalAction: (() => void) | null = null;
+
+  /** Account reset, asked twice (in-game pop-ups: confirm() is blocked in some embedded viewers). */
+  private confirmReset() {
+    this.showModal(
+      'Reset account?',
+      'This erases <b>all</b> your progress: stages, heroes, stars, Embers, Gems, relics and everything else. You start a brand-new game. If you are signed in, your online save is erased too and you leave your guild.',
+      'Reset',
+      () =>
+        this.showModal(
+          'Are you sure?',
+          'There is no way to get this progress back.',
+          'Yes, erase everything',
+          () => {
+            this.showModal('Resetting…', 'Starting a new game.', 'Okay');
+            $<HTMLButtonElement>('modal-ok').disabled = true;
+            void this.hooks.resetAccount().then((error) => {
+              if (error) this.showModal('Reset failed', `${error.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`)} Nothing was erased. Try again when you're online.`, 'Okay');
+            });
+          },
+          true,
+          'Keep my progress',
+        ),
+      true,
+      'Cancel',
+    );
+  }
 
   showModal(title: string, html: string, ok: string, action: (() => void) | null = null, cancel = false, cancelLabel = 'Not yet') {
     $('modal-title').textContent = title;

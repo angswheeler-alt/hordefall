@@ -178,6 +178,8 @@ button.link[disabled] { display: none; }
 .panel-head h2 { margin: 0; font-size: 18px; color: #ffe9c4; text-shadow: 0 2px 0 var(--wood-deep); }
 .wood-btn { background: linear-gradient(180deg, var(--wood-hi), var(--wood)); border: 2px solid var(--wood-deep); border-radius: 10px; color: #fff4dd; font-weight: 800; text-shadow: 0 1px 0 var(--wood-deep); box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 2px 0 var(--wood-deep); line-height: 1.1; }
 .wood-btn.small { font-size: 12px; padding: 5px 10px; }
+#acct-reset { margin-top: 10px; }
+.wood-btn.danger { background: linear-gradient(180deg, #a8352b, #6e1d16); color: #fff4dd; }
 .hero-head { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: stretch; margin-bottom: 8px; }
 .hero-head .wood-btn { min-height: 50px; font-size: 14px; }
 .chest-btn { display: flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(180deg, #c0392b, #7d1f16); font-size: 15px !important; }

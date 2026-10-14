@@ -90,6 +90,24 @@ describe('saving', () => {
     GameState.frozen = false;
   });
 
+  it('account reset replaces the save with a fresh game that autosave cannot overwrite', () => {
+    const s = fresh();
+    s.stage = 420;
+    s.gems = 5000;
+    s.save();
+    GameState.startOver(GameState.freshSave(7));
+    s.save(); // the old page's autosave fires before the reload
+    const saved = JSON.parse(localStorage.getItem('hordefall-save-v1')!);
+    expect(saved.stage).toBe(1);
+    expect(saved.rev).toBe(7);
+    GameState.frozen = false;
+    const after = new GameState();
+    expect(after.load()).toBe(true);
+    expect(after.stage).toBe(1);
+    expect(after.gems).toBe(fresh().gems);
+    expect(HEROES.filter((h) => after.levels[h.id] > 0).map((h) => h.id)).toEqual([starter.id]);
+  });
+
   it('never moves lastSeen backwards', () => {
     const s = fresh();
     s.lastSeen = Date.now() + 3_600_000; // the clock was wound back after a visit "in the future"
