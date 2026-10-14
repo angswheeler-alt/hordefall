@@ -241,7 +241,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Faery Shield', text: 'Every 3rd heal or attack also shields a random ally for 40% of her max HP.', effect: { kind: 'ward', value: 0.4, every: 3 } },
     sp2: { name: 'Green Touch', text: 'Heals are 50% stronger.', effect: { kind: 'healPower', value: 1.5 } },
     aura: { name: 'Wild Vigor', text: 'Whole team +15% HP.', effect: { kind: 'hp', value: 1.15, team: true } } },
-  { id: 'thorn', rarity: 'common', name: 'Thicket', element: 'earth', type: 'Knight', baseAtk: 3.5, baseHp: 150, range: 34, attackCooldown: 1.0, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'thorn', rarity: 'common', name: 'Thicket', element: 'earth', type: 'Knight', baseAtk: 3.5, baseHp: 150, range: 34, attackCooldown: 1.0, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A sturdy thorn sentinel in bark armor. His thorn spear gives him a little more reach than other knights.',
     basic: { name: 'Thorn Thrust', text: 'Heavy spear thrusts with a little extra reach that shove enemies back.' },
     ultimate: { name: 'Bramble Wall', text: `${ULT('Thorns burst from the ground under')} Roots them in place for 3 seconds (bosses for 1).` },

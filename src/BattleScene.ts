@@ -46,6 +46,7 @@ import chestWoodUrl from './assets/ui/chest-wood.png';
 import chestBronzeUrl from './assets/ui/chest-bronze.png';
 import chestGoldUrl from './assets/ui/chest-gold.png';
 import { sumEffect, mulEffect, everyNth, procEffect, procs } from './skills';
+import { marchCap, marchStep } from './movement';
 import { HERO_ANIMS } from './heroAnims';
 import type { EffectKind } from './data';
 import { comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS } from './kits';
@@ -112,7 +113,10 @@ interface Unit {
   range: number;
   cooldown: number;
   cooldownLeft: number;
+  /** Move Speed in px/s, separate from attack speed. */
   speed: number;
+  /** Heroes: fighting this frame (stopped with an enemy or the crystal in range) rather than marching. */
+  engaged?: boolean;
   element: Element;
   goldMult: number;
   isBoss: boolean;
@@ -519,7 +523,7 @@ export class BattleScene extends Phaser.Scene {
           atk,
           range: def.range,
           cooldown: def.attackCooldown,
-          speed: def.moveSpeed,
+          speed: stats.moveSpeed.value,
           element: def.element,
           goldMult: def.goldMult * (1 + heroProfile(def).goldBonus),
         });
@@ -534,6 +538,7 @@ export class BattleScene extends Phaser.Scene {
         u.atk = atk;
         u.defense = defense;
         u.stats = stats;
+        u.speed = stats.moveSpeed.value;
         if (u.alive) u.hp = hp.times(ratio);
         this.drawHpBar(u);
       }
@@ -824,6 +829,7 @@ export class BattleScene extends Phaser.Scene {
 
   private stepHeroAction(h: Unit, dt: number) {
     h.cooldownLeft -= dt;
+    h.engaged = false;
     // Stunned by a boss.
     if (h.rootedUntil > this.clock) return;
     const def = h.def!;
@@ -838,13 +844,16 @@ export class BattleScene extends Phaser.Scene {
         this.shot(h, hurt.x, hurt.y, 0xfff6a0);
         h.attacks++;
         this.ward(h);
+        h.engaged = true;
         return;
       }
     }
 
     const target = this.nearest(h, this.foes(), 1);
     const dist = target ? target.x - h.x : Infinity;
+    // Combat comes first: an enemy in range stops the hero, however fast it walks.
     if (target && dist <= h.range) {
+      h.engaged = true;
       if (h.cooldownLeft <= 0) {
         h.cooldownLeft = this.cooldownFor(h);
         this.heroAttack(h, target);
@@ -854,6 +863,7 @@ export class BattleScene extends Phaser.Scene {
     const crystalDist = ENEMY_CRYSTAL_X - 14 - h.x;
     const canHitCrystal = !this.bossAlive();
     if (crystalDist <= h.range && (!target || dist > crystalDist)) {
+      h.engaged = true;
       if (canHitCrystal && h.cooldownLeft <= 0) {
         h.cooldownLeft = this.cooldownFor(h);
         if (def.range > 60) this.shot(h, ENEMY_CRYSTAL_X, LANE_TOP + 26, ELEMENT_COLORS[def.element]);
@@ -863,8 +873,11 @@ export class BattleScene extends Phaser.Scene {
       }
       if (!target) return;
     }
+    // Walk at this hero's own Move Speed, held to its Type's place in the team (src/movement.ts).
     const stopAt = ENEMY_CRYSTAL_X - 14 - Math.min(h.range, 30);
-    h.x = Math.min(h.x + h.speed * this.mul('moveSpeed', h) * dt, stopAt);
+    const team = this.heroes.map((u) => ({ x: u.x, type: u.def!.type, alive: u.alive, engaged: !!u.engaged }));
+    const self = team[this.heroes.indexOf(h)];
+    h.x = marchStep(h.x, h.speed * this.mul('moveSpeed', h), dt, marchCap(self, team), stopAt);
     h.view.x = h.x;
   }
 
