@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
 import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES } from './data';
@@ -59,6 +59,16 @@ export interface StallState {
  * All persistent game state. Saves to localStorage for the prototype; the GDD
  * calls for a server-authoritative save later, with local storage as a cache.
  */
+/** Research ranks kept to whole numbers from 1 to the max rank; unknown branches dropped. */
+function cleanResearch(ranks: Partial<Record<ResearchBranch, number>>): Partial<Record<ResearchBranch, number>> {
+  const clean: Partial<Record<ResearchBranch, number>> = {};
+  for (const b of GUILD_RESEARCH) {
+    const r = Math.min(GUILD_RESEARCH_MAX_RANK, Math.max(0, Math.floor(Number(ranks[b.id]) || 0)));
+    if (r) clean[b.id] = r;
+  }
+  return clean;
+}
+
 export class GameState {
   gold = new Decimal(0);
   stage = 1;
@@ -113,6 +123,8 @@ export class GameState {
   enhanceStones = 0;
   /** Earned by giving medals to guildmates; spent in the guild shop. */
   guildCredits = 0;
+  /** Guild Research ranks of the player's guild, cached from the server (empty outside a guild). */
+  guildResearch: Partial<Record<ResearchBranch, number>> = {};
   /** Legendary medals, made by 8★ heroes from extra medals; Legendary heroes will use them. */
   legendaryMedals = 0;
   /** Market Row's own buy amount, separate from the heroes'. */
@@ -151,7 +163,7 @@ export class GameState {
   /** ATK and HP after levels, stars (x STAR_STAT_MULT each), ATK/HP star skills and relics. `level` overrides the hero's current level. */
   heroPower(def: HeroDef, level = this.heroLevel(def.id)): { atk: Decimal; hp: Decimal; defense: Decimal } {
     const starMult = Math.pow(STAR_STAT_MULT, this.stars[def.id] ?? 0);
-    const atkRelics = 1 + this.relicBonus('atk') + this.relicBonus(def.element);
+    const atkRelics = (1 + this.relicBonus('atk') + this.relicBonus(def.element)) * (1 + this.researchBonus('combat'));
     const hpRelics = 1 + this.relicBonus('hp') + this.relicBonus(`${def.element}Hp`);
     const fx = this.effects();
     const prof = heroProfile(def);
@@ -200,7 +212,7 @@ export class GameState {
       aoeDmg: def.splash ? prof.aoeDmg + sum('aoeDmg') : 0,
       ultAtk: prof.ultAtk + sum('ultAtk'),
       knightShield: isKnight(def) ? prof.shield + this.relicBonus('knightShield') : 0,
-      bonusGold: def.goldMult * (1 + prof.goldBonus) * mulEffect(fx, 'gold', null) * (1 + this.relicBonus('gold')) - 1,
+      bonusGold: def.goldMult * (1 + prof.goldBonus) * mulEffect(fx, 'gold', null) * (1 + this.relicBonus('gold')) * (1 + this.researchBonus('prosperity')) - 1,
       freezeChance: prof.freezeChance + sum('freezeChance'),
       freezeTime: this.relicBonus('freezeTime') + prof.effectTime + build.freeze.time,
       freezeBlast: build.freeze.dmg,
@@ -649,7 +661,7 @@ export class GameState {
     let defense = new Decimal(0);
     let incoming = 0;
     for (const m of team) {
-      dps = dps.plus(m.atk.div(m.def.attackCooldown).times(elementMultiplier(m.def.element, element)));
+      dps = dps.plus(m.atk.div(m.def.attackCooldown).times(elementMultiplier(m.def.element, element) * (1 + this.researchBonus('elemental'))));
       hp = hp.plus(m.hp);
       defense = defense.plus(m.defense);
       incoming += elementMultiplier(element, m.def.element);
@@ -702,9 +714,10 @@ export class GameState {
     if (this.tickets >= TICKET_CAP) this.ticketClock = Date.now();
     this.tickets -= 1;
     this.track('trials');
-    result.essence = level.essence;
+    const explore = 1 + this.researchBonus('exploration');
+    result.essence = Math.round(level.essence * explore);
     this.essences[element] = (this.essences[element] ?? 0) + result.essence;
-    result.stones = trialStones(tier);
+    result.stones = Math.round(trialStones(tier) * explore);
     this.enhanceStones += result.stones;
     // Medals go to different random heroes of the element while there are enough of them.
     // Medals go to different heroes of the element where possible, picked by rarity weight.
@@ -911,7 +924,30 @@ export class GameState {
   guildBossDamage(element: Element): Decimal {
     let dps = new Decimal(0);
     for (const m of this.trialTeam()) dps = dps.plus(m.atk.div(m.def.attackCooldown).times(elementMultiplier(m.def.element, element)));
-    return dps.times(GUILD_BOSS_SECONDS).floor();
+    return dps.times(GUILD_BOSS_SECONDS * (1 + this.researchBonus('elemental'))).floor();
+  }
+
+  /** A Guild Research bonus as a fraction (0.1 = +10%), from the cached ranks. */
+  researchBonus(branch: ResearchBranch): number {
+    const rank = Math.min(GUILD_RESEARCH_MAX_RANK, Math.max(0, Math.floor(this.guildResearch[branch] ?? 0)));
+    return rank * (GUILD_RESEARCH.find((b) => b.id === branch)?.perRank ?? 0);
+  }
+
+  /** Store the guild's research ranks (an empty object when not in a guild); true when they changed. */
+  setGuildResearch(ranks: Partial<Record<ResearchBranch, number>>): boolean {
+    const clean = cleanResearch(ranks);
+    if (JSON.stringify(clean) === JSON.stringify(this.guildResearch)) return false;
+    this.guildResearch = clean;
+    this.save();
+    return true;
+  }
+
+  /** Spend Guild Coins on research (after the server took them). */
+  spendGuildCoins(n: number): boolean {
+    if (!(n > 0) || this.guildCredits < n) return false;
+    this.guildCredits -= n;
+    this.save();
+    return true;
   }
 
   /** Pay one Guild Boss attempt: Guild Coins (more for a bigger share of the boss) and some gold. */
@@ -1120,6 +1156,7 @@ export class GameState {
       spinDay: this.spinDay,
       medalBundle: this.medalBundle,
       guildCredits: this.guildCredits,
+      guildResearch: this.guildResearch,
       achieved: this.achieved,
       bootcamp: this.bootcamp,
       stalls: this.stalls,
@@ -1210,6 +1247,7 @@ export class GameState {
       if (d.login) this.login = { count: d.login.count ?? 0, last: String(d.login.last ?? '') };
       this.spinDay = String(d.spinDay ?? '');
       this.guildCredits = Math.max(0, Number(d.guildCredits) || 0);
+      this.guildResearch = d.guildResearch && typeof d.guildResearch === 'object' ? cleanResearch(d.guildResearch) : {};
       if (d.medalBundle && Array.isArray(d.medalBundle.drops)) {
         const drops = d.medalBundle.drops.filter((x: { heroId?: unknown; crests?: unknown }) => HEROES.some((h) => h.id === x?.heroId) && Number(x.crests) > 0);
         this.medalBundle = { day: String(d.medalBundle.day ?? ''), drops: drops.map((x: { heroId: string; crests: number }) => ({ heroId: x.heroId, crests: Number(x.crests) })), claimed: !!d.medalBundle.claimed };

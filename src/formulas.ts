@@ -227,3 +227,15 @@ export function guildBossAttemptCoins(level: number, damage: Decimal, hp: Decima
 export function guildBossKillCoins(level: number): number {
   return 5 * (10 + level);
 }
+
+/** Points needed to reach a Guild Research rank: 300 x (1^2 + ... + rank^2). */
+export function researchPointsFor(rank: number): number {
+  return (300 * rank * (rank + 1) * (2 * rank + 1)) / 6;
+}
+
+/** Guild Research rank for a branch's points, capped at 10. */
+export function researchRank(points: number): number {
+  let r = 0;
+  while (r < 10 && points >= researchPointsFor(r + 1)) r++;
+  return r;
+}

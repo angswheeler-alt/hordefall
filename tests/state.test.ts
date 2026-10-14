@@ -586,3 +586,31 @@ describe('Guild Boss rewards', () => {
     expect(s.guildCredits).toBe(13 + 65);
   });
 });
+
+describe('Guild Research', () => {
+  it('ranks give their bonuses, are capped and saved', () => {
+    const s = fresh();
+    const atk = s.heroPower(starter).atk;
+    const boss = s.guildBossDamage('light');
+    expect(s.setGuildResearch({ combat: 5, elemental: 2, prosperity: 99 })).toBe(true);
+    expect(s.setGuildResearch({ combat: 5, elemental: 2, prosperity: 99 })).toBe(false);
+    expect(s.researchBonus('combat')).toBeCloseTo(0.1);
+    expect(s.researchBonus('prosperity')).toBeCloseTo(0.5);
+    expect(s.researchBonus('exploration')).toBe(0);
+    expect(s.heroPower(starter).atk.toNumber()).toBeCloseTo(atk.toNumber() * 1.1, -1);
+    expect(s.guildBossDamage('light').toNumber()).toBeCloseTo(boss.toNumber() * 1.1 * 1.06, -2);
+    const again = new GameState();
+    again.load();
+    expect(again.guildResearch).toEqual({ combat: 5, elemental: 2, prosperity: 10 });
+    s.setGuildResearch({});
+    expect(s.researchBonus('combat')).toBe(0);
+  });
+
+  it('Guild Coins only go down when there are enough', () => {
+    const s = fresh();
+    s.guildCredits = 150;
+    expect(s.spendGuildCoins(200)).toBe(false);
+    expect(s.spendGuildCoins(100)).toBe(true);
+    expect(s.guildCredits).toBe(50);
+  });
+});

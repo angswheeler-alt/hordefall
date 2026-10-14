@@ -318,26 +318,7 @@ begin
   return row;
 end $$;
 
--- One attempt: the game works out the damage from the player's team and sends it.
--- Returns the attempt number, the boss after the hit, and whether this hit killed it.
-create or replace function public.hit_guild_boss(p_damage numeric) returns json
-language plpgsql security definer set search_path = public as $$
-declare boss guild_boss_days; used integer; dmg numeric; killed boolean := false;
-begin
-  boss := public.guild_boss_today();
-  select * into boss from guild_boss_days where guild_id = boss.guild_id and day = boss.day for update;
-  if boss.killed_at is not null then raise exception 'Today''s boss is already beaten. A stronger one comes tomorrow.'; end if;
-  select count(*) into used from guild_boss_hits where user_id = auth.uid() and day = boss.day;
-  if used >= 3 then raise exception 'No attempts left today.'; end if;
-  dmg := greatest(0, coalesce(p_damage, 0));
-  insert into guild_boss_hits (guild_id, day, user_id, username, damage) values (boss.guild_id, boss.day, auth.uid(), public.guild_username(), dmg);
-  update guild_boss_days set damage = least(hp, damage + dmg),
-    killed_at = case when damage + dmg >= hp then now() else null end
-    where guild_id = boss.guild_id and day = boss.day
-    returning * into boss;
-  killed := boss.killed_at is not null;
-  return json_build_object('attempt', used + 1, 'level', boss.level, 'hp', boss.hp, 'damage', boss.damage, 'killed', killed);
-end $$;
+-- One attempt (hit_guild_boss) is defined in the research section below, since it also feeds research.
 
 -- The kill reward, once per beaten boss for every member who hit it (up to 7 days back).
 -- Returns the boss level, or null when there is nothing to claim.
@@ -354,15 +335,86 @@ begin
   return lvl;
 end $$;
 
+-- ---------- Guild Research ----------
+-- Shared bonuses every member gets. Members put Guild Coins into a branch, and
+-- every Guild Boss attempt adds 10 + boss level points to the guild's focus
+-- branch. 10 ranks per branch; rank r costs 300 x r^2 points (115,500 in all).
+
+alter table public.guilds add column if not exists research_focus text not null default 'combat';
+
+create table if not exists public.guild_research (
+  guild_id uuid not null references public.guilds (id) on delete cascade,
+  branch text not null check (branch in ('prosperity', 'combat', 'exploration', 'elemental')),
+  points bigint not null default 0,
+  primary key (guild_id, branch)
+);
+alter table public.guild_research enable row level security;
+drop policy if exists "Members read their guild research" on public.guild_research;
+create policy "Members read their guild research" on public.guild_research for select to authenticated using (guild_id = public.my_guild());
+
+-- Adds up to p_amount points (capped at the last rank). Returns how many were taken.
+create or replace function public.add_guild_research(p_guild uuid, p_branch text, p_amount bigint) returns bigint
+language plpgsql security definer set search_path = public as $$
+declare have bigint; take bigint;
+begin
+  if p_branch not in ('prosperity', 'combat', 'exploration', 'elemental') then raise exception 'Unknown research branch.'; end if;
+  insert into guild_research (guild_id, branch) values (p_guild, p_branch) on conflict do nothing;
+  select points into have from guild_research where guild_id = p_guild and branch = p_branch for update;
+  take := least(greatest(coalesce(p_amount, 0), 0), 115500 - have);
+  if take > 0 then update guild_research set points = points + take where guild_id = p_guild and branch = p_branch; end if;
+  return greatest(take, 0);
+end $$;
+
+create or replace function public.contribute_guild_research(p_branch text, p_amount integer) returns bigint
+language plpgsql security definer set search_path = public as $$
+declare g uuid := public.my_guild();
+begin
+  if g is null then raise exception 'Join a guild first.'; end if;
+  if p_amount not between 1 and 100000 then raise exception 'Pick an amount from 1 to 100,000.'; end if;
+  return public.add_guild_research(g, p_branch, p_amount);
+end $$;
+
+create or replace function public.set_guild_research_focus(p_branch text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if public.guild_role() not in ('leader', 'officer') then raise exception 'Only the leader and officers can pick the focus.'; end if;
+  if p_branch not in ('prosperity', 'combat', 'exploration', 'elemental') then raise exception 'Unknown research branch.'; end if;
+  update guilds set research_focus = p_branch where id = public.my_guild();
+end $$;
+
+-- Boss attempts feed the focus branch.
+create or replace function public.hit_guild_boss(p_damage numeric) returns json
+language plpgsql security definer set search_path = public as $$
+declare boss guild_boss_days; used integer; dmg numeric; killed boolean := false; focus text;
+begin
+  boss := public.guild_boss_today();
+  select * into boss from guild_boss_days where guild_id = boss.guild_id and day = boss.day for update;
+  if boss.killed_at is not null then raise exception 'Today''s boss is already beaten. A stronger one comes tomorrow.'; end if;
+  select count(*) into used from guild_boss_hits where user_id = auth.uid() and day = boss.day;
+  if used >= 3 then raise exception 'No attempts left today.'; end if;
+  dmg := greatest(0, coalesce(p_damage, 0));
+  insert into guild_boss_hits (guild_id, day, user_id, username, damage) values (boss.guild_id, boss.day, auth.uid(), public.guild_username(), dmg);
+  update guild_boss_days set damage = least(hp, damage + dmg),
+    killed_at = case when damage + dmg >= hp then now() else null end
+    where guild_id = boss.guild_id and day = boss.day
+    returning * into boss;
+  killed := boss.killed_at is not null;
+  select research_focus into focus from guilds where id = boss.guild_id;
+  perform public.add_guild_research(boss.guild_id, focus, 10 + boss.level);
+  return json_build_object('attempt', used + 1, 'level', boss.level, 'hp', boss.hp, 'damage', boss.damage, 'killed', killed, 'research', 10 + boss.level, 'focus', focus);
+end $$;
+
 revoke all on function public.my_guild(), public.guild_username(), public.guild_role(),
   public.create_guild(text, text, integer, integer), public.join_guild(uuid, integer), public.leave_guild(),
   public.set_guild_role(uuid, text), public.kick_guild_member(uuid), public.update_guild(text, integer),
   public.touch_guild_member(integer), public.post_guild_message(text), public.request_guild_medals(text, integer),
   public.donate_guild_medals(bigint, integer), public.collect_guild_medals(),
-  public.guild_boss_today(), public.hit_guild_boss(numeric), public.claim_guild_boss(date) from public, anon;
+  public.guild_boss_today(), public.hit_guild_boss(numeric), public.claim_guild_boss(date),
+  public.add_guild_research(uuid, text, bigint), public.contribute_guild_research(text, integer), public.set_guild_research_focus(text) from public, anon;
 grant execute on function public.my_guild(), public.guild_username(), public.guild_role(),
   public.create_guild(text, text, integer, integer), public.join_guild(uuid, integer), public.leave_guild(),
   public.set_guild_role(uuid, text), public.kick_guild_member(uuid), public.update_guild(text, integer),
   public.touch_guild_member(integer), public.post_guild_message(text), public.request_guild_medals(text, integer),
   public.donate_guild_medals(bigint, integer), public.collect_guild_medals(),
-  public.guild_boss_today(), public.hit_guild_boss(numeric), public.claim_guild_boss(date) to authenticated;
+  public.guild_boss_today(), public.hit_guild_boss(numeric), public.claim_guild_boss(date),
+  public.contribute_guild_research(text, integer), public.set_guild_research_focus(text) to authenticated;
