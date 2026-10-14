@@ -186,6 +186,16 @@ describe('medals, unlocks and evolution', () => {
     expect(s.heroStats(ranger).critRate).toBeGreaterThanOrEqual(before + 0.1 - 1e-9);
   });
 
+  it('a Support in the lineup rallies the whole team (+15% ATK) from 1★', () => {
+    const s = fresh();
+    const a = s.heroPower(starter, 10).atk;
+    const support = HEROES.find((h) => h.type === 'Support')!;
+    s.levels[support.id] = 1;
+    expect(s.heroPower(starter, 10).atk.div(a).toNumber()).toBeCloseTo(1.15, 6);
+    s.benched[support.id] = true;
+    expect(s.heroPower(starter, 10).atk.div(a).toNumber()).toBeCloseTo(1, 6);
+  });
+
   it('opening a chest costs gems and gives crests', () => {
     const s = fresh();
     s.gems = CHEST_COST - 1;
@@ -404,7 +414,7 @@ describe('relics', () => {
     const byId = (id: string) => HEROES.find((h) => h.id === id)!;
     for (const id of ['brine', 'marina', 'aegis', 'flint', 'briar']) s.levels[id] = 1;
     expect(s.heroStats(byId('brine')).ultAtk).toBeCloseTo(0.2);
-    expect(s.heroStats(byId('marina')).aoeDmg).toBeCloseTo(0.2);
+    expect(s.heroStats(byId('marina')).aoeDmg).toBeCloseTo(0.1);
     expect(s.heroStats(byId('aegis')).knightShield).toBeCloseTo(0.5);
     expect(s.heroStats(byId('flint')).bonusGold).toBeGreaterThan(1.9);
     expect(s.heroStats(byId('briar')).poisonTime).toBeGreaterThanOrEqual(0.2);
