@@ -53,7 +53,7 @@ export const HERO_PROFILES: Record<string, Partial<StatProfile> & { specialty: s
   brine: { frenzy: 0.15, ultAtk: 0.2, effectRes: 0.05, specialty: 'Pirate rush: 15% Frenzy and +20% Ultimate damage, but only 5% Effect Resistance' },
   brook: { effectRes: 0.6, freezeChance: 0.06, effectTime: 0.3, atkMult: 0.9, specialty: 'Cold spring: 60% Effect Resistance, 6% chance to freeze, freezes last 30% longer, a little less ATK' },
   ripple: { freezeChance: 0.08, critDmg: 2.4, crit: 0.1, specialty: 'Frost arrows: 8% chance to freeze, crits hit for +240% but land less often (10%)' },
-  marina: { freezeChance: 0.12, aoeDmg: 0.2, hpMult: 0.85, specialty: 'Sea witch: 12% chance to freeze, +20% splash damage, less HP' },
+  marina: { freezeChance: 0.12, aoeDmg: 0.1, hpMult: 0.85, specialty: 'Sea witch: 12% chance to freeze, +10% splash damage, less HP' },
   // Fire
   blaze: { burnChance: 0.15, frenzy: 0.12, critDmg: 1.2, specialty: 'Blazing blade: 15% chance to burn, 12% Frenzy, softer crits (+120%)' },
   ember: { effectTime: 0.25, aoeDmg: 0.1, defMult: 0.5, specialty: 'Pyromancer: every hit burns, burns last 25% longer, +10% splash damage, half the Defense' },

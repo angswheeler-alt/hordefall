@@ -19,8 +19,10 @@ export const HERO_TYPES: Record<HeroType, string> = {
   Lancer: 'Reach melee: a spear that strikes from a step further back.',
   Samurai: 'Precision melee: focused single-target strikes and huge crits.',
   Brawler: 'Close combat: tough fists, combos and stuns.',
-  Support: 'Team utility: heals and protects the team.',
+  Support: 'Team utility: heals the team and rallies it (whole team deals 15% more damage).',
 };
+/** Every Support in the lineup gives the whole team this, from 1★, so a healer is worth a lineup slot. */
+export const SUPPORT_RALLY: Effect = { kind: 'atk', value: 1.15, team: true };
 
 /** Signature passives. Numbers are fractions or multipliers. */
 export type Signature =
@@ -258,7 +260,7 @@ export const HEROES: HeroDef[] = [
     ultimate: { name: 'Maelstrom', text: ULT('A whirlpool swallows') },
     trait: { name: 'Sea Witch', text: `Heavy area damage from far back. ${VS.water}` },
     sp1: { name: 'Whirlpool', text: 'Splash radius +50%.', effect: { kind: 'splash', value: 1.5 } },
-    sp2: { name: 'Undercurrent', text: 'Every 4th attack deals 3x damage.', effect: { kind: 'everyNth', value: 3, every: 4 } },
+    sp2: { name: 'Undercurrent', text: 'Every 5th attack deals 2.5x damage.', effect: { kind: 'everyNth', value: 2.5, every: 5 } },
     aura: { name: 'Deep Current', text: 'Team ATK +10%.', effect: { kind: 'atk', value: 1.1, team: true } } },
 
   // ---- Dark: mystery and forbidden power ----
