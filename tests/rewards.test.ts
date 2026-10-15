@@ -168,7 +168,9 @@ describe('released heroes', () => {
     for (const d of s.medalBundleState(noon).drops) ids.add(d.heroId);
     for (const o of s.guildShopState(noon).offers) ids.add(o.heroId);
     for (const id of ids) expect(RELEASED_HEROES).toContain(id);
-    expect(s.wildMedalCost('marina')).toBeNull();
+    const { HEROES: all } = await import('../src/data');
+    const hidden = all.find((h) => !RELEASED_HEROES.includes(h.id));
+    if (hidden) expect(s.wildMedalCost(hidden.id)).toBeNull();
     expect(s.wildMedalCost('brine')).not.toBeNull();
   });
 });

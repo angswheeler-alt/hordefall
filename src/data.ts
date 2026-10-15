@@ -422,10 +422,14 @@ export const HEROES: HeroDef[] = [
 
 /** Old hero ids from saves before the 20-hero roster, and who replaced them. */
 /**
- * Heroes players can get for now (Samuel, 2026-10-14): only these drop from chests, Trials, medal bundles and the
- * guild, and only these (plus any a save already owns) show in Collection, until the others are fully made.
+ * Heroes players can get: only these drop from chests, Trials, medal bundles and the guild, and only these (plus
+ * any a save already owns) show in Collection. A new hero stays off this list until it's fully made. Every hero
+ * with finished art is released (2026-10-15).
  */
-export const RELEASED_HEROES: readonly string[] = ['brine', 'ember', 'thorn', 'lumen', 'rook'];
+export const RELEASED_HEROES: readonly string[] = [
+  'blaze', 'ember', 'flint', 'cinder', 'briar', 'fern', 'thorn', 'moss', 'brine', 'brook', 'ripple', 'marina',
+  'shade', 'vex', 'rook', 'dread', 'wraith', 'nyx', 'dawn', 'lumen', 'sol', 'aegis', 'seraph',
+];
 export const PLAYABLE_HEROES: HeroDef[] = HEROES.filter((h) => RELEASED_HEROES.includes(h.id));
 
 export const RENAMED_HEROES: Record<string, string> = { marin: 'brine', tide: 'brine', bramble: 'thorn', pyra: 'ember', nox: 'shade', solenne: 'lumen' };
