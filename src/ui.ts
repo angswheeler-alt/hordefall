@@ -110,7 +110,7 @@ export class UI {
         <div class="who" role="button" tabindex="0" aria-label="Open ${def.name}">
           <div class="banner" style="--el:${hex(ELEMENT_COLORS[def.element])}"><span class="name">${def.name}</span><span class="stars-mini"></span></div>
           <div class="stats"></div>
-          <div class="meta">${heroTitle(def)} <span class="ember-chip"></span></div>
+          <div class="meta">${rarityTag(def)} ${heroTitle(def)} <span class="ember-chip"></span></div>
         </div>
         <div class="btns">
           <button class="gold-up"><span class="cost"></span><span class="label"></span></button>
@@ -174,7 +174,7 @@ export class UI {
           const pct = need ? Math.min(100, (crests / need) * 100) : 0;
           const stars = recruited ? `<span class="ct-stars">★${(s.stars[h.id] ?? 0) + 1}</span>` : '';
           const foot = maxed ? '<span class="ct-maxed">Maxed</span>' : `<div class="ct-bar"><i style="width:${pct}%"></i></div><span class="ct-count">${crests.toLocaleString()}</span>`;
-          return `<div class="ct${recruited ? '' : ' locked'}${s.canUnlock(h) ? ' ready' : ''}${s.inLineup(h.id) ? ' team' : ''}"><button type="button" class="ct-tile" data-coll="${h.id}" aria-label="${h.name}" style="--el:${hex(ELEMENT_COLORS[el])}"><span class="ct-art" style="--art:${heroArt(h.id)}"></span>${stars}<span class="ct-name">${h.name}</span></button>${foot}</div>`;
+          return `<div class="ct${recruited ? '' : ' locked'}${s.canUnlock(h) ? ' ready' : ''}${s.inLineup(h.id) ? ' team' : ''}"><button type="button" class="ct-tile" data-coll="${h.id}" aria-label="${h.name}" style="--el:${hex(ELEMENT_COLORS[el])}"><span class="ct-art" style="--art:${heroArt(h.id)}"></span>${stars}<span class="ct-name">${h.name}${rarityTag(h)}</span></button>${foot}</div>`;
         })
         .join('');
       return `<section class="ct-group">${tiles}</section>`;
@@ -195,7 +195,7 @@ export class UI {
       const disabled = (on && count <= 1) || (!on && count >= LINEUP_SIZE);
       return `<li class="team-row${on ? ' on' : ''}">
         <span class="face art" style="${faceStyle(h)}">${h.name[0]}</span>
-        <span class="team-who"><b>${h.name}</b><small>Lv ${s.heroLevel(h.id)} · ${on ? 'In team' : 'Benched'}</small></span>
+        <span class="team-who"><b>${h.name}</b>${rarityTag(h)}<small>Lv ${s.heroLevel(h.id)} · ${on ? 'In team' : 'Benched'}</small></span>
         <button data-lineup="${h.id}" class="${on ? '' : 'hot'}" ${disabled ? 'disabled' : ''}>${label}</button>
       </li>`;
     }).join('');
@@ -681,6 +681,7 @@ export class UI {
     face.classList.add('art');
     face.setAttribute('style', faceStyle(def));
     $('sheet-name').textContent = def.name;
+    $('sheet-rarity').innerHTML = rarityTag(def);
     $('sheet-sub').textContent = heroTitle(def);
     $('sheet-bio').textContent = def.bio;
     $('sheet').hidden = false;
@@ -1368,6 +1369,11 @@ function stallIncomePreview(def: StallDef) {
 
 function cap(s: string) {
   return s[0].toUpperCase() + s.slice(1);
+}
+
+/** Bold, color-coded rarity label shown under a hero's name. */
+function rarityTag(def: HeroDef) {
+  return `<b class="rarity r-${def.rarity}">${cap(def.rarity)}</b>`;
 }
 
 /** "Water Samurai": element and Type. */
