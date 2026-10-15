@@ -128,6 +128,8 @@ interface Unit {
   y: number;
   hp: Decimal;
   maxHp: Decimal;
+  /** Moves in the sky band (winged mobs and flying heroes). */
+  flying?: boolean;
   atk: Decimal;
   /** Defense (heroes only; enemies have none). */
   defense: Decimal;
@@ -497,6 +499,7 @@ export class BattleScene extends Phaser.Scene {
       y,
       hp: opts.hp,
       maxHp: opts.hp,
+      flying: opts.flying,
       defense: new Decimal(0),
       atk: opts.atk,
       range: opts.range,
@@ -1239,8 +1242,8 @@ export class BattleScene extends Phaser.Scene {
     const beacon = h.beaconUntil > this.clock ? h.beaconMult : 1;
     let dealt = new Decimal(0);
     for (let i = 0; i < strikes; i++) {
-      // Hawkeye: shots at an enemy at full HP always crit.
-      const crit = !!h.riposte || (sig?.kind === 'sureCrit' && target.hp.gte(target.maxHp)) || Math.random() < critChance;
+      // Hawkeye: shots at an enemy at full HP always crit. Owl Eyes: shots at flyers always crit.
+      const crit = !!h.riposte || (sig?.kind === 'sureCrit' && target.hp.gte(target.maxHp)) || (sig?.kind === 'skyCrit' && !!target.flying) || Math.random() < critChance;
       h.riposte = false;
       // Samurai Mastery: crits take time off the Ultimate cooldown.
       if (crit && this.mastery(h, 'Samurai')) h.ultReadyAt -= 0.5;

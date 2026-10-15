@@ -53,16 +53,19 @@ export const HERO_PROFILES: Record<string, Partial<StatProfile> & { specialty: s
   brine: { frenzy: 0.15, ultAtk: 0.2, effectRes: 0.05, specialty: 'Pirate rush: 15% Frenzy and +20% Ultimate damage, but only 5% Effect Resistance' },
   brook: { effectRes: 0.6, atkMult: 0.9, specialty: 'Living water: 60% Effect Resistance, a little less ATK' },
   ripple: { critDmg: 2.4, crit: 0.1, specialty: 'Snow sniper: crits hit for +240% but land less often (10%)' },
+  shellby: { defMult: 3.5, hpMult: 1.1, dodge: 0, specialty: 'Shell armor: 3.5x Defense and +10% HP, but never dodges' },
   marina: { crit: 0.2, critDmg: 0.8, specialty: 'Eight arms: 20% crit, but softer crits (+80%)' },
   // Fire
   blaze: { atkMult: 1.2, hpMult: 1.15, frenzy: 0.04, specialty: 'Fire axe: +20% ATK and +15% HP, but rarely goes into Frenzy (4%)' },
   ember: { effectTime: 0.25, aoeDmg: 0.1, defMult: 0.5, specialty: 'Pyromancer: every hit burns, burns last 25% longer, +10% splash damage, half the Defense' },
   flint: { crit: 0.3, dodge: 0.1, hpMult: 0.9, specialty: 'Salamander dash: 30% crit and dodges 10% of attacks, a little less HP' },
+  brasha: { effectRes: 0.85, defMult: 3.5, crit: 0.08, specialty: 'Fireproof hide: 85% Effect Resistance, less Defense than other Knights' },
   cinder: { crit: 0.2, atkMult: 1.1, stunChance: 0, specialty: 'Piston fists: 20% crit and +10% ATK, but never stuns' },
   // Earth
   briar: { crit: 0.25, critDmg: 1.8, specialty: 'Fox eye: 25% crit, but softer crits (+180%)' },
   fern: { dodge: 0.15, effectRes: 0.5, hpMult: 0.9, specialty: 'Faery wings: dodges 15% of attacks, 50% Effect Resistance, a little less HP' },
   thorn: { defMult: 5, effectRes: 0.55, crit: 0.02, specialty: 'Bark skin: 5x Defense and 55% Effect Resistance, rarely crits (2%)' },
+  tusk: { hpMult: 1.1, critDmg: 1.5, frenzy: 0.1, specialty: 'Arena veteran: +10% HP, but softer crits (+150%) and less Frenzy (10%)' },
   moss: { hpMult: 1.15, aoeDmg: 0.1, crit: 0.05, specialty: 'Old mushroom: +15% HP and +10% splash damage, rarely crits (5%)' },
   // Dark
   shade: { dodge: 0.1, crit: 0.2, hpMult: 0.85, specialty: 'Cat reflexes: dodges 10% of attacks and 20% crit, less HP' },
@@ -70,12 +73,14 @@ export const HERO_PROFILES: Record<string, Partial<StatProfile> & { specialty: s
   rook: { critDmg: 3, crit: 0.12, ultAtk: 0.1, specialty: 'Nightstalker: crits hit for +300% and +10% Ultimate damage, but crits land less often (12%)' },
   wraith: { dodge: 0.15, critDmg: 2.3, hpMult: 0.9, specialty: 'Mistborn: dodges 15% of attacks and crits hit for +230%, less HP' },
   nyx: { dodge: 0.12, effectRes: 0.4, defMult: 1.2, specialty: 'Night wings: dodges 12% of attacks and 40% Effect Resistance, less Defense' },
+  ruin: { frenzy: 0.18, atkMult: 1.05, effectRes: 0.1, specialty: 'Demon rage: 18% Frenzy and +5% ATK, but only 10% Effect Resistance' },
   dread: { atkMult: 1.2, defMult: 3.5, crit: 0.1, specialty: 'Hollow armor: +20% ATK and 10% crit, less Defense than other Knights' },
   // Light
   dawn: { stunChance: 0.2, effectRes: 0.3, critDmg: 1.2, specialty: 'Holy lance: 20% chance to stun, 30% Effect Resistance, softer crits (+120%)' },
   lumen: { effectRes: 0.5, defMult: 2, crit: 0.02, specialty: 'Lantern ward: 50% Effect Resistance and 2x Defense, rarely crits (2%)' },
   sol: { critDmg: 2.4, crit: 0.1, aoeDmg: 0.1, specialty: 'Bunny cannon: +10% splash damage, crits hit for +240% but land less often (10%)' },
   seraph: { stunChance: 0.08, effectRes: 0.35, critDmg: 0.8, specialty: 'Holy word: 8% chance to stun and 35% Effect Resistance, softer crits (+80%)' },
+  celeste: { critDmg: 2.2, dodge: 0.08, atkMult: 0.95, specialty: 'Owl sight: crits hit for +220% and dodges 8% of attacks, a little less ATK' },
   aegis: { defMult: 5, effectRes: 0.6, stunChance: 0.1, atkMult: 0.95, specialty: 'Lionheart: 5x Defense, 60% Effect Resistance and 10% chance to stun, a little less ATK' },
 };
 
