@@ -1,7 +1,7 @@
 import Decimal from 'break_infinity.js';
 import type { HeroStats, BigStat, StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { setMuted } from './sfx';
 import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
@@ -485,6 +485,7 @@ export class UI {
     $('tr-down').addEventListener('click', () => this.stepTier(-1));
     $('tr-up').addEventListener('click', () => this.stepTier(1));
     $('tr-fight').addEventListener('click', () => this.fightTrial());
+    $('tr-quick').addEventListener('click', () => this.fightTrial(true));
     $('tr-days').addEventListener('click', (e) => {
       const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-el]');
       if (!btn || btn.disabled) return;
@@ -900,25 +901,43 @@ export class UI {
     const req = level.req
       ? `<span class="${reqMet ? 'win' : 'lose'}">Needs ${level.req[0]} heroes at Ember ${level.req[1]}+ (you have ${s.heroesAtEmber(level.req[1])})</span>`
       : 'No hero requirement';
-    setHtml($('tr-odds'), `Difficulty <b>${level.difficulty.toLocaleString()}</b> · reward <b>${fmt(level.essence)}</b> Essence · ${level.medals} medal${level.medals === 1 ? '' : 's'}<br>${req}<br>Boss HP <b>${fmt(trialHp(level))}</b> · team damage in ${TRIAL_TIME}s <b>${fmt(sim.dps.times(TRIAL_TIME))}</b> · <span class="${sim.won ? 'win' : 'lose'}">${sim.won ? 'You should win' : 'Too strong for now'}</span>`);
+    const best = s.trialTime(el, tier);
+    const quickOk = s.canQuickTrial(el, tier);
+    const bestLine = best === null
+      ? `Win in ${TRIAL_QUICK_TIME}s or less to unlock Quick Battle`
+      : `Best clear <b>${best}s</b> · ${quickOk ? '<span class="win">Quick Battle unlocked</span>' : `win in ${TRIAL_QUICK_TIME}s or less to unlock Quick Battle`}`;
+    setHtml($('tr-odds'), `Difficulty <b>${level.difficulty.toLocaleString()}</b> · reward <b>${fmt(level.essence)}</b> Essence · ${level.medals} medal${level.medals === 1 ? '' : 's'}<br>${req}<br>${bestLine}<br>Boss HP <b>${fmt(trialHp(level))}</b> · team damage in ${TRIAL_TIME}s <b>${fmt(sim.dps.times(TRIAL_TIME))}</b> · <span class="${sim.won ? 'win' : 'lose'}">${sim.won ? 'You should win' : 'Too strong for now'}</span>`);
     const fight = $<HTMLButtonElement>('tr-fight');
     const unlocked = s.trialsUnlocked();
     fight.disabled = !unlocked || s.tickets <= 0 || !reqMet;
     fight.textContent = !unlocked ? 'Beat the stage 50 boss' : !reqMet ? 'Locked' : s.tickets > 0 ? 'Fight · 1 ticket' : 'No tickets';
+    const quick = $<HTMLButtonElement>('tr-quick');
+    quick.hidden = !unlocked || !reqMet || !quickOk;
+    quick.disabled = s.tickets <= 0;
+    quick.title = 'Quick Battle: skip the fight for 1 ticket, same reward as a win';
+    if (!quick.hidden) fight.textContent = s.tickets > 0 ? 'Fight' : 'No tickets';
+    quick.textContent = 'Quick';
     setHtml($('tr-ess'), TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}"></i>${fmt(s.essences[e] ?? 0)}</span>`).join(''));
   }
 
   /** Play a Trial: the fight is simulated, then shown as two draining HP bars. */
-  private fightTrial() {
+  private fightTrial(quick = false) {
     const s = this.state;
     const tier = this.currentTier();
     const el = this.trialEl();
-    const result = s.playTrial(el, tier);
+    const result = quick ? s.quickTrial(el, tier) : s.playTrial(el, tier);
     if (!result) return;
     // Group repeats: "Brine x3, Ripple x2".
     const medalCounts = new Map<string, number>();
     for (const id of result.medals) medalCounts.set(id, (medalCounts.get(id) ?? 0) + 1);
     const medalNames = [...medalCounts].map(([id, n]) => `${HEROES.find((h) => h.id === id)!.name}${n > 1 ? ` x${n}` : ''}`).join(', ');
+    const winText = `+${fmt(result.essence)} ${ESSENCE_NAMES[el]}${result.stones ? ` · +${result.stones} Enhance Stone${result.stones === 1 ? '' : 's'}` : ''} · medal${result.medals.length === 1 ? '' : 's'}: ${medalNames}`;
+    if (quick) {
+      this.showModal(`${TRIAL_BOSS_NAMES[el]} · Level ${tier}`, `<p class="tf-result win">Quick Battle! ${winText}</p>`, 'Okay');
+      play('clear');
+      this.render();
+      return;
+    }
     this.showModal(
       `${TRIAL_BOSS_NAMES[el]} · Level ${tier}`,
       `<div class="trial-fight">
@@ -952,7 +971,7 @@ export class UI {
       const res = $('tf-result');
       res.hidden = false;
       res.innerHTML = result.won
-        ? `Victory! +${fmt(result.essence)} ${ESSENCE_NAMES[el]}${result.stones ? ` · +${result.stones} Enhance Stone${result.stones === 1 ? '' : 's'}` : ''} · medal${result.medals.length === 1 ? '' : 's'}: ${medalNames}`
+        ? `Victory in ${Math.round(result.seconds * 10) / 10}s! ${winText}`
         : `Defeated. Your ticket was kept. Raise Ember levels or stars and try again.`;
       res.className = `tf-result ${result.won ? 'win' : 'lose'}`;
       play(result.won ? 'clear' : 'defeat');

@@ -5,7 +5,7 @@ import { GameState, rarityOdds, weekKey } from '../src/state';
 import { mulEffect } from '../src/skills';
 import {
   HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, AURA_EVOLUTIONS, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, LINEUP_SIZE,
-  TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, RELICS, RELIC_SETS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL,
+  TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, RELICS, RELIC_SETS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, TRIAL_QUICK_TIME, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL,
 } from '../src/data';
 
 const starter = HEROES.find((h) => h.unlockCost === 0)!;
@@ -318,6 +318,75 @@ describe('trial tickets', () => {
     expect(r.won).toBe(true);
     expect(r.medals).toHaveLength(TRIAL_LEVELS[7].medals);
     expect(HEROES.reduce((t, h) => t + (s.crests[h.id] ?? 0), 0) - before).toBe(TRIAL_LEVELS[7].medals);
+  });
+});
+
+describe('trial quick battle', () => {
+  function strong() {
+    const s = fresh();
+    s.bestStage = 51;
+    const element = s.openTrials()[0];
+    for (const h of HEROES) if (h.element === element) s.levels[h.id] = 1;
+    for (const h of HEROES) s.emberLevels[h.id] = 500;
+    return { s, element };
+  }
+
+  it('is locked until a level is won, then unlocks on a fast win', () => {
+    const { s, element } = strong();
+    expect(s.canQuickTrial(element, 1)).toBe(false);
+    expect(s.quickTrial(element, 1)).toBeNull();
+    const r = s.playTrial(element, 1)!;
+    expect(r.won).toBe(true);
+    expect(r.seconds).toBeLessThanOrEqual(TRIAL_QUICK_TIME);
+    expect(s.trialTime(element, 1)).toBeCloseTo(r.seconds, 1);
+    expect(s.canQuickTrial(element, 1)).toBe(true);
+    expect(s.canQuickTrial(element, 2)).toBe(false);
+  });
+
+  it('a slow win records the time but does not unlock it', () => {
+    const { s, element } = strong();
+    s.trialTimes[`${element}:1`] = TRIAL_QUICK_TIME + 1;
+    expect(s.canQuickTrial(element, 1)).toBe(false);
+    expect(s.quickTrial(element, 1)).toBeNull();
+  });
+
+  it('costs one ticket and pays the same as a normal win', () => {
+    const { s, element } = strong();
+    s.playTrial(element, 1);
+    const tickets = s.tickets;
+    const ess = s.essences[element] ?? 0;
+    const crests = HEROES.reduce((t, h) => t + (s.crests[h.id] ?? 0), 0);
+    const r = s.quickTrial(element, 1)!;
+    expect(r.won).toBe(true);
+    expect(s.tickets).toBe(tickets - 1);
+    expect(r.essence).toBe(TRIAL_LEVELS[0].essence);
+    expect((s.essences[element] ?? 0) - ess).toBe(r.essence);
+    expect(r.medals).toHaveLength(TRIAL_LEVELS[0].medals);
+    expect(HEROES.reduce((t, h) => t + (s.crests[h.id] ?? 0), 0) - crests).toBe(TRIAL_LEVELS[0].medals);
+  });
+
+  it('needs a ticket', () => {
+    const { s, element } = strong();
+    s.playTrial(element, 1);
+    s.tickets = 0;
+    s.ticketClock = Date.now();
+    expect(s.quickTrial(element, 1)).toBeNull();
+  });
+
+  it('clear times survive a save, and old saves without them load', () => {
+    const { s, element } = strong();
+    s.playTrial(element, 1);
+    s.save();
+    const again = new GameState();
+    again.load();
+    expect(again.canQuickTrial(element, 1)).toBe(true);
+    const data = JSON.parse(localStorage.getItem('hordefall-save-v1')!);
+    delete data.trialTimes;
+    localStorage.setItem('hordefall-save-v1', JSON.stringify(data));
+    const old = new GameState();
+    old.load();
+    expect(old.trialTimes).toEqual({});
+    expect(old.canQuickTrial(element, 1)).toBe(false);
   });
 });
 
