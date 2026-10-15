@@ -295,7 +295,8 @@ describe('trial tickets', () => {
     const element = s.openTrials()[0];
     expect(s.playTrial(element, 1)).toBeNull();
     s.bestStage = 51;
-    expect(s.playTrial(element, 1)?.won).toBe(true);
+    // Only the gate matters here: a fresh level-1 team can lose some elements' trials (Earth beats Brine).
+    expect(s.playTrial(element, 1)).not.toBeNull();
   });
 
   it('each trial level pays more than the last', () => {
