@@ -1,3 +1,5 @@
+const { joinSpecks } = require('../fixes');
+
 // Fern's attack sheet came out without the leaf cap she wears in her run sheet and portrait. Paint one on:
 // overlapping leaves over the crown and down to the brow, in the cap's own greens.
 const OUT = [30, 22, 40];
@@ -9,7 +11,8 @@ const isHair = p => p[3] && p[0] > p[1] && p[1] > p[2] && p[0] - p[2] > 40 && p[
 // size 1 and scaled to Fern's size.
 const LEAVES = [[-6, -4, 3.4], [-1, -6, 3.4], [4, -4, 3.2], [-10, 1, 3], [-5, 0, 3.2], [0, -1, 3.2], [5, 0, 2.8]];
 
-module.exports = function fix(frames, { FW, scale: s = 1 }) {
+module.exports = function fix(frames, helpers) {
+  const { FW, scale: s = 1 } = helpers;
   for (const f of frames.attack) {
     // Rows of the head: at least 3 hair pixels side by side (the wand is thinner than that).
     const span = y => { let best = null, run = 0; for (let x = 0; x < FW; x++) { run = isHair(f.get(x, y)) ? run + 1 : 0; if (run >= 3) best = x; } return best; };
@@ -43,4 +46,6 @@ module.exports = function fix(frames, { FW, scale: s = 1 }) {
       f.set(x, y, col);
     }
   }
+  // At her small size the thin wand shaft drops out of some run frames; tie the floating tip back on.
+  for (const f of frames.run) joinSpecks(f, helpers);
 };

@@ -76,4 +76,45 @@ function clearSpecks(c, { FW, FH }, min, [x0, y0, x1, y1]) {
   }
 }
 
-module.exports = { swapHead, crown };
+/**
+ * Reattach loose bits: at a small size a thin shaft (a wand, a bowstring) can drop out between its tip and
+ * the hand, leaving the tip floating. Each bit of at most `max` pixels within `reach` of the figure gets a
+ * line in its own darkest colour back to the nearest pixel of the figure (the largest shape) below it, where
+ * the hand holding it is, not to a nearer face or hair.
+ */
+function joinSpecks(c, { FW, FH }, { max = 12, reach = 10 } = {}) {
+  const id = new Int32Array(FW * FH).fill(-1);
+  const shapes = [];
+  for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) {
+    if (id[y * FW + x] >= 0 || !c.get(x, y)[3]) continue;
+    const px = [], stack = [[x, y]];
+    id[y * FW + x] = shapes.length;
+    while (stack.length) {
+      const [sx, sy] = stack.pop();
+      px.push([sx, sy]);
+      for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+        const nx = sx + a, ny = sy + b;
+        if (nx < 0 || ny < 0 || nx >= FW || ny >= FH || id[ny * FW + nx] >= 0 || !c.get(nx, ny)[3]) continue;
+        id[ny * FW + nx] = shapes.length; stack.push([nx, ny]);
+      }
+    }
+    shapes.push(px);
+  }
+  const body = shapes.reduce((m, s) => (s.length > m.length ? s : m), []);
+  for (const bit of shapes) {
+    if (bit === body || bit.length > max) continue;
+    let best = null;
+    const bottom = Math.max(...bit.map(([, y]) => y));
+    for (const [bx, by] of bit) for (const [fx, fy] of body) {
+      if (fy <= bottom) continue;
+      const d = Math.hypot(bx - fx, by - fy);
+      if (!best || d < best.d) best = { d, from: [bx, by], to: [fx, fy] };
+    }
+    if (!best || best.d > reach) continue;
+    const col = bit.map(([x, y]) => c.get(x, y)).sort((p, q) => p[0] + p[1] + p[2] - (q[0] + q[1] + q[2]))[0];
+    const [x0, y0] = best.from, [x1, y1] = best.to, n = Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)));
+    for (let i = 1; i < n; i++) c.set(Math.round(x0 + ((x1 - x0) * i) / n), Math.round(y0 + ((y1 - y0) * i) / n), col.slice(0, 3));
+  }
+}
+
+module.exports = { swapHead, crown, joinSpecks };
