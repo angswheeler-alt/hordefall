@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import Decimal from 'break_infinity.js';
 import { defended, bulkCost, enemyHp, fmt, upgradeCost, stallBulkCost, emberYield, emberCost, keeperLevel, keeperThreshold, relicCost, guildBossHp, guildBossAttemptCoins, guildBossKillCoins, researchPointsFor, researchRank } from '../src/formulas';
-import { HEROES, STALLS } from '../src/data';
+import { HEROES, STALLS, elementBoss, bossElement, bossLabel } from '../src/data';
 
 const hero = HEROES.find((h) => h.unlockCost !== 0)!;
 
@@ -118,5 +118,24 @@ describe('Guild Research ranks', () => {
     expect(researchRank(1499)).toBe(1);
     expect(researchRank(1500)).toBe(2);
     expect(researchRank(1e9)).toBe(10);
+  });
+});
+
+describe('named element bosses', () => {
+  it('names each 100th-stage boss from 600 after its element', () => {
+    expect(elementBoss(500)).toBeNull();
+    expect(elementBoss(650)).toBeNull();
+    expect(elementBoss(600)).toMatchObject({ name: 'Ignivar', element: 'fire' });
+    expect(elementBoss(700)).toMatchObject({ name: 'Nerath', element: 'water' });
+    expect(elementBoss(800)).toMatchObject({ name: 'Tharos', element: 'earth' });
+    expect(elementBoss(900)).toMatchObject({ name: 'Nyxara', element: 'dark' });
+    expect(elementBoss(1000)).toMatchObject({ name: 'Aureth', element: 'light' });
+    expect(elementBoss(1100)).toMatchObject({ name: 'Ignivar', element: 'fire' });
+    for (let s = 600; s <= 2000; s += 100) expect(elementBoss(s)!.element).toBe(bossElement(s));
+  });
+
+  it('labels ordinary bosses with the old rotation', () => {
+    expect(bossLabel(900)).toBe('Nyxara, the Hollow Moon');
+    expect(bossLabel(50)).toBe('Grubjaw the Glutton');
   });
 });
