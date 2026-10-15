@@ -4,9 +4,10 @@
 //
 // Each folder art/mobs/<id>/ holds idle_sheet.png (one frame, optional), walk_sheet.png and attack_sheet.png: rows of
 // frames on a flat magenta background, mirrored to face right like the heroes (the game flips enemies to face
-// left). The mobs are drawn in one light grey so the game can tint them with their element's colour. For each
-// mob this writes public/mobs/<id>.png (standing pose), <id>_walk.png and <id>_attack.png, strips of equal
-// frames on one canvas with the feet at the same point, and rewrites src/mobAnims.ts.
+// left). The mobs are drawn in one light grey so they can be repainted per element. For each
+// mob and element this writes public/mobs/<id>_<element>.png (standing pose), <id>_<element>_walk.png and
+// <id>_<element>_attack.png, strips of equal frames on one canvas with the feet at the same point, repainted in
+// the element's colours (ELEMENT_RAMPS), and rewrites src/mobAnims.ts.
 //
 // Same steps as the heroes (art/heroes/animate.js): one connected shape per frame, shrunk on one grid anchored
 // at the head and the ground line, so the head stays put and the legs visibly step; one palette; an outline.
@@ -23,6 +24,42 @@ const TARGET_HEIGHT = 50; // same scale as the heroes
 // How big each mob stands next to a typical hero (x TARGET_HEIGHT).
 const MOB_SIZE = { grunt: 0.8, brute: 1.25, caster: 0.85, flyer: 0.75, scuttler: 0.65 };
 const PALETTE = 20;
+// Each element repaints the grey body along its own ramp, darkest to brightest, with the shadows shifted toward
+// a deeper hue and the highlights toward a warmer one so the colour reads rich instead of flat. `wing` repaints
+// the flyer's violet wing membranes. Outline, yellow eyes and bone-white teeth and horns keep their colours.
+const ELEMENT_RAMPS = {
+  fire: { body: ['#3a0d1c', '#8c1f1f', '#d8452a', '#ff8a3a', '#ffd27a'], wing: ['#5a1208', '#c8401a', '#ffa030', '#ffe890'] },
+  water: { body: ['#0c1d4a', '#1d4f9c', '#2f8fdc', '#62c8f5', '#c8f4ff'], wing: ['#0a3a4a', '#1f8f9a', '#45d4c8', '#b8fff0'] },
+  earth: { body: ['#16301a', '#2f6b25', '#5aa332', '#9bd34e', '#e4f59a'], wing: ['#3c2410', '#7a5228', '#b8863e', '#ecd08a'] },
+  light: { body: ['#5a3a12', '#a8741e', '#e0b23a', '#f8dc6a', '#fffbe0'], wing: ['#6a5a90', '#b0a8e0', '#e8e4ff', '#ffffff'] },
+  dark: { body: ['#1a0c2e', '#3e1d66', '#7036a8', '#a768e0', '#e2c4ff'], wing: ['#3a0a24', '#8a1f58', '#d0408a', '#ff9ccc'] },
+};
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const ramp = (stops, t) => {
+  const cs = stops.map(hex), f = Math.max(0, Math.min(1, t)) * (cs.length - 1), i = Math.min(cs.length - 2, Math.floor(f)), u = f - i;
+  return cs[i].map((v, k) => Math.round(v + (cs[i + 1][k] - v) * u));
+};
+// Which part of the grey art a pixel is: kept as drawn, the body, or a violet wing.
+function part(p) {
+  const [r, g, b] = p, l = lum(p);
+  if (l < 58) return 'keep'; // outline and the darkest shadow
+  if (r > 140 && g > 120 && b < 110) return 'keep'; // yellow eyes and sparks
+  if (r - b > 14 && l > 150) return 'keep'; // bone white
+  if (b - g > 25 && r - g > 8) return 'wing';
+  return 'body';
+}
+function recolor(c, el) {
+  const out = new Canvas(c.w, c.h);
+  for (let y = 0; y < c.h; y++) for (let x = 0; x < c.w; x++) {
+    const p = c.get(x, y);
+    if (!p[3]) continue;
+    const kind = part(p), l = lum(p);
+    if (kind === 'keep') out.set(x, y, p.slice(0, 3));
+    else if (kind === 'wing') out.set(x, y, ramp(ELEMENT_RAMPS[el].wing, (l - 70) / 130));
+    else out.set(x, y, ramp(ELEMENT_RAMPS[el].body, (l - 58) / (240 - 58)));
+  }
+  return out;
+}
 
 function buildMob(id) {
   const dir = path.join(ROOT, id);
@@ -71,23 +108,25 @@ function buildMob(id) {
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
   fs.mkdirSync(PREVIEW, { recursive: true });
-  const strip = (list, file) => {
+  const strip = list => {
     const s = new Canvas(FW * list.length, FH);
     list.forEach((c, i) => s.draw(c, i * FW, 0));
-    s.save(path.join(OUT_DIR, file));
     return s;
   };
   const stand = frames.idle[0];
-  stand.save(path.join(OUT_DIR, `${id}.png`));
-  const w = strip(frames.walk, `${id}_walk.png`);
-  const a = strip(frames.attack, `${id}_attack.png`);
+  const w = strip(frames.walk), a = strip(frames.attack);
+  for (const el of Object.keys(ELEMENT_RAMPS)) {
+    recolor(stand, el).save(path.join(OUT_DIR, `${id}_${el}.png`));
+    recolor(w, el).save(path.join(OUT_DIR, `${id}_${el}_walk.png`));
+    recolor(a, el).save(path.join(OUT_DIR, `${id}_${el}_attack.png`));
+  }
 
   let headTop = 0;
   outer: for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) if (stand.get(x, y)[3]) { headTop = y; break outer; }
   const reach = frames.attack.map(c => { for (let x = FW - 1; x >= 0; x--) for (let y = 0; y < FH; y++) if (c.get(x, y)[3]) return x; return 0; });
   const hitFrame = reach.indexOf(Math.max(...reach));
 
-  const rowsOut = [stand, w, a];
+  const rowsOut = [stand, w, a, ...Object.keys(ELEMENT_RAMPS).map(el => recolor(w, el))];
   const prev = new Canvas(Math.max(...rowsOut.map(s => s.w)) + 4, rowsOut.reduce((t, s) => t + s.h + 2, 2));
   for (let y = 0; y < prev.h; y++) for (let x = 0; x < prev.w; x++) prev.set(x, y, ((x >> 2) + (y >> 2)) % 2 ? [214, 214, 222] : [196, 196, 208]);
   let y = 2;

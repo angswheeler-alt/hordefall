@@ -50,7 +50,7 @@ import { sumEffect, mulEffect, everyNth, procEffect, procs } from './skills';
 import { marchCap, marchStep } from './movement';
 import { HERO_ANIMS } from './heroAnims';
 import { MOB_ANIMS } from './mobAnims';
-import { MOB_KINDS, pickMob, type MobId } from './mobs';
+import { MOB_ELEMENTS, MOB_KINDS, pickMob, type MobId } from './mobs';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES } from './bossAnims';
 import type { EffectKind } from './data';
 import { comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS } from './kits';
@@ -155,7 +155,7 @@ interface Unit {
   /** Set for frame-animated heroes: which animation is showing. */
   anim?: { id: string; state: AnimState };
   /** A frame-animated regular enemy (MOB_ANIMS key). */
-  mob?: { id: MobId; state: 'idle' | 'walk' | 'attack' };
+  mob?: { id: MobId; key: string; state: 'idle' | 'walk' | 'attack' };
   /** Set for frame-animated element bosses: whose art (BOSS_ANIMS key) and when it may flinch next. */
   bossArt?: { id: string; flinchAt: number };
   /** Fights without an element (bosses before stage 600): no element bonus either way on its hits or on hits it takes. */
@@ -300,11 +300,14 @@ export class BattleScene extends Phaser.Scene {
       this.load.spritesheet(`hero-${id}-run`, `heroes/${id}_run.png`, size);
       this.load.spritesheet(`hero-${id}-attack`, `heroes/${id}_attack.png`, size);
     }
+    // Each mob comes repainted in every element's colours (art/mobs/animate.js).
     for (const [id, a] of Object.entries(MOB_ANIMS)) {
       const size = { frameWidth: a.frame[0], frameHeight: a.frame[1] };
-      this.load.image(`mob-${id}`, `mobs/${id}.png`);
-      this.load.spritesheet(`mob-${id}-walk`, `mobs/${id}_walk.png`, size);
-      this.load.spritesheet(`mob-${id}-attack`, `mobs/${id}_attack.png`, size);
+      for (const el of MOB_ELEMENTS) {
+        this.load.image(`mob-${id}-${el}`, `mobs/${id}_${el}.png`);
+        this.load.spritesheet(`mob-${id}-${el}-walk`, `mobs/${id}_${el}_walk.png`, size);
+        this.load.spritesheet(`mob-${id}-${el}-attack`, `mobs/${id}_${el}_attack.png`, size);
+      }
     }
     for (const [id, a] of Object.entries(BOSS_ANIMS)) {
       for (const anim of Object.keys(BOSS_ANIM_FRAMES)) this.load.spritesheet(`boss-${id}-${anim}`, `bosses/${id}_${anim}.png`, { frameWidth: a.frame[0], frameHeight: a.frame[1] });
@@ -320,9 +323,12 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     for (const [id, a] of Object.entries(MOB_ANIMS)) {
-      if (this.anims.exists(`mob-${id}-walk`)) continue;
-      this.anims.create({ key: `mob-${id}-walk`, frames: this.anims.generateFrameNumbers(`mob-${id}-walk`, { start: 0, end: a.walk - 1 }), frameRate: MOB_WALK_FPS, repeat: -1 });
-      this.anims.create({ key: `mob-${id}-attack`, frames: this.anims.generateFrameNumbers(`mob-${id}-attack`, { start: 0, end: a.attack - 1 }), frameRate: MOB_ATTACK_FPS, repeat: 0 });
+      for (const el of MOB_ELEMENTS) {
+        const key = `mob-${id}-${el}`;
+        if (this.anims.exists(`${key}-walk`)) continue;
+        this.anims.create({ key: `${key}-walk`, frames: this.anims.generateFrameNumbers(`${key}-walk`, { start: 0, end: a.walk - 1 }), frameRate: MOB_WALK_FPS, repeat: -1 });
+        this.anims.create({ key: `${key}-attack`, frames: this.anims.generateFrameNumbers(`${key}-attack`, { start: 0, end: a.attack - 1 }), frameRate: MOB_ATTACK_FPS, repeat: 0 });
+      }
     }
     for (const id of Object.keys(BOSS_ANIMS)) {
       for (const [anim, n] of Object.entries(BOSS_ANIM_FRAMES) as Array<[BossAnimName, number]>) {
@@ -454,7 +460,10 @@ export class BattleScene extends Phaser.Scene {
     const body = this.add.sprite(0, 0, opts.texture);
     // Enemies face left and wear their element's tint; an animated boss keeps its own colours.
     if (opts.side === 'enemy') body.setFlipX(true);
-    if (opts.side === 'enemy' && !opts.bossArt) body.setTint(ELEMENT_COLORS[opts.element]);
+    // Mob art is already painted in its element's colours, so only placeholders take a tint.
+    const mobKey = opts.mob ? `mob-${opts.mob}-${opts.element}` : '';
+    const mobDef = opts.mob && this.anims.exists(`${mobKey}-walk`) ? MOB_ANIMS[opts.mob] : undefined;
+    if (opts.side === 'enemy' && !opts.bossArt && !mobDef) body.setTint(ELEMENT_COLORS[opts.element]);
     const bossDef = opts.bossArt ? BOSS_ANIMS[opts.bossArt] : undefined;
     if (bossDef) body.setOrigin(1 - bossDef.feet[0] / bossDef.frame[0], bossDef.feet[1] / bossDef.frame[1]).setY(FOOT_Y).play(`boss-${opts.bossArt}-idle`);
     // Frame-animated heroes stand on their feet point, on the same foot line as everyone else.
@@ -462,8 +471,7 @@ export class BattleScene extends Phaser.Scene {
     const anim = animDef && this.anims.exists(`${opts.def!.id}-run`) ? { id: opts.def!.id, state: 'idle' as AnimState } : undefined;
     if (anim && animDef) body.setOrigin(animDef.feet[0] / animDef.frame[0], animDef.feet[1] / animDef.frame[1]).setY(FOOT_Y);
     // Mob art faces right like the heroes and is flipped above, so its feet point mirrors too.
-    const mobDef = opts.mob && this.anims.exists(`mob-${opts.mob}-walk`) ? MOB_ANIMS[opts.mob] : undefined;
-    if (mobDef) body.setOrigin(1 - mobDef.feet[0] / mobDef.frame[0], mobDef.feet[1] / mobDef.frame[1]).setY(FOOT_Y).play(`mob-${opts.mob}-walk`);
+    if (mobDef) body.setOrigin(1 - mobDef.feet[0] / mobDef.frame[0], mobDef.feet[1] / mobDef.frame[1]).setY(FOOT_Y).play(`${mobKey}-walk`);
     const barWidth = opts.isBoss ? 60 : 24;
     const hpBar = this.add.graphics();
     const parts: Phaser.GameObjects.GameObject[] = [body, hpBar];
@@ -506,7 +514,7 @@ export class BattleScene extends Phaser.Scene {
       body,
       shadow,
       anim,
-      mob: mobDef ? { id: opts.mob!, state: 'walk' } : undefined,
+      mob: mobDef ? { id: opts.mob!, key: mobKey, state: 'walk' } : undefined,
       bossArt: opts.bossArt ? { id: opts.bossArt, flinchAt: 0 } : undefined,
       hpBar,
       barWidth,
@@ -590,20 +598,20 @@ export class BattleScene extends Phaser.Scene {
     const m = u.mob;
     if (!m || !u.body.active || (m.state === state && state !== 'attack')) return;
     m.state = state;
-    if (state === 'walk') u.body.play(`mob-${m.id}-walk`);
-    else if (state === 'idle') u.body.stop().setTexture(`mob-${m.id}`);
+    if (state === 'walk') u.body.play(`${m.key}-walk`);
+    else if (state === 'idle') u.body.stop().setTexture(m.key);
     else {
-      u.body.play(`mob-${m.id}-attack`);
+      u.body.play(`${m.key}-attack`);
       u.body.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
         if (m.state === 'attack' && u.alive && u.body.active) this.mobAnim(u, 'idle');
       });
     }
   }
 
-  /** The tint an enemy rests at: ice blue while frozen, else its element (animated bosses keep their art). */
+  /** The tint an enemy rests at: ice blue while frozen, else its element (animated bosses and mobs keep their art). */
   private restTint(e: Unit) {
     if (e.frozenUntil > this.clock) e.body.setTint(0x9fdcff);
-    else if (e.bossArt) e.body.clearTint();
+    else if (e.bossArt || e.mob) e.body.clearTint();
     else e.body.setTint(ELEMENT_COLORS[e.element]);
   }
 
@@ -729,7 +737,7 @@ export class BattleScene extends Phaser.Scene {
     const kind = boss ? undefined : flying ? MOB_KINDS.flyer : pickMob(stage, Math.random());
     const u = this.makeUnit({
       side: 'enemy',
-      texture: bossArt ? `boss-${bossArt}-idle` : kind && this.textures.exists(`mob-${kind.id}`) ? `mob-${kind.id}` : boss ? 'boss' : flying ? 'enemy-flyer' : 'enemy',
+      texture: bossArt ? `boss-${bossArt}-idle` : kind && this.textures.exists(`mob-${kind.id}-${element}`) ? `mob-${kind.id}-${element}` : boss ? 'boss' : flying ? 'enemy-flyer' : 'enemy',
       bossArt,
       flying,
       mob: kind?.id,
