@@ -1,5 +1,10 @@
-// Regular enemy kinds. Each stage's mobs are a mix of these, drawn in grey and tinted with the stage's element
-// (art in src/mobAnims.ts). The mix averages out close to a plain grunt, so stage difficulty barely moves.
+// Regular enemy kinds. Each stage's mobs are a mix of these, painted in the stage's element colours (art in
+// src/mobAnims.ts, one set per element in MOB_ELEMENTS). The mix averages out close to a plain grunt, so stage
+// difficulty barely moves.
+import type { Element } from './data';
+
+export const MOB_ELEMENTS: Element[] = ['water', 'fire', 'earth', 'light', 'dark'];
+
 export type MobId = 'grunt' | 'brute' | 'caster' | 'scuttler' | 'flyer';
 
 export interface MobKind {

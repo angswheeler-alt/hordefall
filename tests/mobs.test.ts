@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { MOB_KINDS, pickMob } from '../src/mobs';
+import { existsSync } from 'node:fs';
+import { MOB_ELEMENTS, MOB_KINDS, pickMob } from '../src/mobs';
 import { MOB_ANIMS } from '../src/mobAnims';
 
 describe('mob kinds', () => {
@@ -21,6 +22,9 @@ describe('mob kinds', () => {
   });
 
   it('has art for every kind', () => {
-    for (const id of Object.keys(MOB_KINDS)) expect(MOB_ANIMS[id]).toBeDefined();
+    for (const id of Object.keys(MOB_KINDS)) {
+      expect(MOB_ANIMS[id]).toBeDefined();
+      for (const el of MOB_ELEMENTS) for (const f of [`${id}_${el}`, `${id}_${el}_walk`, `${id}_${el}_attack`]) expect(existsSync(`public/mobs/${f}.png`), f).toBe(true);
+    }
   });
 });
