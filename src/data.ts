@@ -410,7 +410,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Gold Flurry', text: 'Every 4th attack is three quick blows (3x damage).', effect: { kind: 'everyNth', value: 3, every: 4 } },
     sp2: { name: 'Golden Mend', text: 'Regenerates 3% of max HP every second.', effect: { kind: 'regen', value: 0.03 } },
     aura: { name: 'Swift Light', text: 'Light heroes move 25% faster.', effect: { kind: 'moveSpeed', value: 1.25, team: true, element: 'light' } } },
-  { id: 'seraph', rarity: 'rare', name: 'Seraph', element: 'light', type: 'Magician', flying: true, baseAtk: 8.5, baseHp: 50, range: 150, attackCooldown: 1.45, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 40,
+  { id: 'seraph', rarity: 'rare', name: 'Paloma', element: 'light', type: 'Magician', flying: true, baseAtk: 8.5, baseHp: 50, range: 150, attackCooldown: 1.45, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 40,
     ult: { kind: 'root', seconds: 3, bossSeconds: 1, shield: 0.15 },
     ultPlus: 'The light also shields every hero for 15% of their max HP.',
     bio: 'A dove priest in white-and-gold robes whose sunburst staff calls down holy light.',
