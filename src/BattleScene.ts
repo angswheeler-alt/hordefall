@@ -21,6 +21,7 @@ import {
   enemyElement,
   bossElement,
   bossWeakness,
+  bossHasElement,
   stageBoss,
   type Element,
   type HeroDef,
@@ -148,6 +149,8 @@ interface Unit {
   anim?: { id: string; state: AnimState };
   /** Set for frame-animated element bosses: whose art (BOSS_ANIMS key) and when it may flinch next. */
   bossArt?: { id: string; flinchAt: number };
+  /** Fights without an element (bosses before stage 600): no element bonus either way on its hits or on hits it takes. */
+  noElement?: boolean;
   hpBar: Phaser.GameObjects.Graphics;
   barWidth: number;
   /** Riptide Combo: the enemy this hero is hitting and how many hits in a row. */
@@ -662,6 +665,12 @@ export class BattleScene extends Phaser.Scene {
     return sumEffect(this.state.effects(), kind, u?.def?.id ?? null);
   }
 
+  /** Element bonus on a hit from `from` (an element, or a unit) on `to`; 1 when either side has no element. */
+  private elem(from: Element | Unit, to: Unit) {
+    if (to.noElement || (typeof from !== 'string' && from.noElement)) return 1;
+    return elementMultiplier(typeof from === 'string' ? from : from.element, to.element);
+  }
+
   /** Multiplicative total of a star-skill effect reaching this unit; 1 when none apply. */
   private mul(kind: EffectKind, u: Unit | null) {
     return mulEffect(this.state.effects(), kind, u?.def?.id ?? null);
@@ -690,6 +699,7 @@ export class BattleScene extends Phaser.Scene {
       isBoss: boss,
       label: boss ? bossLabel(stage) : undefined,
     });
+    if (boss && !bossHasElement(stage)) u.noElement = true;
     this.enemies.push(u);
   }
 
@@ -722,7 +732,8 @@ export class BattleScene extends Phaser.Scene {
     this.bossTimer = boss ? BOSS_TIME_LIMIT : 0;
     if (boss) {
       this.spawnEnemy(true);
-      this.banner(`${stageBoss(stage).name.toUpperCase()}\nWEAK TO ${bossWeakness(stage).toUpperCase()}`, '#ff6680');
+      const weak = bossWeakness(stage);
+      this.banner(`${stageBoss(stage).name.toUpperCase()}${weak ? `\nWEAK TO ${weak.toUpperCase()}` : ''}`, '#ff6680');
       this.cameras.main.shake(400, 0.01);
       play('boss');
     }
@@ -996,7 +1007,7 @@ export class BattleScene extends Phaser.Scene {
       if (victim && e.cooldownLeft <= 0) {
         e.cooldownLeft = e.cooldown;
         this.lunge(e, victim.x > e.x ? 1 : -1);
-        this.damageUnit(victim, e.atk.times(elementMultiplier(e.element, victim.element)), null);
+        this.damageUnit(victim, e.atk.times(this.elem(e, victim)), null);
       }
       return;
     }
@@ -1043,7 +1054,7 @@ export class BattleScene extends Phaser.Scene {
       if (this.mastery(target, 'Rogue')) target.riposte = true;
       return;
     }
-    const mult = elementMultiplier(e.element, target.element) * this.mul('damageTaken', target) * (e.weakUntil > this.clock ? e.weakMult : 1);
+    const mult = this.elem(e, target) * this.mul('damageTaken', target) * (e.weakUntil > this.clock ? e.weakMult : 1);
     const dmg = defended(e.atk.times(mult), target.defense);
     this.damageUnit(target, dmg, null);
     // Frost Curse: the enemy that fells this hero freezes and takes more damage.
@@ -1182,7 +1193,7 @@ export class BattleScene extends Phaser.Scene {
       }
       for (const t of targets) {
         const mult =
-          elementMultiplier(element, t.element) *
+          this.elem(element, t) *
           (t.isBoss ? bossMult : 1) *
           (t === target ? comboMult(sig, h.streak) : 1) *
           executeMult(sig, t.maxHp.gt(0) ? t.hp.div(t.maxHp).toNumber() : 1, this.sigPlus(h)) *
@@ -1257,7 +1268,7 @@ export class BattleScene extends Phaser.Scene {
         const by = e.frozenBy;
         this.shatter(e.x, e.y, 0x9fdcff);
         for (const o of this.enemies) {
-          if (o.alive && Math.abs(o.x - e.x) <= FREEZE_BLAST_RADIUS) this.damageUnit(o, e.frozenBlast.times(by ? elementMultiplier(by.element, o.element) : 1), by ?? null);
+          if (o.alive && Math.abs(o.x - e.x) <= FREEZE_BLAST_RADIUS) this.damageUnit(o, e.frozenBlast.times(by ? this.elem(by.element, o) : 1), by ?? null);
         }
       }
       if (!e.alive || e.poisonUntil <= this.clock) continue;
@@ -1288,7 +1299,7 @@ export class BattleScene extends Phaser.Scene {
   private tickBurns(dt: number) {
     for (const z of this.zones) {
       if (z.until <= this.clock) continue;
-      for (const e of this.enemies) if (e.alive && e.x >= z.x0 && e.x <= z.x1) this.ignite(e, z.dps.times(elementMultiplier(z.by.element, e.element)), 1, z.by);
+      for (const e of this.enemies) if (e.alive && e.x >= z.x0 && e.x <= z.x1) this.ignite(e, z.dps.times(this.elem(z.by.element, e)), 1, z.by);
     }
     for (const z of this.zones) if (z.until <= this.clock) z.view.destroy();
     this.zones = this.zones.filter((z) => z.until > this.clock);
@@ -1398,7 +1409,7 @@ export class BattleScene extends Phaser.Scene {
       if (burst > 0) {
         this.shatter(u.x, u.y, 0xff8a3a);
         for (const e of this.enemies) {
-          if (e.alive && Math.abs(e.x - u.x) <= WILDFIRE_RADIUS) this.damageUnit(e, by.atk.times(burst * elementMultiplier(by.element, e.element)), by);
+          if (e.alive && Math.abs(e.x - u.x) <= WILDFIRE_RADIUS) this.damageUnit(e, by.atk.times(burst * this.elem(by.element, e)), by);
         }
       }
     }
@@ -1519,7 +1530,7 @@ export class BattleScene extends Phaser.Scene {
         h.view.x = h.x;
         this.sparks(target.x, target.y - 6, color, 10);
         this.cameras.main.shake(200, 0.012);
-        this.damageUnit(target, dmg.times((plus ? ult.plusMult : ult.mult) * elementMultiplier(this.dealsAs(h), target.element)), h, true);
+        this.damageUnit(target, dmg.times((plus ? ult.plusMult : ult.mult) * this.elem(this.dealsAs(h), target)), h, true);
       }
       return true;
     }
@@ -1539,7 +1550,7 @@ export class BattleScene extends Phaser.Scene {
         this.floatText(e.x, e.y - 40, 'MARKED', '#c9b8ff', 9);
       }
     }
-    for (const e of hit) this.damageUnit(e, dmg.times(elementMultiplier(this.dealsAs(h), e.element)), h);
+    for (const e of hit) this.damageUnit(e, dmg.times(this.elem(this.dealsAs(h), e)), h);
     if (!this.bossAlive() && ENEMY_CRYSTAL_X - h.x <= radius + 60) this.damageCrystal(dmg);
     if (ult) this.ultExtras(h, ult, hit, plus, x0, x1, dmg);
     return true;
@@ -1569,7 +1580,7 @@ export class BattleScene extends Phaser.Scene {
           this.time.delayedCall(600 / this.speedMultiplier(), () => {
             if (this.transitioning) return;
             this.cameras.main.shake(200, 0.01);
-            for (const e of this.enemies) if (e.alive && e.x >= x0 && e.x <= x1) this.damageUnit(e, dmg.times(ult.second * elementMultiplier(h.element, e.element)), h);
+            for (const e of this.enemies) if (e.alive && e.x >= x0 && e.x <= x1) this.damageUnit(e, dmg.times(ult.second * this.elem(h.element, e)), h);
           });
         }
         break;

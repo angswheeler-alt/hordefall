@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import Decimal from 'break_infinity.js';
 import { defended, bulkCost, enemyHp, fmt, upgradeCost, stallBulkCost, emberYield, emberCost, keeperLevel, keeperThreshold, relicCost, guildBossHp, guildBossAttemptCoins, guildBossKillCoins, researchPointsFor, researchRank } from '../src/formulas';
-import { HEROES, STALLS, elementBoss, bossElement, bossLabel, stageBoss, bossWeakness } from '../src/data';
+import { HEROES, STALLS, elementBoss, bossElement, bossLabel, stageBoss, bossWeakness, bossHasElement, STRONG_VS } from '../src/data';
 
 const hero = HEROES.find((h) => h.unlockCost !== 0)!;
 
@@ -134,12 +134,22 @@ describe('named element bosses', () => {
     for (let s = 600; s <= 2000; s += 100) expect(elementBoss(s)!.element).toBe(bossElement(s));
   });
 
-  it('has the five bosses take turns on ordinary boss stages, without changing how they fight', () => {
+  it('has the five bosses take turns on every boss stage', () => {
     expect(bossLabel(900)).toBe('Nyxara, the Hollow Moon');
     expect([50, 100, 150, 200, 250, 300].map((s) => stageBoss(s).name)).toEqual(['Ignivar', 'Nerath', 'Tharos', 'Nyxara', 'Aureth', 'Ignivar']);
     expect(bossLabel(50)).toBe('Ignivar, the Ashen Colossus');
-    // Before 600 every boss is still weak to Water, whoever it looks like.
-    for (let s = 50; s < 600; s += 50) expect(bossWeakness(s)).toBe('water');
     for (let s = 600; s <= 2000; s += 100) expect(stageBoss(s).art).toBe(bossElement(s));
+  });
+
+  it('gives bosses no element before stage 600, and their own after', () => {
+    for (let s = 50; s < 600; s += 50) {
+      expect(bossHasElement(s)).toBe(false);
+      expect(bossWeakness(s)).toBeNull();
+    }
+    for (let s = 600; s <= 2000; s += 50) {
+      expect(bossHasElement(s)).toBe(true);
+      expect(bossElement(s)).toBe(stageBoss(s).art);
+      expect(STRONG_VS[bossWeakness(s)!]).toBe(bossElement(s));
+    }
   });
 });

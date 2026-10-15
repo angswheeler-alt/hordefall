@@ -459,21 +459,27 @@ export function enemyElement(stage: number): Element {
 }
 
 const WEAKNESS_ROTATION: Element[] = ['water', 'earth', 'fire', 'light', 'dark'];
+/**
+ * Bosses before this stage fight without an element: no hero hits them extra hard or soft, and their blows
+ * land the same on everyone. From here every boss fights as the element it looks like (stageBoss).
+ */
 export const BOSS_ROTATION_START = 600;
 
-/**
- * The element that hits a boss hardest (4x, or 2x for Light/Dark). Before stage 600 every boss is weak to
- * Water (the starter's element). From 600, each 100th-stage boss rotates:
- * Water (600), Earth (700), Fire (800), Light (900), Dark (1000), Water (1100)...
- */
-export function bossWeakness(stage: number): Element {
-  if (stage < BOSS_ROTATION_START || stage % 100 !== 0) return 'water';
-  return WEAKNESS_ROTATION[(stage / 100 - BOSS_ROTATION_START / 100) % WEAKNESS_ROTATION.length];
+/** Whether this stage's boss fights with its element (from stage 600). */
+export function bossHasElement(stage: number): boolean {
+  return stage >= BOSS_ROTATION_START;
 }
 
-/** The boss takes the element its weakness beats. */
+/** The element a boss looks like and, from stage 600, fights as. */
 export function bossElement(stage: number): Element {
-  return STRONG_VS[bossWeakness(stage)];
+  return stageBoss(stage).art;
+}
+
+/** The element that hits this stage's boss hardest (4x, or 2x for Light/Dark), or null before stage 600. */
+export function bossWeakness(stage: number): Element | null {
+  if (!bossHasElement(stage)) return null;
+  const element = bossElement(stage);
+  return (Object.keys(STRONG_VS) as Element[]).find((e) => STRONG_VS[e] === element)!;
 }
 
 /** The five named element bosses (user, 2026-10-15). Each 100th-stage boss from 600 is the one of its element. */
@@ -490,10 +496,13 @@ export function isElementBossStage(stage: number): boolean {
   return stage >= BOSS_ROTATION_START && stage % 100 === 0;
 }
 
-/** The named element boss on this stage, or null for an ordinary boss or stage. */
+/**
+ * The named element boss on this stage, or null for an ordinary boss or stage. Their weaknesses rotate:
+ * Water (600), Earth (700), Fire (800), Light (900), Dark (1000), Water (1100)...
+ */
 export function elementBoss(stage: number): { name: string; title: string; element: Element } | null {
   if (!isElementBossStage(stage)) return null;
-  const element = bossElement(stage);
+  const element = STRONG_VS[WEAKNESS_ROTATION[(stage / 100 - BOSS_ROTATION_START / 100) % WEAKNESS_ROTATION.length]];
   return { ...ELEMENT_BOSSES[element], element };
 }
 
@@ -612,8 +621,7 @@ const BOSS_TURNS: Element[] = ['fire', 'water', 'earth', 'dark', 'light'];
 
 /**
  * Which of the five bosses guards a boss stage, by their look (`art`, an ELEMENT_BOSSES key): the element boss
- * on every 100th stage from 600, otherwise they take turns. Only the look rotates: how the boss fights is still
- * bossElement and bossWeakness (before 600 every boss is weak to Water, whoever it looks like).
+ * on every 100th stage from 600, otherwise they take turns. Before 600 the look is all it is (bossHasElement).
  */
 export function stageBoss(stage: number): { name: string; title: string; art: Element } {
   const named = elementBoss(stage);
