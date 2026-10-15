@@ -18,7 +18,7 @@ export const HERO_ANIMS: Record<string, HeroAnim> = {
   brook: { frame: [63,54], feet: [24,53], headTop: 2, run: 5, attack: 5, hitFrame: 3 },
   cinder: { frame: [76,59], feet: [27,58], headTop: 7, run: 5, attack: 5, hitFrame: 2 },
   ember: { frame: [61,64], feet: [30,63], headTop: 14, run: 5, attack: 5, hitFrame: 2 },
-  fern: { frame: [80,67], feet: [36,66], headTop: 15, run: 5, attack: 5, hitFrame: 3 },
+  fern: { frame: [80,67], feet: [36,66], headTop: 10, run: 5, attack: 5, hitFrame: 3 },
   flint: { frame: [86,68], feet: [47,67], headTop: 17, run: 5, attack: 5, hitFrame: 2 },
   lumen: { frame: [71,65], feet: [40,64], headTop: 14, run: 5, attack: 5, hitFrame: 2 },
   marina: { frame: [73,54], feet: [36,53], headTop: 2, run: 5, attack: 5, hitFrame: 3 },
