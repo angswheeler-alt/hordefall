@@ -26,8 +26,10 @@ const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const lum = p => 0.3 * p[0] + 0.59 * p[1] + 0.11 * p[2];
 const median = a => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)];
 
-// Magenta, its JPEG fringe and its darker painted shadows: strong red and blue, little green.
-const isBg = p => (p[0] - p[1] > 80 && p[2] - p[1] > 40) || (p[0] > 60 && p[1] < 30 && p[2] > 40 && p[0] - p[1] > 50);
+// Magenta, its JPEG fringe and its darker painted shadows: strong red and blue, little green. The magenta
+// leans red; violet magic (orbs, glows) leans blue, so anything clearly bluer than it is red stays, and so
+// do bright pinks (a glowing core) that the fairly dark magenta never reaches.
+const isBg = p => p[2] - p[0] <= 20 && lum(p) < 130 && ((p[0] - p[1] > 80 && p[2] - p[1] > 40) || (p[0] > 60 && p[1] < 30 && p[2] > 40 && p[0] - p[1] > 50));
 
 // Each figure is one connected shape (weapons can reach into the next figure's columns).
 function figures(file) {

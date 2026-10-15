@@ -3,7 +3,7 @@
 const OUT = [30, 22, 40];
 const GREENS = [[217, 247, 106], [200, 222, 40], [138, 200, 40], [111, 182, 50], [80, 157, 53], [49, 129, 52]];
 const VEIN = [26, 92, 54];
-const isHair = p => p[3] && p[0] > p[1] && p[1] > p[2] && p[0] - p[2] > 40 && p[0] + p[1] + p[2] >= 150;
+const isHair = p => p[3] && p[0] > p[1] && p[1] > p[2] && p[0] - p[2] > 40 && p[0] + p[1] + p[2] >= 150 && p[0] + p[1] + p[2] <= 420; // brown, not the pink flowers
 
 // Leaf centres relative to the cap's centre: a crown row and a lower row that hangs over the hair.
 const LEAVES = [[-6, -4, 3.4], [-1, -6, 3.4], [4, -4, 3.2], [-10, 1, 3], [-5, 0, 3.2], [0, -1, 3.2], [5, 0, 2.8]];
