@@ -68,6 +68,14 @@ const GROUP_GAP = 400;
 const ENEMY_SPAWN_X = WORLD_WIDTH + 12;
 const LANE_TOP = 175;
 const LANE_BOTTOM = 255;
+/** Flyers move in the sky band above the ground line (GROUND_Y), clear of the walkers' heads, with a shadow on the lane. */
+const SKY_TOP = 112;
+const SKY_BOTTOM = 136;
+/** Flyers draw over everything on the lane (lane depths are their y, up to LANE_BOTTOM) but under effects and text. */
+const SKY_DEPTH = 400;
+/** From this stage, this share of regular enemies are flyers. */
+const FLYER_STAGE = 3;
+const FLYER_CHANCE = 0.25;
 /** Background art per 50-stage region, in order; files are public/bg/<region>_{sky,far,ground}.png. */
 const REGIONS = ['tidecoast', 'dunes', 'stormcrag', 'emberwastes', 'hollowmoon'];
 /** The far layer is 180 px tall with its bottom edge on the ground line (y 170). */
@@ -134,6 +142,8 @@ interface Unit {
   riposte?: boolean;
   view: Phaser.GameObjects.Container;
   body: Phaser.GameObjects.Sprite;
+  /** Flyers: their shadow on the lane below them (follows the view each frame). */
+  shadow?: Phaser.GameObjects.Ellipse;
   /** Set for frame-animated heroes: which animation is showing. */
   anim?: { id: string; state: AnimState };
   /** Set for frame-animated element bosses: whose art (BOSS_ANIMS key) and when it may flinch next. */
@@ -356,6 +366,14 @@ export class BattleScene extends Phaser.Scene {
       g.fillStyle(0xffffff, 1).fillRect(3, 7, 4, 4);
       g.fillStyle(0x000000, 1).fillRect(4, 8, 2, 2).fillRect(9, 8, 2, 2);
     });
+    // A winged mob for flyers (tinted by element like the walking one).
+    box('enemy-flyer', 30, 22, () => {
+      g.fillStyle(0x000000, 1).fillTriangle(0, 4, 11, 10, 9, 18).fillTriangle(30, 4, 19, 10, 21, 18);
+      g.fillStyle(0xffffff, 1).fillTriangle(2, 6, 11, 11, 9, 16).fillTriangle(28, 6, 19, 11, 21, 16);
+      g.fillStyle(0x000000, 1).fillCircle(15, 12, 8);
+      g.fillStyle(0xffffff, 1).fillCircle(15, 12, 6);
+      g.fillStyle(0x000000, 1).fillRect(10, 9, 2, 2).fillRect(14, 9, 2, 2);
+    });
     box('boss', 64, 64, () => {
       g.fillStyle(0x000000, 1).fillRoundedRect(0, 4, 64, 60, 12);
       g.fillStyle(0xffffff, 1).fillRoundedRect(3, 7, 58, 54, 10);
@@ -403,8 +421,11 @@ export class BattleScene extends Phaser.Scene {
     label?: string;
     /** An element boss with its own animations (BOSS_ANIMS key). */
     bossArt?: string;
+    /** Moves in the sky above the lane instead of walking on it. */
+    flying?: boolean;
   }): Unit {
-    const y = opts.isBoss ? LANE_TOP + 35 : Phaser.Math.Between(LANE_TOP + 5, LANE_BOTTOM);
+    const laneY = opts.isBoss ? LANE_TOP + 35 : Phaser.Math.Between(LANE_TOP + 5, LANE_BOTTOM);
+    const y = opts.flying ? Phaser.Math.Between(SKY_TOP, SKY_BOTTOM) : laneY;
     const body = this.add.sprite(0, 0, opts.texture);
     // Enemies face left and wear their element's tint; an animated boss keeps its own colours.
     if (opts.side === 'enemy') body.setFlipX(true);
@@ -425,7 +446,14 @@ export class BattleScene extends Phaser.Scene {
           .setOrigin(0.5),
       );
     }
-    const view = this.add.container(opts.x, y, parts).setDepth(y);
+    const view = this.add.container(opts.x, y, parts).setDepth(opts.flying ? SKY_DEPTH + y : y);
+    let shadow: Phaser.GameObjects.Ellipse | undefined;
+    if (opts.flying) {
+      shadow = this.add.ellipse(opts.x, laneY + FOOT_Y, 20, 5, 0x000000, 0.3).setDepth(laneY - 1);
+      view.once(Phaser.GameObjects.Events.DESTROY, () => shadow!.destroy());
+      // A gentle hover; combat only uses x, so this is looks only.
+      this.tweens.add({ targets: body, y: body.y - 3, duration: 600 + Math.random() * 200, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    }
     const unit: Unit = {
       side: opts.side,
       def: opts.def,
@@ -448,6 +476,7 @@ export class BattleScene extends Phaser.Scene {
       ultReadyAt: 0,
       view,
       body,
+      shadow,
       anim,
       bossArt: opts.bossArt ? { id: opts.bossArt, flinchAt: 0 } : undefined,
       hpBar,
@@ -574,6 +603,7 @@ export class BattleScene extends Phaser.Scene {
           speed: stats.moveSpeed.value,
           element: def.element,
           goldMult: def.goldMult * (1 + heroProfile(def).goldBonus),
+          flying: def.flying,
         });
         u.defense = defense;
         u.stats = stats;
@@ -643,10 +673,12 @@ export class BattleScene extends Phaser.Scene {
     const element = boss ? bossElement(stage) : enemyElement(stage);
     const named = boss ? elementBoss(stage) : null;
     const bossArt = named && BOSS_ANIMS[named.element] ? named.element : undefined;
+    const flying = !boss && stage >= FLYER_STAGE && Math.random() < FLYER_CHANCE;
     const u = this.makeUnit({
       side: 'enemy',
-      texture: bossArt ? `boss-${bossArt}-idle` : boss ? 'boss' : 'enemy',
+      texture: bossArt ? `boss-${bossArt}-idle` : boss ? 'boss' : flying ? 'enemy-flyer' : 'enemy',
       bossArt,
+      flying,
       x: boss ? ENEMY_CRYSTAL_X - 50 : ENEMY_SPAWN_X + behind + Phaser.Math.Between(0, 30),
       hp: boss ? bossHp(stage) : enemyHp(stage),
       atk: boss ? bossAtk(stage) : enemyAtk(stage),
@@ -715,6 +747,17 @@ export class BattleScene extends Phaser.Scene {
   private giveKnightShield(h: Unit) {
     if (!h.stats?.isKnight) return;
     h.shield = Decimal.max(h.shield, h.maxHp.times(STAT_BASE.knightShield * (1 + h.stats.knightShield)));
+  }
+
+  /** Flyers' shadows stay on the lane under them and vanish with them. */
+  private syncShadows() {
+    for (const list of [this.heroes, this.enemies]) {
+      for (const u of list) {
+        if (!u.shadow?.active) continue;
+        u.shadow.x = u.view.x;
+        u.shadow.setVisible(u.view.visible).setAlpha(0.3 * u.view.alpha);
+      }
+    }
   }
 
   private reviveHero(h: Unit, x = PLAYER_CRYSTAL_X + 20 + Math.random() * 10, hpShare = 1) {
@@ -825,6 +868,7 @@ export class BattleScene extends Phaser.Scene {
     this.clock += dt;
     this.updateChests(dt);
     this.drawHud();
+    this.syncShadows();
     if (this.transitioning) return;
 
     this.stageTime += dt;

@@ -82,6 +82,8 @@ export interface HeroDef {
   sigPlus?: string;
   /** Boss blows never stun this hero (Crush's Anti Knock-back). */
   steadfast?: boolean;
+  /** Flies (wings, or a ghost drifting on mist): moves in the sky above the walking heroes. Looks only; combat is the same. */
+  flying?: boolean;
   /** Attack and HP at gold level 1. */
   baseAtk: number;
   baseHp: number;
@@ -231,7 +233,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Multi Shot', text: 'Each shot also hits the next 2 enemies just behind the target.', effect: { kind: 'pierce', value: 2 } },
     sp2: { name: 'Quickdraw', text: 'Attacks 20% faster.', effect: { kind: 'attackSpeed', value: 0.8 } },
     aura: { name: "Hunter's Eye", text: 'Earth heroes deal +20% critical damage.', effect: { kind: 'critDmg', value: 0.2, team: true, element: 'earth' } } },
-  { id: 'fern', rarity: 'common', name: 'Fern', element: 'earth', type: 'Support', baseAtk: 3, baseHp: 55, range: 130, attackCooldown: 1.2, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
+  { id: 'fern', rarity: 'common', name: 'Fern', element: 'earth', type: 'Support', flying: true, baseAtk: 3, baseHp: 55, range: 130, attackCooldown: 1.2, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
     ult: { kind: 'teamShield', share: 1, plusShare: 1.5 },
     ultPlus: 'Shields are worth 150% of her max HP.',
     bio: 'A tiny forest faery in a leaf cap and leaf dress, whose sprouting wand mends wounds.',
@@ -350,7 +352,7 @@ export const HEROES: HeroDef[] = [
     sp2: { name: 'Abyssal Hunger', text: 'Heals for 25% of the damage he deals.', effect: { kind: 'lifesteal', value: 0.25 } },
     aura: { name: 'Shatter Armor', text: 'Enemies take 15% more damage.', effect: { kind: 'enemyVuln', value: 1.15, team: true } } },
   // Rare heroes beyond the first 20: their own kits, built from existing effects.
-  { id: 'wraith', rarity: 'rare', name: 'Wraith', element: 'dark', type: 'Ranger', baseAtk: 7, baseHp: 46, range: 180, attackCooldown: 1.05, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'wraith', rarity: 'rare', name: 'Wraith', element: 'dark', type: 'Ranger', flying: true, baseAtk: 7, baseHp: 46, range: 180, attackCooldown: 1.05, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     ult: { kind: 'weaken', mult: 0.7, seconds: 5, plusSeconds: 8 },
     ultPlus: 'Enemies stay weakened for 8 s.',
     bio: 'A hooded ghost archer drifting on violet mist. Its arrows are made of the same stuff.',
@@ -360,7 +362,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Soul Pierce', text: 'Arrows pierce 2 more enemies.', effect: { kind: 'pierce', value: 2 } },
     sp2: { name: 'Haunting', text: 'Every 5th arrow hits for 3x damage.', effect: { kind: 'everyNth', value: 3, every: 5 } },
     aura: { name: 'Grave Chill', text: 'Dark heroes +10% critical hit chance.', effect: { kind: 'crit', value: 0.1, team: true, element: 'dark' } } },
-  { id: 'nyx', rarity: 'rare', name: 'Nyx', element: 'dark', type: 'Support', baseAtk: 3.3, baseHp: 58, range: 135, attackCooldown: 1.1, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
+  { id: 'nyx', rarity: 'rare', name: 'Nyx', element: 'dark', type: 'Support', flying: true, baseAtk: 3.3, baseHp: 58, range: 135, attackCooldown: 1.1, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
     ult: { kind: 'teamShield', share: 0.8, plusShare: 1.2 },
     ultPlus: "Shields are worth 120% of Nyx's max HP.",
     bio: 'A little bat mage in a violet robe whose crystal staff mends wounds with moonlight.',
@@ -408,7 +410,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Gold Flurry', text: 'Every 4th attack is three quick blows (3x damage).', effect: { kind: 'everyNth', value: 3, every: 4 } },
     sp2: { name: 'Golden Mend', text: 'Regenerates 3% of max HP every second.', effect: { kind: 'regen', value: 0.03 } },
     aura: { name: 'Swift Light', text: 'Light heroes move 25% faster.', effect: { kind: 'moveSpeed', value: 1.25, team: true, element: 'light' } } },
-  { id: 'seraph', rarity: 'rare', name: 'Seraph', element: 'light', type: 'Magician', baseAtk: 8.5, baseHp: 50, range: 150, attackCooldown: 1.45, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 40,
+  { id: 'seraph', rarity: 'rare', name: 'Seraph', element: 'light', type: 'Magician', flying: true, baseAtk: 8.5, baseHp: 50, range: 150, attackCooldown: 1.45, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 40,
     ult: { kind: 'root', seconds: 3, bossSeconds: 1, shield: 0.15 },
     ultPlus: 'The light also shields every hero for 15% of their max HP.',
     bio: 'A dove priest in white-and-gold robes whose sunburst staff calls down holy light.',
