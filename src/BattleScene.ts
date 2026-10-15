@@ -3,7 +3,7 @@ import Decimal from 'break_infinity.js';
 import {
   HEROES,
   ELEMENT_COLORS,
-  BOSS_NAMES,
+  bossLabel,
   BOSS_TIME_LIMIT,
   RESPAWN_SECONDS,
   ULT_COOLDOWN,
@@ -21,7 +21,7 @@ import {
   enemyElement,
   bossElement,
   bossWeakness,
-  BOSS_ROTATION_START,
+  elementBoss,
   type Element,
   type HeroDef,
 } from './data';
@@ -352,7 +352,9 @@ export class BattleScene extends Phaser.Scene {
 
   private drawBackground() {
     // Each 50-stage block is a new region, cycling through the five background sets.
-    const region = REGIONS[Math.floor((this.state.stage - 1) / 50) % REGIONS.length];
+    // Nyxara guards the Hollow Moon Ruins, so her fights always happen there.
+    const named = elementBoss(this.state.stage);
+    const region = named?.element === 'dark' ? 'hollowmoon' : REGIONS[Math.floor((this.state.stage - 1) / 50) % REGIONS.length];
     this.sky.setTexture(`bg-${region}-sky`);
     this.far.setTexture(`bg-${region}-far`);
     this.groundTiles.setTexture(`bg-${region}-ground`);
@@ -605,7 +607,7 @@ export class BattleScene extends Phaser.Scene {
       speed: boss ? 18 : Phaser.Math.Between(60, 75),
       element,
       isBoss: boss,
-      label: boss ? BOSS_NAMES[(stage / 50 - 1) % BOSS_NAMES.length] : undefined,
+      label: boss ? bossLabel(stage) : undefined,
     });
     this.enemies.push(u);
   }
@@ -639,8 +641,8 @@ export class BattleScene extends Phaser.Scene {
     this.bossTimer = boss ? BOSS_TIME_LIMIT : 0;
     if (boss) {
       this.spawnEnemy(true);
-      const rotating = stage >= BOSS_ROTATION_START && stage % 100 === 0;
-      this.banner(rotating ? `BOSS: WEAK TO ${bossWeakness(stage).toUpperCase()}` : 'BOSS STAGE', '#ff6680');
+      const named = elementBoss(stage);
+      this.banner(named ? `${named.name.toUpperCase()}\nWEAK TO ${bossWeakness(stage).toUpperCase()}` : 'BOSS STAGE', '#ff6680');
       this.cameras.main.shake(400, 0.01);
       play('boss');
     }

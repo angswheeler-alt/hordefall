@@ -474,6 +474,27 @@ export function bossElement(stage: number): Element {
   return STRONG_VS[bossWeakness(stage)];
 }
 
+/** The five named element bosses (user, 2026-10-15). Each 100th-stage boss from 600 is the one of its element. */
+export const ELEMENT_BOSSES: Record<Element, { name: string; title: string }> = {
+  light: { name: 'Aureth', title: 'the Dawn Sovereign' },
+  earth: { name: 'Tharos', title: 'the Worldroot Colossus' },
+  dark: { name: 'Nyxara', title: 'the Hollow Moon' },
+  fire: { name: 'Ignivar', title: 'the Ashen Colossus' },
+  water: { name: 'Nerath', title: 'the Tide Sovereign' },
+};
+
+/** True for the element-weak bosses: every 100th stage from 600. */
+export function isElementBossStage(stage: number): boolean {
+  return stage >= BOSS_ROTATION_START && stage % 100 === 0;
+}
+
+/** The named element boss on this stage, or null for an ordinary boss or stage. */
+export function elementBoss(stage: number): { name: string; title: string; element: Element } | null {
+  if (!isElementBossStage(stage)) return null;
+  const element = bossElement(stage);
+  return { ...ELEMENT_BOSSES[element], element };
+}
+
 export const BOSS_EVERY = 50;
 export const BOSS_TIME_LIMIT = 30;
 export const RESPAWN_SECONDS = 5;
@@ -585,6 +606,12 @@ export const CREST_ROLLS: Record<Exclude<Rarity, 'legendary'>, Array<[number, nu
 export const TRIAL_RARITY_WEIGHTS: Record<Exclude<Rarity, 'legendary'>, number> = { common: 80, rare: 17, epic: 3 };
 
 export const BOSS_NAMES = ['Grubjaw the Glutton', 'Sir Rattlecan', 'Mother Mireling', 'Cogsworth Crusher', 'The Molten Abbot'];
+
+/** The name shown over a boss on the lane: the named element boss, or the rotating ordinary boss. */
+export function bossLabel(stage: number): string {
+  const named = elementBoss(stage);
+  return named ? `${named.name}, ${named.title}` : BOSS_NAMES[(stage / 50 - 1) % BOSS_NAMES.length];
+}
 
 /** Market Row Stalls (GDD section 6). Each costs gold to open and makes gold on a timer. */
 export interface StallDef {
