@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { existsSync } from 'node:fs';
 import { MOB_ELEMENTS, MOB_KINDS, pickMob } from '../src/mobs';
 import { MOB_ANIMS } from '../src/mobAnims';
+
+// Every generated mob image, by file name (Vite lists them without loading them).
+const files = new Set(Object.keys(import.meta.glob('../public/mobs/*.png')).map((f) => f.split('/').pop()));
 
 describe('mob kinds', () => {
   it('starts with grunts only', () => {
@@ -24,7 +26,7 @@ describe('mob kinds', () => {
   it('has art for every kind', () => {
     for (const id of Object.keys(MOB_KINDS)) {
       expect(MOB_ANIMS[id]).toBeDefined();
-      for (const el of MOB_ELEMENTS) for (const f of [`${id}_${el}`, `${id}_${el}_walk`, `${id}_${el}_attack`]) expect(existsSync(`public/mobs/${f}.png`), f).toBe(true);
+      for (const el of MOB_ELEMENTS) for (const f of [`${id}_${el}`, `${id}_${el}_walk`, `${id}_${el}_attack`]) expect(files.has(`${f}.png`), f).toBe(true);
     }
   });
 });
