@@ -40,6 +40,8 @@ export type Signature =
   | { kind: 'slow'; chance: number; mult: number; seconds: number }
   /** Hits on an enemy at full HP always crit. */
   | { kind: 'sureCrit' }
+  /** Hits on flying enemies always crit. */
+  | { kind: 'skyCrit' }
   /** Hits push regular enemies `push` px back. */
   | { kind: 'knockback'; push: number }
   /** When this hero falls, the enemy that did it is frozen for `seconds` and takes `mult` damage meanwhile. */
@@ -372,6 +374,52 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Moon Ward', text: "Every 4th heal or attack also shields a random ally for 35% of Nyx's max HP.", effect: { kind: 'ward', value: 0.35, every: 4 } },
     sp2: { name: 'Starlight', text: 'Heals are 40% stronger.', effect: { kind: 'healPower', value: 1.4 } },
     aura: { name: 'Blood Moon', text: 'Dark heroes heal for 5% of the damage they deal.', effect: { kind: 'lifesteal', value: 0.05, team: true, element: 'dark' } } },
+
+  // Crush batch 4 (design/crush-full-roster.md): Rares built from Akwa, Arcana, Chaos, Furiosa and Gladiator.
+  { id: 'shellby', rarity: 'rare', name: 'Shellby', element: 'water', type: 'Brawler', baseAtk: 5, baseHp: 85, range: 26, attackCooldown: 1.0, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+    signature: { kind: 'combo', perHit: 0.06, max: 0.3 },
+    bio: 'A snapping turtle in barnacled shell armor who boxes like a sailor and never backs down from a brawl.',
+    basic: { name: 'Shell Punch', text: 'Heavy punches at the nearest enemy ahead.' },
+    ultimate: { name: 'Shell Wave', text: ULT('A great wave of seawater rolls over') },
+    trait: { name: 'Snapping Combo', text: `Each hit in a row on the same enemy deals +6% damage, up to +30%; the streak ends when he switches target. ${VS.water}` },
+    sp1: { name: 'Water Bomb', text: 'Every 3rd attack bursts a ball of water for 1.8x damage to every enemy near the target.', effect: { kind: 'slam', value: 1.8, every: 3 } },
+    sp2: { name: 'Hard Shell', text: '+50% Defense.', effect: { kind: 'def', value: 1.5 } },
+    aura: { name: 'Tidal Rhythm', text: 'Water heroes attack 10% faster.', effect: { kind: 'attackSpeed', value: 0.9, team: true, element: 'water' } } },
+  { id: 'celeste', rarity: 'rare', name: 'Celeste', element: 'light', type: 'Ranger', baseAtk: 6, baseHp: 42, range: 190, attackCooldown: 1.0, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+    signature: { kind: 'skyCrit' },
+    bio: 'A star-speckled owl archer who hunts by night and never misses a wing.',
+    basic: { name: 'Star Arrow', text: 'Long-range arrows of starlight at the nearest enemy.' },
+    ultimate: { name: 'Arrow Shower', text: ULT('A shower of starlight arrows falls on') },
+    trait: { name: 'Owl Eyes', text: `Shots at flying enemies always crit. ${VS.light}` },
+    sp1: { name: 'Twin Stars', text: 'Arrows pierce 2 more enemies.', effect: { kind: 'pierce', value: 2 } },
+    sp2: { name: 'Clear Night', text: '+10% critical hit chance.', effect: { kind: 'crit', value: 0.1 } },
+    aura: { name: 'Star Focus', text: 'Light heroes deal +20% critical damage.', effect: { kind: 'critDmg', value: 0.2, team: true, element: 'light' } } },
+  { id: 'ruin', rarity: 'rare', name: 'Ruin', element: 'dark', type: 'Barbarian', baseAtk: 8, baseHp: 62, range: 30, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
+    bio: 'A horned demon with a cleaver-axe as big as a door. Slow to swing, and nothing is standing after.',
+    basic: { name: 'Darkness Axe', text: 'Slow, crushing swings at the nearest enemy ahead.' },
+    ultimate: { name: 'Chaos Smash', text: ULT('A giant axe of darkness smashes into') },
+    trait: { name: 'Unshaken', text: `Boss blows never stun him. ${VS.dark}` },
+    sp1: { name: 'Chaos Flurry', text: 'Every 3rd attack is a quick double swing (2.5x damage).', effect: { kind: 'everyNth', value: 2.5, every: 3 } },
+    sp2: { name: 'Demon Hide', text: 'Takes 15% less damage.', effect: { kind: 'damageTaken', value: 0.85 } },
+    aura: { name: 'Abyss Plate', text: 'Dark heroes get +40% Defense.', effect: { kind: 'def', value: 1.4, team: true, element: 'dark' } } },
+  { id: 'brasha', rarity: 'rare', name: 'Brasha', element: 'fire', type: 'Knight', baseAtk: 3.8, baseHp: 145, range: 26, attackCooldown: 1.0, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+    bio: 'A rhino knight in soot-black iron plate. Fire does not bother her and neither does anything else.',
+    basic: { name: 'Iron Sword', text: 'Steady sword blows at the nearest enemy ahead.' },
+    ultimate: { name: 'Fire Blades', text: ULT('A wave of burning blades hits') },
+    trait: { name: 'Fireproof Hide', text: `85% Effect Resistance, so boss blows almost never stun her. ${VS.fire}` },
+    sp1: { name: 'Horn Rush', text: 'Every 5th attack is a rush of blows (3x damage).', effect: { kind: 'everyNth', value: 3, every: 5 } },
+    sp2: { name: 'Spiked Plate', text: 'Reflects 15% of the damage she takes.', effect: { kind: 'reflect', value: 0.15 } },
+    aura: { name: 'Battle Heat', text: 'Fire heroes +3% Frenzy chance.', effect: { kind: 'frenzy', value: 0.03, team: true, element: 'fire' } } },
+  { id: 'tusk', rarity: 'rare', name: 'Tusk', element: 'earth', type: 'Barbarian', baseAtk: 6.5, baseHp: 75, range: 30, attackCooldown: 1.4, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
+    ult: { kind: 'strike', mult: 2.5, plusMult: 3.5 },
+    ultPlus: 'The strike hits for 140x ATK.',
+    bio: 'A scarred boar gladiator with a short sword and a crowd that still chants his name.',
+    basic: { name: 'Gladius', text: 'Heavy sword swings at the nearest enemy ahead.' },
+    ultimate: { name: 'Gladius Strike', text: 'One mighty blow on the toughest enemy in reach for 100x ATK, with element bonuses.' },
+    trait: { name: 'Arena Born', text: `Boss blows never stun him. ${VS.earth}` },
+    sp1: { name: 'Shockwave Stomp', text: 'Every 3rd attack stomps the ground for 1.5x damage to every enemy near the target.', effect: { kind: 'slam', value: 1.5, every: 3 } },
+    sp2: { name: 'Second Wind', text: 'Regenerates 2% of max HP every second.', effect: { kind: 'regen', value: 0.02 } },
+    aura: { name: "Gladiator's Vigor", text: 'Earth heroes +15% HP.', effect: { kind: 'hp', value: 1.15, team: true, element: 'earth' } } },
 
   // ---- Light: hope and protection ----
   { id: 'dawn', rarity: 'common', name: 'Dawn', element: 'light', type: 'Lancer', baseAtk: 5, baseHp: 65, range: 36, attackCooldown: 0.85, moveSpeed: 120, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
