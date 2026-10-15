@@ -68,11 +68,14 @@ export const HERO_PROFILES: Record<string, Partial<StatProfile> & { specialty: s
   shade: { dodge: 0.1, crit: 0.2, hpMult: 0.85, specialty: 'Shadow ninja: dodges 10% of attacks and 20% crit, less HP' },
   vex: { critDmg: 1.6, effectRes: 0.3, hpMult: 0.9, specialty: 'Witch of the void: crits hit for +160% and 30% Effect Resistance, less HP' },
   rook: { critDmg: 3, crit: 0.12, ultAtk: 0.1, specialty: 'Nightstalker: crits hit for +300% and +10% Ultimate damage, but crits land less often (12%)' },
+  wraith: { dodge: 0.15, critDmg: 2.3, hpMult: 0.9, specialty: 'Mistborn: dodges 15% of attacks and crits hit for +230%, less HP' },
+  nyx: { dodge: 0.12, effectRes: 0.4, defMult: 1.2, specialty: 'Night wings: dodges 12% of attacks and 40% Effect Resistance, less Defense' },
   dread: { atkMult: 1.2, defMult: 3.5, crit: 0.1, specialty: 'Dark blade: +20% ATK and 10% crit, less Defense than other Knights' },
   // Light
   dawn: { stunChance: 0.2, effectRes: 0.3, critDmg: 1.2, specialty: 'Holy lance: 20% chance to stun, 30% Effect Resistance, softer crits (+120%)' },
   lumen: { effectRes: 0.5, defMult: 2, crit: 0.02, specialty: 'Lantern ward: 50% Effect Resistance and 2x Defense, rarely crits (2%)' },
   sol: { critDmg: 2.4, crit: 0.1, aoeDmg: 0.1, specialty: 'Sun shells: +10% splash damage, crits hit for +240% but land less often (10%)' },
+  seraph: { stunChance: 0.08, effectRes: 0.35, critDmg: 0.8, specialty: 'Holy word: 8% chance to stun and 35% Effect Resistance, softer crits (+80%)' },
   aegis: { defMult: 5, effectRes: 0.6, stunChance: 0.1, atkMult: 0.95, specialty: 'Gold wall: 5x Defense, 60% Effect Resistance and 10% chance to stun, a little less ATK' },
 };
 

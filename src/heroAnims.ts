@@ -26,10 +26,13 @@ export const HERO_ANIMS: Record<string, HeroAnim> = {
   lumen: { frame: [71,65], feet: [40,64], headTop: 14, run: 5, attack: 5, hitFrame: 2 },
   marina: { frame: [73,54], feet: [36,53], headTop: 2, run: 5, attack: 5, hitFrame: 3 },
   moss: { frame: [59,54], feet: [23,53], headTop: 2, run: 5, attack: 5, hitFrame: 3 },
+  nyx: { frame: [70,56], feet: [33,55], headTop: 4, run: 5, attack: 5, hitFrame: 3 },
   ripple: { frame: [57,55], feet: [22,54], headTop: 4, run: 5, attack: 4, hitFrame: 2 },
   rook: { frame: [57,55], feet: [27,54], headTop: 3, run: 5, attack: 5, hitFrame: 1 },
+  seraph: { frame: [66,56], feet: [26,55], headTop: 4, run: 5, attack: 5, hitFrame: 3 },
   shade: { frame: [81,61], feet: [42,60], headTop: 12, run: 5, attack: 5, hitFrame: 3 },
   sol: { frame: [65,56], feet: [21,55], headTop: 4, run: 5, attack: 5, hitFrame: 2 },
   thorn: { frame: [62,55], feet: [28,54], headTop: 2, run: 5, attack: 5, hitFrame: 2 },
   vex: { frame: [59,54], feet: [23,53], headTop: 3, run: 5, attack: 5, hitFrame: 3 },
+  wraith: { frame: [59,55], feet: [26,54], headTop: 4, run: 5, attack: 5, hitFrame: 3 },
 };

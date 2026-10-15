@@ -162,7 +162,7 @@ export const ELEMENT_COLORS: Record<Element, number> = {
   dark: 0x9b59d0,
 };
 
-// The first 20 heroes: four per element. All Common. Brine is the free starter.
+// The first 20 heroes: four per element, all Common, then Rare heroes. Brine is the free starter.
 // Brine, Ember, Thicket (id thorn), Lumen and Rook are built to the hero standard (Signature, unique Ultimate);
 // the others take the kit of the closest Crush Them All hero (same element and class) under our own names and text
 // (design/crush-hero-remap.md). Thorn and Blaze were renamed Thicket and Flare
@@ -349,6 +349,27 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Black Flurry', text: 'Every 4th attack is three quick blows (3x damage).', effect: { kind: 'everyNth', value: 3, every: 4 } },
     sp2: { name: 'Abyssal Hunger', text: 'Heals for 25% of the damage he deals.', effect: { kind: 'lifesteal', value: 0.25 } },
     aura: { name: 'Shatter Armor', text: 'Enemies take 15% more damage.', effect: { kind: 'enemyVuln', value: 1.15, team: true } } },
+  // Rare heroes beyond the first 20: their own kits, built from existing effects.
+  { id: 'wraith', rarity: 'rare', name: 'Wraith', element: 'dark', type: 'Ranger', baseAtk: 7, baseHp: 46, range: 180, attackCooldown: 1.05, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+    ult: { kind: 'weaken', mult: 0.7, seconds: 5, plusSeconds: 8 },
+    ultPlus: 'Enemies stay weakened for 8 s.',
+    bio: 'A hooded ghost archer drifting on violet mist. Its arrows are made of the same stuff.',
+    basic: { name: 'Spectral Arrow', text: 'Long-range ghost arrows at the nearest enemy.' },
+    ultimate: { name: 'Phantom Volley', text: `${ULT('A volley of phantom arrows hits')} For 5 s they deal 30% less damage.` },
+    trait: { name: 'Restless Dead', text: `Hard to pin down: dodges 15% of attacks. ${VS.dark}` },
+    sp1: { name: 'Soul Pierce', text: 'Arrows pierce 2 more enemies.', effect: { kind: 'pierce', value: 2 } },
+    sp2: { name: 'Haunting', text: 'Every 5th arrow hits for 3x damage.', effect: { kind: 'everyNth', value: 3, every: 5 } },
+    aura: { name: 'Grave Chill', text: 'Dark heroes +10% critical hit chance.', effect: { kind: 'crit', value: 0.1, team: true, element: 'dark' } } },
+  { id: 'nyx', rarity: 'rare', name: 'Nyx', element: 'dark', type: 'Support', baseAtk: 3.3, baseHp: 58, range: 135, attackCooldown: 1.1, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
+    ult: { kind: 'teamShield', share: 0.8, plusShare: 1.2 },
+    ultPlus: "Shields are worth 120% of Nyx's max HP.",
+    bio: 'A little bat mage in a violet robe whose crystal staff mends wounds with moonlight.',
+    basic: { name: 'Moon Mend', text: HEAL_BASIC },
+    ultimate: { name: 'Night Lullaby', text: "Fully heals every living hero and shields each one for 80% of Nyx's max HP." },
+    trait: { name: 'Night Wings', text: `The Dark element's healer, quick on the wing: dodges 12% of attacks. ${VS.dark}` },
+    sp1: { name: 'Moon Ward', text: "Every 4th heal or attack also shields a random ally for 35% of Nyx's max HP.", effect: { kind: 'ward', value: 0.35, every: 4 } },
+    sp2: { name: 'Starlight', text: 'Heals are 40% stronger.', effect: { kind: 'healPower', value: 1.4 } },
+    aura: { name: 'Blood Moon', text: 'Dark heroes heal for 5% of the damage they deal.', effect: { kind: 'lifesteal', value: 0.05, team: true, element: 'dark' } } },
 
   // ---- Light: hope and protection ----
   { id: 'dawn', rarity: 'common', name: 'Dawn', element: 'light', type: 'Lancer', baseAtk: 5, baseHp: 65, range: 36, attackCooldown: 0.85, moveSpeed: 120, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
@@ -387,6 +408,16 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Gold Flurry', text: 'Every 4th attack is three quick blows (3x damage).', effect: { kind: 'everyNth', value: 3, every: 4 } },
     sp2: { name: 'Golden Mend', text: 'Regenerates 3% of max HP every second.', effect: { kind: 'regen', value: 0.03 } },
     aura: { name: 'Swift Light', text: 'Light heroes move 25% faster.', effect: { kind: 'moveSpeed', value: 1.25, team: true, element: 'light' } } },
+  { id: 'seraph', rarity: 'rare', name: 'Seraph', element: 'light', type: 'Magician', baseAtk: 8.5, baseHp: 50, range: 150, attackCooldown: 1.45, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 40,
+    ult: { kind: 'root', seconds: 3, bossSeconds: 1, shield: 0.15 },
+    ultPlus: 'The light also shields every hero for 15% of their max HP.',
+    bio: 'A dove priest in white-and-gold robes whose sunburst staff calls down holy light.',
+    basic: { name: 'Holy Flash', text: 'Ranged bursts of light that splash every enemy near the target.' },
+    ultimate: { name: 'Judgement', text: `${ULT('A pillar of holy light hits')} Holds them in place for 3 seconds (bosses for 1).` },
+    trait: { name: 'Sacred Light', text: `Bright spells that can stun (8%). ${VS.light}` },
+    sp1: { name: 'Blinding Light', text: 'Every 5th spell blinds the enemies it hits: they miss 40% of their attacks for 3 s.', effect: { kind: 'blind', value: 0.4, every: 5 } },
+    sp2: { name: 'Purify', text: 'Deals 25% more damage to bosses.', effect: { kind: 'bossDamage', value: 1.25 } },
+    aura: { name: 'Blessing', text: 'Light heroes +15% HP.', effect: { kind: 'hp', value: 1.15, team: true, element: 'light' } } },
 ];
 
 /** Old hero ids from saves before the 20-hero roster, and who replaced them. */
