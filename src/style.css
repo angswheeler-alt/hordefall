@@ -583,3 +583,13 @@ div.g-req { margin-bottom: 8px; }
 .g-step { display: flex; flex-direction: column; align-items: center; padding: 6px 2px; font-size: 13px; }
 .g-step small { font-size: 10px; }
 .g-step.done { opacity: 0.55; }
+
+/* Hero rarity label under names: bold, colored by rarity. */
+.rarity { font-weight: 900; letter-spacing: .02em; text-shadow: 0 1px 2px #000, 0 0 2px #000; }
+.rarity.r-common { color: #fff; }
+.rarity.r-rare { color: #5cc4ff; }
+.rarity.r-epic { color: #c06bff; }
+.rarity.r-legendary { color: #ffa62b; }
+#sheet-rarity .rarity { font-size: 14px; }
+.ct-name .rarity { display: block; font-size: 9px; }
+.team-who .rarity { font-size: 12px; }
