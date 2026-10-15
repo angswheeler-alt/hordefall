@@ -12,9 +12,19 @@ export interface HeroAnim {
 }
 
 export const HERO_ANIMS: Record<string, HeroAnim> = {
+  blaze: { frame: [56,82], feet: [28,81], headTop: 22, run: 5, attack: 5, hitFrame: 2 },
+  briar: { frame: [58,54], feet: [32,53], headTop: 3, run: 5, attack: 5, hitFrame: 2 },
   brine: { frame: [59,60], feet: [30,59], headTop: 9, run: 6, attack: 5, hitFrame: 2 },
+  brook: { frame: [63,54], feet: [24,53], headTop: 2, run: 5, attack: 5, hitFrame: 3 },
+  cinder: { frame: [76,59], feet: [27,58], headTop: 7, run: 5, attack: 5, hitFrame: 2 },
   ember: { frame: [61,64], feet: [30,63], headTop: 14, run: 5, attack: 5, hitFrame: 2 },
+  fern: { frame: [80,67], feet: [36,66], headTop: 15, run: 5, attack: 5, hitFrame: 3 },
+  flint: { frame: [86,68], feet: [47,67], headTop: 17, run: 5, attack: 5, hitFrame: 2 },
   lumen: { frame: [71,65], feet: [40,64], headTop: 14, run: 5, attack: 5, hitFrame: 2 },
+  marina: { frame: [73,54], feet: [36,53], headTop: 2, run: 5, attack: 5, hitFrame: 3 },
+  moss: { frame: [59,54], feet: [23,53], headTop: 2, run: 5, attack: 5, hitFrame: 3 },
+  ripple: { frame: [57,55], feet: [22,54], headTop: 4, run: 5, attack: 4, hitFrame: 2 },
   rook: { frame: [57,55], feet: [27,54], headTop: 3, run: 5, attack: 5, hitFrame: 1 },
+  shade: { frame: [74,61], feet: [43,60], headTop: 12, run: 5, attack: 5, hitFrame: 2 },
   thorn: { frame: [62,55], feet: [28,54], headTop: 2, run: 5, attack: 5, hitFrame: 2 },
 };

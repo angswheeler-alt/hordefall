@@ -136,8 +136,9 @@ function buildHero(id) {
   };
   const frames = { attack: small.attack.map(draw), run: small.run.map(draw) };
   // Optional per-hero touch-up (art/heroes/<id>/fix.js), e.g. to make the sheets agree on a detail.
+  // It may return { hitFrame } to say which attack frame lands the blow.
   const fixFile = path.join(dir, 'fix.js');
-  if (fs.existsSync(fixFile)) require(fixFile)(frames, { FW, FH, Canvas });
+  const fixed = (fs.existsSync(fixFile) && require(fixFile)(frames, { FW, FH, Canvas })) || {};
   const strip = (list, file) => {
     const s = new Canvas(FW * list.length, FH);
     list.forEach((c, i) => s.draw(c, i * FW, 0));
@@ -154,7 +155,7 @@ function buildHero(id) {
   outer: for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) if (stand.get(x, y)[3]) { headTop = y; break outer; }
   // The hit lands on the attack frame that reaches furthest forward.
   const reach = frames.attack.map(c => { for (let x = FW - 1; x >= 0; x--) for (let y = 0; y < FH; y++) if (c.get(x, y)[3]) return x; return 0; });
-  const hitFrame = reach.indexOf(Math.max(...reach));
+  const hitFrame = fixed.hitFrame ?? reach.indexOf(Math.max(...reach));
 
   const prev = new Canvas(Math.max(a.w, r.w) + 4, a.h + r.h + 6);
   for (let y = 0; y < prev.h; y++) for (let x = 0; x < prev.w; x++) prev.set(x, y, ((x >> 2) + (y >> 2)) % 2 ? [214, 214, 222] : [196, 196, 208]);
