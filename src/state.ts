@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
 import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES, PLAYABLE_HEROES } from './data';
@@ -94,6 +94,8 @@ export class GameState {
   tickets = TICKET_CAP;
   ticketClock = Date.now();
   trialBest: Record<string, number> = {};
+  /** Fastest win in seconds per Trial level, keyed "element:tier". */
+  trialTimes: Record<string, number> = {};
   essences: Record<string, number> = {};
   /** Recruited heroes taken out of the lineup. They keep gold levels but don't fight. */
   benched: Record<string, boolean> = {};
@@ -721,14 +723,41 @@ export class GameState {
     return Math.min(TRIAL_TIERS, (this.trialBest[element] ?? 0) + 1);
   }
 
+  /** Fastest win on a Trial level, in seconds, or null if never won since clear times were added. */
+  trialTime(element: string, tier: number): number | null {
+    return this.trialTimes[`${element}:${tier}`] ?? null;
+  }
+
+  /** A level won within half the timer can be Quick Battled. */
+  canQuickTrial(element: string, tier: number): boolean {
+    const t = this.trialTime(element, tier);
+    return t !== null && t <= TRIAL_QUICK_TIME;
+  }
+
+  private trialPlayable(element: Element, tier: number): boolean {
+    this.refreshTickets();
+    return this.trialsUnlocked() && this.trialOpen(element) && this.tickets > 0 && tier >= 1 && tier <= this.trialUnlocked(element) && this.trialReqMet(tier);
+  }
+
   /** Spend a ticket on an open Trial. A loss gives the ticket back. */
   playTrial(element: Element, tier: number): TrialResult | null {
-    this.refreshTickets();
-    if (!this.trialsUnlocked() || !this.trialOpen(element) || this.tickets <= 0 || tier < 1 || tier > this.trialUnlocked(element) || !this.trialReqMet(tier)) return null;
+    if (!this.trialPlayable(element, tier)) return null;
     const sim = this.simulateTrial(tier, element);
-    const level = TRIAL_LEVELS[tier - 1];
     const result: TrialResult = { won: sim.won, seconds: sim.seconds, bossLeft: sim.bossLeft, teamLeft: sim.teamLeft, essence: 0, stones: 0, medals: [] };
     if (!sim.won) return result;
+    const key = `${element}:${tier}`;
+    this.trialTimes[key] = Math.min(this.trialTimes[key] ?? Infinity, Math.round(sim.seconds * 10) / 10);
+    return this.payTrial(element, tier, result);
+  }
+
+  /** Skip the fight on a level already won fast enough: same ticket, same reward as a win. */
+  quickTrial(element: Element, tier: number): TrialResult | null {
+    if (!this.trialPlayable(element, tier) || !this.canQuickTrial(element, tier)) return null;
+    return this.payTrial(element, tier, { won: true, seconds: 0, bossLeft: 0, teamLeft: 1, essence: 0, stones: 0, medals: [] });
+  }
+
+  private payTrial(element: Element, tier: number, result: TrialResult): TrialResult {
+    const level = TRIAL_LEVELS[tier - 1];
     if (this.tickets >= TICKET_CAP) this.ticketClock = Date.now();
     this.tickets -= 1;
     this.track('trials');
@@ -1261,6 +1290,7 @@ export class GameState {
       tickets: this.tickets,
       ticketClock: this.ticketClock,
       trialBest: this.trialBest,
+      trialTimes: this.trialTimes,
       essences: this.essences,
       crests: this.crests,
       stars: this.stars,
@@ -1368,6 +1398,8 @@ export class GameState {
       this.tickets = d.tickets ?? TICKET_CAP;
       this.ticketClock = d.ticketClock ?? Date.now();
       this.trialBest = { ...(d.trialBest ?? {}) };
+      this.trialTimes = {};
+      for (const [k, v] of Object.entries(d.trialTimes ?? {})) if (typeof v === 'number' && Number.isFinite(v) && v >= 0) this.trialTimes[k] = v;
       this.essences = { ...(d.essences ?? {}) };
       for (const def of STALLS) {
         const st = d.stalls?.[def.id];
