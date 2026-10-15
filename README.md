@@ -53,9 +53,11 @@ Brine is free. Every other hero unlocks with Hero Crests (medals) from the Hero 
 
 ## Art
 
-Backgrounds and hero animations are built by scripts in `art/` (no dependencies):
+Backgrounds and hero and boss animations are built by scripts in `art/` (no dependencies):
 
 - `node art/backgrounds/build.js` writes the 15 region layers to `public/bg/`.
 - `node art/heroes/animate.js` turns each `art/heroes/<id>/` folder with `run_sheet.png` and `attack_sheet.png` (one row of frames on flat magenta, e.g. from an image generator) into `public/heroes/<id>.png`, `<id>_run.png` and `<id>_attack.png`, and regenerates `src/heroAnims.ts`, which the battle scene uses to play them. To animate another hero, add their folder and run it. A hero whose sheets disagree on a detail can get an `art/heroes/<id>/fix.js` touch-up (see `art/heroes/fixes.js`).
 
-Both also write review images to a git-ignored `preview/` folder.
+- `node art/bosses/animate.js` does the same for the five element bosses (Nerath, Ignivar, Tharos, Nyxara and Aureth, every 100th stage from 600): each `art/bosses/<element>/` folder holds `idle_sheet.png`, `attack_sheet.png`, `hurt_sheet.png` (3 frames) and `death_sheet.png`, which become `public/bosses/<element>_<anim>.png` and `src/bossAnims.ts`. In battle the boss idles, plays its attack when it strikes, flinches at most every 4 seconds when hit, and plays its death before fading.
+
+All of them also write review images to a git-ignored `preview/` folder.

@@ -48,6 +48,7 @@ import chestGoldUrl from './assets/ui/chest-gold.png';
 import { sumEffect, mulEffect, everyNth, procEffect, procs } from './skills';
 import { marchCap, marchStep } from './movement';
 import { HERO_ANIMS } from './heroAnims';
+import { BOSS_ANIMS, BOSS_ANIM_FRAMES } from './bossAnims';
 import type { EffectKind } from './data';
 import { comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS } from './kits';
 import { STAT_BASE, FREEZE_BLAST_RADIUS, BOSS_STUN_CHANCE, BOSS_STUN_SECONDS, type HeroStats } from './stats';
@@ -99,6 +100,10 @@ const FOOT_Y = 15;
 const RUN_FPS = 12;
 const ATTACK_FPS = 16;
 type AnimState = 'idle' | 'run' | 'attack';
+type BossAnimName = keyof typeof BOSS_ANIM_FRAMES;
+const BOSS_FPS: Record<BossAnimName, number> = { idle: 6, attack: 10, hurt: 10, death: 8 };
+/** An animated boss flinches (its hurt animation) at most this often, so steady damage doesn't freeze it in place. */
+const BOSS_FLINCH_SECONDS = 4;
 
 interface Unit {
   side: 'hero' | 'enemy';
@@ -131,6 +136,8 @@ interface Unit {
   body: Phaser.GameObjects.Sprite;
   /** Set for frame-animated heroes: which animation is showing. */
   anim?: { id: string; state: AnimState };
+  /** Set for frame-animated element bosses: whose art (BOSS_ANIMS key) and when it may flinch next. */
+  bossArt?: { id: string; flinchAt: number };
   hpBar: Phaser.GameObjects.Graphics;
   barWidth: number;
   /** Riptide Combo: the enemy this hero is hitting and how many hits in a row. */
@@ -271,6 +278,9 @@ export class BattleScene extends Phaser.Scene {
       this.load.spritesheet(`hero-${id}-run`, `heroes/${id}_run.png`, size);
       this.load.spritesheet(`hero-${id}-attack`, `heroes/${id}_attack.png`, size);
     }
+    for (const [id, a] of Object.entries(BOSS_ANIMS)) {
+      for (const anim of Object.keys(BOSS_ANIM_FRAMES)) this.load.spritesheet(`boss-${id}-${anim}`, `bosses/${id}_${anim}.png`, { frameWidth: a.frame[0], frameHeight: a.frame[1] });
+    }
   }
 
   create() {
@@ -279,6 +289,12 @@ export class BattleScene extends Phaser.Scene {
       if (!this.anims.exists(`${id}-run`)) {
         this.anims.create({ key: `${id}-run`, frames: this.anims.generateFrameNumbers(`hero-${id}-run`, { start: 0, end: a.run - 1 }), frameRate: RUN_FPS, repeat: -1 });
         this.anims.create({ key: `${id}-attack`, frames: this.anims.generateFrameNumbers(`hero-${id}-attack`, { start: 0, end: a.attack - 1 }), frameRate: ATTACK_FPS, repeat: 0 });
+      }
+    }
+    for (const id of Object.keys(BOSS_ANIMS)) {
+      for (const [anim, n] of Object.entries(BOSS_ANIM_FRAMES) as Array<[BossAnimName, number]>) {
+        const key = `boss-${id}-${anim}`;
+        if (!this.anims.exists(key)) this.anims.create({ key, frames: this.anims.generateFrameNumbers(key, { start: 0, end: n - 1 }), frameRate: BOSS_FPS[anim], repeat: anim === 'idle' ? -1 : 0 });
       }
     }
     // Sky is fixed to the screen; the far layer scrolls at 40% for depth; the ground repeats along the lane.
@@ -385,10 +401,16 @@ export class BattleScene extends Phaser.Scene {
     isBoss?: boolean;
     goldMult?: number;
     label?: string;
+    /** An element boss with its own animations (BOSS_ANIMS key). */
+    bossArt?: string;
   }): Unit {
     const y = opts.isBoss ? LANE_TOP + 35 : Phaser.Math.Between(LANE_TOP + 5, LANE_BOTTOM);
     const body = this.add.sprite(0, 0, opts.texture);
-    if (opts.side === 'enemy') body.setTint(ELEMENT_COLORS[opts.element]).setFlipX(true);
+    // Enemies face left and wear their element's tint; an animated boss keeps its own colours.
+    if (opts.side === 'enemy') body.setFlipX(true);
+    if (opts.side === 'enemy' && !opts.bossArt) body.setTint(ELEMENT_COLORS[opts.element]);
+    const bossDef = opts.bossArt ? BOSS_ANIMS[opts.bossArt] : undefined;
+    if (bossDef) body.setOrigin(1 - bossDef.feet[0] / bossDef.frame[0], bossDef.feet[1] / bossDef.frame[1]).setY(FOOT_Y).play(`boss-${opts.bossArt}-idle`);
     // Frame-animated heroes stand on their feet point, on the same foot line as everyone else.
     const animDef = opts.def ? HERO_ANIMS[opts.def.id] : undefined;
     const anim = animDef && this.anims.exists(`${opts.def!.id}-run`) ? { id: opts.def!.id, state: 'idle' as AnimState } : undefined;
@@ -399,7 +421,7 @@ export class BattleScene extends Phaser.Scene {
     if (opts.label) {
       parts.push(
         this.add
-          .text(0, body.y - body.height - 18, opts.label, { fontFamily: 'monospace', fontSize: opts.isBoss ? '11px' : '9px', color: '#fff', stroke: '#000', strokeThickness: 3 })
+          .text(0, bossDef ? FOOT_Y - bossDef.feet[1] + bossDef.headTop - 16 : body.y - body.height - 18, opts.label, { fontFamily: 'monospace', fontSize: opts.isBoss ? '11px' : '9px', color: '#fff', stroke: '#000', strokeThickness: 3 })
           .setOrigin(0.5),
       );
     }
@@ -427,6 +449,7 @@ export class BattleScene extends Phaser.Scene {
       view,
       body,
       anim,
+      bossArt: opts.bossArt ? { id: opts.bossArt, flinchAt: 0 } : undefined,
       hpBar,
       barWidth,
       streak: 0,
@@ -492,10 +515,33 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.addCounter({ from: 0.9, to: 0, duration: 160, onUpdate: (t) => draw(t.getValue() ?? 0), onComplete: () => g.destroy() });
   }
 
+  /** Play one of an animated boss's animations; attack and hurt return to idle, death stays on its last frame. */
+  private bossAnim(u: Unit, anim: BossAnimName) {
+    const art = u.bossArt;
+    if (!art || !u.body.active) return;
+    u.body.play(`boss-${art.id}-${anim}`);
+    if (anim === 'attack' || anim === 'hurt') {
+      u.body.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+        if (u.alive && u.body.active) u.body.play(`boss-${art.id}-idle`);
+      });
+    }
+  }
+
+  /** The tint an enemy rests at: ice blue while frozen, else its element (animated bosses keep their art). */
+  private restTint(e: Unit) {
+    if (e.frozenUntil > this.clock) e.body.setTint(0x9fdcff);
+    else if (e.bossArt) e.body.clearTint();
+    else e.body.setTint(ELEMENT_COLORS[e.element]);
+  }
+
   private drawHpBar(u: Unit) {
     const ratio = u.maxHp.gt(0) ? Math.max(0, Math.min(1, u.hp.div(u.maxHp).toNumber())) : 0;
     const w = u.barWidth;
-    const top = u.anim ? FOOT_Y - HERO_ANIMS[u.anim.id].feet[1] + HERO_ANIMS[u.anim.id].headTop - 5 : -u.body.height / 2 - 7;
+    const top = u.anim
+      ? FOOT_Y - HERO_ANIMS[u.anim.id].feet[1] + HERO_ANIMS[u.anim.id].headTop - 5
+      : u.bossArt
+        ? FOOT_Y - BOSS_ANIMS[u.bossArt.id].feet[1] + BOSS_ANIMS[u.bossArt.id].headTop - 5
+        : -u.body.height / 2 - 7;
     u.hpBar.clear();
     u.hpBar.fillStyle(0x000000, 0.7).fillRect(-w / 2 - 1, top - 1, w + 2, 5);
     u.hpBar.fillStyle(u.side === 'hero' ? 0x4cff7a : 0xff4c4c, 1).fillRect(-w / 2, top, w * ratio, 3);
@@ -595,9 +641,12 @@ export class BattleScene extends Phaser.Scene {
   private spawnEnemy(boss = false, behind = 0) {
     const stage = this.state.stage;
     const element = boss ? bossElement(stage) : enemyElement(stage);
+    const named = boss ? elementBoss(stage) : null;
+    const bossArt = named && BOSS_ANIMS[named.element] ? named.element : undefined;
     const u = this.makeUnit({
       side: 'enemy',
-      texture: boss ? 'boss' : 'enemy',
+      texture: bossArt ? `boss-${bossArt}-idle` : boss ? 'boss' : 'enemy',
+      bossArt,
       x: boss ? ENEMY_CRYSTAL_X - 50 : ENEMY_SPAWN_X + behind + Phaser.Math.Between(0, 30),
       hp: boss ? bossHp(stage) : enemyHp(stage),
       atk: boss ? bossAtk(stage) : enemyAtk(stage),
@@ -914,6 +963,7 @@ export class BattleScene extends Phaser.Scene {
       if (e.cooldownLeft <= 0) {
         e.cooldownLeft = e.cooldown;
         this.lunge(e, -1);
+        this.bossAnim(e, 'attack');
         this.enemyHits(e, target);
       }
       return;
@@ -1160,7 +1210,7 @@ export class BattleScene extends Phaser.Scene {
       if (!e.alive) continue;
       if (e.frozenUntil > 0 && e.frozenUntil <= this.clock) {
         e.frozenUntil = 0;
-        e.body.setTint(ELEMENT_COLORS[e.element]);
+        this.restTint(e);
         const by = e.frozenBy;
         this.shatter(e.x, e.y, 0x9fdcff);
         for (const o of this.enemies) {
@@ -1241,10 +1291,14 @@ export class BattleScene extends Phaser.Scene {
     target.body.setTintFill(0xffffff);
     this.time.delayedCall(60, () => {
       if (!target.body.active) return;
-      if (target.side === 'enemy') target.body.setTint(target.frozenUntil > this.clock ? 0x9fdcff : ELEMENT_COLORS[target.element]);
+      if (target.side === 'enemy') this.restTint(target);
       else target.body.clearTint();
     });
     if (target.hp.lte(0)) this.kill(target, source);
+    else if (target.bossArt && this.clock >= target.bossArt.flinchAt && target.body.anims.currentAnim?.key.endsWith('-idle')) {
+      target.bossArt.flinchAt = this.clock + BOSS_FLINCH_SECONDS;
+      this.bossAnim(target, 'hurt');
+    }
   }
 
   /** Squash, sparks, knockback, damage numbers, shake and sound for one hit. */
@@ -1315,7 +1369,16 @@ export class BattleScene extends Phaser.Scene {
         .times(1 + this.state.researchBonus('prosperity'))
         .times(this.state.boostMult('banner'));
       this.gainGold(gold, u.x, u.y);
-      this.tweens.add({ targets: u.view, alpha: 0, scale: 1.5, y: u.y - 8, duration: 220, onComplete: () => u.view.destroy() });
+      if (u.bossArt) {
+        // An animated boss plays its death, then fades.
+        u.hpBar.clear();
+        this.bossAnim(u, 'death');
+        u.body.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+          if (u.view.active) this.tweens.add({ targets: u.view, alpha: 0, duration: 400, onComplete: () => u.view.destroy() });
+        });
+      } else {
+        this.tweens.add({ targets: u.view, alpha: 0, scale: 1.5, y: u.y - 8, duration: 220, onComplete: () => u.view.destroy() });
+      }
       this.shatter(u.x, u.y, ELEMENT_COLORS[u.element]);
       this.flyCoins(u.x, u.y, u.isBoss ? 12 : 2);
       play('kill');
