@@ -2,7 +2,7 @@
 
 // Crown of the head. Find the first row wide enough to be the head (a staff ornament or wand is narrower),
 // then climb up from its middle to the topmost row still joined to it. Returns that row and its centre.
-function crown(c, { FW, FH }, headWidth = 16) {
+function crown(c, { FW, FH, scale = 1 }, headWidth = Math.round(16 * scale)) {
   const runs = y => { const out = []; let start = -1; for (let x = 0; x <= FW; x++) { const on = x < FW && c.get(x, y)[3]; if (on && start < 0) start = x; if (!on && start >= 0) { out.push([start, x - 1]); start = -1; } } return out; };
   for (let y = 0; y < FH; y++) {
     const wide = runs(y).find(([a, b]) => b - a + 1 >= headWidth);
@@ -24,7 +24,7 @@ function crown(c, { FW, FH }, headWidth = 16) {
  * (relative to the crown) the target's old head is wiped and the donor's pasted whole, so no old face or
  * hair pokes out; under the face it reaches down to `chin` so an old chin can't hang below the new one.
  * In `tail` (long hair hanging down the back) donor hair is only laid on top. Loose specks of fewer than
- * `speck` pixels left around the head afterwards are removed.
+ * `speck` pixels left around the head afterwards are removed. Sizes are at size 1 and scale with the hero.
  * `skip(x, y)` keeps target pixels that sit in the box but aren't head, such as a hand on a staff.
  */
 function swapHead(targets, donor, helpers, {
@@ -34,14 +34,16 @@ function swapHead(targets, donor, helpers, {
   skip = () => false,
   speck = 6,
 } = {}) {
-  const { FW, FH } = helpers;
+  const { FW, FH, scale: s = 1 } = helpers;
+  const sc = o => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Math.round(v * s)]));
+  box = sc(box); tail = sc(tail);
   const d = crown(donor, helpers);
   if (!d) return;
   for (const c of targets) {
     const t = crown(c, helpers);
     if (!t) continue;
     const put = (x, y, p) => { const tx = x - d.x + t.x, ty = y - d.y + t.y; if (tx >= 0 && ty >= 0 && tx < FW && ty < FH) c.set(tx, ty, p.slice(0, 3)); };
-    const inBox = (dx, dy) => dx >= -box.left && dx <= box.right && dy >= -box.up && (dy <= box.down || (dx >= 0 && dx <= 7 && dy <= box.chin));
+    const inBox = (dx, dy) => dx >= -box.left && dx <= box.right && dy >= -box.up && (dy <= box.down || (dx >= 0 && dx <= Math.round(7 * s) && dy <= box.chin));
     for (let y = t.y - box.up; y <= t.y + box.chin; y++) for (let x = t.x - box.left; x <= t.x + box.right; x++)
       if (inBox(x - t.x, y - t.y) && !skip(x - t.x, y - t.y, c.get(x, y))) c.set(x, y, [0, 0, 0], 0);
     for (let y = d.y - box.up; y <= d.y + tail.down; y++) for (let x = d.x - box.left; x <= d.x + box.right; x++) {

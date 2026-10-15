@@ -5,10 +5,11 @@ const GREENS = [[217, 247, 106], [200, 222, 40], [138, 200, 40], [111, 182, 50],
 const VEIN = [26, 92, 54];
 const isHair = p => p[3] && p[0] > p[1] && p[1] > p[2] && p[0] - p[2] > 40 && p[0] + p[1] + p[2] >= 150 && p[0] + p[1] + p[2] <= 420; // brown, not the pink flowers
 
-// Leaf centres relative to the cap's centre: a crown row and a lower row that hangs over the hair.
+// Leaf centres relative to the cap's centre: a crown row and a lower row that hangs over the hair. Measured at
+// size 1 and scaled to Fern's size.
 const LEAVES = [[-6, -4, 3.4], [-1, -6, 3.4], [4, -4, 3.2], [-10, 1, 3], [-5, 0, 3.2], [0, -1, 3.2], [5, 0, 2.8]];
 
-module.exports = function fix(frames, { FW }) {
+module.exports = function fix(frames, { FW, scale: s = 1 }) {
   for (const f of frames.attack) {
     // Rows of the head: at least 3 hair pixels side by side (the wand is thinner than that).
     const span = y => { let best = null, run = 0; for (let x = 0; x < FW; x++) { run = isHair(f.get(x, y)) ? run + 1 : 0; if (run >= 3) best = x; } return best; };
@@ -17,11 +18,11 @@ module.exports = function fix(frames, { FW }) {
     if (top < 0) continue;
     let front = 0;
     for (let y = top; y < top + 5; y++) front = Math.max(front, span(y) ?? 0);
-    const cx = front - 6, cy = top + 3;
+    const cx = Math.round(front - 6 * s), cy = Math.round(top + 3 * s);
 
     const owner = new Map(); // pixel -> index of the leaf it belongs to
-    for (let y = cy - 10; y <= cy + 5; y++) for (let x = cx - 14; x <= cx + 9; x++) {
-      const dx = x - cx, dy = y - cy;
+    for (let y = cy - Math.ceil(10 * s); y <= cy + Math.ceil(5 * s); y++) for (let x = cx - Math.ceil(14 * s); x <= cx + Math.ceil(9 * s); x++) {
+      const dx = (x - cx) / s, dy = (y - cy) / s;
       const rim = dx > 2 ? 0 : dx > -4 ? 2 : 4; // the cap's lower edge: up off the brow, down over the back
       if (dy > rim) continue;
       let bi = -1, bd = 1;
@@ -36,7 +37,7 @@ module.exports = function fix(frames, { FW }) {
       else if (nb.some(n => n !== i && LEAVES[n][1] < LEAVES[i][1])) col = VEIN; // a leaf's top edge where it overlaps the one behind
       else {
         const [lx, ly] = LEAVES[i];
-        const t = y - cy - ly + 0.4 * (x - cx - lx); // lit from the upper left
+        const t = (y - cy) / s - ly + 0.4 * ((x - cx) / s - lx); // lit from the upper left
         col = GREENS[Math.max(0, Math.min(5, Math.round(1 + t / 1.8 + (ly > -2 ? 0.7 : 0))))];
       }
       f.set(x, y, col);

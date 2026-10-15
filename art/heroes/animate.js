@@ -19,7 +19,16 @@ const ROOT = __dirname;
 const OUT_DIR = path.join(ROOT, '..', '..', 'public', 'heroes');
 const PREVIEW = path.join(ROOT, 'preview');
 const ANIMS_TS = path.join(ROOT, '..', '..', 'src', 'heroAnims.ts');
-const TARGET_HEIGHT = 50; // sprite px for a typical frame, head to feet
+const TARGET_HEIGHT = 50; // sprite px for a typical frame, head to feet, at size 1
+// How big each hero stands next to the others (x TARGET_HEIGHT): hulking brutes and armoured knights are big,
+// faeries, bats and bunnies small. The pixels are redrawn at that size, so every hero stays crisp.
+const HERO_SIZE = {
+  cinder: 1.3, blaze: 1.25, dread: 1.25, aegis: 1.25, thorn: 1.1,
+  vex: 1.05, wraith: 1.05, marina: 1.05, dawn: 1.05,
+  brine: 1, ember: 1, rook: 1, brook: 1,
+  lumen: 0.95, seraph: 0.95, flint: 0.95, ripple: 0.95,
+  briar: 0.9, moss: 0.85, shade: 0.85, sol: 0.8, nyx: 0.75, fern: 0.7,
+};
 const PALETTE = 24;
 const OUTLINE = [30, 22, 40];
 const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -32,7 +41,7 @@ const median = a => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)];
 const isBg = p => p[2] - p[0] <= 20 && lum(p) < 130 && ((p[0] - p[1] > 80 && p[2] - p[1] > 40) || (p[0] > 60 && p[1] < 30 && p[2] > 40 && p[0] - p[1] > 50));
 
 // Each figure is one connected shape (weapons can reach into the next figure's columns).
-function figures(file) {
+function figures(file, target = TARGET_HEIGHT) {
   const img = readPNG(file);
   const W = img.w, H = img.h, label = new Int32Array(W * H).fill(-1);
   const shapes = [];
@@ -57,7 +66,7 @@ function figures(file) {
   }
   const big = shapes.filter(s => s.n > 2000).sort((a, b) => a.x0 - b.x0);
   const ground = Math.max(...big.map(s => s.y1)) + 1;
-  const block = median(big.map(s => s.y1 - s.y0 + 1)) / TARGET_HEIGHT;
+  const block = median(big.map(s => s.y1 - s.y0 + 1)) / target;
   return big.map(s => {
     const fg = (x, y) => x >= 0 && y >= 0 && x < W && y < H && label[y * W + x] === s.id;
     // Head anchor: centre of the top fifth of the figure.
@@ -97,9 +106,10 @@ function shrink(f) {
 
 function buildHero(id) {
   const dir = path.join(ROOT, id);
+  const size = HERO_SIZE[id] ?? 1;
   const small = {
-    attack: figures(path.join(dir, 'attack_sheet.png')).map(shrink),
-    run: figures(path.join(dir, 'run_sheet.png')).map(shrink),
+    attack: figures(path.join(dir, 'attack_sheet.png'), TARGET_HEIGHT * size).map(shrink),
+    run: figures(path.join(dir, 'run_sheet.png'), TARGET_HEIGHT * size).map(shrink),
   };
   // One canvas for every frame: head anchor at a fixed column, ground on the bottom rows.
   let minX = 0, maxX = 0, minY = 0;
@@ -138,9 +148,10 @@ function buildHero(id) {
   };
   const frames = { attack: small.attack.map(draw), run: small.run.map(draw) };
   // Optional per-hero touch-up (art/heroes/<id>/fix.js), e.g. to make the sheets agree on a detail.
-  // It may return { hitFrame } to say which attack frame lands the blow.
+  // It may return { hitFrame } to say which attack frame lands the blow; `scale` is the hero's size, for
+// touch-ups measured in pixels.
   const fixFile = path.join(dir, 'fix.js');
-  const fixed = (fs.existsSync(fixFile) && require(fixFile)(frames, { FW, FH, Canvas })) || {};
+  const fixed = (fs.existsSync(fixFile) && require(fixFile)(frames, { FW, FH, Canvas, scale: size })) || {};
   const strip = (list, file) => {
     const s = new Canvas(FW * list.length, FH);
     list.forEach((c, i) => s.draw(c, i * FW, 0));
