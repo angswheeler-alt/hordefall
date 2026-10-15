@@ -607,12 +607,24 @@ export const CREST_ROLLS: Record<Exclude<Rarity, 'legendary'>, Array<[number, nu
 /** Trial medals: rarity weights for which hero of the element gets each medal. */
 export const TRIAL_RARITY_WEIGHTS: Record<Exclude<Rarity, 'legendary'>, number> = { common: 80, rare: 17, epic: 3 };
 
-export const BOSS_NAMES = ['Grubjaw the Glutton', 'Sir Rattlecan', 'Mother Mireling', 'Cogsworth Crusher', 'The Molten Abbot'];
+/** The order the five bosses take turns on ordinary boss stages (50, 100, 150...). */
+const BOSS_TURNS: Element[] = ['fire', 'water', 'earth', 'dark', 'light'];
 
-/** The name shown over a boss on the lane: the named element boss, or the rotating ordinary boss. */
-export function bossLabel(stage: number): string {
+/**
+ * Which of the five bosses guards a boss stage, by their look (`art`, an ELEMENT_BOSSES key): the element boss
+ * on every 100th stage from 600, otherwise they take turns. Only the look rotates: how the boss fights is still
+ * bossElement and bossWeakness (before 600 every boss is weak to Water, whoever it looks like).
+ */
+export function stageBoss(stage: number): { name: string; title: string; art: Element } {
   const named = elementBoss(stage);
-  return named ? `${named.name}, ${named.title}` : BOSS_NAMES[(stage / 50 - 1) % BOSS_NAMES.length];
+  const art = named ? named.element : BOSS_TURNS[(Math.round(stage / BOSS_EVERY) - 1 + BOSS_TURNS.length) % BOSS_TURNS.length];
+  return { ...ELEMENT_BOSSES[art], art };
+}
+
+/** The name shown over a boss on the lane. */
+export function bossLabel(stage: number): string {
+  const b = stageBoss(stage);
+  return `${b.name}, ${b.title}`;
 }
 
 /** Market Row Stalls (GDD section 6). Each costs gold to open and makes gold on a timer. */

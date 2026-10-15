@@ -21,7 +21,7 @@ import {
   enemyElement,
   bossElement,
   bossWeakness,
-  elementBoss,
+  stageBoss,
   type Element,
   type HeroDef,
 } from './data';
@@ -387,8 +387,8 @@ export class BattleScene extends Phaser.Scene {
   private drawBackground() {
     // Each 50-stage block is a new region, cycling through the five background sets.
     // Nyxara guards the Hollow Moon Ruins, so her fights always happen there.
-    const named = elementBoss(this.state.stage);
-    const region = named?.element === 'dark' ? 'hollowmoon' : REGIONS[Math.floor((this.state.stage - 1) / 50) % REGIONS.length];
+    const stage = this.state.stage;
+    const region = isBossStage(stage) && stageBoss(stage).art === 'dark' ? 'hollowmoon' : REGIONS[Math.floor((stage - 1) / 50) % REGIONS.length];
     this.sky.setTexture(`bg-${region}-sky`);
     this.far.setTexture(`bg-${region}-far`);
     this.groundTiles.setTexture(`bg-${region}-ground`);
@@ -671,8 +671,8 @@ export class BattleScene extends Phaser.Scene {
   private spawnEnemy(boss = false, behind = 0) {
     const stage = this.state.stage;
     const element = boss ? bossElement(stage) : enemyElement(stage);
-    const named = boss ? elementBoss(stage) : null;
-    const bossArt = named && BOSS_ANIMS[named.element] ? named.element : undefined;
+    const look = boss ? stageBoss(stage).art : null;
+    const bossArt = look && BOSS_ANIMS[look] ? look : undefined;
     const flying = !boss && stage >= FLYER_STAGE && Math.random() < FLYER_CHANCE;
     const u = this.makeUnit({
       side: 'enemy',
@@ -722,8 +722,7 @@ export class BattleScene extends Phaser.Scene {
     this.bossTimer = boss ? BOSS_TIME_LIMIT : 0;
     if (boss) {
       this.spawnEnemy(true);
-      const named = elementBoss(stage);
-      this.banner(named ? `${named.name.toUpperCase()}\nWEAK TO ${bossWeakness(stage).toUpperCase()}` : 'BOSS STAGE', '#ff6680');
+      this.banner(`${stageBoss(stage).name.toUpperCase()}\nWEAK TO ${bossWeakness(stage).toUpperCase()}`, '#ff6680');
       this.cameras.main.shake(400, 0.01);
       play('boss');
     }
