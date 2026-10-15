@@ -385,7 +385,7 @@ export const HEROES: HeroDef[] = [
     ultimate: { name: 'Thunder Wave', text: ULT('A wave of golden thunder hits') },
     trait: { name: 'Gold Guardian', text: `The toughest hero; his blows can stun (10%). ${VS.light}` },
     sp1: { name: 'Gold Flurry', text: 'Every 4th attack is three quick blows (3x damage).', effect: { kind: 'everyNth', value: 3, every: 4 } },
-    sp2: { name: 'Rally', text: 'Regenerates 3% of max HP every second.', effect: { kind: 'regen', value: 0.03 } },
+    sp2: { name: 'Golden Mend', text: 'Regenerates 3% of max HP every second.', effect: { kind: 'regen', value: 0.03 } },
     aura: { name: 'Swift Light', text: 'Light heroes move 25% faster.', effect: { kind: 'moveSpeed', value: 1.25, team: true, element: 'light' } } },
 ];
 
