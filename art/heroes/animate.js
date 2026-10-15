@@ -177,8 +177,8 @@ function buildHero(id) {
   return { id, frame: [FW, FH], feet: [AX, FEET], headTop, run: frames.run.length, attack: frames.attack.length, hitFrame };
 }
 
-// Shared with art/bosses/animate.js.
-module.exports = { isBg, lum, shrink, N4, OUTLINE };
+// Shared with art/bosses/animate.js and art/mobs/animate.js.
+module.exports = { isBg, lum, shrink, figures, N4, OUTLINE };
 
 // Heroes to build: the ones named, or every folder with both sheets.
 if (require.main === module) {
