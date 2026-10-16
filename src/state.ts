@@ -964,11 +964,10 @@ export class GameState {
 
   // ---------- guilds (the server side is in guild.ts) ----------
 
-  /** Remove medals given to a guildmate and pay guild credits for them. Returns the credits, or null if the medals aren't there. */
+  /** Pay guild credits for medals given to a guildmate. Giving is free: the donor keeps their own medals. Returns the credits, or null for a bad hero or amount. */
   giveGuildMedals(id: string, n: number): number | null {
     const hero = HEROES.find((h) => h.id === id);
-    if (!hero || hero.rarity === 'legendary' || n <= 0 || (this.crests[id] ?? 0) < n) return null;
-    this.crests[id] -= n;
+    if (!hero || hero.rarity === 'legendary' || n <= 0) return null;
     const credits = n * GUILD_CREDITS_PER_MEDAL[hero.rarity];
     this.guildCredits += credits;
     this.save();

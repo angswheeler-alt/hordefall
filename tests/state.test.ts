@@ -709,14 +709,16 @@ describe('Daily Medal Bundle', () => {
 });
 
 describe('guild medals and credits', () => {
-  it('giving medals pays credits by rarity, and only medals you have', () => {
+  it('giving medals pays credits by rarity and keeps your own medals', () => {
     const s = fresh();
     const common = HEROES.find((h) => h.rarity === 'common')!;
     s.crests[common.id] = 4;
-    expect(s.giveGuildMedals(common.id, 5)).toBeNull();
+    expect(s.giveGuildMedals(common.id, 0)).toBeNull();
     expect(s.giveGuildMedals(common.id, 3)).toBe(3 * GUILD_CREDITS_PER_MEDAL.common);
-    expect(s.crests[common.id]).toBe(1);
+    expect(s.crests[common.id]).toBe(4);
     expect(s.guildCredits).toBe(3 * GUILD_CREDITS_PER_MEDAL.common);
+    // Giving doesn't need medals of your own.
+    expect(s.giveGuildMedals(HEROES.find((h) => h.rarity === 'common' && !s.crests[h.id])!.id, 1)).toBe(GUILD_CREDITS_PER_MEDAL.common);
   });
 
   it('received medals can unlock a hero', () => {

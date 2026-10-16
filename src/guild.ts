@@ -398,7 +398,7 @@ export class Guild {
 
   private async donate(req: RequestRow) {
     const h = hero(req.hero_id);
-    if (!h || (this.state.crests[h.id] ?? 0) < 1) return;
+    if (!h) return;
     const res = await this.db!.rpc('donate_guild_medals', { p_request: req.id, p_amount: 1 });
     if (res.error) {
       this.ui.showModal('Guild', esc(this.message(res.error)), 'Okay');
@@ -741,14 +741,13 @@ export class Guild {
     const h = hero(r.hero_id);
     if (!h) return '';
     const pct = Math.min(100, (r.received / r.goal) * 100);
-    const have = this.state.crests[h.id] ?? 0;
     const given = this.given.get(r.id) ?? 0;
     const full = r.received >= r.goal;
     const left = Date.parse(r.created_at) + GUILD_REQUEST_OPEN_HOURS * HOUR - Date.now();
     const meta = mine
       ? `${r.received}/${r.goal} given · ${full ? 'full' : left > 0 ? `open ${untilText(left)}` : 'closed'}`
-      : `${esc(r.username)} · ${r.received}/${r.goal} · you have ${have} · gave ${given}/${GUILD_DONATE_MAX}`;
-    const canGive = !mine && !full && left > 0 && have > 0 && given < GUILD_DONATE_MAX;
+      : `${esc(r.username)} · ${r.received}/${r.goal} · you gave ${given}/${GUILD_DONATE_MAX}`;
+    const canGive = !mine && !full && left > 0 && given < GUILD_DONATE_MAX;
     const btn = mine ? '' : `<button type="button" class="gem-btn" data-g="give:${r.id}" ${canGive ? '' : 'disabled'}>Give 1<small>+${GUILD_CREDITS_PER_MEDAL[h.rarity as keyof typeof GUILD_CREDITS_PER_MEDAL]} coins</small></button>`;
     const body = `<span class="face art" style="${faceStyle(h)}">${h.name[0]}</span><div class="rw-text"><span><b>${esc(h.name)}</b></span><div class="rw-bar"><i style="width:${pct}%"></i></div><small>${meta}</small></div>${btn}`;
     return mine ? `<div class="g-req">${body}</div>` : `<li class="g-req">${body}</li>`;
