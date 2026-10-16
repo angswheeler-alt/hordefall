@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Decimal from 'break_infinity.js';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS } from '../src/profiles';
 import { GameState, rarityOdds, weekKey } from '../src/state';
+import { emberCost, emberRefund } from '../src/formulas';
 import { mulEffect } from '../src/skills';
 import {
   HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, AURA_EVOLUTIONS, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, LINEUP_SIZE,
@@ -596,6 +597,19 @@ describe('rekindle', () => {
     expect(t.load()).toBe(true);
     expect(t.emberLevels[starter.id]).toBe(37);
     expect(t.emberLevels[other.id]).toBe(12);
+  });
+
+  it('refunds every Ember spent when the player resets a hero', () => {
+    const s = fresh();
+    s.embers = 5;
+    s.emberLevels[starter.id] = 30;
+    const refund = s.resetEmbers(starter.id);
+    expect(refund).toBe(emberRefund(30));
+    expect(refund).toBe(Array.from({ length: 30 }, (_, i) => emberCost(i)).reduce((a, b) => a + b, 0));
+    expect(s.emberLevels[starter.id]).toBe(0);
+    expect(s.embers).toBe(5 + refund);
+    expect(s.resetEmbers(starter.id)).toBe(0);
+    expect(s.embers).toBe(5 + refund);
   });
 
   it("won't take a boosted rekindle without the gems", () => {

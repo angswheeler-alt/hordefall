@@ -98,6 +98,8 @@ button.icon { padding: 6px 10px; font-size: 18px; line-height: 1; }
 .level-row button { min-width: 112px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .level-row .gold-up .cost { color: var(--gold); font-size: 12px; }
 .level-row .ember-up { background: transparent; border-color: var(--ember); }
+.level-row .ember-reset { display: inline-block; min-width: 0; background: transparent; border: none; min-height: 0; padding: 4px 0; color: var(--ember); font-size: 12px; text-decoration: underline; cursor: pointer; }
+.level-row .ember-reset[hidden] { display: none; }
 .level-row .ember-up .cost { color: var(--ember); font-size: 12px; }
 .abilities { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .abilities li { background: var(--panel-2); border-radius: 10px; padding: 10px 12px; }

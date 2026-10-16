@@ -93,6 +93,13 @@ export function emberCost(level: number): number {
   return Math.ceil(Math.pow(EMBER_COST_GROWTH, level));
 }
 
+/** Embers spent to raise a hero from Ember level 0 to `level`; what a reset gives back. */
+export function emberRefund(level: number): number {
+  let total = 0;
+  for (let i = 0; i < level; i++) total += emberCost(i);
+  return total;
+}
+
 export function heroAtk(def: HeroDef, level: number): Decimal {
   return levelScale(level).times(def.baseAtk);
 }
