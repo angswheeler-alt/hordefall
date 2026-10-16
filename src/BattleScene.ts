@@ -296,7 +296,7 @@ export class BattleScene extends Phaser.Scene {
     this.load.image('chest-gold', chestGoldUrl);
     for (const r of REGIONS) for (const layer of ['sky', 'far', 'ground']) this.load.image(`bg-${r}-${layer}`, `bg/${r}_${layer}.png`);
     // Hero sprites (32x32, feet on row 30). A hero without a file falls back to its placeholder block.
-    for (const h of HEROES) this.load.image(`hero-${h.id}`, `heroes/${h.id}.png`);
+    for (const h of HEROES) if (HERO_ANIMS[h.id]) this.load.image(`hero-${h.id}`, `heroes/${h.id}.png`);
     for (const [id, a] of Object.entries(HERO_ANIMS)) {
       const size = { frameWidth: a.frame[0], frameHeight: a.frame[1] };
       this.load.spritesheet(`hero-${id}-run`, `heroes/${id}_run.png`, size);
@@ -644,15 +644,27 @@ export class BattleScene extends Phaser.Scene {
       if (!this.state.inLineup(def.id)) continue;
       const level = this.state.heroLevel(def.id);
       if (level <= 0) continue;
-      let u = this.heroes.find((h) => h.def?.id === def.id);
       const stats = this.state.heroStats(def, level);
-      const atk = stats.atk.value, hp = stats.hp.value, defense = stats.def.value;
-      if (!u) {
-        u = this.makeUnit({
+      // A squad splits the hero's ATK and HP between its small fighters (the first one owns the Ultimate).
+      const size = def.squad ?? 1;
+      const atk = stats.atk.value.div(size), hp = stats.hp.value.div(size), defense = stats.def.value;
+      const squad = this.heroes.filter((h) => h.def?.id === def.id);
+      for (const u of squad) {
+        const ratio = u.maxHp.gt(0) ? u.hp.div(u.maxHp) : new Decimal(1);
+        u.maxHp = hp;
+        u.atk = atk;
+        u.defense = defense;
+        u.stats = stats;
+        u.speed = stats.moveSpeed.value;
+        if (u.alive) u.hp = hp.times(ratio);
+        this.drawHpBar(u);
+      }
+      for (let i = squad.length; i < size; i++) {
+        const u = this.makeUnit({
           side: 'hero',
           def,
           texture: `hero-${def.id}`,
-          x: PLAYER_CRYSTAL_X + 20,
+          x: PLAYER_CRYSTAL_X + 20 - i * 12,
           hp,
           atk,
           range: def.range,
@@ -662,20 +674,12 @@ export class BattleScene extends Phaser.Scene {
           goldMult: def.goldMult * (1 + heroProfile(def).goldBonus),
           flying: def.flying,
         });
+        if (size > 1) u.view.setScale(0.7);
         u.defense = defense;
         u.stats = stats;
         this.giveKnightShield(u);
         this.heroes.push(u);
         this.puff(u.x, u.y, ELEMENT_COLORS[def.element]);
-      } else {
-        const ratio = u.maxHp.gt(0) ? u.hp.div(u.maxHp) : new Decimal(1);
-        u.maxHp = hp;
-        u.atk = atk;
-        u.defense = defense;
-        u.stats = stats;
-        u.speed = stats.moveSpeed.value;
-        if (u.alive) u.hp = hp.times(ratio);
-        this.drawHpBar(u);
       }
     }
   }

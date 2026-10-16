@@ -1,4 +1,5 @@
 import type { HeroDef, HeroType } from './data';
+import { CRUSH_PROFILES } from './heroes';
 
 /**
  * Stat profiles: what makes each hero play differently beyond ATK, HP and speed. A hero's Type sets its
@@ -48,7 +49,8 @@ export const TYPE_PROFILES: Record<HeroType, StatProfile> = {
 };
 
 /** Each hero's specialty on top of its Type: a few numbers and the one-line text the hero page shows. */
-export const HERO_PROFILES: Record<string, Partial<StatProfile> & { specialty: string }> = {
+export type HeroProfile = Partial<StatProfile> & { specialty: string };
+export const HERO_PROFILES: Record<string, HeroProfile> = {
   // Water
   brine: { frenzy: 0.15, ultAtk: 0.2, effectRes: 0.05, specialty: 'Pirate rush: 15% Frenzy and +20% Ultimate damage, but only 5% Effect Resistance' },
   brook: { effectRes: 0.6, atkMult: 0.9, specialty: 'Living water: 60% Effect Resistance, a little less ATK' },
@@ -82,6 +84,7 @@ export const HERO_PROFILES: Record<string, Partial<StatProfile> & { specialty: s
   seraph: { stunChance: 0.08, effectRes: 0.35, critDmg: 0.8, specialty: 'Holy word: 8% chance to stun and 35% Effect Resistance, softer crits (+80%)' },
   celeste: { critDmg: 2.2, dodge: 0.08, atkMult: 0.95, specialty: 'Owl sight: crits hit for +220% and dodges 8% of attacks, a little less ATK' },
   aegis: { defMult: 5, effectRes: 0.6, stunChance: 0.1, atkMult: 0.95, specialty: 'Lionheart: 5x Defense, 60% Effect Resistance and 10% chance to stun, a little less ATK' },
+  ...CRUSH_PROFILES,
 };
 
 /**

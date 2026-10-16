@@ -479,6 +479,8 @@ i.stone { display: inline-block; width: 12px; height: 12px; background: linear-g
 .ct-tile { position: relative; width: 100%; aspect-ratio: 1; padding: 0; border-radius: 4px; border: 3px solid #6b3a1a; background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--el) 70%, #fff) 0%, var(--el) 55%, color-mix(in srgb, var(--el) 60%, #000) 100%); overflow: hidden; cursor: pointer; }
 .ct.team .ct-tile { border-color: #fff; }
 .ct-art { position: absolute; inset: 4% 4% 14%; background-image: var(--art); background-repeat: no-repeat; background-size: contain; background-position: center bottom; image-rendering: pixelated; }
+/* Heroes still waiting for art show their initial. */
+.ct-art { display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 800; color: var(--el); text-shadow: 0 2px 0 #000; }
 .ct.locked .ct-art { filter: brightness(0) opacity(.45); }
 .ct.locked .ct-tile { filter: saturate(.55) brightness(.75); }
 .ct-stars { position: absolute; right: 4px; bottom: 2px; font-weight: 900; font-size: 15px; color: #ffd84a; -webkit-text-stroke: 1px #3a2200; text-shadow: 0 1px 0 #000; }

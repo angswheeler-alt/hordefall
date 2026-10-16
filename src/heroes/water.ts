@@ -1,0 +1,143 @@
+import type { HeroDef } from '../data';
+import type { HeroProfile } from '../profiles';
+import { VS, ULT } from '../heroText';
+
+/** Water heroes from the full Crush roster (design/crush-full-roster.md). */
+export const WATER_HEROES: HeroDef[] = [
+  // ---- Rares ----
+  // Gaff (Atlantus)
+  { id: 'gaff', rarity: 'rare', name: 'Gaff', element: 'water', type: 'Lancer', baseAtk: 6, baseHp: 62, range: 36, attackCooldown: 1.2, moveSpeed: 125, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
+    bio: 'A swordfish-headed merman with a coral trident and a bill nearly as sharp as its prongs.',
+    basic: { name: 'Trident Thrust', text: 'Slow, heavy trident thrusts with a little extra reach.' },
+    ultimate: { name: 'Trident Wrath', text: ULT('A hurled trident tears through') },
+    trait: { name: 'Deep Current', text: `Boss blows never stun him, and his thrusts can stun (20%). ${VS.water}` },
+    sp1: { name: 'Smash Attack', text: 'Every 3rd attack smashes the ground for 2x damage to every enemy near the target.', effect: { kind: 'slam', value: 2, every: 3 } },
+    sp2: { name: 'Swordbill', text: '+10% critical hit chance.', effect: { kind: 'crit', value: 0.1 } },
+    aura: { name: 'Riptide Edge', text: 'Water heroes deal +20% critical damage.', effect: { kind: 'critDmg', value: 0.2, team: true, element: 'water' } } },
+  // Barnacle (Black Beard)
+  { id: 'barnacle', rarity: 'rare', name: 'Barnacle', element: 'water', type: 'Knight', baseAtk: 3.6, baseHp: 145, range: 28, attackCooldown: 0.9, moveSpeed: 120, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+    bio: 'A walrus pirate captain in a battered tricorn, holding an old ship anchor as a shield.',
+    basic: { name: 'Cutlass Swipe', text: 'Quick cutlass blows at the nearest enemy ahead.' },
+    ultimate: { name: 'Tsunami', text: ULT('A great wave of seawater rolls over') },
+    trait: { name: 'Anchor Bash', text: `His blows can stun (12%). ${VS.water}` },
+    sp1: { name: 'Boarding Flurry', text: 'Every 4th attack is three quick blows (3x damage).', effect: { kind: 'everyNth', value: 3, every: 4 } },
+    sp2: { name: 'Salt Hide', text: '+15% HP.', effect: { kind: 'hp', value: 1.15 } },
+    aura: { name: 'Ironclad Crew', text: 'Water heroes get +40% Defense.', effect: { kind: 'def', value: 1.4, team: true, element: 'water' } } },
+  // Rime (Ice Knight)
+  { id: 'rime', rarity: 'rare', name: 'Rime', element: 'water', type: 'Knight', baseAtk: 3.8, baseHp: 150, range: 28, attackCooldown: 1.0, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+    bio: 'A polar bear knight in frosted plate, breath steaming behind a visor rimmed with ice.',
+    basic: { name: 'Frost Blade', text: 'Steady sword blows at the nearest enemy ahead.' },
+    ultimate: { name: 'Ice Pillars', text: ULT('Pillars of ice burst up under') },
+    trait: { name: 'Frostbite', text: `His blows can freeze enemies (10%); the ice bursts when it melts. ${VS.water}` },
+    sp1: { name: 'Glacier Flurry', text: 'Every 5th attack is a rush of blows (3x damage).', effect: { kind: 'everyNth', value: 3, every: 5 } },
+    sp2: { name: 'Frosted Plate', text: '+30% Defense.', effect: { kind: 'def', value: 1.3 } },
+    aura: { name: 'Deep Chill', text: 'Water heroes get +4% chance to freeze.', effect: { kind: 'freezeChance', value: 0.04, team: true, element: 'water' } } },
+  // Skiff (Luka)
+  { id: 'skiff', rarity: 'rare', name: 'Skiff', element: 'water', type: 'Rogue', baseAtk: 5.5, baseHp: 48, range: 24, attackCooldown: 0.6, moveSpeed: 170, unlockCost: 50, upgradeBaseCost: 15, goldMult: 2,
+    bio: 'A sleek otter rogue with a pair of sharpened oyster-shell daggers and pockets full of other people\'s pearls.',
+    basic: { name: 'Shell Daggers', text: 'Very fast slashes at the closest enemy.' },
+    ultimate: { name: 'Sword Storm', text: ULT('Blades of water rain down on') },
+    trait: { name: 'Slippery', text: `Dodges 15% of attacks and earns 2x gold from every kill. ${VS.water}` },
+    sp1: { name: 'Shell Flurry', text: '25% chance for each attack to strike twice.', effect: { kind: 'doubleStrike', value: 0.25 } },
+    sp2: { name: 'Pearl Edge', text: '+25% critical damage.', effect: { kind: 'critDmg', value: 0.25 } },
+    aura: { name: 'Swift Tide', text: 'Water heroes move 25% faster.', effect: { kind: 'moveSpeed', value: 1.25, team: true, element: 'water' } } },
+  // Captain Morrow (Pirato)
+  { id: 'morrow', rarity: 'rare', name: 'Captain Morrow', element: 'water', type: 'Gunner', baseAtk: 6.5, baseHp: 50, range: 175, attackCooldown: 1.2, moveSpeed: 120, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 30,
+    bio: 'A loud parrot pirate in a captain\'s coat, with a long flintlock that fires powder bombs.',
+    basic: { name: 'Powder Shot', text: 'Long-range bomb shots that splash enemies near the target.' },
+    ultimate: { name: 'Bomb Rain', text: ULT('A rain of powder bombs hits') },
+    trait: { name: 'Broadside', text: `Explosive shots splash enemies near the target. ${VS.water}` },
+    sp1: { name: 'Big Bomb', text: 'Every 4th shot is a big bomb: 2.2x damage to every enemy near the target.', effect: { kind: 'slam', value: 2.2, every: 4 } },
+    sp2: { name: 'Quick Powder', text: 'Attacks 15% faster.', effect: { kind: 'attackSpeed', value: 0.85 } },
+    aura: { name: 'Pirate Fury', text: 'Water heroes +40% ATK.', effect: { kind: 'atk', value: 1.4, team: true, element: 'water' } } },
+  // Bluster (Rufus)
+  { id: 'bluster', rarity: 'rare', name: 'Bluster', element: 'water', type: 'Gunner', baseAtk: 6.5, baseHp: 40, range: 190, attackCooldown: 1.2, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+    bio: 'A grey harbour seal with a harpoon cannon strapped to her back and a habit of barking before she fires.',
+    basic: { name: 'Harpoon Shot', text: 'Very long-range harpoons at the nearest enemy.' },
+    ultimate: { name: 'Trigger-Happy', text: ULT('A barrage of harpoons hits') },
+    trait: { name: 'Harpooner', text: `Out-ranges every other hero, but goes down fast. ${VS.water}` },
+    sp1: { name: 'Large Caliber', text: 'Every 3rd shot is a heavy harpoon for 2.5x damage.', effect: { kind: 'everyNth', value: 2.5, every: 3 } },
+    sp2: { name: 'Through and Through', text: 'Harpoons pierce 1 more enemy.', effect: { kind: 'pierce', value: 1 } },
+    aura: { name: 'Steady Aim', text: 'Water heroes deal +20% critical damage.', effect: { kind: 'critDmg', value: 0.2, team: true, element: 'water' } } },
+
+  // ---- Epics ----
+  // Nerissa (Frost Queen)
+  { id: 'nerissa', rarity: 'epic', name: 'Nerissa', element: 'water', type: 'Magician', baseAtk: 9, baseHp: 40, range: 175, attackCooldown: 1.3, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 36,
+    ult: { kind: 'root', seconds: 3, bossSeconds: 1, shield: 0.15 },
+    ultPlus: 'Frost armor also shields every hero for 15% of their max HP.',
+    bio: 'An elemental queen of living ice crystal, with a crown of icicles and a cold blue glow inside.',
+    basic: { name: 'Ice Ball', text: 'Ranged balls of ice that splash every enemy near the target.' },
+    ultimate: { name: 'Blizzard', text: `${ULT('A blizzard sweeps over')} Ice holds them in place for 3 seconds (bosses for 1).` },
+    trait: { name: 'Frozen Heart', text: `Her spells can freeze enemies (15%); the ice bursts on enemies nearby when it melts. ${VS.water}` },
+    sp1: { name: 'Multi-Shot', text: 'Every 4th spell is three quick ice balls (3x damage).', effect: { kind: 'everyNth', value: 3, every: 4 } },
+    sp2: { name: 'Hoarfrost', text: '+5% chance to freeze.', effect: { kind: 'freezeChance', value: 0.05 } },
+    aura: { name: 'Shatter', text: 'Water heroes deal +15% splash damage.', effect: { kind: 'aoeDmg', value: 0.15, team: true, element: 'water' } } },
+  // Glacius (Ice Cube)
+  { id: 'glacius', rarity: 'epic', name: 'Glacius', element: 'water', type: 'Barbarian', baseAtk: 6, baseHp: 75, range: 30, attackCooldown: 1.4, moveSpeed: 95, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
+    ult: { kind: 'root', seconds: 2, bossSeconds: 1, shield: 0.25 },
+    ultPlus: 'The quake also coats every hero in ice: a shield worth 25% of their max HP.',
+    bio: 'A living block of ice with two huge frozen fists. It does not talk, and it does not melt.',
+    basic: { name: 'Ice Fist', text: 'Slow, crushing punches at the nearest enemy ahead.' },
+    ultimate: { name: 'Icy Wave', text: `${ULT('A giant fist slams the ground and ice hits')} Freezes them in place for 2 seconds (bosses for 1).` },
+    trait: { name: 'Permafrost', text: `Boss blows never stun it, and its blows can freeze (10%). ${VS.water}` },
+    sp1: { name: 'Avalanche Fists', text: 'Every 5th attack is a flurry of quick punches (3.5x damage).', effect: { kind: 'everyNth', value: 3.5, every: 5 } },
+    sp2: { name: 'Solid Ice', text: '+20% HP.', effect: { kind: 'hp', value: 1.2 } },
+    aura: { name: 'Ice Armor', text: 'Whole team +25% Defense.', effect: { kind: 'def', value: 1.25, team: true } } },
+  // Undine (Manta)
+  { id: 'undine', rarity: 'epic', name: 'Undine', element: 'water', type: 'Magician', flying: true, baseAtk: 8.5, baseHp: 50, range: 165, attackCooldown: 1.4, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 34,
+    ult: { kind: 'mark', mult: 1.2, seconds: 6, plusMult: 1.3, plusSeconds: 10 },
+    ultPlus: 'The curse lasts 10 seconds and adds 30% instead of 20%.',
+    bio: 'A manta-ray mage gliding on the air as if it were water, trailing glowing tide-marks from her fins.',
+    basic: { name: 'Water Ball', text: 'Ranged water blasts that splash every enemy near the target.' },
+    ultimate: { name: 'Manta Summoning', text: `${ULT('A giant spirit manta crashes into')} Curses them: they take 20% more damage from the whole team for 6 seconds.` },
+    trait: { name: 'Sky Tide', text: `Area damage from high above the fight. ${VS.water}` },
+    sp1: { name: 'Water Bubble', text: 'Every 4th spell also bursts on the enemies just behind the target; everyone hit takes 20% more damage for 4 s.', effect: { kind: 'snowball', value: 1.2, every: 4 } },
+    sp2: { name: 'Wide Wings', text: 'Splash radius +25%.', effect: { kind: 'splash', value: 1.25 } },
+    aura: { name: 'Calm Waters', text: 'Whole team takes 10% less damage.', effect: { kind: 'damageTaken', value: 0.9, team: true } } },
+  // Puff (Namida)
+  { id: 'puff', rarity: 'epic', name: 'Puff', element: 'water', type: 'Gunner', flying: true, baseAtk: 6, baseHp: 46, range: 175, attackCooldown: 1.2, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 30,
+    signature: { kind: 'slow', chance: 0.25, mult: 0.6, seconds: 3 },
+    bio: 'A pufferfish blown up into a little airship, with a rocket launcher under each fin.',
+    basic: { name: 'Bubble Rocket', text: 'Long-range rockets that splash enemies near the target.' },
+    ultimate: { name: 'Missile Rain', text: ULT('A rain of bubble missiles hits') },
+    trait: { name: 'Sticky Bubbles', text: `Hits have a 25% chance to slow enemies to 60% speed for 3 s. ${VS.water}` },
+    sp1: { name: 'Bubble Barrage', text: 'Each rocket also hits the next 2 enemies just behind the target.', effect: { kind: 'pierce', value: 2 } },
+    sp2: { name: 'Quick Reload', text: 'Attacks 15% faster.', effect: { kind: 'attackSpeed', value: 0.85 } },
+    aura: { name: 'Soaked', text: 'Whole team takes 12% less damage.', effect: { kind: 'damageTaken', value: 0.88, team: true } } },
+  // Aurora (Valkyrie)
+  { id: 'aurora', rarity: 'epic', name: 'Aurora', element: 'water', type: 'Ranger', baseAtk: 7, baseHp: 44, range: 190, attackCooldown: 1.0, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+    signature: { kind: 'skyCrit' },
+    bio: 'A snowy owl valkyrie in a silver winged helm, who rides the north wind and shoots arrows of ice.',
+    basic: { name: 'Ice Arrow', text: 'Long-range arrows of ice at the nearest enemy.' },
+    ultimate: { name: 'Ice Arrow Shower', text: ULT('A volley of ice arrows falls on') },
+    trait: { name: 'Valkyrie Sight', text: `Shots at flying enemies always crit, and her arrows can freeze (8%). ${VS.water}` },
+    sp1: { name: 'Multi Ice Arrows', text: 'Every 4th shot is three ice arrows at once (3x damage).', effect: { kind: 'everyNth', value: 3, every: 4 } },
+    sp2: { name: 'North Wind', text: 'Attacks 15% faster.', effect: { kind: 'attackSpeed', value: 0.85 } },
+    aura: { name: 'Battle Hymn', text: 'Whole team deals +20% critical damage.', effect: { kind: 'critDmg', value: 0.2, team: true } } },
+
+  // ---- Commons ----
+  // Bubbles (Blue Fish)
+  { id: 'bubbles', rarity: 'common', name: 'Bubbles', element: 'water', type: 'Magician', flying: true, baseAtk: 7, baseHp: 45, range: 150, attackCooldown: 1.2, moveSpeed: 140, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 32,
+    bio: 'A round blue blowfish that floats along on its own bubbles and spits more of them at enemies.',
+    basic: { name: 'Bubble Cast', text: 'Ranged bubbles that splash every enemy near the target.' },
+    ultimate: { name: 'Bubble Rain', text: ULT('A downpour of bubbles hits') },
+    trait: { name: 'Bubble Float', text: `Quick and hard to pin down. ${VS.water}` },
+    sp1: { name: 'Bubble Stream', text: '20% chance for each attack to cast twice.', effect: { kind: 'doubleStrike', value: 0.2 } },
+    sp2: { name: 'Froth', text: 'Splash radius +20%.', effect: { kind: 'splash', value: 1.2 } },
+    aura: { name: 'Sea Spray', text: 'Water heroes regenerate 1% of max HP every second.', effect: { kind: 'regen', value: 0.01, team: true, element: 'water' } } },
+];
+
+export const WATER_PROFILES: Record<string, HeroProfile> = {
+  gaff: { stunChance: 0.2, crit: 0.2, critDmg: 1.2, specialty: 'Swordbill: 20% chance to stun and 20% crit, softer crits (+120%)' },
+  barnacle: { stunChance: 0.12, defMult: 4.5, crit: 0.03, specialty: 'Anchor shield: 4.5x Defense and 12% chance to stun, rarely crits (3%)' },
+  rime: { freezeChance: 0.1, effectRes: 0.5, atkMult: 0.95, specialty: 'Frost plate: 10% chance to freeze and 50% Effect Resistance, a little less ATK' },
+  skiff: { dodge: 0.15, crit: 0.25, defMult: 0.5, specialty: 'Otter slip: dodges 15% of attacks and 25% crit, but half the Defense' },
+  morrow: { hpMult: 1.1, aoeDmg: 0.1, critDmg: 2, specialty: 'Powder keg: +10% HP and +10% splash damage, softer crits (+200%)' },
+  bluster: { critDmg: 2.6, hpMult: 0.9, effectRes: 0.08, specialty: 'Harpoon gun: crits hit for +260%, but less HP and only 8% Effect Resistance' },
+  nerissa: { freezeChance: 0.15, effectTime: 0.2, hpMult: 0.9, specialty: 'Ice queen: 15% chance to freeze and freezes last 20% longer, less HP' },
+  glacius: { freezeChance: 0.1, hpMult: 1.15, crit: 0.08, specialty: 'Solid ice: 10% chance to freeze and +15% HP, rarely crits (8%)' },
+  undine: { effectRes: 0.4, aoeDmg: 0.15, crit: 0.05, specialty: 'Ray glide: 40% Effect Resistance and +15% splash damage, rarely crits (5%)' },
+  puff: { aoeDmg: 0.2, dodge: 0.06, critDmg: 1.8, specialty: 'Puffed up: +20% splash damage and dodges 6% of attacks, softer crits (+180%)' },
+  aurora: { freezeChance: 0.08, crit: 0.2, critDmg: 1.7, specialty: 'Valkyrie frost: 8% chance to freeze and 20% crit, softer crits (+170%)' },
+  bubbles: { effectRes: 0.35, dodge: 0.08, atkMult: 0.95, specialty: 'Slippery fins: dodges 8% of attacks and 35% Effect Resistance, a little less ATK' },
+};

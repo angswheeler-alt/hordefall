@@ -1,3 +1,6 @@
+import { VS, ULT, HEAL_BASIC } from './heroText';
+import { CRUSH_HEROES } from './heroes';
+
 export type Element = 'water' | 'fire' | 'earth' | 'light' | 'dark';
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
 /**
@@ -86,6 +89,8 @@ export interface HeroDef {
   steadfast?: boolean;
   /** Flies (wings, or a ghost drifting on mist): moves in the sky above the walking heroes. Looks only; combat is the same. */
   flying?: boolean;
+  /** A squad (Crush's troop Commons): this many small fighters share the slot, each with 1/squad of the ATK and HP. */
+  squad?: number;
   /** Attack and HP at gold level 1. */
   baseAtk: number;
   baseHp: number;
@@ -173,16 +178,6 @@ export const ELEMENT_COLORS: Record<Element, number> = {
 // (names only; ids stay) because Crush Them All already has heroes with those names.
 // Type baselines (each hero varies a little): Knight high-HP front line, Magician ranged splash,
 // Ranger and Gunner long-range single target, Support healer, the other melee types quick and hard-hitting.
-const VS: Record<Element, string> = {
-  fire: 'Fire deals 4x to Earth and 0.5x to Water.',
-  earth: 'Earth deals 4x to Water and 0.5x to Fire.',
-  water: 'Water deals 4x to Fire and 0.5x to Earth.',
-  dark: 'Dark deals 2x to Light and 0.5x to Dark.',
-  light: 'Light deals 2x to Dark and 0.5x to Light.',
-};
-const ULT = (what: string) => `${what} every enemy ahead for 40x ATK, with element bonuses.`;
-const HEAL_BASIC = 'Heals the most injured nearby ally for 3x ATK. Attacks when nobody needs healing.';
-
 export const HEROES: HeroDef[] = [
   // ---- Fire: passion and destruction ----
   { id: 'blaze', rarity: 'common', name: 'Flare', element: 'fire', type: 'Barbarian', baseAtk: 7.5, baseHp: 70, range: 30, attackCooldown: 1.3, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
@@ -468,17 +463,20 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Blinding Light', text: 'Every 5th spell blinds the enemies it hits: they miss 40% of their attacks for 3 s.', effect: { kind: 'blind', value: 0.4, every: 5 } },
     sp2: { name: 'Purify', text: 'Deals 25% more damage to bosses.', effect: { kind: 'bossDamage', value: 1.25 } },
     aura: { name: 'Blessing', text: 'Light heroes +15% HP.', effect: { kind: 'hp', value: 1.15, team: true, element: 'light' } } },
+  ...CRUSH_HEROES,
 ];
 
 /** Old hero ids from saves before the 20-hero roster, and who replaced them. */
 /**
  * Heroes players can get: only these drop from chests, Trials, medal bundles and the guild, and only these (plus
- * any a save already owns) show in Collection. A new hero stays off this list until it's fully made. Every hero
- * with finished art is released (2026-10-15).
+ * any a save already owns) show in Collection. A new hero stays off this list until it's coded and balanced;
+ * heroes without art yet use placeholder art (2026-10-15).
  */
 export const RELEASED_HEROES: readonly string[] = [
   'blaze', 'ember', 'flint', 'cinder', 'briar', 'fern', 'thorn', 'moss', 'brine', 'brook', 'ripple', 'marina',
   'shade', 'vex', 'rook', 'dread', 'wraith', 'nyx', 'dawn', 'lumen', 'sol', 'aegis', 'seraph',
+  // Samuel (2026-10-15): release new heroes as soon as they're balanced; they use placeholder art until theirs lands.
+  'shellby', 'celeste', 'ruin', 'brasha', 'tusk', ...CRUSH_HEROES.map((h) => h.id),
 ];
 export const PLAYABLE_HEROES: HeroDef[] = HEROES.filter((h) => RELEASED_HEROES.includes(h.id));
 
