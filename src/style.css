@@ -600,3 +600,7 @@ div.g-req { margin-bottom: 8px; }
 #sheet-rarity .rarity { font-size: 14px; }
 .ct-name .rarity { display: block; font-size: 9px; }
 .team-who .rarity { font-size: 12px; }
+
+/* Pulse the boss button while farming so it is hard to miss */
+#boss:not([hidden]) { animation: boss-pulse 1.4s ease-in-out infinite; }
+@keyframes boss-pulse { 50% { box-shadow: 0 0 0 3px rgba(255,255,255,.35), 0 0 14px var(--hot); transform: scale(1.04); } }

@@ -883,6 +883,7 @@ export class BattleScene extends Phaser.Scene {
       this.state.autoAdvance = false;
     }
     this.banner(reason, '#ff6b6b');
+    if (isBossStage(stage)) this.time.delayedCall(1400, () => this.banner('Tap FIGHT BOSS to retry', '#ffd27a'));
     play('defeat');
     this.state.save();
     this.nextStageTimer = this.time.delayedCall(1300, () => this.startStage());
@@ -1860,7 +1861,7 @@ export class BattleScene extends Phaser.Scene {
   private drawHud() {
     const stage = this.state.stage;
     const boss = isBossStage(stage);
-    this.stageText.setText(`Stage ${stage}${boss ? ' · BOSS' : ''}`);
+    this.stageText.setText(`Stage ${stage}${boss ? ' · BOSS' : this.state.autoAdvance ? '' : ' · Farming'}`);
 
     const ratio = this.crystal.maxHp.gt(0) ? Math.max(0, this.crystal.hp.div(this.crystal.maxHp).toNumber()) : 0;
     this.crystalBar.clear();
