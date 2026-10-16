@@ -587,6 +587,8 @@ export const WHEEL_PRIZES: Array<{ prize: WheelPrize; weight: number }> = [
 ];
 /** Each player level adds this much to every Ember payout. */
 export const KEEPER_BONUS_PER_LEVEL = 0.1;
+/** Enhance Stones gifted for each new player level (Samuel: no medals from Rekindling). */
+export const LEVEL_GIFT_STONES = 10;
 /**
  * Hero Crests (medals) for each evolution, from Samuel's table: a hero unlocks
  * at 1★ and evolves up to 8★ (1★→2★ costs 10, ... 7★→8★ costs 5,000).

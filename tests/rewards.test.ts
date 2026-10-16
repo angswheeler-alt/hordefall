@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameState } from '../src/state';
-import { HEROES, START_GEMS, ROAD_START, ROAD_STEP, ROAD_LENGTH, REKINDLE_STAGE, RELICS, WHEEL_PRIZES, CHEST_DROPS } from '../src/data';
+import { HEROES, START_GEMS, ROAD_START, ROAD_STEP, ROAD_LENGTH, REKINDLE_STAGE, RELICS, WHEEL_PRIZES, LEVEL_GIFT_STONES } from '../src/data';
 import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, BOOTCAMP, ACHIEVEMENTS, dayKey } from '../src/rewards';
 
 function fresh() {
@@ -142,11 +142,13 @@ describe('Rekindle Wheel', () => {
     expect(WHEEL_PRIZES.every((p) => (p.prize.kind as string) !== 'chest')).toBe(true);
     const s = fresh();
     s.reachStage(ROAD_START + 100 * ROAD_STEP);
+    const crests = { ...s.crests };
     const r = s.rekindle(1)!;
     expect(r.wheel.length).toBe(ROAD_LENGTH);
     expect(r.wheel.some((line) => line.includes('Chest'))).toBe(false);
-    // The only drops left are the player level gifts.
-    expect(r.drops.length).toBe(r.levelsGained * CHEST_DROPS);
+    expect(r.levelsGained).toBeGreaterThan(0);
+    expect(r.stones).toBe(r.levelsGained * LEVEL_GIFT_STONES);
+    expect(s.crests).toEqual(crests);
   });
 });
 
