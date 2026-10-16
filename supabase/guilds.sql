@@ -216,18 +216,19 @@ language sql immutable as $$
 $$;
 
 -- Ask guildmates for a Common hero's medals: one request per 4 hours, 10 medals,
--- open for 4 hours, so a player gets at most 10 medals every 4 hours.
+-- open for 4 hours, so a player gets at most 10 medals every 4 hours. p_goal is
+-- ignored (every request asks for 10), so a game tab opened before an update
+-- still works.
 create or replace function public.request_guild_medals(p_hero text, p_goal integer) returns bigint
 language plpgsql security definer set search_path = public as $$
 declare g uuid := public.my_guild(); r bigint;
 begin
   if g is null then raise exception 'Join a guild first.'; end if;
-  if p_goal is distinct from 10 then raise exception 'Unknown request size.'; end if;
   if not (p_hero = any(public.guild_requestable_heroes())) then raise exception 'Only Common heroes can be requested.'; end if;
   if exists (select 1 from guild_requests where user_id = auth.uid() and created_at > now() - interval '4 hours') then
     raise exception 'You can ask again 4 hours after your last request.';
   end if;
-  insert into guild_requests (guild_id, user_id, username, hero_id, goal) values (g, auth.uid(), public.guild_username(), p_hero, p_goal)
+  insert into guild_requests (guild_id, user_id, username, hero_id, goal) values (g, auth.uid(), public.guild_username(), p_hero, 10)
     returning id into r;
   return r;
 end $$;

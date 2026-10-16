@@ -15,7 +15,7 @@ describe('guild medal requests', () => {
     expect(GUILD_REQUEST_HOURS).toBe(4);
     // A request closes before the next one can open, so two can't fill at once.
     expect(GUILD_REQUEST_OPEN_HOURS).toBeLessThanOrEqual(GUILD_REQUEST_HOURS);
-    expect(sql).toMatch(/p_goal is distinct from 10/);
+    expect(sql).toMatch(/public\.guild_username\(\), p_hero, 10\)/);
     expect(sql.match(/interval '4 hours'/g)?.length).toBe(2);
   });
 });
