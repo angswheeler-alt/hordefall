@@ -894,11 +894,11 @@ export const RELIC_SLOT_STAGES = [25, 50, 100, 150, 200, 250, 300, 400, 500, 600
 // ---------- guilds (server rules live in supabase/guilds.sql) ----------
 
 export const GUILD_MAX_MEMBERS = 30;
-/** Medals a guild request asks for, by the hero's rarity. Rarer heroes ask for fewer. Legendary heroes can't be requested. */
-export const GUILD_REQUEST_GOALS: Record<Exclude<Rarity, 'legendary'>, number> = { common: 20, rare: 10, epic: 5 };
-/** Hours between a player's guild requests, and how long a request stays open. */
-export const GUILD_REQUEST_HOURS = 8;
-export const GUILD_REQUEST_OPEN_HOURS = 24;
+/** Guild requests are for Common heroes only, and ask for this many medals. */
+export const GUILD_REQUEST_GOAL = 10;
+/** Hours between a player's guild requests, and how long a request stays open: at most 10 medals per 4 hours. */
+export const GUILD_REQUEST_HOURS = 4;
+export const GUILD_REQUEST_OPEN_HOURS = 4;
 /** Most medals one guildmate can give to one request. */
 export const GUILD_DONATE_MAX = 5;
 /** Guild Coins a donor earns per medal given, by the hero's rarity. */

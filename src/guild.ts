@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
-  HEROES, RELEASED_HEROES, GUILD_MAX_MEMBERS, GUILD_REQUEST_GOALS, GUILD_REQUEST_HOURS, GUILD_REQUEST_OPEN_HOURS, GUILD_DONATE_MAX, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP,
+  HEROES, RELEASED_HEROES, GUILD_MAX_MEMBERS, GUILD_REQUEST_GOAL, GUILD_REQUEST_HOURS, GUILD_REQUEST_OPEN_HOURS, GUILD_DONATE_MAX, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP,
   GUILD_BOSS_ATTEMPTS, GUILD_BOSS_NAMES, GUILD_BOSS_PAR_ATTEMPTS, ELEMENT_COLORS, elementMultiplier, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, guildResearchPerAttempt, GUILD_WILD_PER_WEEK, GUILD_WILD_COST, GUILD_EMBER_POUCHES_PER_DAY, GUILD_QUESTS, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS,
   type HeroDef, type GuildShopId, type Element, type ResearchBranch,
 } from './data';
@@ -41,10 +41,12 @@ const ROLE_ORDER: Record<Role, number> = { leader: 0, officer: 1, member: 2 };
 const ROLE_NAME: Record<Role, string> = { leader: 'Leader', officer: 'Officer', member: 'Member' };
 
 const hero = (id: string) => HEROES.find((h) => h.id === id);
-const requestable = (h: HeroDef) => h.rarity !== 'legendary' && RELEASED_HEROES.includes(h.id);
+/** Heroes Wild Medals can buy: any released non-Legendary. */
+const wildable = (h: HeroDef) => h.rarity !== 'legendary' && RELEASED_HEROES.includes(h.id);
+/** Heroes guildmates can be asked for: released Commons only (the server checks this too). */
+const requestable = (h: HeroDef) => h.rarity === 'common' && RELEASED_HEROES.includes(h.id);
 const utcDay = () => new Date().toISOString().slice(0, 10);
 const big = (v: number | string) => new Decimal(v);
-const goalFor = (h: HeroDef) => GUILD_REQUEST_GOALS[h.rarity as keyof typeof GUILD_REQUEST_GOALS];
 const ago = (iso: string) => {
   const mins = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
   return mins < 1 ? 'now' : mins < 60 ? `${mins}m` : mins < 1440 ? `${Math.floor(mins / 60)}h` : `${Math.floor(mins / 1440)}d`;
@@ -416,19 +418,19 @@ export class Guild {
     const faces = HEROES.filter(requestable)
       .map((h) => {
         const owned = (this.state.levels[h.id] ?? 0) > 0;
-        return `<button type="button" class="g-pick" data-hero="${h.id}"><span class="face art" style="${faceStyle(h)}">${h.name[0]}</span><b>${esc(h.name)}</b><small>${owned ? '' : 'Locked · '}asks ${goalFor(h)}</small></button>`;
+        return `<button type="button" class="g-pick" data-hero="${h.id}"><span class="face art" style="${faceStyle(h)}">${h.name[0]}</span><b>${esc(h.name)}</b><small>${owned ? '' : 'Locked · '}asks ${GUILD_REQUEST_GOAL}</small></button>`;
       })
       .join('');
     this.ui.showModal(
       'Ask for medals',
-      `<p>Guildmates can each give up to ${GUILD_DONATE_MAX}. Rarer heroes ask for fewer: Common ${GUILD_REQUEST_GOALS.common}, Rare ${GUILD_REQUEST_GOALS.rare}, Epic ${GUILD_REQUEST_GOALS.epic}. You can ask once every ${GUILD_REQUEST_HOURS} hours.</p><div class="g-picks">${faces}</div>`,
+      `<p>Guildmates can each give up to ${GUILD_DONATE_MAX}. You can ask for a Common hero's medals, up to ${GUILD_REQUEST_GOAL} once every ${GUILD_REQUEST_HOURS} hours.</p><div class="g-picks">${faces}</div>`,
       'Cancel',
     );
     $('modal-body').querySelectorAll<HTMLButtonElement>('.g-pick').forEach((btn) =>
       btn.addEventListener('click', () => {
         const h = hero(btn.dataset.hero!)!;
         $('modal').hidden = true;
-        void this.call('request_guild_medals', { p_hero: h.id, p_goal: goalFor(h) });
+        void this.call('request_guild_medals', { p_hero: h.id, p_goal: GUILD_REQUEST_GOAL });
       }),
     );
   }
@@ -436,7 +438,7 @@ export class Guild {
   /** Wild Medals: pick any non-Legendary hero, then how many. */
   private pickWild() {
     const left = this.state.wildMedalsLeft();
-    const faces = HEROES.filter(requestable)
+    const faces = HEROES.filter(wildable)
       .map((h) => {
         const cost = this.state.wildMedalCost(h.id)!;
         const owned = (this.state.levels[h.id] ?? 0) > 0;
