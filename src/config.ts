@@ -13,3 +13,7 @@ export const SUPABASE_ANON_KEY: string = import.meta.env.VITE_SUPABASE_ANON_KEY 
  * No mail is ever sent to it ("Confirm email" must be off in Supabase).
  */
 export const USERNAME_DOMAIN = 'players.hordefall.invalid';
+
+/** Prototype tools (Simulate 1h away, +100 Gems): local dev builds, or the live link opened with ?dev. */
+export const DEV_TOOLS: boolean =
+  import.meta.env.DEV || (typeof location !== 'undefined' && new URLSearchParams(location.search).has('dev'));

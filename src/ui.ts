@@ -1,3 +1,4 @@
+import { DEV_TOOLS } from './config';
 import Decimal from 'break_infinity.js';
 import type { HeroStats, BigStat, StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
@@ -519,7 +520,11 @@ export class UI {
       this.state.stallBuyAmount = order[(order.indexOf(this.state.stallBuyAmount) + 1) % order.length];
       this.render();
     });
-    $('sim').addEventListener('click', () => this.hooks.simulateAway());
+    // Test shortcuts stay out of regular players' hands: only dev builds or a ?dev link show them.
+    $('devtools').hidden = !DEV_TOOLS;
+    $('sim').addEventListener('click', () => {
+      if (DEV_TOOLS) this.hooks.simulateAway();
+    });
     $('acct-reset').addEventListener('click', () => this.confirmReset());
     $('modal-ok').addEventListener('click', () => {
       $('modal').hidden = true;
@@ -577,6 +582,7 @@ export class UI {
     }
     this.setTab(TABS.includes(saved as Tab) ? (saved as Tab) : 'heroes');
     $('freegems').addEventListener('click', () => {
+      if (!DEV_TOOLS) return;
       this.state.gems += 100;
       this.render();
     });
