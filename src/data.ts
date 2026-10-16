@@ -572,16 +572,16 @@ export const REKINDLE_BOOSTS: Array<{ mult: number; gems: number }> = [
 /**
  * Rekindle Wheel (the original's Ascension Wheel): 16 slots that unlock as this
  * run's best stage passes 150, 200, 250... Each unlocked slot is one spin of
- * the wheel when you Rekindle. Prizes are never Gems (those come from rewards.ts).
+ * the wheel when you Rekindle. Prizes are never Gems (those come from rewards.ts)
+ * and never medals (Samuel: Rekindling shouldn't pay Hero Crests).
  */
 export const ROAD_START = 150;
 export const ROAD_STEP = 50;
 export const ROAD_LENGTH = 16;
-export type WheelPrize = { kind: 'chest' } | { kind: 'tickets'; amount: number } | { kind: 'essence'; amount: number } | { kind: 'stones'; amount: number } | { kind: 'embers'; share: number };
+export type WheelPrize = { kind: 'tickets'; amount: number } | { kind: 'essence'; amount: number } | { kind: 'stones'; amount: number } | { kind: 'embers'; share: number };
 export const WHEEL_PRIZES: Array<{ prize: WheelPrize; weight: number }> = [
-  { prize: { kind: 'chest' }, weight: 30 },
-  { prize: { kind: 'tickets', amount: 3 }, weight: 25 },
-  { prize: { kind: 'essence', amount: 40 }, weight: 25 },
+  { prize: { kind: 'tickets', amount: 3 }, weight: 35 },
+  { prize: { kind: 'essence', amount: 40 }, weight: 30 },
   { prize: { kind: 'stones', amount: 2 }, weight: 15 },
   { prize: { kind: 'embers', share: 0.05 }, weight: 20 },
 ];

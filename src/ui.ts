@@ -1063,7 +1063,7 @@ export class UI {
     $('rk-road-gems').textContent = reached > 0 ? `${reached} spin${reached === 1 ? '' : 's'}` : '';
     $('rk-road-next').textContent =
       (reached < ROAD_LENGTH ? `Next unlock at stage ${(ROAD_START + reached * ROAD_STEP).toLocaleString()} this run. ` : 'Every slot unlocked. ') +
-      'Each slot spins the wheel once when you Rekindle: a Hero Chest, Trial tickets, Trial Essence or extra Embers.';
+      'Each slot spins the wheel once when you Rekindle: Trial tickets, Trial Essence, Enhance Stones or extra Embers.';
 
     const level = s.keeperLevel();
     const from = level === 1 ? 0 : keeperThreshold(level - 1);
