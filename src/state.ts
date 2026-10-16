@@ -28,7 +28,7 @@ export interface RekindleResult {
   embers: number;
   /** One line per Rekindle Wheel spin. */
   wheel: string[];
-  /** Hero Chest drops from the wheel and from player level gifts. */
+  /** Hero Chest drops from player level gifts (the wheel never pays medals). */
   drops: SummonDrop[];
   levelsGained: number;
 }
@@ -824,7 +824,7 @@ export class GameState {
     this.secondsPerStage = 20;
     this.goldPerSec = 0;
     this.save();
-    return { embers: gained, wheel: wheel.lines, drops: [...wheel.drops, ...gifts], levelsGained };
+    return { embers: gained, wheel: wheel.lines, drops: gifts, levelsGained };
   }
 
   /** Buy `count` Ember levels (or as many as the Embers pay for); all or nothing for x1 / x10. */
@@ -860,14 +860,10 @@ export class GameState {
   /** Spin the Rekindle Wheel once per unlocked slot. Ember prizes are a share of `base` and are added by the caller. */
   private spinWheel(base: number) {
     const lines: string[] = [];
-    const drops: SummonDrop[] = [];
     let embers = 0;
     for (let i = 0; i < this.roadReached(); i++) {
       const prize = weighted(WHEEL_PRIZES.map((p) => [p.prize, p.weight] as [WheelPrize, number]));
-      if (prize.kind === 'chest') {
-        drops.push(...this.rollChest());
-        lines.push('Hero Chest');
-      } else if (prize.kind === 'tickets') {
+      if (prize.kind === 'tickets') {
         this.refreshTickets();
         this.tickets = Math.min(TICKET_CAP, this.tickets + prize.amount);
         lines.push(`${prize.amount} Trial tickets`);
@@ -885,7 +881,7 @@ export class GameState {
         lines.push(`+${Math.round(prize.share * 100)}% Embers`);
       }
     }
-    return { lines, drops, embers };
+    return { lines, embers };
   }
 
   // ---------- free Gem sources (rewards.ts) ----------
