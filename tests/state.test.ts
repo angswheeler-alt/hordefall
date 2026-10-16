@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Decimal from 'break_infinity.js';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS } from '../src/profiles';
 import { GameState, rarityOdds, weekKey } from '../src/state';
-import { emberCost, emberRefund } from '../src/formulas';
+import { emberBulk, emberCost, emberRefund } from '../src/formulas';
 import { mulEffect } from '../src/skills';
 import {
   HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, AURA_EVOLUTIONS, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, LINEUP_SIZE,
@@ -597,6 +597,21 @@ describe('rekindle', () => {
     expect(t.load()).toBe(true);
     expect(t.emberLevels[starter.id]).toBe(37);
     expect(t.emberLevels[other.id]).toBe(12);
+  });
+
+  it('buys Ember levels x1, x10 and max', () => {
+    const s = fresh();
+    s.embers = emberBulk(0, 10, 0).cost + 1;
+    expect(s.buyEmbers(starter.id, 10)).toBe(10);
+    expect(s.emberLevels[starter.id]).toBe(10);
+    expect(s.embers).toBe(1);
+    expect(s.buyEmbers(starter.id, 10)).toBe(0);
+    expect(s.emberLevels[starter.id]).toBe(10);
+    s.embers = 100;
+    const want = emberBulk(10, 'max', 100);
+    expect(s.buyEmbers(starter.id, 'max')).toBe(want.levels);
+    expect(s.embers).toBe(100 - want.cost);
+    expect(s.embers).toBeLessThan(emberCost(10 + want.levels));
   });
 
   it('refunds every Ember spent when the player resets a hero', () => {

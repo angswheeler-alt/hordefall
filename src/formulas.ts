@@ -93,6 +93,20 @@ export function emberCost(level: number): number {
   return Math.ceil(Math.pow(EMBER_COST_GROWTH, level));
 }
 
+/** Ember levels and their total cost for Buy x1 / x10 / max, the same rule as gold levels. */
+export function emberBulk(level: number, count: number | 'max', embers: number): { levels: number; cost: number } {
+  let cost = 0;
+  let n = 0;
+  const limit = count === 'max' ? 10000 : count;
+  while (n < limit) {
+    const next = cost + emberCost(level + n);
+    if (count === 'max' && next > embers) break;
+    cost = next;
+    n++;
+  }
+  return { levels: n, cost };
+}
+
 /** Embers spent to raise a hero from Ember level 0 to `level`; what a reset gives back. */
 export function emberRefund(level: number): number {
   let total = 0;
