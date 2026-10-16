@@ -251,6 +251,15 @@ describe('medals, unlocks and evolution', () => {
     expect(s.heroPower(starter, 10).atk.div(a).toNumber()).toBeCloseTo(1, 6);
   });
 
+  it('two Supports rally additively (+30% ATK, not +32.25%)', () => {
+    const s = fresh();
+    const a = s.heroPower(starter, 10).atk;
+    const supports = HEROES.filter((h) => h.type === 'Support').slice(0, 2);
+    expect(supports).toHaveLength(2);
+    for (const h of supports) s.levels[h.id] = 1;
+    expect(s.heroPower(starter, 10).atk.div(a).toNumber()).toBeCloseTo(1.3, 6);
+  });
+
   it('opening a chest costs gems and gives crests', () => {
     const s = fresh();
     s.gems = CHEST_COST - 1;
