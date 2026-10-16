@@ -123,3 +123,35 @@ describe('boss crowd-control resistance', () => {
     expect(controlEnd(true, 0, 0, 0, 3, 1)?.until).toBe(1);
   });
 });
+
+describe('full Crush roster', () => {
+  it('gives every hero a unique id and a profile of its own', async () => {
+    const { HERO_PROFILES } = await import('../src/profiles');
+    const ids = HEROES.map((h) => h.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const h of HEROES) expect(HERO_PROFILES[h.id], h.id).toBeTruthy();
+  });
+
+  it('releases every hero (heroes without art use placeholder art)', async () => {
+    const { RELEASED_HEROES } = await import('../src/data');
+    for (const h of HEROES) expect(RELEASED_HEROES, h.id).toContain(h.id);
+  });
+
+  it('makes troop Commons squads of three, and only Commons', () => {
+    const squads = HEROES.filter((h) => h.squad);
+    expect(squads.length).toBe(10);
+    for (const h of squads) {
+      expect(h.squad).toBe(3);
+      expect(h.rarity).toBe('common');
+    }
+  });
+
+  it('keeps whole-team auras modest (element-only auras can go higher)', () => {
+    for (const h of HEROES) {
+      const fx = h.aura.effect;
+      if (!fx?.team || fx.element) continue;
+      if (fx.kind === 'atk' || fx.kind === 'hp' || fx.kind === 'def') expect(fx.value, h.id).toBeLessThanOrEqual(1.25);
+      if (fx.kind === 'damageTaken') expect(fx.value, h.id).toBeGreaterThanOrEqual(0.88);
+    }
+  });
+});

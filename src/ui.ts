@@ -3,6 +3,7 @@ import type { HeroStats, BigStat, StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
 import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
+import { HERO_ANIMS } from './heroAnims';
 import { setMuted } from './sfx';
 import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
 import type { GameState, OfflineReport, SummonDrop, RekindleResult } from './state';
@@ -23,8 +24,10 @@ const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
  * Hero portrait URL, made absolute: a relative url() inside a CSS variable resolves against the
  * stylesheet that uses it (assets/ in a build), not the page, so portraits went missing there.
  */
-const heroArt = (id: string) => `url('${new URL(`heroes/${id}.png`, document.baseURI).href}')`;
-export const faceStyle = (def: HeroDef) => `background-color:${hex(ELEMENT_COLORS[def.element])};--art:${heroArt(def.id)}`;
+const heroArt = (id: string) => (HERO_ANIMS[id] ? `url('${new URL(`heroes/${id}.png`, document.baseURI).href}')` : 'none');
+// Heroes still waiting for art show their initial on the element color instead of a picture.
+export const faceStyle = (def: HeroDef) =>
+  `background-color:${hex(ELEMENT_COLORS[def.element])};--art:${heroArt(def.id)}${HERO_ANIMS[def.id] ? '' : ';color:#fff !important;text-shadow:0 1px 0 #000 !important'}`;
 const SWORD = '<i class="ico ico-atk" aria-hidden="true"></i>';
 const HEART = '<i class="ico ico-hp" aria-hidden="true"></i>';
 const ULT_ICONS: Record<string, string> = {
@@ -174,7 +177,7 @@ export class UI {
           const pct = need ? Math.min(100, (crests / need) * 100) : 0;
           const stars = recruited ? `<span class="ct-stars">★${(s.stars[h.id] ?? 0) + 1}</span>` : '';
           const foot = maxed ? '<span class="ct-maxed">Maxed</span>' : `<div class="ct-bar"><i style="width:${pct}%"></i></div><span class="ct-count">${crests.toLocaleString()}</span>`;
-          return `<div class="ct${recruited ? '' : ' locked'}${s.canUnlock(h) ? ' ready' : ''}${s.inLineup(h.id) ? ' team' : ''}"><button type="button" class="ct-tile" data-coll="${h.id}" aria-label="${h.name}" style="--el:${hex(ELEMENT_COLORS[el])}"><span class="ct-art" style="--art:${heroArt(h.id)}"></span>${stars}<span class="ct-name">${h.name}${rarityTag(h)}</span></button>${foot}</div>`;
+          return `<div class="ct${recruited ? '' : ' locked'}${s.canUnlock(h) ? ' ready' : ''}${s.inLineup(h.id) ? ' team' : ''}"><button type="button" class="ct-tile" data-coll="${h.id}" aria-label="${h.name}" style="--el:${hex(ELEMENT_COLORS[el])}"><span class="ct-art" style="--art:${heroArt(h.id)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span>${stars}<span class="ct-name">${h.name}${rarityTag(h)}</span></button>${foot}</div>`;
         })
         .join('');
       return `<section class="ct-group">${tiles}</section>`;
