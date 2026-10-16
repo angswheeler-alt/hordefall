@@ -6,7 +6,7 @@ import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, U
 import { play } from './sfx';
 import { HERO_ANIMS } from './heroAnims';
 import { setMuted } from './sfx';
-import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
+import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberRefund, emberBulk, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
 import type { GameState, OfflineReport, SummonDrop, RekindleResult } from './state';
 import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, BOOTCAMP, rewardText, type Reward } from './rewards';
 import { rarityOdds } from './state';
@@ -504,6 +504,7 @@ export class UI {
         this.render();
       }
     });
+    $('sheet-buyamt').addEventListener('click', () => $('buyamt').click());
     $('buyamt').addEventListener('click', () => {
       const order: Array<1 | 10 | 'max'> = [1, 10, 'max'];
       this.state.buyAmount = order[(order.indexOf(this.state.buyAmount) + 1) % order.length];
@@ -630,6 +631,28 @@ export class UI {
       const def = HEROES.find((h) => h.id === this.sheetHero);
       if (def) this.buyEmber(def);
     });
+    $('sheet-ember-reset').addEventListener('click', () => {
+      const def = HEROES.find((h) => h.id === this.sheetHero);
+      if (def) this.confirmEmberReset(def);
+    });
+  }
+
+  /** The player's choice to take a hero back to Ember +0, with every Ember refunded. */
+  private confirmEmberReset(def: HeroDef) {
+    const level = this.state.emberLevels[def.id] ?? 0;
+    if (level <= 0) return;
+    this.showModal(
+      `Reset ${def.name}'s Embers?`,
+      `${def.name} goes from Ember level <b>+${level}</b> back to <b>+0</b>, and you get back all <b class="ember-text">${fmt(emberRefund(level))} Embers</b> spent on them to use on any hero.`,
+      'Reset Embers',
+      () => {
+        this.state.resetEmbers(def.id);
+        this.scene()?.syncHeroes();
+        this.render();
+      },
+      true,
+      'Cancel',
+    );
   }
 
   /** Hero Chest pop-up: shows what's inside and asks before spending Gems. */
@@ -746,11 +769,15 @@ export class UI {
 
     $('sheet-ember-lvl').textContent = `+${ember}`;
     $('sheet-embers').textContent = String(s.embers);
-    const ec = emberCost(ember);
+    const eb = emberBulk(ember, s.buyAmount, s.embers);
+    const eShown = eb.levels > 0 ? eb : emberBulk(ember, 1, s.embers);
     const emberBtn = $<HTMLButtonElement>('sheet-ember-up');
-    (emberBtn.querySelector('.cost') as HTMLElement).textContent = `${ec} Ember${ec === 1 ? '' : 's'}`;
-    emberBtn.disabled = ec > s.embers;
-    $('sheet-ember-note').textContent = 'Ember levels stay on this hero for good, even out of the team, and count in Trials and PvP.';
+    (emberBtn.querySelector('.label') as HTMLElement).textContent = `Ember +${eShown.levels}`;
+    (emberBtn.querySelector('.cost') as HTMLElement).textContent = `${fmt(eShown.cost)} Ember${eShown.cost === 1 ? '' : 's'}`;
+    emberBtn.disabled = eShown.cost > s.embers;
+    $('sheet-buyamt').textContent = `Buy ${s.buyAmount === 'max' ? 'max' : `x${s.buyAmount}`}`;
+    $('sheet-ember-note').textContent = 'Ember levels stay on this hero through Rekindle and out of the team, and count in Trials and PvP. Only a reset takes them off.';
+    $('sheet-ember-reset').hidden = ember <= 0;
     emberBtn.title = s.rekindles === 0 ? `Earn Embers by Rekindling after stage ${REKINDLE_STAGE}` : '';
 
     const ultReady = eff >= ULT_UNLOCK_LEVEL;
@@ -1228,11 +1255,7 @@ export class UI {
   }
 
   private buyEmber(def: HeroDef) {
-    const level = this.state.emberLevels[def.id] ?? 0;
-    const cost = emberCost(level);
-    if (cost > this.state.embers) return;
-    this.state.embers -= cost;
-    this.state.emberLevels[def.id] = level + 1;
+    if (this.state.buyEmbers(def.id, this.state.buyAmount) <= 0) return;
     this.scene()?.syncHeroes();
     this.render();
   }
