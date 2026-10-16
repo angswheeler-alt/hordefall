@@ -1,5 +1,5 @@
 import Decimal from 'break_infinity.js';
-import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
+import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, MILESTONE_STEP, milestoneReward, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
 import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
 import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
@@ -117,6 +117,8 @@ export class GameState {
   achieved: Record<string, number> = {};
   /** Bootcamp goals already claimed. */
   bootcamp: string[] = [];
+  /** Highest Stage Milestone claimed (a multiple of MILESTONE_STEP; 0 = none). Lifetime, never reset. */
+  milestone = 0;
   /** Hero Crests (copies) per hero, for evolution. Nothing drops them yet. */
   crests: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, 0]));
   /** Evolution stars per hero (0-7). Permanent. */
@@ -1238,11 +1240,49 @@ export class GameState {
     return true;
   }
 
+  /** Highest milestone stage whose boss has been beaten (best stage ever, so Rekindle can't farm it). */
+  milestoneReached(): number {
+    return Math.floor((this.bestStage - 1) / MILESTONE_STEP) * MILESTONE_STEP;
+  }
+
+  /** Milestones beaten but not yet claimed. */
+  milestonesReady(): number {
+    return Math.max(0, (this.milestoneReached() - this.milestone) / MILESTONE_STEP);
+  }
+
+  /** Claim every waiting Stage Milestone at once. Returns the total paid, or null when none is waiting. */
+  claimMilestones(): { count: number; chests: number; stones: number; tickets: number; gold: Decimal; drops: SummonDrop[] } | null {
+    const count = this.milestonesReady();
+    if (count <= 0) return null;
+    let chests = 0;
+    let stones = 0;
+    let tickets = 0;
+    let minutes = 0;
+    for (let m = this.milestone + MILESTONE_STEP; m <= this.milestoneReached(); m += MILESTONE_STEP) {
+      const r = milestoneReward(m);
+      chests += r.chests;
+      stones += r.stones;
+      tickets += r.tickets;
+      minutes += r.goldMinutes;
+    }
+    this.milestone = this.milestoneReached();
+    const drops: SummonDrop[] = [];
+    for (let i = 0; i < chests; i++) drops.push(...this.rollChest());
+    this.enhanceStones += stones;
+    this.refreshTickets();
+    this.tickets = Math.min(TICKET_CAP, this.tickets + tickets);
+    const gold = this.goldFor(minutes);
+    this.gold = this.gold.plus(gold);
+    this.save();
+    return { count, chests, stones, tickets, gold, drops };
+  }
+
   /** True when any free reward is waiting (drives the Shop tab badge). */
   rewardsWaiting(now = Date.now()): boolean {
     return (
       this.loginState(now).ready ||
       this.spinReady(now) ||
+      this.milestonesReady() > 0 ||
       this.medalBundleState(now).ready ||
       this.dailies(now).some((r) => !r.claimed && r.progress >= r.def.goal) ||
       this.achievements().some((a) => a.ready) ||
@@ -1305,6 +1345,7 @@ export class GameState {
       guildResearch: this.guildResearch,
       achieved: this.achieved,
       bootcamp: this.bootcamp,
+      milestone: this.milestone,
       stalls: this.stalls,
       benched: this.benched,
       tickets: this.tickets,
@@ -1415,6 +1456,7 @@ export class GameState {
       }
       this.achieved = { ...(d.achieved ?? {}) };
       this.bootcamp = [...(d.bootcamp ?? [])];
+      this.milestone = d.milestone ?? 0;
       this.tickets = d.tickets ?? TICKET_CAP;
       this.ticketClock = d.ticketClock ?? Date.now();
       this.trialBest = { ...(d.trialBest ?? {}) };
@@ -1480,6 +1522,7 @@ export class GameState {
     this.lastSeen = num(this.lastSeen, Date.now());
     for (const k of STAT_KEYS) this.stats[k] = Math.max(0, num(this.stats[k], 0));
     this.login.count = Math.max(0, Math.floor(num(this.login.count, 0)));
+    this.milestone = Math.max(0, Math.floor(num(this.milestone, 0) / MILESTONE_STEP) * MILESTONE_STEP);
     for (const h of HEROES) {
       this.levels[h.id] = Math.max(0, Math.floor(num(this.levels[h.id], 0)));
       this.emberLevels[h.id] = Math.max(0, Math.floor(num(this.emberLevels[h.id], 0)));

@@ -8,7 +8,7 @@ import { HERO_ANIMS } from './heroAnims';
 import { setMuted } from './sfx';
 import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberRefund, emberBulk, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
 import type { GameState, OfflineReport, SummonDrop, RekindleResult } from './state';
-import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, BOOTCAMP, rewardText, type Reward } from './rewards';
+import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, BOOTCAMP, MILESTONE_STEP, milestoneReward, milestoneText, rewardText, type Reward } from './rewards';
 import { rarityOdds } from './state';
 import type { BattleScene } from './BattleScene';
 
@@ -1135,6 +1135,17 @@ export class UI {
       this.showModal('Daily Medal Bundle', `${dropCards(drops)}Come back tomorrow for a new bundle.`, 'Collect');
       this.render();
     });
+    $('ms-claim').addEventListener('click', () => {
+      const got = this.state.claimMilestones();
+      if (!got) return;
+      play('chest');
+      this.scene()?.syncHeroes();
+      const paid = milestoneText({ chests: got.chests, stones: got.stones, tickets: got.tickets, goldMinutes: 0 });
+      const gold = got.gold.gt(0) ? `${paid ? ' + ' : ''}${fmt(got.gold)} gold` : '';
+      const what = got.count === 1 ? 'a Stage Milestone' : `${got.count} Stage Milestones`;
+      this.showModal('Stage Milestone', `You claimed ${what}: <b>${paid}${gold}</b>.${dropCards(got.drops)}`, 'Collect');
+      this.render();
+    });
     $('rewards').addEventListener('click', (e) => {
       const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-claim]');
       if (!btn || btn.disabled) return;
@@ -1218,6 +1229,25 @@ export class UI {
     $('bundle-note').textContent = bundle.claimed ? 'Claimed' : `${Math.min(bundle.done, bundle.need)}/${bundle.need} challenges`;
     $<HTMLButtonElement>('bundle-claim').disabled = !bundle.ready;
     $('bundle-claim').textContent = bundle.claimed ? 'New bundle tomorrow' : bundle.ready ? 'Claim free' : `Finish ${bundle.need} daily challenges`;
+
+    // Stage Milestones: the next few on a small track, so the next reward is always in sight.
+    const ready = s.milestonesReady();
+    const reached = s.milestoneReached();
+    const first = s.milestone + MILESTONE_STEP;
+    const nodes: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      const stage = first + i * MILESTONE_STEP;
+      const r = milestoneReward(stage);
+      const cls = stage <= reached ? 'ready' : stage === reached + MILESTONE_STEP ? 'next' : '';
+      const tag = r.chests > 1 ? `${r.chests} Chests` : r.chests ? 'Chest' : 'Stone';
+      nodes.push(`<li class="${cls}${r.chests > 1 ? ' big' : ''}"><b>${stage.toLocaleString()}</b><small>${tag}</small></li>`);
+    }
+    setHtml($('ms-track'), nodes.join(''));
+    const next = reached + MILESTONE_STEP;
+    $('ms-next').textContent = `Next: beat the stage ${next.toLocaleString()} boss for ${milestoneText(milestoneReward(next))}.`;
+    $('ms-note').textContent = s.milestone ? `${(s.milestone / MILESTONE_STEP).toLocaleString()} claimed` : '';
+    $<HTMLButtonElement>('ms-claim').disabled = ready <= 0;
+    $('ms-claim').textContent = ready > 1 ? `Claim ${ready} milestones` : ready === 1 ? 'Claim' : `Best stage ${s.bestStage.toLocaleString()}`;
 
     const bootList = $('boot-list');
     let bootLeft = 0;
