@@ -4,8 +4,8 @@
 --
 -- Players can read their own guild's data (and browse the guild list), but
 -- every change goes through the functions below, which check the rules:
--- up to 30 members, one leader, officers, one medal request per 8 hours and
--- at most 5 medals from each guildmate per request.
+-- up to 30 members, one leader, officers, one medal request per 4 hours (Common
+-- heroes only, 10 medals) and at most 5 medals from each guildmate per request.
 
 create table if not exists public.guilds (
   id uuid primary key default gen_random_uuid(),
@@ -202,23 +202,37 @@ begin
     select id from guild_messages where guild_id = g order by id desc offset 199 limit 1);
 end $$;
 
--- Ask guildmates for a hero's medals: one request per 8 hours. The game sends
--- the goal for the hero's rarity (Common 20, Rare 10, Epic 5).
+-- Hero ids guildmates can be asked for: the released Common heroes. Keep in step
+-- with HEROES in src/data.ts (a unit test checks this list).
+create or replace function public.guild_requestable_heroes() returns text[]
+language sql immutable as $$
+  select array[
+    'blaze', 'ember', 'flint', 'cinder', 'briar', 'fern', 'thorn', 'moss', 'brine', 'brook',
+    'ripple', 'marina', 'shade', 'vex', 'rook', 'dread', 'dawn', 'lumen', 'sol', 'aegis',
+    'bubbles', 'wyrmling', 'seedling', 'glint', 'mendbot', 'glimmer', 'quill', 'swiftwing', 'flit', 'drakebot',
+    'crabarchers', 'crabscrappers', 'crabspears', 'crabbrute', 'magmaarchers', 'magmascrappers', 'magmabrute', 'mudarchers', 'muddaggers', 'mudspears',
+    'bonearchers', 'boneswords', 'bonebrute'
+  ]::text[]
+$$;
+
+-- Ask guildmates for a Common hero's medals: one request per 4 hours, 10 medals,
+-- open for 4 hours, so a player gets at most 10 medals every 4 hours.
 create or replace function public.request_guild_medals(p_hero text, p_goal integer) returns bigint
 language plpgsql security definer set search_path = public as $$
 declare g uuid := public.my_guild(); r bigint;
 begin
   if g is null then raise exception 'Join a guild first.'; end if;
-  if p_goal not in (5, 10, 20) then raise exception 'Unknown request size.'; end if;
-  if exists (select 1 from guild_requests where user_id = auth.uid() and created_at > now() - interval '8 hours') then
-    raise exception 'You can ask again 8 hours after your last request.';
+  if p_goal is distinct from 10 then raise exception 'Unknown request size.'; end if;
+  if not (p_hero = any(public.guild_requestable_heroes())) then raise exception 'Only Common heroes can be requested.'; end if;
+  if exists (select 1 from guild_requests where user_id = auth.uid() and created_at > now() - interval '4 hours') then
+    raise exception 'You can ask again 4 hours after your last request.';
   end if;
   insert into guild_requests (guild_id, user_id, username, hero_id, goal) values (g, auth.uid(), public.guild_username(), p_hero, p_goal)
     returning id into r;
   return r;
 end $$;
 
--- Give medals to a guildmate's open request (open for 24 hours, until full).
+-- Give medals to a guildmate's open request (open for 4 hours, until full).
 -- At most 5 from each guildmate per request. Returns how many were taken, so
 -- the game only removes those from the donor's save.
 create or replace function public.donate_guild_medals(p_request bigint, p_amount integer) returns integer
@@ -228,7 +242,7 @@ begin
   select * into req from guild_requests where id = p_request for update;
   if not found or req.guild_id is distinct from g then raise exception 'That request is gone.'; end if;
   if req.user_id = auth.uid() then raise exception 'You can''t fill your own request.'; end if;
-  if req.created_at < now() - interval '24 hours' then raise exception 'That request has closed.'; end if;
+  if req.created_at < now() - interval '4 hours' then raise exception 'That request has closed.'; end if;
   select coalesce(sum(amount), 0) into given from guild_donations where request_id = p_request and donor_id = auth.uid();
   take := least(greatest(coalesce(p_amount, 0), 0), 5 - given, req.goal - req.received);
   if take <= 0 then return 0; end if;
