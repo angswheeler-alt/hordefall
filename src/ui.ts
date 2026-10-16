@@ -2,7 +2,7 @@ import { DEV_TOOLS } from './config';
 import Decimal from 'break_infinity.js';
 import type { HeroStats, BigStat, StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { HERO_ANIMS } from './heroAnims';
 import { setMuted } from './sfx';
@@ -315,7 +315,7 @@ export class UI {
     setHtml(
       $('relic-ess'),
       TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}"></i>${fmt(s.essences[e] ?? 0)}</span>`).join('') +
-        `<span title="Enhance Stones, from Trial level 6 and up and the Rekindle Wheel"><i class="stone"></i>${fmt(s.enhanceStones)}</span>`,
+        `<span title="Enhance Stones, from Trial level 6 and up, the Rekindle Wheel and player level-ups"><i class="stone"></i>${fmt(s.enhanceStones)}</span>`,
     );
     const slotCost = s.nextSlotCost();
     const slotStage = s.nextSlotStage() ?? 0;
@@ -1070,7 +1070,7 @@ export class UI {
     const to = keeperThreshold(level);
     const pct = (v: number) => `${Math.max(0, Math.min(100, ((v - from) / (to - from)) * 100))}%`;
     $('rk-level').textContent = String(level);
-    $('rk-nextlvl').textContent = `Lv ${level + 1}: Embers x${(s.keeperBonus() + KEEPER_BONUS_PER_LEVEL).toFixed(2)} + 🎁 Hero Chest`;
+    $('rk-nextlvl').textContent = `Lv ${level + 1}: Embers x${(s.keeperBonus() + KEEPER_BONUS_PER_LEVEL).toFixed(2)} + 🎁 ${LEVEL_GIFT_STONES} Enhance Stones`;
     $('rk-bar-fill').style.width = pct(s.lifetimeEmbers);
     $('rk-bar-gain').style.width = pct(s.lifetimeEmbers + base);
     $('rk-bar-now').textContent = `Lifetime Embers: ${fmt(s.lifetimeEmbers)}`;
@@ -1246,10 +1246,10 @@ export class UI {
     const wheel = r.wheel.length
       ? `<br>The Rekindle Wheel spun ${r.wheel.length} time${r.wheel.length === 1 ? '' : 's'}: ${[...counts].map(([line, n]) => (n > 1 ? `${line} x${n}` : line)).join(', ')}.`
       : '';
-    const gift = r.levelsGained > 0 ? `<br>Player level up! Your gift: <b>${r.levelsGained === 1 ? 'a Hero Chest' : `${r.levelsGained} Hero Chests`}</b>.` : '';
+    const gift = r.levelsGained > 0 ? `<br>Player level up! Your gift: <b>${r.stones} Enhance Stones</b>.` : '';
     this.showModal(
       'Rekindled!',
-      `You earned <b class="ember-text">${fmt(r.embers)} Embers</b>.${wheel}${gift}${dropCards(r.drops)}<br>Tap any hero to spend Embers on Ember levels. Those levels stay through every Rekindle, so each run starts stronger.`,
+      `You earned <b class="ember-text">${fmt(r.embers)} Embers</b>.${wheel}${gift}<br>Tap any hero to spend Embers on Ember levels. Those levels stay through every Rekindle, so each run starts stronger.`,
       'Start the new run',
     );
   }
