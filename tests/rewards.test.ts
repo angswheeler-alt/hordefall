@@ -187,3 +187,62 @@ describe('released heroes', () => {
     expect(s.wildMedalCost('brine')).not.toBeNull();
   });
 });
+
+describe('Stage Milestones', () => {
+  it('pay once per 50th-stage boss beaten, on the best stage ever', () => {
+    const s = fresh();
+    expect(s.milestonesReady()).toBe(0);
+    expect(s.claimMilestones()).toBeNull();
+    s.reachStage(50); // the stage 50 boss isn't beaten yet
+    expect(s.milestonesReady()).toBe(0);
+    s.reachStage(51);
+    expect(s.milestonesReady()).toBe(1);
+    expect(s.rewardsWaiting()).toBe(true);
+    const stones = s.enhanceStones;
+    const got = s.claimMilestones()!;
+    expect(got.count).toBe(1);
+    expect(got.stones).toBe(1);
+    expect(got.chests).toBe(0);
+    expect(s.enhanceStones).toBe(stones + 1);
+    expect(s.gems).toBe(START_GEMS);
+    expect(s.claimMilestones()).toBeNull();
+  });
+
+  it('claims every waiting milestone at once and never pays Gems', () => {
+    const s = fresh();
+    s.tickets = 0;
+    s.reachStage(501); // 50..500: ten milestones
+    const got = s.claimMilestones()!;
+    expect(got.count).toBe(10);
+    // 100,200,300,400 pay 1 chest; 500 pays 3.
+    expect(got.chests).toBe(7);
+    expect(got.drops.length).toBeGreaterThan(0);
+    expect(got.stones).toBe(5 + 4 + 5);
+    expect(got.tickets).toBe(4 * 3 + 5);
+    expect(s.tickets).toBe(17);
+    expect(s.gems).toBe(START_GEMS);
+    expect(s.milestone).toBe(500);
+  });
+
+  it("can't be farmed again after a Rekindle", () => {
+    const s = fresh();
+    s.reachStage(301);
+    s.claimMilestones();
+    s.stage = 1;
+    s.runBestStage = 1;
+    s.reachStage(301);
+    expect(s.milestonesReady()).toBe(0);
+    s.reachStage(351);
+    expect(s.milestonesReady()).toBe(1);
+  });
+
+  it('survive a save and load', () => {
+    const s = fresh();
+    s.reachStage(201);
+    s.claimMilestones();
+    const t = new GameState();
+    t.load();
+    expect(t.milestone).toBe(200);
+    expect(t.milestonesReady()).toBe(0);
+  });
+});

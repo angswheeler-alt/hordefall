@@ -123,3 +123,33 @@ export function dayKey(now = Date.now()): string {
   const d = new Date(now);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+
+// ---------- Stage Milestones: a one-time reward for every 50th-stage boss ----------
+// Paid once on the best stage ever reached, so Rekindle runs can't farm them.
+// No Gems (bosses and stage marks never pay Gems); chests, Enhance Stones,
+// Trial tickets and a little gold help along without skipping a wall.
+
+export const MILESTONE_STEP = 50;
+
+export interface MilestoneReward {
+  goldMinutes: number;
+  chests: number;
+  stones: number;
+  tickets: number;
+}
+
+/** What beating the boss of `stage` (a multiple of MILESTONE_STEP) pays. Every 100th pays a Hero Chest, every 500th a big one. */
+export function milestoneReward(stage: number): MilestoneReward {
+  if (stage % 500 === 0) return { goldMinutes: 60, chests: 3, stones: 5, tickets: 5 };
+  if (stage % 100 === 0) return { goldMinutes: 30, chests: 1, stones: 1, tickets: 3 };
+  return { goldMinutes: 30, chests: 0, stones: 1, tickets: 0 };
+}
+
+export function milestoneText(r: MilestoneReward): string {
+  const parts: string[] = [];
+  if (r.chests) parts.push(r.chests === 1 ? 'Hero Chest' : `${r.chests} Hero Chests`);
+  if (r.stones) parts.push(r.stones === 1 ? 'Enhance Stone' : `${r.stones} Enhance Stones`);
+  if (r.tickets) parts.push(`${r.tickets} Trial tickets`);
+  if (r.goldMinutes) parts.push(r.goldMinutes >= 60 ? `${r.goldMinutes / 60}h of gold` : `${r.goldMinutes}m of gold`);
+  return parts.join(' + ');
+}
