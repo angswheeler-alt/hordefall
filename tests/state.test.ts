@@ -581,6 +581,23 @@ describe('rekindle', () => {
     expect(s.canRekindle()).toBe(false);
   });
 
+  it('keeps every hero\'s Ember levels and only resets gold levels', () => {
+    const s = fresh();
+    s.levels[starter.id] = 140;
+    s.emberLevels[starter.id] = 37;
+    s.emberLevels[other.id] = 12;
+    s.reachStage(REKINDLE_STAGE + 20);
+    expect(s.rekindle(1)).not.toBeNull();
+    expect(s.emberLevels[starter.id]).toBe(37);
+    expect(s.emberLevels[other.id]).toBe(12);
+    expect(s.levels[starter.id]).toBe(1);
+    expect(s.heroLevel(starter.id)).toBe(1 + 37);
+    const t = new GameState();
+    expect(t.load()).toBe(true);
+    expect(t.emberLevels[starter.id]).toBe(37);
+    expect(t.emberLevels[other.id]).toBe(12);
+  });
+
   it("won't take a boosted rekindle without the gems", () => {
     const s = fresh();
     s.reachStage(REKINDLE_STAGE + 20);
