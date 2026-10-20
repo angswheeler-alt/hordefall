@@ -7,6 +7,7 @@ import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
 import { setMuted } from './sfx';
+import { BOSS_ANIMS, BOSS_ANIM_FRAMES } from './bossAnims';
 import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberRefund, emberBulk, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
 import type { GameState, OfflineReport, SummonDrop, RekindleResult, TrialResult } from './state';
 import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, BOOTCAMP, MILESTONE_STEP, milestoneReward, milestoneText, rewardText, type Reward } from './rewards';
@@ -76,6 +77,20 @@ interface UltButton {
 }
 
 /** HTML overlay for everything that isn't the lane: gold, hero upgrades, toggles. */
+
+/** CSS for a Trial boss portrait: the first idle frame, cropped to a `size` px box from just above the head. */
+function bossFace(el: Element, size: number): Partial<CSSStyleDeclaration> {
+  const a = BOSS_ANIMS[el];
+  if (!a) return {};
+  // Zoomed in a little past the frame width so the head and shoulders fill the box.
+  const scale = (size / a.frame[0]) * 1.35;
+  return {
+    backgroundImage: `url(bosses/${el}_idle.png)`,
+    backgroundSize: `${a.frame[0] * BOSS_ANIM_FRAMES.idle * scale}px auto`,
+    backgroundPosition: `${-(a.frame[0] * scale - size) / 2}px ${-Math.max(0, a.headTop - 4) * scale}px`,
+  };
+}
+
 export class UI {
   private rows: HeroRow[] = [];
   private ults: UltButton[] = [];
@@ -597,11 +612,16 @@ export class UI {
       }
       else this.endTrial();
     });
-    $('tr-days').addEventListener('click', (e) => {
+    $('tr-list').addEventListener('click', (e) => {
       const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-el]');
       if (!btn || btn.disabled) return;
       this.trialPick = btn.dataset.el as Element;
       this.trialTier = 0;
+      this.trialEntered = true;
+      this.renderTrials();
+    });
+    $('tr-back').addEventListener('click', () => {
+      this.trialEntered = false;
       this.renderTrials();
     });
     $('evolve-all').addEventListener('click', () => {
@@ -1045,6 +1065,8 @@ export class UI {
 
   private trialTier = 0;
   private trialPick: Element | null = null;
+  /** Whether a Trial's level page is showing (after Enter) instead of the list of all five. */
+  private trialEntered = false;
 
   /** The Trial being looked at: the player's pick if it's open today, else the first open one. */
   private trialEl(): Element {
@@ -1068,22 +1090,41 @@ export class UI {
   private renderTrials() {
     const s = this.state;
     const wait = s.refreshTickets();
-    const el = this.trialEl();
-    const tier = this.currentTier();
     const mm = Math.floor(wait / 60);
     const ss = String(wait % 60).padStart(2, '0');
-    $('tr-tickets').textContent = `Tickets ${s.tickets}/${TICKET_CAP}${wait ? ` · next ${mm}:${ss}` : ''}`;
+    setHtml($('tr-tickets'), `<i class="ticket"></i>${s.tickets}/${TICKET_CAP} ${wait ? `<small>next ${mm}:${ss}</small>` : '<small>(Maxed)</small>'}`);
     const open = s.openTrials();
-    const key = `${el}:${open.join(',')}`;
-    if ($('tr-days').dataset.key !== key) {
-      $('tr-days').dataset.key = key;
-      $('tr-days').innerHTML = TRIAL_ROTATION.map((e) => {
+    const unlocked = s.trialsUnlocked();
+    // A Trial that closed at midnight (or was never open) drops back to the list.
+    if (this.trialEntered && (!unlocked || !this.trialPick || !open.includes(this.trialPick))) this.trialEntered = false;
+    $('tr-list').hidden = this.trialEntered;
+    $('tr-detail').hidden = !this.trialEntered;
+    const listKey = `${open.join(',')}:${unlocked}`;
+    if ($('tr-list').dataset.key !== listKey) {
+      $('tr-list').dataset.key = listKey;
+      $('tr-list').innerHTML = (unlocked ? '' : '<p class="trial-lock">Trials open once you beat the stage 50 boss.</p>') + TRIAL_ROTATION.map((e) => {
         const isOpen = open.includes(e);
-        const days = TRIAL_SCHEDULE[e].map((d) => DAY_NAMES[d]).join(' ');
-        return `<button class="trial-day${isOpen ? ' open' : ''}${e === el ? ' today' : ''}" data-el="${e}" style="--el:${hex(ELEMENT_COLORS[e])}" ${isOpen ? '' : 'disabled'} title="${cap(e)}: ${days}"><b>${cap(e)}</b><small>${isOpen ? 'Open' : days}</small></button>`;
+        const days = TRIAL_SCHEDULE[e].map((d) => DAY_NAMES[d]).join(', ');
+        const face = Object.entries(bossFace(e, 60)).map(([k, v]) => `${k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}:${v}`).join(';');
+        const btn = unlocked ? 'Enter' : 'Locked';
+        return `<div class="trial-entry${isOpen ? ' open' : ''}" style="--el:${hex(ELEMENT_COLORS[e])}">` +
+          `<span class="trial-portrait" style="${face}" title="${cap(e)}"></span>` +
+          `<div class="trial-entry-text"><b>${TRIAL_BOSS_NAMES[e]} <span>(${days})</span></b>` +
+          `<small>Rewards: <i class="ess-${e}" title="${ESSENCE_NAMES[e]}"></i> and <i class="medal" title="Crests for ${cap(e)} heroes"></i></small></div>` +
+          `<button class="trial-enter${isOpen && unlocked ? ' lit' : ''}" data-el="${e}" ${isOpen && unlocked ? '' : 'disabled'} title="${isOpen ? (unlocked ? `Open today` : 'Opens after the stage 50 boss') : `Open ${days}`}">${btn}</button>` +
+          `</div>`;
       }).join('');
-      $('tr-face').style.background = hex(ELEMENT_COLORS[el]);
-      $('tr-face').textContent = TRIAL_BOSS_NAMES[el][0];
+    }
+    setHtml($('tr-ess'), TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}"></i>${fmt(s.essences[e] ?? 0)}</span>`).join(''));
+    if (!this.trialEntered) return;
+    const el = this.trialEl();
+    const tier = this.currentTier();
+    if ($('tr-detail').dataset.el !== el) {
+      $('tr-detail').dataset.el = el;
+      const face = $('tr-face');
+      face.style.setProperty('--el', hex(ELEMENT_COLORS[el]));
+      face.textContent = BOSS_ANIMS[el] ? '' : TRIAL_BOSS_NAMES[el][0];
+      Object.assign(face.style, bossFace(el, 48));
       $('tr-name').textContent = `${TRIAL_BOSS_NAMES[el]} (${cap(el)})`;
     }
     const level = TRIAL_LEVELS[tier - 1];
@@ -1104,7 +1145,6 @@ export class UI {
       : `Best clear <b>${best}s</b> · ${quickOk ? '<span class="win">Quick Battle unlocked</span>' : `win in ${TRIAL_QUICK_TIME}s or less to unlock Quick Battle`}`;
     setHtml($('tr-odds'), `Difficulty <b>${level.difficulty.toLocaleString()}</b> · reward <b>${fmt(level.essence)}</b> Essence · ${level.medals} medal${level.medals === 1 ? '' : 's'}<br>${req}<br>${bestLine}<br>Boss HP <b>${fmt(trialHp(level))}</b> · team damage in ${TRIAL_TIME}s <b>${fmt(sim.dps.times(TRIAL_TIME))}</b> · <span class="${sim.won ? 'win' : 'lose'}">${sim.won ? 'Should be winnable' : 'Too strong for now'}</span>`);
     const fight = $<HTMLButtonElement>('tr-fight');
-    const unlocked = s.trialsUnlocked();
     fight.disabled = !unlocked || s.tickets <= 0 || !reqMet;
     fight.textContent = !unlocked ? 'Beat the stage 50 boss' : !reqMet ? 'Locked' : s.tickets > 0 ? 'Fight · 1 ticket' : 'No tickets';
     const quick = $<HTMLButtonElement>('tr-quick');
@@ -1113,7 +1153,6 @@ export class UI {
     quick.title = 'Quick Battle: skip the fight, same reward as a win for each ticket spent';
     if (!quick.hidden) fight.textContent = s.tickets > 0 ? 'Fight' : 'No tickets';
     quick.textContent = 'Quick';
-    setHtml($('tr-ess'), TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}"></i>${fmt(s.essences[e] ?? 0)}</span>`).join(''));
   }
 
   /** Quick Battle: choose how many tickets to spend on this level at once. */
