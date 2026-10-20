@@ -6,6 +6,7 @@ import { UI } from './ui';
 import { initAudio, setMuted } from './sfx';
 import { Account } from './account';
 import { Guild } from './guild';
+import { Social } from './social';
 
 const state = new GameState();
 const hadSave = state.load();
@@ -77,6 +78,7 @@ const account = new Account(state, (data) => {
   location.reload();
 });
 new Guild(state, account, ui);
+new Social(state, account);
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
