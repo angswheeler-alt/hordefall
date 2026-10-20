@@ -22,6 +22,7 @@ import {
   bossElement,
   bossWeakness,
   bossImmuneTo,
+  isElementBossStage,
   bossHasElement,
   stageBoss,
   type Element,
@@ -771,7 +772,7 @@ export class BattleScene extends Phaser.Scene {
       label: boss ? bossLabel(stage) : undefined,
     });
     if (boss && !bossHasElement(stage)) u.noElement = true;
-    if (boss && bossHasElement(stage)) u.lockStage = stage;
+    if (boss && isElementBossStage(stage)) u.lockStage = stage;
     this.enemies.push(u);
   }
 
@@ -805,7 +806,7 @@ export class BattleScene extends Phaser.Scene {
     if (boss) {
       this.spawnEnemy(true);
       const weak = bossWeakness(stage);
-      this.banner(`${stageBoss(stage).name.toUpperCase()}${weak ? `\nONLY ${weak.toUpperCase()} CAN HURT IT` : ''}`, '#ff6680');
+      this.banner(`${stageBoss(stage).name.toUpperCase()}${weak ? (isElementBossStage(stage) ? `\nONLY ${weak.toUpperCase()} CAN HURT IT` : `\nWEAK TO ${weak.toUpperCase()}`) : ''}`, '#ff6680');
       this.cameras.main.shake(400, 0.01);
       play('boss');
     }

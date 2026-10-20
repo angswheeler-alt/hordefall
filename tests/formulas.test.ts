@@ -154,15 +154,18 @@ describe('named element bosses', () => {
   });
 });
 
-describe('element-locked bosses (stage 600+)', () => {
+describe('element-locked bosses (every 100th stage from 600)', () => {
   const ALL = ['water', 'fire', 'earth', 'light', 'dark'] as const;
   it('anyone can hurt bosses before 600', () => {
     for (const e of ALL) expect(bossImmuneTo(550, e)).toBe(false);
   });
-  it('from 600 only the counter element hurts the boss', () => {
+  it('bosses between the 100s (650, 750...) take any hit', () => {
+    for (let s = 650; s <= 1550; s += 100) for (const e of ALL) expect(bossImmuneTo(s, e)).toBe(false);
+  });
+  it('the named bosses only take damage from the counter element', () => {
     // Fire boss: only Water. Water: only Earth. Earth: only Fire. Dark: only Light. Light: only Dark.
     const only = { fire: 'water', water: 'earth', earth: 'fire', dark: 'light', light: 'dark' } as const;
-    for (let s = 600; s <= 1500; s += 50) {
+    for (let s = 600; s <= 1500; s += 100) {
       const counter = only[bossElement(s)];
       for (const e of ALL) expect(bossImmuneTo(s, e)).toBe(e !== counter);
       expect(bossImmuneTo(s, null)).toBe(true);

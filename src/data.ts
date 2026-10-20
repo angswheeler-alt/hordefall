@@ -529,10 +529,12 @@ export function bossWeakness(stage: number): Element | null {
 }
 
 /**
- * From stage 600 a boss can only be hurt by its weakness (user, 2026-10-16): hits, ultimates, burns and poison
- * from any other element do nothing. `attacker` is the element the hit counts as; null (no hero behind it) never hurts.
+ * The named element bosses (every 100th stage from 600) can only be hurt by their weakness (user, 2026-10-16,
+ * narrowed to the 100s on 2026-10-20): hits, ultimates, burns and poison from any other element do nothing.
+ * `attacker` is the element the hit counts as; null (no hero behind it) never hurts. Other bosses take any hit.
  */
 export function bossImmuneTo(stage: number, attacker: Element | null): boolean {
+  if (!isElementBossStage(stage)) return false;
   const weak = bossWeakness(stage);
   return weak !== null && attacker !== weak;
 }
