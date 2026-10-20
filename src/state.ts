@@ -867,6 +867,20 @@ export class GameState {
     return this.payTrial(element, tier, { won: true, seconds: 0, essence: 0, stones: 0, medals: [] });
   }
 
+  /** Quick Battle the same level up to `times` times in one go (stops when tickets run out). Null if none ran. */
+  quickTrials(element: Element, tier: number, times: number): (TrialResult & { runs: number }) | null {
+    const total: TrialResult & { runs: number } = { won: true, seconds: 0, essence: 0, stones: 0, medals: [], runs: 0 };
+    for (let i = 0; i < times; i++) {
+      const r = this.quickTrial(element, tier);
+      if (!r) break;
+      total.runs++;
+      total.essence += r.essence;
+      total.stones += r.stones;
+      total.medals.push(...r.medals);
+    }
+    return total.runs ? total : null;
+  }
+
   private payTrial(element: Element, tier: number, result: TrialResult): TrialResult {
     const level = TRIAL_LEVELS[tier - 1];
     if (this.tickets >= TICKET_CAP) this.ticketClock = Date.now();

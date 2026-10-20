@@ -417,6 +417,24 @@ describe('trial quick battle', () => {
     expect(HEROES.reduce((t, h) => t + (s.crests[h.id] ?? 0), 0) - crests).toBe(TRIAL_LEVELS[0].medals);
   });
 
+  it('can run several times at once, stopping when tickets run out', () => {
+    const { s, element } = strong();
+    s.finishTrial(element, 1, true, 8);
+    s.tickets = 7;
+    s.ticketClock = Date.now();
+    const ess = s.essences[element] ?? 0;
+    const r = s.quickTrials(element, 1, 5)!;
+    expect(r.runs).toBe(5);
+    expect(s.tickets).toBe(2);
+    expect(r.essence).toBe(5 * TRIAL_LEVELS[0].essence);
+    expect((s.essences[element] ?? 0) - ess).toBe(r.essence);
+    expect(r.medals).toHaveLength(5 * TRIAL_LEVELS[0].medals);
+    const rest = s.quickTrials(element, 1, 10)!;
+    expect(rest.runs).toBe(2);
+    expect(s.tickets).toBe(0);
+    expect(s.quickTrials(element, 1, 1)).toBeNull();
+  });
+
   it('needs a ticket', () => {
     const { s, element } = strong();
     s.finishTrial(element, 1, true, 8);

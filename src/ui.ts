@@ -587,7 +587,7 @@ export class UI {
     $('tr-down').addEventListener('click', () => this.stepTier(-1));
     $('tr-up').addEventListener('click', () => this.stepTier(1));
     $('tr-fight').addEventListener('click', () => this.fightTrial());
-    $('tr-quick').addEventListener('click', () => this.fightTrial(true));
+    $('tr-quick').addEventListener('click', () => this.pickQuickCount());
     $('trial-leave').addEventListener('click', () => {
       const scene = this.scene();
       // Mid-fight, leaving counts as a loss (the ticket is kept); after it, this goes back to the run.
@@ -1105,26 +1105,49 @@ export class UI {
     const quick = $<HTMLButtonElement>('tr-quick');
     quick.hidden = !unlocked || !reqMet || !quickOk;
     quick.disabled = s.tickets <= 0;
-    quick.title = 'Quick Battle: skip the fight for 1 ticket, same reward as a win';
+    quick.title = 'Quick Battle: skip the fight, same reward as a win for each ticket spent';
     if (!quick.hidden) fight.textContent = s.tickets > 0 ? 'Fight' : 'No tickets';
     quick.textContent = 'Quick';
     setHtml($('tr-ess'), TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}"></i>${fmt(s.essences[e] ?? 0)}</span>`).join(''));
   }
 
-  /** Play a Trial: a live fight on its own screen (or a Quick Battle that skips it). */
-  private fightTrial(quick = false) {
+  /** Quick Battle: choose how many tickets to spend on this level at once. */
+  private pickQuickCount() {
+    const s = this.state;
+    s.refreshTickets();
+    const tier = this.currentTier();
+    const el = this.trialEl();
+    if (!s.canQuickTrial(el, tier) || s.tickets <= 0) return;
+    const counts = [...new Set([1, 5, 10, s.tickets].filter((n) => n <= s.tickets))].sort((a, b) => a - b);
+    const buttons = counts.map((n) => `<button type="button" class="wood-btn levelall" data-quick="${n}">${n === s.tickets && n > 1 ? `All ${n}` : `x${n}`}</button>`).join('');
+    this.showModal(
+      `Quick Battle · Level ${tier}`,
+      `<p>Skip the fight and take a win's reward for each ticket. You have <b>${s.tickets}</b> ticket${s.tickets === 1 ? '' : 's'}.</p><div class="quick-counts">${buttons}</div>`,
+      'Cancel',
+    );
+    $('modal-body').querySelectorAll<HTMLButtonElement>('[data-quick]').forEach((b) =>
+      b.addEventListener('click', () => this.quickTrials(el, tier, Number(b.dataset.quick))),
+    );
+  }
+
+  private quickTrials(el: Element, tier: number, times: number) {
+    const result = this.state.quickTrials(el, tier, times);
+    if (!result) return;
+    this.showModal(
+      `${TRIAL_BOSS_NAMES[el]} · Level ${tier}`,
+      `<p class="tf-result win">Quick Battle${result.runs > 1 ? ` x${result.runs}` : ''}! ${this.trialWinText(el, result)}</p>`,
+      'Okay',
+    );
+    play('clear');
+    this.render();
+  }
+
+  /** Play a Trial: a live fight on its own screen. */
+  private fightTrial() {
     const s = this.state;
     const tier = this.currentTier();
     const el = this.trialEl();
     const title = `${TRIAL_BOSS_NAMES[el]} · Level ${tier}`;
-    if (quick) {
-      const result = s.quickTrial(el, tier);
-      if (!result) return;
-      this.showModal(title, `<p class="tf-result win">Quick Battle! ${this.trialWinText(el, result)}</p>`, 'Okay');
-      play('clear');
-      this.render();
-      return;
-    }
     const scene = this.scene();
     if (!scene || scene.inTrial() || !s.canStartTrial(el, tier)) return;
     this.closeSheet();
