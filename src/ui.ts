@@ -1645,7 +1645,8 @@ export class UI {
       if (s.canUnlock(r.def)) teamReady = true;
       if (r.root.hidden) continue;
       r.root.classList.toggle('locked', locked);
-      r.level.textContent = locked ? '' : `Lv ${eff}`;
+      // The Heroes tab is the gold upgrade screen, so its level is gold levels only; Ember levels show as the +N badge.
+      r.level.textContent = locked ? '' : `Lv ${level}`;
       r.emberBadge.textContent = emberLevel ? `+${emberLevel}` : '';
       r.emberBadge.title = emberLevel ? `${emberLevel} Ember levels` : '';
       const starCount = s.stars[r.def.id] ?? 0;
