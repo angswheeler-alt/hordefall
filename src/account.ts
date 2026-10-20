@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, USERNAME_DOMAIN } from './config';
 import { GameState, type SaveData } from './state';
+import { decideSync, isBehind, progressOf, type Progress, type SyncMode } from './sync';
 
 /** How often a signed-in player's save goes up to the cloud. */
 const UPLOAD_SECONDS = 30;
@@ -27,12 +28,32 @@ const friendlyError = (message: string) => {
 /** Where this device remembers which cloud revision its save was last synced with. */
 const revKey = (userId: string) => `hordefall-cloud-rev:${userId}`;
 
-const summary = (d: SaveData) => `stage ${(d.bestStage ?? d.stage ?? 1).toLocaleString()}, ${d.rekindles ?? 0} Rekindle${d.rekindles === 1 ? '' : 's'}`;
+/** One save, laid out for the "which save" choice. */
+const saveCard = (title: string, d: SaveData) => {
+  const p = progressOf(d);
+  const heroes = Object.values((d.levels ?? {}) as Record<string, number>).filter((l) => Number(l) > 0).length;
+  const played = d.lastSeen ? new Date(Number(d.lastSeen)).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'unknown';
+  return `<div class="save-pick-card"><h3>${title}</h3><ul>
+    <li>Best stage <b>${p.best.toLocaleString()}</b></li>
+    <li>Now on stage <b>${Number(d.stage ?? 1).toLocaleString()}</b></li>
+    <li><b>${p.rekindles}</b> Rekindle${p.rekindles === 1 ? '' : 's'}</li>
+    <li><b>${heroes}</b> hero${heroes === 1 ? '' : 'es'}</li>
+    <li>Last played ${escape(played)}</li></ul></div>`;
+};
+
+/** Keep a copy of a save that is about to be replaced, on this device, so it can be recovered. */
+const backup = (tag: string, data: unknown) => {
+  try {
+    localStorage.setItem(`hordefall-save-v1-backup-${tag}`, JSON.stringify({ at: Date.now(), data }));
+  } catch {
+    /* storage full or blocked: nothing more to do */
+  }
+};
 
 /**
  * Player accounts and cloud saves. Guests keep playing on local saves; a
- * signed-in player's save syncs to the `saves` table, and the most recently
- * played device wins when the game starts.
+ * signed-in player's save syncs to the `saves` table. The rules for which
+ * save wins live in decideSync (src/sync.ts).
  */
 export class Account {
   private db: SupabaseClient | null = null;
@@ -44,6 +65,12 @@ export class Account {
   private synced = false;
   /** lastSeen of the save this page loaded, before this session's play moved it. */
   private readonly loadedLastSeen: number;
+  /** Which kind of pull to retry while not synced ('start' until the first one settles). */
+  private pendingMode: SyncMode = 'start';
+  /** True once the player chose to leave cloud saving paused; only "Save now" retries then. */
+  private paused = false;
+  /** The cloud save's progress as last seen; an upload that would lower it asks first. */
+  private cloudProgress: Progress | null = null;
   /** Told when the signed-in player may have changed (the guild panel listens). */
   readonly listeners: Array<() => void> = [];
 
@@ -70,7 +97,13 @@ export class Account {
     this.loadedLastSeen = state.lastSeen;
     $('acct-signin').addEventListener('click', () => this.openSignIn());
     $('acct-signout').addEventListener('click', () => void this.signOut());
-    $('acct-sync').addEventListener('click', () => void this.upload());
+    $('acct-sync').addEventListener('click', () => {
+      if (this.synced) void this.upload();
+      else {
+        this.paused = false;
+        void this.pull(this.pendingMode);
+      }
+    });
     $('acct-cancel').addEventListener('click', () => this.closeDialog());
     $('acct-form').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -83,8 +116,12 @@ export class Account {
     this.db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     this.render('Connecting…');
     void this.start();
-    // Uploads every 30s; if the first sync failed (offline at start), it is retried instead.
-    setInterval(() => void (this.user && !this.synced && !this.choosing ? this.pull('conflict') : this.upload()), UPLOAD_SECONDS * 1000);
+    // Uploads every 30s; while not synced (offline at start, say), the sync is retried instead.
+    setInterval(() => {
+      if (this.user && !this.synced) {
+        if (!this.choosing && !this.paused) void this.pull(this.pendingMode);
+      } else void this.upload();
+    }, UPLOAD_SECONDS * 1000);
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) void this.upload();
     });
@@ -125,10 +162,11 @@ export class Account {
    * (asks before replacing a played device's save), 'conflict' when an upload
    * found the cloud had moved on mid-session (both sides played, so it asks).
    */
-  private async pull(mode: 'start' | 'signin' | 'conflict') {
+  private async pull(mode: SyncMode) {
     if (this.pulling) return;
     this.pulling = true;
     this.synced = false;
+    this.pendingMode = mode;
     try {
       await this.reconcile(mode);
     } finally {
@@ -138,46 +176,87 @@ export class Account {
 
   private pulling = false;
 
-  private async reconcile(mode: 'start' | 'signin' | 'conflict') {
+  private async reconcile(mode: SyncMode) {
     const cloud = await this.fetchCloud();
-    if (cloud === undefined) return; // retried on the next upload tick
     const local = this.state.toJSON();
-    if (!cloud) {
-      this.knownRev = null;
-      this.synced = true;
-      await this.upload(0);
-      return;
-    }
-    const cloudRev = Number(cloud.rev ?? 0);
-    if (mode === 'start' && this.knownRev === null && cloud.rev === undefined) {
-      // A cloud save from before revisions: the most recently played save wins, as it used to.
-      if ((cloud.lastSeen ?? 0) > this.loadedLastSeen) this.replace(cloud);
-      else {
+    const action = decideSync({ mode, cloud, local, knownRev: this.knownRev, loadedLastSeen: this.loadedLastSeen });
+    switch (action) {
+      case 'pause':
+        // A failed request says nothing about whether a save exists: write nothing, retry later.
+        this.render("Couldn't reach the cloud save, so cloud saving is paused. Your progress is safe on this device.");
+        return;
+      case 'missing':
+        this.askMissing(cloud as SaveData | null, local);
+        return;
+      case 'create':
+        await this.create(local);
+        return;
+      case 'upload':
+        this.cloudProgress = progressOf(cloud as SaveData);
         this.synced = true;
-        await this.upload(0);
-      }
+        await this.upload();
+        return;
+      case 'take-cloud':
+        this.replace(cloud as SaveData);
+        return;
+      case 'ask':
+        this.askWhichSave(cloud as SaveData, local, Number((cloud as SaveData).rev ?? 0));
+        return;
+    }
+  }
+
+  /** First cloud save for this account. Insert only, so a save that is there after all is never written over. */
+  private async create(local: SaveData) {
+    const data: SaveData = { ...local, rev: 1 };
+    const { error } = await this.db!.from('saves').insert({ user_id: this.user!.id, data, best_stage: data.bestStage ?? 1, updated_at: new Date().toISOString() });
+    if (error) {
+      this.render(`Cloud saving is paused: ${error.message}. Your progress is safe on this device.`);
       return;
     }
-    if (this.knownRev === cloudRev) {
-      // Nobody else saved since this device last synced: this device is current.
+    this.knownRev = 1;
+    this.cloudProgress = progressOf(data);
+    this.synced = true;
+    this.lastUpload = Date.now();
+    this.render();
+  }
+
+  /**
+   * This device synced before, but the cloud save is gone or can't be read.
+   * That isn't proof the player is new, so nothing is written until they say so.
+   */
+  private askMissing(cloud: SaveData | null, local: SaveData) {
+    this.choosing = true;
+    this.openDialog(
+      'Cloud save not found',
+      `<p>${cloud ? "This account's cloud save can't be read." : "This account's cloud save is missing."} Cloud saving is paused, and nothing has been changed.</p>
+       <div class="save-pick">${saveCard('This device', local)}</div>
+       <p>Save this device's progress to the cloud, or keep cloud saving paused and try again later with Save now in Settings.</p>
+       <div class="modal-actions"><button type="button" id="acct-keep-paused">Keep paused</button><button type="button" id="acct-upload-device" class="hot">Save this device</button></div>`,
+      false,
+    );
+    $('acct-keep-paused').addEventListener('click', () => {
+      this.choosing = false;
+      this.paused = true;
+      this.closeDialog();
+      this.render('Cloud saving is paused. Your progress is safe on this device.');
+    });
+    $('acct-upload-device').addEventListener('click', async () => {
+      this.closeDialog();
+      if (cloud) backup('cloud-unreadable', cloud);
+      const data: SaveData = { ...this.state.toJSON(), rev: Number(cloud?.rev ?? 0) + 1 };
+      const { error } = await this.db!.from('saves').upsert({ user_id: this.user!.id, data, best_stage: data.bestStage ?? 1, updated_at: new Date().toISOString() });
+      this.choosing = false;
+      if (error) {
+        this.paused = true;
+        this.render(`Cloud saving is paused: ${error.message}. Your progress is safe on this device.`);
+        return;
+      }
+      this.knownRev = data.rev;
+      this.cloudProgress = progressOf(data);
       this.synced = true;
-      await this.upload();
-      return;
-    }
-    if (mode === 'start') {
-      // Another device saved. If this device's save is older than that one, it hasn't played since: take the cloud's.
-      if ((cloud.lastSeen ?? 0) >= this.loadedLastSeen) {
-        this.replace(cloud);
-        return;
-      }
-    } else if (mode === 'signin') {
-      const freshDevice = (local.bestStage ?? 1) <= 1 && !local.rekindles;
-      if (freshDevice) {
-        this.replace(cloud);
-        return;
-      }
-    }
-    this.askWhichSave(cloud, local, cloudRev);
+      this.lastUpload = Date.now();
+      this.render();
+    });
   }
 
   /** Both sides have progress the other lacks: the player picks, and the other is replaced. */
@@ -185,8 +264,9 @@ export class Account {
     this.choosing = true;
     this.openDialog(
       'Which save do you want?',
-      `<p>This account's cloud save (<b>${summary(cloud)}</b>) was played on another device. This device has <b>${summary(local)}</b>.</p>
-       <p>The one you don't pick is replaced.</p>
+      `<p>This device and this account's cloud save have different progress.</p>
+       <div class="save-pick">${saveCard('This device', local)}${saveCard('Cloud save', cloud)}</div>
+       <p>The one you don't pick is replaced (a copy is kept on this device).</p>
        <div class="modal-actions"><button type="button" id="acct-keep-device">This device</button><button type="button" id="acct-keep-cloud" class="hot">Cloud save</button></div>`,
       false,
     );
@@ -194,15 +274,18 @@ export class Account {
       this.replace(cloud);
     });
     $('acct-keep-device').addEventListener('click', async () => {
+      backup('cloud-replaced', cloud);
       this.choosing = false;
       this.closeDialog();
       this.synced = true;
+      this.cloudProgress = null; // the player chose this device's save, even if it is behind
       await this.upload(cloudRev);
     });
   }
 
   private replace(data: SaveData) {
     this.choosing = true; // stops uploads while the page reloads
+    if (!GameState.frozen) backup('device-replaced', this.state.toJSON());
     this.knownRev = Number(data.rev ?? 0);
     this.reloadWith(data);
   }
@@ -227,6 +310,11 @@ export class Account {
     this.state.save();
     const rev = (over ?? 0) + 1;
     const data: SaveData = { ...this.state.toJSON(), rev };
+    if (this.cloudProgress && isBehind(progressOf(data), this.cloudProgress)) {
+      // This device's save went backwards from what the cloud holds (lost or reset?): ask instead of writing it over.
+      await this.pull('conflict');
+      return;
+    }
     const row = { user_id: this.user.id, data, best_stage: data.bestStage ?? 1, updated_at: new Date().toISOString() };
     let error: { message: string } | null;
     let written = true;
@@ -248,6 +336,7 @@ export class Account {
       return;
     }
     this.knownRev = rev;
+    this.cloudProgress = progressOf(data);
     this.lastUpload = Date.now();
     this.render();
   }
