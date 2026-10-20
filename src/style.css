@@ -719,3 +719,10 @@ div.g-req { margin-bottom: 8px; }
 .rs-offer.r5 { border-color: #ffa62b; } .rs-offer.r5 .rs-rarity { color: #ffa62b; }
 .rs-offer button { margin-top: auto; width: 100%; font-size: 11px; padding: 5px 2px; }
 .rs-offer.sold { opacity: .5; }
+
+/* Element wheel */
+.element-wheel { width: 100%; max-width: 320px; display: block; margin: 0 auto; }
+.element-wheel text { font: 800 12px system-ui, sans-serif; fill: #fff; paint-order: stroke; stroke: rgba(0,0,0,.6); stroke-width: 3px; }
+.element-wheel .ew-arrow text { fill: var(--gold); }
+.ew-note { font-size: 12px !important; text-align: left; }
+.ew-btn { font-size: 12px; padding: 6px 10px; }
