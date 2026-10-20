@@ -208,9 +208,14 @@ export class GameState {
     return counts;
   }
 
-  /** A hero's Combat Power (src/stats.ts combatPower) at their current level, or at `level`. */
-  heroCombatPower(def: HeroDef, level = this.heroLevel(def.id)): Decimal {
-    return combatPower(this.heroStats(def, level));
+  /** A hero's permanent level: Ember levels only (at least 1) once recruited, 0 if not. Used by Trials and Combat Power. */
+  permanentLevel(id: string): number {
+    return (this.levels[id] ?? 0) > 0 ? Math.max(1, this.emberLevels[id] ?? 0) : 0;
+  }
+
+  /** A hero's Combat Power (src/stats.ts combatPower). Gold levels don't count, only what lasts: Ember levels, stars, relics and the rest. */
+  heroCombatPower(def: HeroDef): Decimal {
+    return combatPower(this.heroStats(def, this.permanentLevel(def.id)));
   }
 
   /** The player's total Combat Power: every recruited hero's Combat Power added up. */

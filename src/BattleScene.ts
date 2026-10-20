@@ -740,7 +740,7 @@ export class BattleScene extends Phaser.Scene {
   /** A hero's fighting level: gold plus Ember levels, or in a Trial only Ember levels (at least 1). */
   private levelOf(heroId: string) {
     if (!this.trial) return this.state.heroLevel(heroId);
-    return (this.state.levels[heroId] ?? 0) > 0 ? Math.max(1, this.state.emberLevels[heroId] ?? 0) : 0;
+    return this.state.permanentLevel(heroId);
   }
 
   /** Whether a star skill is active: the hero is recruited and has at least `star` stars. */
