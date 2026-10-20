@@ -8,6 +8,9 @@ import { Account } from './account';
 import { Guild } from './guild';
 import { Social } from './social';
 
+// iOS Safari ignores user-scalable=no, so stop pinch zoom here (double-tap zoom is off via touch-action in the CSS).
+for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
+
 const state = new GameState();
 const hadSave = state.load();
 initAudio();

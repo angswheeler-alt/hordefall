@@ -774,3 +774,5 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 #app > #panels { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 /* On short screens (landscape phones, small windows) the lane shrinks so the panels keep room. */
 #stagewrap { width: min(100%, calc(55vh * 1.6)); width: min(100%, calc(55dvh * 1.6)); margin: 0 auto; }
+/* No double-tap zoom on phones; taps still fire right away. touch-action doesn't inherit, so it goes on everything. */
+*, *::before, *::after { touch-action: manipulation; }
