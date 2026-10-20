@@ -590,7 +590,10 @@ describe('relics', () => {
     expect(s.discoverableRelics(def.stars).some((r) => r.id === def.id)).toBe(false);
     s.enhanceStones = def.stones!;
     expect(s.discoverableRelics(def.stars).some((r) => r.id === def.id)).toBe(true);
-    const found = s.discoverRelic(def.stars)!;
+    // Discovery picks at random among affordable relics; aim the roll at the set piece.
+    const pool = s.discoverableRelics(def.stars);
+    const found = s.discoverRelic(def.stars, () => pool.findIndex((r) => r.id === def.id) / pool.length)!;
+    expect(found.id).toBe(def.id);
     expect(found.stones).toBe(def.stones);
     expect(s.enhanceStones).toBe(0);
   });
