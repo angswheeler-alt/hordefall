@@ -700,3 +700,22 @@ div.g-req { margin-bottom: 8px; }
 .sp-note { min-height: 1.2em; }
 .sp-note.err { color: var(--hot) !important; }
 .sp-section { margin: 10px 0 6px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+
+/* Relic Shop: 4 offers on top of the Relics tab */
+.relic-shop { background: linear-gradient(180deg, var(--plank), #4a2d17); border: 2px solid var(--wood-deep); border-radius: 12px; padding: 8px; margin-bottom: 10px; color: #fff4dd; }
+.relic-shop-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.relic-shop-head h3 { margin: 0; font-size: 15px; }
+.relic-shop-head small { flex: 1; color: #e8d3b0; font-size: 11px; }
+.relic-shop-head button { font-size: 12px; padding: 6px 8px; }
+.relic-shop-offers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.rs-offer { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; background: rgba(0,0,0,.25); border: 2px solid transparent; border-radius: 10px; padding: 6px 3px; min-width: 0; }
+.rs-offer .relic-art { width: 42px; height: 42px; font-size: 18px; }
+.rs-offer b { font-size: 11px; line-height: 1.15; }
+.rs-offer small { font-size: 10px; color: #e8d3b0; line-height: 1.2; }
+.rs-offer .rs-rarity { font-weight: 800; }
+.rs-offer.r2 { border-color: #4cd97a; } .rs-offer.r2 .rs-rarity { color: #4cd97a; }
+.rs-offer.r3 { border-color: #5cc4ff; } .rs-offer.r3 .rs-rarity { color: #5cc4ff; }
+.rs-offer.r4 { border-color: #c06bff; } .rs-offer.r4 .rs-rarity { color: #c06bff; }
+.rs-offer.r5 { border-color: #ffa62b; } .rs-offer.r5 .rs-rarity { color: #ffa62b; }
+.rs-offer button { margin-top: auto; width: 100%; font-size: 11px; padding: 5px 2px; }
+.rs-offer.sold { opacity: .5; }
