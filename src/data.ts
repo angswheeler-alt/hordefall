@@ -565,6 +565,10 @@ export function elementBoss(stage: number): { name: string; title: string; eleme
 
 export const BOSS_EVERY = 50;
 export const BOSS_TIME_LIMIT = 30;
+/** Offline, a boss falls only if the team's estimate kills it inside this share of the time limit (walk-up, misses). */
+export const OFFLINE_BOSS_TIME_SHARE = 0.8;
+/** Seconds between a boss's hits (matches the battle). */
+export const OFFLINE_BOSS_COOLDOWN = 1.6;
 export const RESPAWN_SECONDS = 5;
 export const ULT_UNLOCK_LEVEL = 30;
 export const ULT_COOLDOWN = 30;

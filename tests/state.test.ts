@@ -6,7 +6,7 @@ import { emberBulk, emberCost, emberRefund } from '../src/formulas';
 import { mulEffect } from '../src/skills';
 import {
   HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, AURA_EVOLUTIONS, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, LINEUP_SIZE,
-  TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_MIN_PUSH, ROAD_START, ROAD_STEP, RELICS, RELIC_SETS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, TRIAL_QUICK_TIME, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL,
+  TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_MIN_PUSH, ROAD_START, ROAD_STEP, RELICS, RELIC_SETS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, TRIAL_QUICK_TIME, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL, bossWeakness,
 } from '../src/data';
 
 const starter = HEROES.find((h) => h.unlockCost === 0)!;
@@ -126,7 +126,7 @@ describe('offline earnings', () => {
     expect(s.applyOffline(-5000)).toBeNull();
   });
 
-  it('is capped and stops one stage before the next boss', () => {
+  it('is capped and stops one stage before a boss the team cannot beat', () => {
     const s = fresh();
     s.goldPerSec = 10;
     s.secondsPerStage = 1;
@@ -135,6 +135,43 @@ describe('offline earnings', () => {
     expect(r.seconds).toBe(OFFLINE_CAP_HOURS * 3600);
     expect(s.stage).toBe(49);
     expect(r.gold.gte(10 * OFFLINE_CAP_HOURS * 3600)).toBe(true);
+  });
+
+  it('beats bosses the team can beat, and stops before the first one it cannot', () => {
+    const s = fresh();
+    const team = HEROES.filter((h) => h.rarity === 'common').slice(0, LINEUP_SIZE);
+    for (const h of HEROES) s.levels[h.id] = team.includes(h) ? 100 : 0;
+    s.secondsPerStage = 1;
+    s.stage = 3;
+    expect(s.canBeatBoss(100).won).toBe(true);
+    expect(s.canBeatBoss(150).won).toBe(false);
+    const r = s.applyOffline(1e9)!;
+    expect(r.bosses).toBe(2);
+    expect(s.stage).toBe(149);
+    expect(r.stages).toBe(146);
+  });
+
+  it('does not beat a boss without enough time left, or with a team that is too weak', () => {
+    const s = fresh();
+    const team = HEROES.filter((h) => h.rarity === 'common').slice(0, LINEUP_SIZE);
+    for (const h of HEROES) s.levels[h.id] = team.includes(h) ? 92 : 0;
+    s.secondsPerStage = 1;
+    s.stage = 50;
+    expect(s.canBeatBoss(100).won).toBe(false);
+    s.applyOffline(1e9);
+    expect(s.stage).toBe(99);
+    const t = fresh();
+    for (const h of HEROES) t.levels[h.id] = team.includes(h) ? 100 : 0;
+    t.secondsPerStage = 30;
+    t.stage = 98;
+    t.applyOffline(61);
+    expect(t.stage).toBe(99);
+  });
+
+  it('cannot hurt an element-locked boss with the wrong element', () => {
+    const s = fresh();
+    for (const h of HEROES) s.levels[h.id] = h.id === starter.id ? 5000 : 0;
+    expect(s.canBeatBoss(600).won).toBe(starter.element === bossWeakness(600));
   });
 });
 
