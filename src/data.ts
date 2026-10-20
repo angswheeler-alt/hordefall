@@ -839,7 +839,7 @@ export const ESSENCE_NAMES: Record<Element, string> = {
  *
  * 1★ relics are open from the start; each higher star opens once a relic of
  * the star below reaches level 20. At full level, Enhance Stones raise the cap
- * by 5. 4★ and 5★ set pieces also take Enhance Stones to craft (the original's
+ * by 5. Set pieces (4★ to 8★) also take Enhance Stones to craft (the original's
  * Art Stones). A set's bonus turns on once every piece is crafted.
  */
 export type ElementHp = `${Element}Hp`;
@@ -867,6 +867,9 @@ export interface RelicDef {
 }
 const T4 = 300_000;
 const T5 = 2_000_000;
+const T6 = 15_000_000;
+const T7 = 120_000_000;
+const T8 = 1_000_000_000;
 export const RELICS: RelicDef[] = [
   // Normal relics
   { id: 'warbanner', name: 'Warbanner', stars: 1, fx: [['atk', 40]], essences: ['fire', 'dark'], craft: 10, blurb: 'A torn battle flag that still makes everyone swing harder.' },
@@ -875,6 +878,13 @@ export const RELICS: RelicDef[] = [
   { id: 'sundial', name: 'Pocket Sundial', stars: 1, fx: [['stallTime', 3]], essences: ['water', 'light'], craft: 10, blurb: 'Stalls finish their cycles sooner.' },
   { id: 'sawtooth', name: 'Sawtooth Sword', stars: 2, fx: [['atk', 120]], essences: ['fire', 'earth'], craft: 300, blurb: 'Bites through anything.' },
   { id: 'jackal', name: 'Jackal Idol', stars: 3, fx: [['stallCost', 48]], essences: ['fire', 'light'], craft: 5_000, blurb: 'Merchants bow to it. Stall upgrades cost much less.' },
+  { id: 'ironbark', name: 'Ironbark Buckler', stars: 2, fx: [['def', 120]], essences: ['earth', 'dark'], craft: 300, blurb: 'A round shield of bark as hard as iron.' },
+  { id: 'luckycoin', name: 'Lucky Coin', stars: 2, fx: [['gold', 60]], essences: ['light', 'fire'], craft: 300, blurb: 'Always lands heads. More gold from enemies and chests.' },
+  { id: 'quickstep', name: 'Quickstep Boots', stars: 2, fx: [['speed', 6]], essences: ['water', 'fire'], craft: 300, blurb: 'Light boots that make the whole team attack a little faster.' },
+  { id: 'heartstone', name: 'Heartstone Amulet', stars: 3, fx: [['hp', 360]], essences: ['earth', 'light'], craft: 5_000, blurb: 'A warm red stone that beats like a heart.' },
+  { id: 'warhorn', name: 'Warhorn', stars: 3, fx: [['atk', 360], ['critDmg', 30]], essences: ['fire', 'water'], craft: 5_000, blurb: 'One blast and every hero hits harder.' },
+  { id: 'emberlamp', name: 'Ember Lantern', stars: 3, fx: [['embers', 10]], essences: ['dark', 'light'], craft: 5_000, blurb: 'Catches stray Embers when you Rekindle.' },
+  { id: 'shadowcloak', name: 'Shadow Cloak', stars: 3, fx: [['dodge', 5]], essences: ['dark', 'water'], craft: 5_000, blurb: 'Blows hit the shadow instead of the hero.' },
   { id: 'starfall', name: 'Starfall Blade', stars: 4, fx: [['atk', 1080], ['hp', 1080]], essences: ['light', 'water'], craft: 40_000, blurb: 'Hammered from a fallen star.' },
   // 4★ sets
   { id: 'tide_trident', name: 'Tidelord Trident', stars: 4, set: 'tide', fx: [['water', 4320], ['def', 1620]], essences: ['water', 'dark'], craft: 100_000, stones: 2, blurb: 'Commands the sea.' },
@@ -911,6 +921,21 @@ export const RELICS: RelicDef[] = [
   { id: 'siren_dagger', name: 'Siren Dagger', stars: 5, set: 'siren', fx: [['water', 8640], ['waterDef', 6480]], essences: ['water', 'dark'], craft: T5, stones: 3, blurb: 'Sings as it strikes.' },
   { id: 'siren_tiara', name: 'Siren Tiara', stars: 5, set: 'siren', fx: [['waterHp', 8640], ['knightShield', 640]], essences: ['water', 'earth'], craft: T5, stones: 3, blurb: 'Coral and moonlight.' },
   { id: 'siren_shield', name: 'Siren Shield', stars: 5, set: 'siren', fx: [['waterDef', 6480], ['stall', 5120]], essences: ['water', 'light'], craft: T5, stones: 3, blurb: 'A shell that turns the tide.' },
+  // 6★ sets
+  { id: 'lev_fin', name: 'Leviathan Fin Blade', stars: 6, set: 'leviathan', fx: [['water', 17280], ['waterDef', 12960]], essences: ['water', 'fire'], craft: T6, stones: 4, blurb: 'Cut from the fin of the great sea serpent.' },
+  { id: 'lev_scale', name: 'Leviathan Scale Mail', stars: 6, set: 'leviathan', fx: [['waterHp', 17280], ['stall', 10240]], essences: ['water', 'earth'], craft: T6, stones: 4, blurb: 'Every scale is the size of a shield.' },
+  { id: 'lev_pearl', name: 'Leviathan Pearl', stars: 6, set: 'leviathan', fx: [['def', 4320], ['speed', 15]], essences: ['water', 'dark'], craft: T6, stones: 4, blurb: 'Glows with the light of the deep.' },
+  { id: 'hawk_talon', name: 'Thunderhawk Talon', stars: 6, set: 'thunderhawk', fx: [['light', 17280], ['crit', 10]], essences: ['light', 'fire'], craft: T6, stones: 4, blurb: 'Crackles every time it strikes.' },
+  { id: 'hawk_wing', name: 'Thunderhawk Wing Cloak', stars: 6, set: 'thunderhawk', fx: [['lightHp', 17280], ['stallTime', 648]], essences: ['light', 'water'], craft: T6, stones: 4, blurb: 'Feathers charged with storm.' },
+  { id: 'hawk_eye', name: 'Thunderhawk Eye', stars: 6, set: 'thunderhawk', fx: [['lightDef', 12960], ['gold', 648]], essences: ['light', 'earth'], craft: T6, stones: 4, blurb: 'Sees gold from a mile away.' },
+  // 7★ set
+  { id: 'dread_crown', name: 'Dreadmoon Crown', stars: 7, set: 'dreadmoon', fx: [['dark', 34560], ['cost', 6144]], essences: ['dark', 'light'], craft: T7, stones: 5, blurb: 'Worn by the king of the night. Hero levels cost far less.' },
+  { id: 'dread_blade', name: 'Dreadmoon Blade', stars: 7, set: 'dreadmoon', fx: [['atk', 8640], ['critDmg', 640]], essences: ['dark', 'fire'], craft: T7, stones: 5, blurb: 'A crescent of black steel.' },
+  { id: 'dread_armor', name: 'Dreadmoon Armor', stars: 7, set: 'dreadmoon', fx: [['darkHp', 34560], ['darkDef', 25920]], essences: ['dark', 'earth'], craft: T7, stones: 5, blurb: 'Moonlight slides right off it.' },
+  // 8★ set
+  { id: 'hallow_medal', name: 'Hallowed Medallion', stars: 8, set: 'hallowed', fx: [['atk', 19640], ['stallCost', 12848]], essences: ['light', 'dark'], craft: T8, stones: 6, blurb: 'A winged medallion blessed by every god at once.' },
+  { id: 'hallow_mask', name: 'Hallowed Mask', stars: 8, set: 'hallowed', fx: [['def', 17380], ['gold', 723]], essences: ['dark', 'fire'], craft: T8, stones: 6, blurb: 'A golden face that never stops watching.' },
+  { id: 'hallow_chalice', name: 'Hallowed Chalice', stars: 8, set: 'hallowed', fx: [['hp', 19640], ['stallTime', 678]], essences: ['earth', 'light'], craft: T8, stones: 6, blurb: 'Whoever drinks from it fights all day.' },
 ];
 export interface RelicSetDef {
   id: string;
@@ -933,6 +958,10 @@ export const RELIC_SETS: RelicSetDef[] = [
   { id: 'wyrm', name: 'Abyss Wyrm', element: 'dark', bonus: [['stunTime', 25], ['cost', 750], ['atk', 4000]], text: 'Stuns last 25% longer, hero levels cost far less, team +4,000% ATK' },
   { id: 'titan', name: 'Stone Titan', element: 'earth', bonus: [['poisonTime', 25], ['dodge', 15], ['def', 4000]], text: 'Poison lasts 25% longer, team dodges 15% of attacks, +4,000% Defense' },
   { id: 'siren', name: 'Siren', element: 'water', bonus: [['freezeTime', 25], ['speed', 15], ['def', 4000]], text: 'Freeze lasts 25% longer, team attacks 15% faster, +4,000% Defense' },
+  { id: 'leviathan', name: 'Leviathan', element: 'water', bonus: [['speed', 20], ['def', 8000]], text: 'Team attacks 20% faster, +8,000% Defense' },
+  { id: 'thunderhawk', name: 'Thunderhawk', element: 'light', bonus: [['crit', 20], ['hp', 8000]], text: '+20% crit chance, team +8,000% HP' },
+  { id: 'dreadmoon', name: 'Dreadmoon', element: 'dark', bonus: [['stunTime', 35], ['cost', 1000], ['atk', 16000]], text: 'Stuns last 35% longer, hero levels cost far less, team +16,000% ATK' },
+  { id: 'hallowed', name: 'Hallowed', element: null, bonus: [['embers', 75], ['atk', 32000], ['hp', 32000]], text: '+75% Embers from Rekindle, team +32,000% ATK and HP' },
 ];
 /** Levels a relic reaches before Enhance Stones; reaching it on an N★ relic opens (N+1)★ relics. */
 export const RELIC_BASE_MAX = 20;

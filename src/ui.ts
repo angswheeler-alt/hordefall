@@ -285,7 +285,7 @@ export class UI {
 
   private relicArt(def: RelicDef) {
     const [a, b] = def.essences;
-    return `<div class="relic-art" style="--a:${hex(ELEMENT_COLORS[a])};--b:${hex(ELEMENT_COLORS[b])}" aria-hidden="true">${def.name[0]}<span class="relic-stars">${'★'.repeat(def.stars)}</span></div>`;
+    return `<div class="relic-art" style="--a:${hex(ELEMENT_COLORS[a])};--b:${hex(ELEMENT_COLORS[b])}" aria-hidden="true">${def.name[0]}<span class="relic-stars">${def.stars > 5 ? `${def.stars}★` : '★'.repeat(def.stars)}</span></div>`;
   }
 
   /** "All heroes ATK +40%" style text for a relic's effects at a level. */
@@ -465,7 +465,7 @@ export class UI {
     const s = this.state;
     const level = s.relics[def.id] ?? 0;
     const set = def.set ? RELIC_SETS.find((x) => x.id === def.set) : undefined;
-    const rarity = ['', 'Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'][def.stars] ?? '';
+    const rarity = ['', 'Common', 'Uncommon', 'Rare', 'Epic', 'Legendary', 'Mythic', 'Ancient', 'Divine'][def.stars] ?? '';
     const status = level
       ? `You own it · Lv ${level}/${s.relicMaxLevel(def)}${s.equipped.includes(def.id) ? ' · equipped' : ''}`
       : !s.relicOpen(def)
@@ -510,7 +510,7 @@ export class UI {
     const newBtn = $<HTMLButtonElement>('relic-new');
     newBtn.disabled = shop.refreshIn > 0;
     newBtn.textContent = shop.refreshIn > 0 ? `New relics in ${Math.ceil(shop.refreshIn / 60_000)}m` : 'New relics';
-    const rarity = ['', 'Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
+    const rarity = ['', 'Common', 'Uncommon', 'Rare', 'Epic', 'Legendary', 'Mythic', 'Ancient', 'Divine'];
     const shopHtml = shop.offers
       .map((def) => {
         const can = s.canAffordRelic(def);
