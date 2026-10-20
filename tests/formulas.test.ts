@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import Decimal from 'break_infinity.js';
 import { defended, bulkCost, enemyHp, fmt, upgradeCost, stallBulkCost, emberYield, emberCost, keeperLevel, keeperThreshold, relicCost, guildBossHp, guildBossAttemptCoins, guildBossKillCoins, researchPointsFor, researchRank } from '../src/formulas';
-import { HEROES, STALLS, elementBoss, bossElement, bossLabel, stageBoss, bossWeakness, bossHasElement, STRONG_VS } from '../src/data';
+import { HEROES, STALLS, elementBoss, bossElement, bossLabel, stageBoss, bossWeakness, bossHasElement, bossImmuneTo, STRONG_VS } from '../src/data';
 
 const hero = HEROES.find((h) => h.unlockCost !== 0)!;
 
@@ -151,5 +151,23 @@ describe('named element bosses', () => {
       expect(bossElement(s)).toBe(stageBoss(s).art);
       expect(STRONG_VS[bossWeakness(s)!]).toBe(bossElement(s));
     }
+  });
+});
+
+describe('element-locked bosses (stage 600+)', () => {
+  const ALL = ['water', 'fire', 'earth', 'light', 'dark'] as const;
+  it('anyone can hurt bosses before 600', () => {
+    for (const e of ALL) expect(bossImmuneTo(550, e)).toBe(false);
+  });
+  it('from 600 only the counter element hurts the boss', () => {
+    // Fire boss: only Water. Water: only Earth. Earth: only Fire. Dark: only Light. Light: only Dark.
+    const only = { fire: 'water', water: 'earth', earth: 'fire', dark: 'light', light: 'dark' } as const;
+    for (let s = 600; s <= 1500; s += 50) {
+      const counter = only[bossElement(s)];
+      for (const e of ALL) expect(bossImmuneTo(s, e)).toBe(e !== counter);
+      expect(bossImmuneTo(s, null)).toBe(true);
+    }
+    expect(bossImmuneTo(600, 'water')).toBe(false);
+    expect(bossImmuneTo(600, 'fire')).toBe(true);
   });
 });
