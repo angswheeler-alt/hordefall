@@ -1496,7 +1496,7 @@ export class UI {
   }
 
   showOffline(report: OfflineReport) {
-    const stages = report.stages > 0 ? `<br>Your heroes pushed <b>${report.stages}</b> stage${report.stages === 1 ? '' : 's'}.` : '';
+    const stages = report.stages > 0 ? `<br>Your heroes pushed <b>${report.stages}</b> stage${report.stages === 1 ? '' : 's'}${report.bosses > 0 ? ` and beat <b>${report.bosses}</b> boss${report.bosses === 1 ? '' : 'es'}` : ''}.` : '';
     const market = report.market.gt(0) ? `<br>Market Row made <b>${fmt(report.market)}</b> of that.` : '';
     this.showModal('Welcome back!', `You were away for ${fmtDuration(report.seconds)}.<br>You earned <b>${fmt(report.gold)}</b> gold.${market}${stages}`, 'Collect');
   }

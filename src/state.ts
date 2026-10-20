@@ -1,7 +1,7 @@
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, MILESTONE_STEP, milestoneReward, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_RESTOCK_MINUTES, RELIC_SHOP_REFRESH_MINUTES, RELIC_SHOP_STAR_WEIGHTS, RELIC_SHOP_STAR_STAGES, RELIC_SHOP_CRAFT_GEMS, RELIC_SHOP_LEVEL_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
-import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins } from './formulas';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_RESTOCK_MINUTES, RELIC_SHOP_REFRESH_MINUTES, RELIC_SHOP_STAR_WEIGHTS, RELIC_SHOP_STAR_STAGES, RELIC_SHOP_CRAFT_GEMS, RELIC_SHOP_LEVEL_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
+import { relicCost, bossHp, bossAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES, PLAYABLE_HEROES } from './data';
 import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills';
@@ -20,6 +20,8 @@ export interface OfflineReport {
   seconds: number;
   gold: Decimal;
   stages: number;
+  /** Bosses beaten while away (only ones the team could beat). */
+  bosses: number;
   /** Part of `gold` that came from auto-collect Stalls. */
   market: Decimal;
 }
@@ -828,6 +830,33 @@ export class GameState {
       teamLeft: Math.max(0, 1 - seconds / wipeTime),
       dps,
     };
+  }
+
+  /**
+   * Whether the lineup would beat the stage `stage` boss, used offline. A cautious estimate: plain hits with
+   * average crits, no Ultimates or Signatures, and only part of the time limit (the walk to the boss eats some).
+   * The boss hits the front hero until it falls, then the next.
+   */
+  canBeatBoss(stage: number): { won: boolean; seconds: number } {
+    const team = HEROES.filter((h) => this.inLineup(h.id)).map((def) => ({ def, stats: this.heroStats(def) }));
+    const element = bossHasElement(stage) ? bossElement(stage) : null;
+    const elemental = 1 + this.researchBonus('elemental');
+    let dps = new Decimal(0);
+    let survive = 0;
+    for (const { def, stats } of team) {
+      if (bossImmuneTo(stage, def.element)) continue;
+      const mult = element ? elementMultiplier(def.element, element) * elemental : 1;
+      const crit = 1 + Math.max(0, Math.min(1, stats.critRate)) * Math.max(0, stats.critDmg);
+      dps = dps.plus(stats.atk.value.times(stats.attacksPerSec.value * mult * crit));
+    }
+    for (const { def, stats } of team) {
+      const hit = bossAtk(stage).times(element ? elementMultiplier(element, def.element) : 1);
+      const perSec = defended(hit, stats.def.value).div(OFFLINE_BOSS_COOLDOWN);
+      survive += perSec.gt(0) ? stats.hp.value.div(perSec).toNumber() : Infinity;
+    }
+    const killTime = dps.gt(0) ? bossHp(stage).div(dps).toNumber() : Infinity;
+    const won = killTime <= Math.min(survive, BOSS_TIME_LIMIT * OFFLINE_BOSS_TIME_SHARE);
+    return { won, seconds: won ? killTime : Infinity };
   }
 
   /** Heroes owned with at least this many Ember levels. */
@@ -1748,15 +1777,33 @@ export class GameState {
     const gold = new Decimal(this.goldPerSec).times(capped).plus(market);
     // Stalls waiting for a tap fill up while you're away.
     for (const def of STALLS) if (this.stalls[def.id].level > 0 && !this.stallAuto(def.id)) this.stalls[def.id].progress = this.stallCycle(def);
+    // Push stage by stage; a boss only falls if the team could actually beat it (canBeatBoss).
     let stages = 0;
-    if (this.autoAdvance && this.secondsPerStage > 0 && this.stage % BOSS_EVERY !== 0) {
-      const nextBoss = Math.ceil((this.stage + 1) / BOSS_EVERY) * BOSS_EVERY;
-      const room = Math.max(0, nextBoss - 1 - this.stage);
-      stages = Math.min(room, Math.floor(capped / this.secondsPerStage));
+    let bosses = 0;
+    let left = capped;
+    const start = this.stage;
+    if (this.autoAdvance && this.secondsPerStage > 0) {
+      let stage = this.stage;
+      for (;;) {
+        // Walk up to the stage before the next boss (or stay on the boss stage you're on).
+        const boss = Math.ceil(stage / BOSS_EVERY) * BOSS_EVERY;
+        const room = Math.max(0, boss - 1 - stage);
+        const run = Math.min(room, Math.floor(left / this.secondsPerStage));
+        stage += run;
+        left -= run * this.secondsPerStage;
+        if (run < room) break;
+        const fight = this.canBeatBoss(boss);
+        const cost = (stage < boss ? this.secondsPerStage : 0) + Math.max(this.secondsPerStage, fight.seconds);
+        if (!fight.won || left < cost) break;
+        left -= cost;
+        stage = boss + 1;
+        bosses++;
+      }
+      stages = stage - start;
     }
     this.gold = this.gold.plus(gold);
-    this.reachStage(this.stage + stages);
-    return { seconds: capped, gold, stages, market };
+    this.reachStage(start + stages);
+    return { seconds: capped, gold, stages, bosses, market };
   }
 }
 
