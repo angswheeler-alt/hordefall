@@ -2,7 +2,7 @@ import { DEV_TOOLS } from './config';
 import Decimal from 'break_infinity.js';
 import { combatPower, type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { HERO_ANIMS } from './heroAnims';
 import { setMuted } from './sfx';
@@ -323,12 +323,59 @@ export class UI {
         pieces.forEach((d) => row(d, box));
       }
     }
+    $('relic-shop-refresh').addEventListener('click', () => {
+      if (this.state.refreshRelicShop()) {
+        play('unlock');
+        this.render();
+      }
+    });
+    $('relic-shop-offers').addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-offer]');
+      if (!btn || btn.disabled) return;
+      if (this.state.buyRelicOffer(Number(btn.dataset.offer))) {
+        play('unlock');
+        this.scene()?.syncHeroes();
+        this.render();
+      }
+    });
     $('relic-buyslot').addEventListener('click', () => {
       if (this.state.buyRelicSlot()) {
         play('unlock');
         this.render();
       }
     });
+  }
+
+  /** The Relic Shop: 4 offers (each sells once), the restock timer and the free refresh. */
+  private renderRelicShop() {
+    const s = this.state;
+    const shop = s.relicShopState();
+    const mins = (ms: number) => {
+      const m = Math.max(1, Math.ceil(ms / 60_000));
+      return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
+    };
+    $('relic-shop-timer').textContent = `New stock in ${mins(shop.restockIn)}`;
+    const refresh = $<HTMLButtonElement>('relic-shop-refresh');
+    refresh.disabled = shop.refreshIn > 0;
+    refresh.textContent = shop.refreshIn > 0 ? `Free refresh in ${mins(shop.refreshIn)}` : 'Free refresh';
+    refresh.title = `One free refresh every ${RELIC_SHOP_REFRESH_MINUTES} minutes`;
+    const rarity = ['', 'Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
+    const html = shop.offers
+      .map((o, i) => {
+        const def = RELICS.find((r) => r.id === o.id)!;
+        const level = s.relics[def.id] ?? 0;
+        const price = s.relicOfferPrice(def);
+        const [a, b] = def.essences;
+        const what = level > 0 ? `+1 level (Lv ${level} → ${level + 1})` : 'Crafted for you, Lv 1';
+        const label = o.bought ? 'Sold' : price === null ? 'Maxed' : `${price} Gems`;
+        const can = !o.bought && price !== null && s.gems >= price;
+        return `<div class="rs-offer r${def.stars}${o.bought ? ' sold' : ''}">
+          <div class="relic-art" style="--a:${hex(ELEMENT_COLORS[a])};--b:${hex(ELEMENT_COLORS[b])}" aria-hidden="true">${def.name[0]}<span class="relic-stars">${'★'.repeat(def.stars)}</span></div>
+          <b>${def.name}</b><small class="rs-rarity">${rarity[def.stars] ?? ''}${def.set ? ' · set piece' : ''}</small><small>${what}</small>
+          <button class="gem-btn small" data-offer="${i}" ${can ? '' : 'disabled'}>${label}</button></div>`;
+      })
+      .join('');
+    setHtml($('relic-shop-offers'), html || '<p class="market-note">Nothing to offer: every relic you can get is maxed.</p>');
   }
 
   /** Returns true when something on the Relics tab is worth a look (an upgrade for an equipped relic, or a free slot). */
@@ -361,6 +408,7 @@ export class UI {
     const effectText = (def: RelicDef, level: number) =>
       def.fx.map(([e]) => `${effectName(e)} ${e === 'cost' || e === 'stallCost' ? '−' : '+'}${pct(s.relicEffect(def, e, level))}%`).join(' · ');
     $('relic-slots').textContent = `Equipped ${s.equipped.length}/${s.relicSlots}`;
+    this.renderRelicShop();
     setHtml(
       $('relic-ess'),
       TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}"></i>${fmt(s.essences[e] ?? 0)}</span>`).join('') +

@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, MILESTONE_STEP, milestoneReward, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_RESTOCK_MINUTES, RELIC_SHOP_REFRESH_MINUTES, RELIC_SHOP_STAR_WEIGHTS, RELIC_SHOP_STAR_STAGES, RELIC_SHOP_CRAFT_GEMS, RELIC_SHOP_LEVEL_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
 import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES, PLAYABLE_HEROES } from './data';
@@ -112,6 +112,8 @@ export class GameState {
   /** Day of the last free Lucky Spin. */
   spinDay = '';
   /** Today's free Daily Medal Bundle: the heroes and medals it holds, rolled once a day. */
+  /** The Relic Shop's current offers, when they restock on their own, and when the next free refresh is allowed. */
+  relicShop: { offers: Array<{ id: string; bought: boolean }>; restockAt: number; refreshAt: number } = { offers: [], restockAt: 0, refreshAt: 0 };
   medalBundle: { day: string; drops: Array<{ heroId: string; crests: number }>; claimed: boolean } = { day: '', drops: [], claimed: false };
   /** Achievement tiers already claimed, by achievement id. */
   achieved: Record<string, number> = {};
@@ -337,6 +339,76 @@ export class GameState {
     const cost = this.relicNextCost(def);
     if (!this.relicOpen(def) || cost === null || !def.essences.every((e) => (this.essences[e] ?? 0) >= cost)) return false;
     return (this.relics[def.id] ?? 0) > 0 || this.enhanceStones >= (def.stones ?? 0);
+  }
+
+  /** Relics the shop may offer: stars opened by best stage, and not already at their level cap. */
+  relicShopPool(): RelicDef[] {
+    return RELICS.filter((r) => this.bestStage >= (RELIC_SHOP_STAR_STAGES[r.stars] ?? Infinity) && (this.relics[r.id] ?? 0) < this.relicMaxLevel(r));
+  }
+
+  /** Pick the shop's offers: each slot rolls a star by RELIC_SHOP_STAR_WEIGHTS (among stars that have relics left), then a relic of that star; no repeats. */
+  private rollRelicShop(): Array<{ id: string; bought: boolean }> {
+    const pool = this.relicShopPool();
+    const offers: Array<{ id: string; bought: boolean }> = [];
+    while (offers.length < RELIC_SHOP_SIZE) {
+      const left = pool.filter((r) => !offers.some((o) => o.id === r.id));
+      if (!left.length) break;
+      const stars = [...new Set(left.map((r) => r.stars))];
+      const total = stars.reduce((t, n) => t + (RELIC_SHOP_STAR_WEIGHTS[n] ?? 0), 0);
+      let roll = Math.random() * total;
+      let star = stars[stars.length - 1];
+      for (const n of stars) {
+        roll -= RELIC_SHOP_STAR_WEIGHTS[n] ?? 0;
+        if (roll < 0) {
+          star = n;
+          break;
+        }
+      }
+      const ofStar = left.filter((r) => r.stars === star);
+      offers.push({ id: ofStar[Math.floor(Math.random() * ofStar.length)].id, bought: false });
+    }
+    return offers;
+  }
+
+  /** The Relic Shop as it stands now, restocking first if its timer ran out. Closing and reopening never changes it. */
+  relicShopState(now = Date.now()) {
+    // A restock time more than a full timer away means the device clock went backwards: restock rather than wait.
+    if (now >= this.relicShop.restockAt || this.relicShop.restockAt - now > RELIC_SHOP_RESTOCK_MINUTES * 60_000 || !this.relicShop.offers.length) {
+      this.relicShop.offers = this.rollRelicShop();
+      this.relicShop.restockAt = now + RELIC_SHOP_RESTOCK_MINUTES * 60_000;
+    }
+    return { offers: this.relicShop.offers, restockIn: this.relicShop.restockAt - now, refreshIn: Math.max(0, this.relicShop.refreshAt - now) };
+  }
+
+  /** Free manual refresh: new offers now and a fresh restock timer, then a wait before the next one. */
+  refreshRelicShop(now = Date.now()): boolean {
+    if (now < this.relicShop.refreshAt && this.relicShop.refreshAt - now <= RELIC_SHOP_REFRESH_MINUTES * 60_000) return false;
+    this.relicShop = { offers: this.rollRelicShop(), restockAt: now + RELIC_SHOP_RESTOCK_MINUTES * 60_000, refreshAt: now + RELIC_SHOP_REFRESH_MINUTES * 60_000 };
+    this.save();
+    return true;
+  }
+
+  /** Gems for an offer: crafting a relic you lack, or +1 level on one you have. Null when it can't be bought (maxed). */
+  relicOfferPrice(def: RelicDef): number | null {
+    const level = this.relics[def.id] ?? 0;
+    if (level >= this.relicMaxLevel(def)) return null;
+    return level > 0 ? RELIC_SHOP_LEVEL_GEMS[def.stars] : RELIC_SHOP_CRAFT_GEMS[def.stars];
+  }
+
+  /** Buy offer `index` with Gems. A newly crafted relic goes into a free slot. Each offer sells once. */
+  buyRelicOffer(index: number, now = Date.now()): boolean {
+    const offer = this.relicShopState(now).offers[index];
+    const def = offer && RELICS.find((r) => r.id === offer.id);
+    if (!offer || !def || offer.bought) return false;
+    const price = this.relicOfferPrice(def);
+    if (price === null || this.gems < price) return false;
+    this.gems -= price;
+    const crafted = !this.relics[def.id];
+    this.relics[def.id] = (this.relics[def.id] ?? 0) + 1;
+    if (crafted && this.equipped.length < this.relicSlots) this.equipped.push(def.id);
+    offer.bought = true;
+    this.save();
+    return true;
   }
 
   /** Craft (level 0) or upgrade a relic with Essence. A newly crafted relic goes into a free slot. */
@@ -1354,6 +1426,7 @@ export class GameState {
       login: this.login,
       spinDay: this.spinDay,
       medalBundle: this.medalBundle,
+      relicShop: this.relicShop,
       guildShop: this.guildShop,
       guildQuestPending: this.guildQuestPending,
       boosts: this.boosts,
@@ -1466,6 +1539,14 @@ export class GameState {
       const q = d.guildQuestPending;
       if (q && typeof q === 'object') this.guildQuestPending = { kills: Math.max(0, Number(q.kills) || 0), stages: Math.max(0, Number(q.stages) || 0), trials: Math.max(0, Number(q.trials) || 0) };
       if (d.boosts && typeof d.boosts === 'object') this.boosts = { banner: Number(d.boosts.banner) || 0, horn: Number(d.boosts.horn) || 0 };
+      if (d.relicShop && Array.isArray(d.relicShop.offers)) {
+        const offers = d.relicShop.offers.filter((o: { id?: unknown }) => RELICS.some((r) => r.id === o?.id)).slice(0, RELIC_SHOP_SIZE);
+        this.relicShop = {
+          offers: offers.map((o: { id: string; bought?: unknown }) => ({ id: o.id, bought: !!o.bought })),
+          restockAt: Number(d.relicShop.restockAt) || 0,
+          refreshAt: Number(d.relicShop.refreshAt) || 0,
+        };
+      }
       if (d.medalBundle && Array.isArray(d.medalBundle.drops)) {
         const drops = d.medalBundle.drops.filter((x: { heroId?: unknown; crests?: unknown }) => HEROES.some((h) => h.id === x?.heroId) && Number(x.crests) > 0);
         this.medalBundle = { day: String(d.medalBundle.day ?? ''), drops: drops.map((x: { heroId: string; crests: number }) => ({ heroId: x.heroId, crests: Number(x.crests) })), claimed: !!d.medalBundle.claimed };

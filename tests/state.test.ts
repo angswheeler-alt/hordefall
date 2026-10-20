@@ -879,3 +879,80 @@ describe('Guild Quests', () => {
     expect(s.guildCredits).toBe(15 + 60 + 120);
   });
 });
+
+describe('Relic Shop', () => {
+  const NOW = 1_800_000_000_000;
+  it('shows 4 offers that stay put when the shop is closed and reopened', () => {
+    const s = fresh();
+    s.bestStage = 1000;
+    const first = s.relicShopState(NOW).offers.map((o) => o.id);
+    expect(first.length).toBe(4);
+    expect(new Set(first).size).toBe(4);
+    expect(s.relicShopState(NOW + 30 * 60_000).offers.map((o) => o.id)).toEqual(first);
+  });
+
+  it('only offers relic stars the best stage has opened', () => {
+    const s = fresh();
+    s.bestStage = 10;
+    for (let i = 0; i < 20; i++) {
+      s.relicShop.restockAt = 0;
+      for (const o of s.relicShopState(NOW).offers) expect(RELICS.find((r) => r.id === o.id)!.stars).toBe(1);
+    }
+  });
+
+  it('restocks on its own after an hour', () => {
+    const s = fresh();
+    s.bestStage = 1000;
+    s.relicShopState(NOW);
+    const at = s.relicShop.restockAt;
+    expect(at).toBe(NOW + 60 * 60_000);
+    s.relicShopState(at);
+    expect(s.relicShop.restockAt).toBe(at + 60 * 60_000);
+  });
+
+  it('gives one free manual refresh every 10 minutes, which restarts the restock timer', () => {
+    const s = fresh();
+    s.bestStage = 1000;
+    s.relicShopState(NOW);
+    expect(s.refreshRelicShop(NOW + 1000)).toBe(true);
+    expect(s.relicShop.restockAt).toBe(NOW + 1000 + 60 * 60_000);
+    expect(s.refreshRelicShop(NOW + 2000)).toBe(false);
+    expect(s.refreshRelicShop(NOW + 1000 + 10 * 60_000)).toBe(true);
+  });
+
+  it('sells each offer once for Gems: crafts a new relic, or +1 level on an owned one', () => {
+    const s = fresh();
+    s.bestStage = 1;
+    s.gems = 10_000;
+    const offer = s.relicShopState(NOW).offers[0];
+    const def = RELICS.find((r) => r.id === offer.id)!;
+    expect(s.relics[def.id] ?? 0).toBe(0);
+    const price = s.relicOfferPrice(def)!;
+    expect(s.buyRelicOffer(0, NOW)).toBe(true);
+    expect(s.relics[def.id]).toBe(1);
+    expect(s.gems).toBe(10_000 - price);
+    expect(s.buyRelicOffer(0, NOW)).toBe(false);
+    // Owned relics cost less: a level, not a craft.
+    expect(s.relicOfferPrice(def)!).toBeLessThan(price);
+  });
+
+  it('refuses without enough Gems and never offers maxed relics', () => {
+    const s = fresh();
+    s.gems = 0;
+    expect(s.buyRelicOffer(0, NOW)).toBe(false);
+    for (const r of RELICS.filter((r) => r.stars === 1)) s.relics[r.id] = s.relicMaxLevel(r);
+    s.bestStage = 10;
+    s.relicShop.restockAt = 0;
+    expect(s.relicShopState(NOW).offers.length).toBe(0);
+  });
+
+  it('round-trips through the save', () => {
+    const s = fresh();
+    s.bestStage = 500;
+    s.relicShopState(NOW);
+    s.save();
+    const t = new GameState();
+    t.load();
+    expect(t.relicShop).toEqual(s.relicShop);
+  });
+});
