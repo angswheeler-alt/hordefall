@@ -1235,7 +1235,17 @@ export class UI {
     const bestLine = best === null
       ? `Win in ${TRIAL_QUICK_TIME}s or less to unlock Quick Battle`
       : `Best clear <b>${best}s</b> · ${quickOk ? '<span class="win">Quick Battle unlocked</span>' : `win in ${TRIAL_QUICK_TIME}s or less to unlock Quick Battle`}`;
-    setHtml($('tr-odds'), `Difficulty <b>${level.difficulty.toLocaleString()}</b> · reward <b>${fmt(level.essence)}</b> Essence · ${level.medals} medal${level.medals === 1 ? '' : 's'}<br>${req}<br>${bestLine}<br>Boss HP <b>${fmt(trialHp(level))}</b> · team damage in ${TRIAL_TIME}s <b>${fmt(sim.dps.times(TRIAL_TIME))}</b> · <span class="${sim.won ? 'win' : 'lose'}">${sim.won ? 'Should be winnable' : 'Too strong for now'}</span>`);
+    // On the highest open level, say what opens the next one (and what that one will need).
+    const top = s.trialUnlocked(el);
+    const next = TRIAL_LEVELS[tier];
+    const nextReq = next?.req ? ` (it needs ${next.req[0]} heroes at Ember ${next.req[1]}+, you have ${s.heroesAtEmber(next.req[1])})` : '';
+    const nextLine = tier < top
+      ? ''
+      : !next
+        ? ((s.trialBest[el] ?? 0) >= TRIAL_TIERS ? '<span class="win">Top level cleared</span><br>' : 'This is the top level<br>')
+        : `<b>Win this level to open level ${tier + 1}</b>${nextReq}<br>`;
+    $('tr-up').title = tier < top ? `Level ${tier + 1}` : next ? `Win level ${tier} to open level ${tier + 1}` : 'Top level';
+    setHtml($('tr-odds'), `Difficulty <b>${level.difficulty.toLocaleString()}</b> · reward <b>${fmt(level.essence)}</b> Essence · ${level.medals} medal${level.medals === 1 ? '' : 's'}<br>${req}<br>${nextLine}${bestLine}<br>Boss HP <b>${fmt(trialHp(level))}</b> · team damage in ${TRIAL_TIME}s <b>${fmt(sim.dps.times(TRIAL_TIME))}</b> · <span class="${sim.won ? 'win' : 'lose'}">${sim.won ? 'Should be winnable' : 'Too strong for now'}</span>`);
     const fight = $<HTMLButtonElement>('tr-fight');
     fight.disabled = !unlocked || s.tickets <= 0 || !reqMet;
     fight.textContent = !unlocked ? 'Beat the stage 50 boss' : !reqMet ? 'Locked' : s.tickets > 0 ? 'Fight · 1 ticket' : 'No tickets';
