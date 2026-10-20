@@ -6,7 +6,7 @@ import { emberBulk, emberCost, emberRefund } from '../src/formulas';
 import { mulEffect } from '../src/skills';
 import {
   HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, AURA_EVOLUTIONS, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, LINEUP_SIZE,
-  TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, RELICS, RELIC_SETS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, TRIAL_QUICK_TIME, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL,
+  TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_MIN_PUSH, ROAD_START, ROAD_STEP, RELICS, RELIC_SETS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, TRIAL_QUICK_TIME, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL,
 } from '../src/data';
 
 const starter = HEROES.find((h) => h.unlockCost === 0)!;
@@ -702,6 +702,79 @@ describe('rekindle', () => {
     s.gems = 0;
     expect(s.rekindle(3)).toBeNull();
     expect(s.rekindles).toBe(0);
+  });
+});
+
+describe('rekindle head start', () => {
+  /** A player whose best stage is `best`, with the starter at this many Ember levels. */
+  function veteran(best: number, ember: number) {
+    const s = fresh();
+    s.reachStage(best);
+    s.emberLevels[starter.id] = ember;
+    return s;
+  }
+
+  it('is off below the head start stage', () => {
+    const s = veteran(HEAD_START_FROM - 1, 5000);
+    expect(s.headStartStage()).toBe(1);
+    s.rekindle(1);
+    expect(s.stage).toBe(1);
+  });
+
+  it('starts just after a boss, held back by both the best stage and the team\'s Ember levels', () => {
+    // 40% of 1000 is 400; Ember 5000 doesn't limit it.
+    expect(veteran(1000, 5000).headStartStage()).toBe(351);
+    // Level 1 + 400 Ember = 401, x0.8 = 320.8: stage 301.
+    expect(veteran(1000, 400).headStartStage()).toBe(301);
+    // A weak team gets no head start at all.
+    expect(veteran(1000, 40).headStartStage()).toBe(1);
+  });
+
+  it('a Rekindle starts the new run there, unless the player turned it off', () => {
+    const s = veteran(1000, 5000);
+    const r = s.rekindle(1)!;
+    expect(r.start).toBe(351);
+    expect(s.stage).toBe(351);
+    expect(s.runBestStage).toBe(351);
+    expect(s.bestStage).toBe(1000);
+    const t = veteran(1000, 5000);
+    t.headStart = false;
+    t.rekindle(1);
+    expect(t.stage).toBe(1);
+  });
+
+  it("can't be Rekindled again right away, and skipped stages give no Wheel slots", () => {
+    const s = veteran(1000, 5000);
+    s.rekindle(1);
+    expect(s.canRekindle()).toBe(false);
+    expect(s.rekindle(1)).toBeNull();
+    expect(s.roadReached()).toBe(0);
+    s.reachStage(351 + HEAD_START_MIN_PUSH - 1);
+    expect(s.canRekindle()).toBe(false);
+    s.reachStage(351 + HEAD_START_MIN_PUSH);
+    expect(s.canRekindle()).toBe(true);
+    // Slots unlock every 50 stages from ROAD_START; 351 -> 401 crosses only the one at 400.
+    expect(s.roadReached()).toBe(1);
+    expect(ROAD_START + 5 * ROAD_STEP).toBe(400);
+  });
+
+  it('survives a save, and old saves start from stage 1', () => {
+    const s = veteran(1000, 5000);
+    s.rekindle(1);
+    s.headStart = false;
+    s.save();
+    const t = new GameState();
+    t.load();
+    expect(t.runStartStage).toBe(351);
+    expect(t.headStart).toBe(false);
+    const data = JSON.parse(localStorage.getItem('hordefall-save-v1')!);
+    delete data.runStartStage;
+    delete data.headStart;
+    localStorage.setItem('hordefall-save-v1', JSON.stringify(data));
+    const old = new GameState();
+    old.load();
+    expect(old.runStartStage).toBe(1);
+    expect(old.headStart).toBe(true);
   });
 });
 

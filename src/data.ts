@@ -575,6 +575,18 @@ export const SPEED_UNLOCK_STAGE = 25;
 /** Rekindle unlocks after first clearing this stage. */
 export const REKINDLE_STAGE = 125;
 
+/**
+ * Rekindle head start: once the lifetime best stage reaches HEAD_START_FROM, a Rekindle can start the next run
+ * just after a boss instead of at stage 1. The start is the lower of HEAD_START_SHARE of the best stage and
+ * HEAD_START_POWER of the team's average level right after the Rekindle (Ember levels, since gold levels reset;
+ * a stage N boss wants about level N), rounded down to just after a 50-stage boss. Wheel slots only count
+ * stages cleared this run, and a Rekindle needs HEAD_START_MIN_PUSH stages past the start.
+ */
+export const HEAD_START_FROM = 300;
+export const HEAD_START_SHARE = 0.4;
+export const HEAD_START_POWER = 0.8;
+export const HEAD_START_MIN_PUSH = 50;
+
 /** Gems for a 2x or 3x Ember payout on the Rekindle page. */
 export const REKINDLE_BOOSTS: Array<{ mult: number; gems: number }> = [
   { mult: 2, gems: 80 },
