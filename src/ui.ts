@@ -1,6 +1,6 @@
 import { DEV_TOOLS } from './config';
 import Decimal from 'break_infinity.js';
-import type { HeroStats, BigStat, StatPair } from './stats';
+import { combatPower, type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
 import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
@@ -220,14 +220,14 @@ export class UI {
         .map((e) => `<button type="button" class="tm-chip${this.teamFilter === e ? ' on' : ''}" data-filter="${e ?? ''}"${e ? ` style="--el:${hex(ELEMENT_COLORS[e])}"` : ''}>${e ? cap(e) : 'All'}</button>`)
         .join('');
       const cards = shown
-        .map((h) => `<button type="button" class="tm-card${s.inLineup(h.id) ? ' on' : ''}" data-peek="${h.id}" style="--el:${hex(ELEMENT_COLORS[h.element])}">${face(h)}<b>${h.name}</b>${rarityTag(h)}<small>Lv ${s.heroLevel(h.id).toLocaleString()}</small>${starsOf(h)}</button>`)
+        .map((h) => `<button type="button" class="tm-card${s.inLineup(h.id) ? ' on' : ''}" data-peek="${h.id}" style="--el:${hex(ELEMENT_COLORS[h.element])}">${face(h)}<b>${h.name}</b>${rarityTag(h)}<small>Lv ${s.heroLevel(h.id).toLocaleString()}</small><small class="tm-cp">CP ${fmt(s.heroCombatPower(h))}</small>${starsOf(h)}</button>`)
         .join('');
       body = `<div class="tm-chips">${chips}</div><div class="tm-grid">${cards || '<p class="team-help">No heroes of this element yet.</p>'}</div>
         <p class="team-help">Tap a hero to see their stats and add or remove them. Taking a hero out drops them to gold level 1 and gives that gold back. Their Ember levels stay. New heroes are unlocked in Collection.</p>`;
     }
     this.showModal(
       `Team ${count}/${LINEUP_SIZE}`,
-      `<button type="button" class="tm-x" data-team-close aria-label="Close">✕</button>${note ? `<p class="team-note">${note}</p>` : ''}<div class="tm-slots">${slots}</div><div class="tm-scroll">${body}</div>`,
+      `<button type="button" class="tm-x" data-team-close aria-label="Close">✕</button><p class="tm-total">Total Combat Power <b>${fmt(s.totalCombatPower())}</b></p>${note ? `<p class="team-note">${note}</p>` : ''}<div class="tm-slots">${slots}</div><div class="tm-scroll">${body}</div>`,
       'Done',
     );
     $('modal').classList.add('team-mode');
@@ -251,6 +251,7 @@ export class UI {
       <div class="tm-peek-head"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span>
         <div><b class="tm-peek-name">${h.name}</b> ${rarityTag(h)}<small>${heroTitle(h)} · ${'★'.repeat(Math.max(1, (s.stars[h.id] ?? 0) + 1))}</small>
         <small>Level ${s.heroLevel(h.id).toLocaleString()}${ember ? ` (incl. +${ember.toLocaleString()} Ember)` : ''} · ${on ? 'In team' : 'Benched'}</small></div></div>
+      <p class="tm-cp-big">Combat Power <b>${fmt(s.heroCombatPower(h))}</b></p>
       <div class="tm-stats">${stat('Atk', fmt(st.atk.value))}${stat('HP', fmt(st.hp.value))}${stat('Def', fmt(st.def.value))}${stat('Atk per sec', num(st.attacksPerSec.value))}${stat('Crit', pct(st.critRate))}${stat('Crit Dmg', `+${pct(st.critDmg)}`)}${stat('Range', num(st.range.value))}${stat('Move', num(st.moveSpeed.value))}${stat('Dodge', pct(st.dodge.value))}</div>
       <p class="tm-spec">${prof.specialty}</p>
       ${why ? `<p class="team-help">${why}</p>` : ''}
@@ -826,7 +827,8 @@ export class UI {
       return `${cap(e)} build: ${n} in team${what}`;
     });
     const top = `<b>${def.type}</b> · ${HERO_TYPES[def.type]}<br>${prof.specialty}${builds.length ? `<br><small>${builds.join(' · ')}. 2 heroes with the same effect: +25% time; 3: +50% damage too.</small>` : ''}`;
-    setHtml($('sheet-stats'), statPages(s.heroStats(def, shownLevel), gold > 0 ? String(eff) : 'Locked', this.statPage, top));
+    const sheetStats = s.heroStats(def, shownLevel);
+    setHtml($('sheet-stats'), statPages(sheetStats, gold > 0 ? String(eff) : 'Locked', this.statPage, top, gold > 0 ? fmt(combatPower(sheetStats)) : ''));
 
     $('sheet-gold-lvl').textContent = gold > 0 ? String(gold) : '(locked)';
     const { levels, cost } = bulkCost(def, gold, s.buyAmount, s.gold, s.levelCostMult());
@@ -1457,7 +1459,7 @@ export class UI {
       } else {
         const next = eff + shown.levels;
         const now = s.heroPower(r.def, eff);
-        setHtml(r.stats, `<span class="st atk">${SWORD}${fmt(now.atk)} <span class="next">→ ${fmt(s.heroPower(r.def, next).atk)}</span></span><span class="st hp">${HEART}${fmt(now.hp)}</span>`);
+        setHtml(r.stats, `<span class="st atk">${SWORD}${fmt(now.atk)} <span class="next">→ ${fmt(s.heroPower(r.def, next).atk)}</span></span><span class="st hp">${HEART}${fmt(now.hp)}</span><span class="st cp" title="Combat Power">CP ${fmt(s.heroCombatPower(r.def, eff))}</span>`);
         r.label.textContent = shown.levels === 1 ? 'Level Up' : `Level +${shown.levels}`;
       }
       if (locked) {
@@ -1546,7 +1548,7 @@ function fmtSecs(sec: number): string {
 }
 
 /** The hero page's three stat pages, laid out like the original: value, (base) and the bonus in green. Stats that do nothing for this hero are greyed. */
-function statPages(st: HeroStats, level: string, page: number, top: string): string {
+function statPages(st: HeroStats, level: string, page: number, top: string, cp = ''): string {
   const pct = (n: number, sign = false) => {
     const v = Math.round(n * 1000) / 10;
     return `${sign && v >= 0 ? '+' : ''}${v.toLocaleString()}%`;
@@ -1597,6 +1599,6 @@ function statPages(st: HeroStats, level: string, page: number, top: string): str
   const rows = pages[page]
     .map(([label, [v, base, bonus], off]) => `<div class="sr${off ? ' off' : ''}"><span>${label}</span><b>${v}${base ? ` <i>${base}</i>` : ''}</b><em>${bonus}</em></div>`)
     .join('');
-  return `<div class="stat-top"><span>Level <b>${level}</b></span><div class="stat-spec">${top}</div></div><div class="stat-page">${rows}</div>
+  return `<div class="stat-top"><span>Level <b>${level}</b>${cp ? `<br>CP <b>${cp}</b>` : ''}</span><div class="stat-spec">${top}</div></div><div class="stat-page">${rows}</div>
     <div class="stat-pager"><button data-statpage="-1" aria-label="Previous stats">‹</button><span>${page + 1}/3</span><button data-statpage="1" aria-label="More stats">›</button></div>`;
 }

@@ -5,7 +5,7 @@ import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkC
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES, PLAYABLE_HEROES } from './data';
 import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills';
-import { isKnight, type HeroStats } from './stats';
+import { isKnight, combatPower, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
 
 const SAVE_KEY = 'hordefall-save-v1';
@@ -201,6 +201,18 @@ export class GameState {
     const counts = Object.fromEntries(BUILD_EFFECTS.map((e) => [e, 0])) as Record<BuildEffect, number>;
     for (const h of HEROES) if (this.inLineup(h.id)) for (const e of heroBuildEffects(h)) counts[e]++;
     return counts;
+  }
+
+  /** A hero's Combat Power (src/stats.ts combatPower) at their current level, or at `level`. */
+  heroCombatPower(def: HeroDef, level = this.heroLevel(def.id)): Decimal {
+    return combatPower(this.heroStats(def, level));
+  }
+
+  /** The player's total Combat Power: every recruited hero's Combat Power added up. */
+  totalCombatPower(): Decimal {
+    let total = new Decimal(0);
+    for (const h of HEROES) if ((this.levels[h.id] ?? 0) > 0) total = total.plus(this.heroCombatPower(h));
+    return total;
   }
 
   /** Every number on the hero's stat pages, as battle uses them. */

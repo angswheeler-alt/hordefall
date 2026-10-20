@@ -1,4 +1,4 @@
-import type Decimal from 'break_infinity.js';
+import Decimal from 'break_infinity.js';
 import type { HeroDef } from './data';
 
 /**
@@ -81,4 +81,34 @@ export interface HeroStats {
 /** Knights get the Knight shield. */
 export function isKnight(def: HeroDef): boolean {
   return def.type === 'Knight';
+}
+
+/**
+ * Combat Power: one number for how strong a hero is, from every combat stat on
+ * their stat pages. Damage per second (Atk x attack speed, raised by crits,
+ * Frenzy, Ultimate Atk, splash and status effects) and toughness (HP and
+ * Defense, raised by dodge, Effect Resistance and the Knight shield) are
+ * combined as a geometric mean, so a hero needs both to score high; range and
+ * move speed add a little. Bonus Gold doesn't count (it isn't combat).
+ */
+export function combatPower(st: HeroStats): Decimal {
+  const chance = (n: number) => Math.max(0, Math.min(1, n));
+  const offense =
+    (1 + chance(st.critRate) * Math.max(0, st.critDmg)) *
+    (1 + chance(st.frenzy.value) * STAT_BASE.frenzyHaste) *
+    (1 + Math.max(0, st.ultAtk) * 0.25) *
+    (st.hasAoe ? 1.25 * (1 + Math.max(0, st.aoeRadius)) * (1 + Math.max(0, st.aoeDmg)) : 1) *
+    (1 + 0.15 * chance(st.stunChance) * (1 + st.stunTime)) *
+    (1 + 0.15 * chance(st.freezeChance) * (1 + st.freezeTime) * (1 + st.freezeBlast)) *
+    (1 + STAT_BASE.burnDps * STAT_BASE.burnSeconds * chance(st.burnChance) * (1 + st.burnTime) * (1 + st.burnDmg)) *
+    (1 + STAT_BASE.poisonDps * STAT_BASE.poisonSeconds * chance(st.poisonChance) * (1 + st.poisonTime) * (1 + st.poisonDmg)) *
+    (1 + Math.max(0, st.range.value) / 400);
+  const toughness =
+    (1 / (1 - Math.min(0.75, chance(st.dodge.value)))) *
+    (1 + 0.25 * chance(st.effectRes.value)) *
+    (1 + Math.max(0, st.knightShield)) *
+    (1 + Math.max(0, st.moveSpeed.value) / 1000);
+  const dps = st.atk.value.times(Math.max(0, st.attacksPerSec.value) * offense);
+  const ehp = st.hp.value.plus(st.def.value.times(20)).times(toughness);
+  return dps.times(ehp).sqrt().times(10).floor();
 }
