@@ -943,10 +943,15 @@ export class GameState {
     this.gold = this.gold.plus(gold);
     const drops: SummonDrop[] = [];
     for (let i = 0; i < (r.chests ?? 0); i++) drops.push(...this.rollChest());
+    this.enhanceStones += r.stones ?? 0;
+    if (r.tickets) {
+      this.refreshTickets();
+      this.tickets = Math.min(TICKET_CAP, this.tickets + r.tickets);
+    }
     return { gems, gold, drops };
   }
 
-  /** Which day of the 5-day login calendar is next (0-4), and whether it can be claimed today. */
+  /** Which day of the 30-day login calendar is next (0-29), and whether it can be claimed today. */
   loginState(now = Date.now()) {
     return { day: this.login.count % LOGIN_CYCLE.length, ready: this.login.last !== dayKey(now) };
   }

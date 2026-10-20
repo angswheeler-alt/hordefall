@@ -55,7 +55,7 @@ describe('daily challenges', () => {
 });
 
 describe('login calendar', () => {
-  it('claims once a day and pays Gems on day 5', () => {
+  it('claims once a day through all 30 days, then starts over', () => {
     const s = fresh();
     let gems = s.gems;
     for (let i = 0; i < LOGIN_CYCLE.length; i++) {
@@ -66,14 +66,41 @@ describe('login calendar', () => {
       gems = s.gems;
       expect(paid).toBe(LOGIN_CYCLE[i].gems ?? 0);
     }
-    expect(LOGIN_CYCLE[4].gems).toBeGreaterThan(0);
-    expect(s.loginState(noon + 5 * DAY)).toEqual({ day: 0, ready: true });
+    expect(LOGIN_CYCLE.length).toBe(30);
+    expect(s.loginState(noon + 30 * DAY)).toEqual({ day: 0, ready: true });
+  });
+
+  it('pays a balanced month: about the old Gems, plus stones and tickets', () => {
+    const total = (k: 'gems' | 'chests' | 'goldMinutes' | 'stones' | 'tickets') => LOGIN_CYCLE.reduce((t, r) => t + (r[k] ?? 0), 0);
+    expect(total('gems')).toBe(350);
+    expect(total('chests')).toBe(15);
+    expect(total('goldMinutes')).toBe(300);
+    expect(total('stones')).toBe(19);
+    expect(total('tickets')).toBe(17);
+    // Every week pays at least as much as the one before.
+    const weekGems = [0, 1, 2, 3].map((w) => LOGIN_CYCLE.slice(w * 7, w * 7 + 7).reduce((t, r) => t + (r.gems ?? 0), 0));
+    for (let w = 1; w < 4; w++) expect(weekGems[w]).toBeGreaterThanOrEqual(weekGems[w - 1]);
+  });
+
+  it('gives Enhance Stones and Trial tickets (up to the ticket cap)', () => {
+    const s = fresh();
+    const stones = s.enhanceStones;
+    s.grant({ stones: 4, tickets: 3 });
+    expect(s.enhanceStones).toBe(stones + 4);
+    s.tickets = 0;
+    s.grant({ tickets: 3 });
+    expect(s.tickets).toBe(3);
+    s.grant({ tickets: 999 });
+    expect(s.tickets).toBeLessThanOrEqual(20);
+    expect(s.loginState(noon).day).toBe(0);
   });
 
   it('gives free Hero Chests without spending Gems', () => {
     const s = fresh();
     s.claimLogin(noon);
-    const got = s.claimLogin(noon + DAY)!;
+    s.claimLogin(noon + DAY);
+    expect(LOGIN_CYCLE[2].chests).toBe(1);
+    const got = s.claimLogin(noon + 2 * DAY)!;
     expect(got.drops.length).toBeGreaterThan(0);
     expect(s.gems).toBe(START_GEMS);
     expect(s.stats.summons).toBe(0);

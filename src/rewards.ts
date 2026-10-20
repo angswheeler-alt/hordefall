@@ -11,6 +11,10 @@ export interface Reward {
   gems?: number;
   goldMinutes?: number;
   chests?: number;
+  /** Enhance Stones (relics). */
+  stones?: number;
+  /** Trial tickets (they still stop at the ticket cap). */
+  tickets?: number;
 }
 
 export function rewardText(r: Reward): string {
@@ -18,6 +22,8 @@ export function rewardText(r: Reward): string {
   if (r.gems) parts.push(`${r.gems} Gems`);
   if (r.goldMinutes) parts.push(r.goldMinutes >= 60 ? `${r.goldMinutes / 60}h of gold` : `${r.goldMinutes}m of gold`);
   if (r.chests) parts.push(r.chests === 1 ? 'Hero Chest' : `${r.chests} Hero Chests`);
+  if (r.stones) parts.push(r.stones === 1 ? 'Enhance Stone' : `${r.stones} Enhance Stones`);
+  if (r.tickets) parts.push(r.tickets === 1 ? 'Trial ticket' : `${r.tickets} Trial tickets`);
   return parts.join(' + ');
 }
 
@@ -44,9 +50,32 @@ export const MEDAL_BUNDLE_HEROES = 3;
 /** Daily challenges to finish before the bundle can be claimed. */
 export const MEDAL_BUNDLE_DAILIES = 3;
 
-// ---------- login calendar: one claim a day, Gems every 5th day ----------
+// ---------- login calendar: 30 days, one claim a day ----------
+// Days count claims, not a streak, so a missed day never loses progress. Each
+// week runs gold, Enhance Stones, a Hero Chest, Trial tickets, Gems, more gold,
+// then a bigger day 7; every week pays a bit more than the last, and days 29
+// and 30 are the big finish. A full month: 350 Gems, 15 Hero Chests, 19 Enhance
+// Stones, 17 Trial tickets and 5h of gold (the old 5-day loop paid 300 Gems,
+// 12 Chests and 4h of gold a month). Then it starts again at day 1.
 
-export const LOGIN_CYCLE: Reward[] = [{ goldMinutes: 10 }, { chests: 1 }, { goldMinutes: 30 }, { chests: 1 }, { gems: 50 }];
+const LOGIN_WEEK = (gold: number, stones: number, tickets: number, gems: number, gold2: number, chests7: number, gems7: number): Reward[] => [
+  { goldMinutes: gold },
+  { stones },
+  { chests: 1 },
+  { tickets },
+  { gems },
+  { goldMinutes: gold2 },
+  { chests: chests7, gems: gems7 },
+];
+
+export const LOGIN_CYCLE: Reward[] = [
+  ...LOGIN_WEEK(15, 2, 3, 20, 30, 1, 30),
+  ...LOGIN_WEEK(20, 3, 4, 25, 40, 1, 40),
+  ...LOGIN_WEEK(30, 4, 5, 30, 60, 2, 40),
+  ...LOGIN_WEEK(45, 5, 5, 35, 60, 2, 50),
+  { chests: 2, stones: 5 },
+  { chests: 3, gems: 80 },
+];
 
 // ---------- Lucky Spin: one free spin a day ----------
 
