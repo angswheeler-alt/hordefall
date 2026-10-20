@@ -25,6 +25,13 @@ import {
   isElementBossStage,
   bossHasElement,
   stageBoss,
+  TRIAL_LEVELS,
+  TRIAL_TIME,
+  TRIAL_BOSS_NAMES,
+  TRIAL_BOSS_COOLDOWN,
+  TRIAL_SLAM_EVERY,
+  TRIAL_SLAM_SHARE,
+  TRIAL_HIT_SPREAD,
   type Element,
   type HeroDef,
 } from './data';
@@ -39,6 +46,8 @@ import {
   stageClearGold,
   fmt,
   defended,
+  trialHp,
+  trialDps,
 } from './formulas';
 import type { GameState } from './state';
 import { play } from './sfx';
@@ -245,6 +254,25 @@ const CHESTS: ChestKind[] = [
   { key: 'chest-gold', weight: 10, killsWorth: 50 },
 ];
 
+/** Each Trial's arena: the background set for its element. */
+const TRIAL_ARENAS: Record<Element, string> = { water: 'tidecoast', fire: 'emberwastes', earth: 'dunes', light: 'stormcrag', dark: 'hollowmoon' };
+/** The Trial boss waits this far along the lane, so the fight starts within a couple of seconds. */
+const TRIAL_BOSS_X = 330;
+const TRIAL_BOSS_RANGE = 260;
+
+/** A live Elemental Trial: heroes at their Trial levels against one element boss, no respawns. */
+interface TrialFight {
+  element: Element;
+  tier: number;
+  /** Seconds left once the heroes reach the boss. */
+  timeLeft: number;
+  /** Seconds of fighting so far (the clear time). */
+  fought: number;
+  hits: number;
+  done: boolean;
+  onEnd: (won: boolean, seconds: number) => void;
+}
+
 export interface UltState {
   unlocked: boolean;
   alive: boolean;
@@ -289,6 +317,9 @@ export class BattleScene extends Phaser.Scene {
   /** The boss timer only runs once a hero reaches the boss. */
   private bossEngaged = false;
   private progressBar!: Phaser.GameObjects.Graphics;
+  /** Both crystals with their shadows, hidden during a Trial. */
+  private crystalParts: Phaser.GameObjects.GameObject[] = [];
+  private trial: TrialFight | null = null;
 
   constructor() {
     super('battle');
@@ -363,12 +394,14 @@ export class BattleScene extends Phaser.Scene {
       this.tweens.add({ targets: shadow, alpha: 0.2, scaleX: 0.75, scaleY: 0.75, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       const view = this.add.image(x, CRYSTAL_Y, key).setDepth(LANE_TOP);
       this.tweens.add({ targets: view, y: CRYSTAL_Y - 4, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      this.crystalParts.push(shadow, view);
       return view;
     };
     crystalAt(PLAYER_CRYSTAL_X, 'crystal-player');
     this.crystalView = crystalAt(ENEMY_CRYSTAL_X, 'crystal-enemy');
     this.crystalShield = this.add.circle(ENEMY_CRYSTAL_X, CRYSTAL_Y, 44, 0xff3355, 0.18).setStrokeStyle(2, 0xff6680, 0.8).setDepth(LANE_TOP + 1);
     this.crystalBar = this.add.graphics().setDepth(1000);
+    this.crystalParts.push(this.crystalShield, this.crystalBar);
 
     this.stageText = this.add.text(10, 8, '', { fontFamily: 'monospace', fontSize: '18px', color: '#ffffff', stroke: '#000', strokeThickness: 4 }).setDepth(1000).setScrollFactor(0);
     this.bossBar = this.add.graphics().setDepth(1000).setScrollFactor(0);
@@ -430,14 +463,16 @@ export class BattleScene extends Phaser.Scene {
     // Each 50-stage block is a new region, cycling through the five background sets.
     // Nyxara guards the Hollow Moon Ruins, so her fights always happen there.
     const stage = this.state.stage;
-    const region = isBossStage(stage) && stageBoss(stage).art === 'dark' ? 'hollowmoon' : REGIONS[Math.floor((stage - 1) / 50) % REGIONS.length];
+    const region = this.trial
+      ? TRIAL_ARENAS[this.trial.element]
+      : isBossStage(stage) && stageBoss(stage).art === 'dark' ? 'hollowmoon' : REGIONS[Math.floor((stage - 1) / 50) % REGIONS.length];
     this.sky.setTexture(`bg-${region}-sky`);
     this.far.setTexture(`bg-${region}-far`);
     this.groundTiles.setTexture(`bg-${region}-ground`);
     // Distance posts so the walk reads as travel.
     const g = this.ground;
     g.clear();
-    for (let i = 1; i < 4; i++) {
+    for (let i = 1; i < 4 && !this.trial; i++) {
       const x = (WORLD_WIDTH / 4) * i;
       g.fillStyle(0x5a3a1a, 1).fillRect(x - 2, LANE_TOP - 26, 4, 24);
       g.fillStyle(0xd8b47a, 1).fillRect(x - 12, LANE_TOP - 32, 24, 10);
@@ -654,7 +689,7 @@ export class BattleScene extends Phaser.Scene {
     this.heroes = this.heroes.filter((h) => h.def && this.state.inLineup(h.def.id));
     for (const def of HEROES) {
       if (!this.state.inLineup(def.id)) continue;
-      const level = this.state.heroLevel(def.id);
+      const level = this.levelOf(def.id);
       if (level <= 0) continue;
       const stats = this.state.heroStats(def, level);
       // A squad splits the hero's ATK and HP between its small fighters (the first one owns the Ultimate).
@@ -694,6 +729,12 @@ export class BattleScene extends Phaser.Scene {
         this.puff(u.x, u.y, ELEMENT_COLORS[def.element]);
       }
     }
+  }
+
+  /** A hero's fighting level: gold plus Ember levels, or in a Trial only Ember levels (at least 1). */
+  private levelOf(heroId: string) {
+    if (!this.trial) return this.state.heroLevel(heroId);
+    return (this.state.levels[heroId] ?? 0) > 0 ? Math.max(1, this.state.emberLevels[heroId] ?? 0) : 0;
   }
 
   /** Whether a star skill is active: the hero is recruited and has at least `star` stars. */
@@ -911,6 +952,8 @@ export class BattleScene extends Phaser.Scene {
 
   /** Called after offline progress or a reset changes the stage. */
   restart() {
+    // A Trial in progress keeps going; the run restarts when it ends.
+    if (this.trial) return;
     // Rebuilt heroes keep their ultimate cooldowns (clock keeps running across restarts).
     const ults = new Map(this.heroes.map((h) => [h.def?.id, h.ultReadyAt]));
     for (const h of this.heroes) h.view.destroy();
@@ -918,6 +961,118 @@ export class BattleScene extends Phaser.Scene {
     this.syncHeroes();
     for (const h of this.heroes) h.ultReadyAt = ults.get(h.def?.id) ?? 0;
     this.startStage();
+  }
+
+  // ---------- Elemental Trials ----------
+
+  /** Whether a live Trial fight is on. */
+  inTrial() {
+    return !!this.trial;
+  }
+
+  /**
+   * Start a live Elemental Trial: the run pauses, the heroes come back at their Trial levels (Ember levels only)
+   * and face one element boss that hits back. No respawns, so the team can lose. `onEnd` gets the outcome once.
+   */
+  startTrial(element: Element, tier: number, onEnd: (won: boolean, seconds: number) => void) {
+    if (this.trial) return;
+    this.nextStageTimer?.remove();
+    this.nextStageTimer = undefined;
+    this.trial = { element, tier, timeLeft: TRIAL_TIME, fought: 0, hits: 0, done: false, onEnd };
+    for (const p of this.crystalParts) (p as unknown as Phaser.GameObjects.Components.Visible).setVisible(false);
+    // Rebuild the heroes at their Trial levels; they keep their Ultimate cooldowns.
+    const ults = new Map(this.heroes.map((h) => [h.def?.id, h.ultReadyAt]));
+    for (const h of this.heroes) h.view.destroy();
+    this.heroes = [];
+    this.syncHeroes();
+    for (const h of this.heroes) h.ultReadyAt = ults.get(h.def?.id) ?? 0;
+    for (const e of this.enemies) e.view.destroy();
+    this.enemies = [];
+    for (const z of this.zones) z.view.destroy();
+    this.zones = [];
+    for (const h of this.heroes) {
+      h.shield = new Decimal(0);
+      h.streakTarget = undefined;
+      h.respawnAt = Infinity;
+      this.reviveHero(h);
+    }
+    this.transitioning = false;
+    this.bossEngaged = false;
+    this.cameras.main.scrollX = 0;
+    this.drawBackground();
+    const level = TRIAL_LEVELS[tier - 1];
+    const art = BOSS_ANIMS[element] ? element : undefined;
+    const boss = this.makeUnit({
+      side: 'enemy',
+      texture: art ? `boss-${art}-idle` : 'boss',
+      bossArt: art,
+      x: TRIAL_BOSS_X,
+      // Research's Elemental branch makes Trial bosses take more damage, as in the Trials panel's estimate.
+      hp: trialHp(level).div(1 + this.state.researchBonus('elemental')),
+      atk: trialDps(level).times(TRIAL_BOSS_COOLDOWN),
+      // Its blasts reach the back row too, so ranged heroes and healers are never safe.
+      range: TRIAL_BOSS_RANGE,
+      cooldown: TRIAL_BOSS_COOLDOWN,
+      speed: 0,
+      element,
+      isBoss: true,
+      label: TRIAL_BOSS_NAMES[element],
+    });
+    // A short wind-up before the first hit.
+    boss.cooldownLeft = TRIAL_BOSS_COOLDOWN;
+    this.enemies.push(boss);
+    this.banner(`${TRIAL_BOSS_NAMES[element].toUpperCase()}\nTRIAL LEVEL ${tier}`, '#ff6680');
+    this.cameras.main.shake(400, 0.01);
+    play('boss');
+    this.state.emit();
+  }
+
+  /** Give up the Trial in progress: it counts as a loss (no ticket spent). */
+  leaveTrial() {
+    this.endTrialFight(false);
+  }
+
+  /** Back from a finished Trial to the run, which restarts its current stage. */
+  closeTrial() {
+    if (!this.trial) return;
+    this.trial = null;
+    for (const p of this.crystalParts) (p as unknown as Phaser.GameObjects.Components.Visible).setVisible(true);
+    this.crystalShield.setVisible(false);
+    this.bannerText.setAlpha(0);
+    this.restart();
+  }
+
+  private endTrialFight(won: boolean) {
+    const t = this.trial;
+    if (!t || t.done) return;
+    t.done = true;
+    this.transitioning = true;
+    this.banner(won ? 'TRIAL CLEARED!' : t.timeLeft <= 0 ? 'TIME UP' : 'DEFEATED', won ? '#ffe066' : '#ff6b6b');
+    play(won ? 'clear' : 'defeat');
+    if (won) {
+      this.cameras.main.shake(250, 0.012);
+      this.freeze(0.12);
+    }
+    t.onEnd(won, Math.round(t.fought * 10) / 10);
+  }
+
+  /** The Trial boss's attack: one hard hit on the nearest hero, and every few hits a slam on the whole team. */
+  private trialBossHits(e: Unit, target: Unit) {
+    const t = this.trial!;
+    t.hits++;
+    const atk = e.atk;
+    e.atk = atk.times(1 + (Math.random() * 2 - 1) * TRIAL_HIT_SPREAD);
+    if (t.hits % TRIAL_SLAM_EVERY === 0) {
+      const full = e.atk;
+      e.atk = full.times(TRIAL_SLAM_SHARE);
+      this.floatText(e.x, e.y - 60, 'SLAM!', '#ff9a6b', 16);
+      this.cameras.main.shake(200, 0.01);
+      this.shatter(target.x, target.y, ELEMENT_COLORS[e.element]);
+      for (const h of this.heroes) if (h.alive && h !== target) this.enemyHits(e, h);
+      e.atk = full;
+    }
+    this.enemyHits(e, target);
+    e.atk = atk;
   }
 
   speedMultiplier() {
@@ -950,10 +1105,14 @@ export class BattleScene extends Phaser.Scene {
     const dt = realDt * (this.speedMultiplier());
     this.anims.globalTimeScale = this.speedMultiplier();
     this.clock += dt;
-    this.updateChests(dt);
+    if (!this.trial) this.updateChests(dt);
     this.drawHud();
     this.syncShadows();
     if (this.transitioning) return;
+    if (this.trial) {
+      this.updateTrial(dt, realDt);
+      return;
+    }
 
     this.stageTime += dt;
     if (!this.bossEngaged && this.bossAlive()) {
@@ -997,6 +1156,33 @@ export class BattleScene extends Phaser.Scene {
     if (this.state.autoUlt) for (const h of this.heroes) this.tryAutoUlt(h);
     const shielded = this.bossAlive();
     this.crystalShield.setVisible(shielded);
+  }
+
+  /** One frame of a Trial: no waves and no respawns; the timer runs once the heroes reach the boss. */
+  private updateTrial(dt: number, realDt: number) {
+    const t = this.trial!;
+    const boss = this.enemies.find((e) => e.isBoss);
+    if (!this.bossEngaged && boss?.alive) this.bossEngaged = this.heroes.some((h) => h.alive && boss.x - h.x < 220);
+    if (this.bossEngaged) {
+      t.timeLeft -= dt;
+      t.fought += dt;
+    }
+    for (const h of this.heroes) if (h.alive) this.stepHero(h, dt);
+    for (const e of this.enemies) if (e.alive) this.stepEnemy(e, dt);
+    this.tickBurns(dt);
+    this.tickStatus(dt);
+    this.followHeroes(realDt);
+    if (!boss || !boss.alive) {
+      this.endTrialFight(true);
+      return;
+    }
+    if (this.heroes.every((h) => !h.alive) || t.timeLeft <= 0) {
+      t.timeLeft = Math.max(0, t.timeLeft);
+      this.endTrialFight(false);
+      return;
+    }
+    this.regenerate(dt);
+    if (this.state.autoUlt) for (const h of this.heroes) this.tryAutoUlt(h);
   }
 
   /** Move or attack, then show running while the hero moved this frame and standing otherwise. */
@@ -1099,7 +1285,8 @@ export class BattleScene extends Phaser.Scene {
         this.mobAnim(e, 'attack');
         // A caster throws its magic across the gap.
         if (e.range > 60) this.shot(e, target.x, target.y, ELEMENT_COLORS[e.element]);
-        this.enemyHits(e, target);
+        if (this.trial && e.isBoss) this.trialBossHits(e, target);
+        else this.enemyHits(e, target);
       } else if (e.mob?.state === 'walk') this.mobAnim(e, 'idle');
       this.mobBob(e, false);
       return;
@@ -1523,7 +1710,15 @@ export class BattleScene extends Phaser.Scene {
         }
       }
     }
-    if (u.side === 'enemy') {
+    if (u.side === 'enemy' && this.trial) {
+      // A Trial pays in Essence and medals when it ends, not in gold.
+      u.hpBar.clear();
+      if (u.bossArt) this.bossAnim(u, 'death');
+      else this.tweens.add({ targets: u.view, alpha: 0, scale: 1.5, duration: 400, onComplete: () => u.view.destroy() });
+      this.shatter(u.x, u.y, ELEMENT_COLORS[u.element]);
+      play('kill');
+      this.cameras.main.flash(150, 255, 255, 255);
+    } else if (u.side === 'enemy') {
       this.state.track('kills');
       const gold = goldPerKill(this.state.stage)
         .times(u.isBoss ? 10 : 1)
@@ -1589,7 +1784,7 @@ export class BattleScene extends Phaser.Scene {
 
   getUltState(heroId: string): UltState {
     const h = this.heroes.find((u) => u.def?.id === heroId);
-    const level = this.state.heroLevel(heroId);
+    const level = this.levelOf(heroId);
     return {
       unlocked: level >= ULT_UNLOCK_LEVEL,
       alive: !!h?.alive,
@@ -1889,6 +2084,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private drawHud() {
+    if (this.trial) {
+      this.drawTrialHud(this.trial);
+      return;
+    }
     const stage = this.state.stage;
     const boss = isBossStage(stage);
     this.stageText.setText(`Stage ${stage}${boss ? ' · BOSS' : this.state.autoAdvance ? '' : ' · Farming'}`);
@@ -1918,5 +2117,17 @@ export class BattleScene extends Phaser.Scene {
       this.bossBar.fillStyle(0x000000, 0.7).fillRect(x - 2, 52, w + 4, 10);
       this.bossBar.fillStyle(this.bossTimer < 10 ? 0xff4c4c : 0xffb84c, 1).fillRect(x, 54, w * (this.bossTimer / BOSS_TIME_LIMIT), 6);
     }
+  }
+
+  /** Trial HUD: the boss and level at the top left, with the time left under it. */
+  private drawTrialHud(t: TrialFight) {
+    this.stageText.setText(`Trial Lv ${t.tier} · ${Math.ceil(Math.max(0, t.timeLeft))}s`);
+    this.progressBar.clear();
+    this.crystalBar.clear();
+    const w = 150;
+    const x = 10;
+    this.bossBar.clear();
+    this.bossBar.fillStyle(0x000000, 0.7).fillRect(x - 2, 52, w + 4, 10);
+    this.bossBar.fillStyle(t.timeLeft < 10 ? 0xff4c4c : 0xffb84c, 1).fillRect(x, 54, w * Math.max(0, t.timeLeft / TRIAL_TIME), 6);
   }
 }

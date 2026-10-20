@@ -8,7 +8,7 @@ import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
 import { setMuted } from './sfx';
 import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberRefund, emberBulk, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
-import type { GameState, OfflineReport, SummonDrop, RekindleResult } from './state';
+import type { GameState, OfflineReport, SummonDrop, RekindleResult, TrialResult } from './state';
 import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, BOOTCAMP, MILESTONE_STEP, milestoneReward, milestoneText, rewardText, type Reward } from './rewards';
 import { rarityOdds } from './state';
 import type { BattleScene } from './BattleScene';
@@ -588,6 +588,15 @@ export class UI {
     $('tr-up').addEventListener('click', () => this.stepTier(1));
     $('tr-fight').addEventListener('click', () => this.fightTrial());
     $('tr-quick').addEventListener('click', () => this.fightTrial(true));
+    $('trial-leave').addEventListener('click', () => {
+      const scene = this.scene();
+      // Mid-fight, leaving counts as a loss (the ticket is kept); after it, this goes back to the run.
+      if (scene?.inTrial() && $('trial-leave').textContent === 'Leave') {
+        this.trialLeft = true;
+        scene.leaveTrial();
+      }
+      else this.endTrial();
+    });
     $('tr-days').addEventListener('click', (e) => {
       const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-el]');
       if (!btn || btn.disabled) return;
@@ -1088,7 +1097,7 @@ export class UI {
     const bestLine = best === null
       ? `Win in ${TRIAL_QUICK_TIME}s or less to unlock Quick Battle`
       : `Best clear <b>${best}s</b> · ${quickOk ? '<span class="win">Quick Battle unlocked</span>' : `win in ${TRIAL_QUICK_TIME}s or less to unlock Quick Battle`}`;
-    setHtml($('tr-odds'), `Difficulty <b>${level.difficulty.toLocaleString()}</b> · reward <b>${fmt(level.essence)}</b> Essence · ${level.medals} medal${level.medals === 1 ? '' : 's'}<br>${req}<br>${bestLine}<br>Boss HP <b>${fmt(trialHp(level))}</b> · team damage in ${TRIAL_TIME}s <b>${fmt(sim.dps.times(TRIAL_TIME))}</b> · <span class="${sim.won ? 'win' : 'lose'}">${sim.won ? 'You should win' : 'Too strong for now'}</span>`);
+    setHtml($('tr-odds'), `Difficulty <b>${level.difficulty.toLocaleString()}</b> · reward <b>${fmt(level.essence)}</b> Essence · ${level.medals} medal${level.medals === 1 ? '' : 's'}<br>${req}<br>${bestLine}<br>Boss HP <b>${fmt(trialHp(level))}</b> · team damage in ${TRIAL_TIME}s <b>${fmt(sim.dps.times(TRIAL_TIME))}</b> · <span class="${sim.won ? 'win' : 'lose'}">${sim.won ? 'Should be winnable' : 'Too strong for now'}</span>`);
     const fight = $<HTMLButtonElement>('tr-fight');
     const unlocked = s.trialsUnlocked();
     fight.disabled = !unlocked || s.tickets <= 0 || !reqMet;
@@ -1102,66 +1111,63 @@ export class UI {
     setHtml($('tr-ess'), TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}"></i>${fmt(s.essences[e] ?? 0)}</span>`).join(''));
   }
 
-  /** Play a Trial: the fight is simulated, then shown as two draining HP bars. */
+  /** Play a Trial: a live fight on its own screen (or a Quick Battle that skips it). */
   private fightTrial(quick = false) {
     const s = this.state;
     const tier = this.currentTier();
     const el = this.trialEl();
-    const result = quick ? s.quickTrial(el, tier) : s.playTrial(el, tier);
-    if (!result) return;
-    // Group repeats: "Brine x3, Ripple x2".
-    const medalCounts = new Map<string, number>();
-    for (const id of result.medals) medalCounts.set(id, (medalCounts.get(id) ?? 0) + 1);
-    const medalNames = [...medalCounts].map(([id, n]) => `${HEROES.find((h) => h.id === id)!.name}${n > 1 ? ` x${n}` : ''}`).join(', ');
-    const winText = `+${fmt(result.essence)} ${ESSENCE_NAMES[el]}${result.stones ? ` · +${result.stones} Enhance Stone${result.stones === 1 ? '' : 's'}` : ''} · medal${result.medals.length === 1 ? '' : 's'}: ${medalNames}`;
+    const title = `${TRIAL_BOSS_NAMES[el]} · Level ${tier}`;
     if (quick) {
-      this.showModal(`${TRIAL_BOSS_NAMES[el]} · Level ${tier}`, `<p class="tf-result win">Quick Battle! ${winText}</p>`, 'Okay');
+      const result = s.quickTrial(el, tier);
+      if (!result) return;
+      this.showModal(title, `<p class="tf-result win">Quick Battle! ${this.trialWinText(el, result)}</p>`, 'Okay');
       play('clear');
       this.render();
       return;
     }
-    this.showModal(
-      `${TRIAL_BOSS_NAMES[el]} · Level ${tier}`,
-      `<div class="trial-fight">
-        <div class="tf-row"><span>Boss</span><div class="tf-bar boss"><i id="tf-boss"></i></div></div>
-        <div class="tf-row"><span>Team</span><div class="tf-bar team"><i id="tf-team"></i></div></div>
-        <p id="tf-clock" class="tf-clock">0s</p>
-        <p id="tf-result" class="tf-result" hidden></p>
-      </div>`,
-      'Fighting…',
-    );
-    const ok = $<HTMLButtonElement>('modal-ok');
-    ok.disabled = true;
-    play('boss');
-    const start = performance.now();
-    const length = 2500;
-    const step = (now: number) => {
-      const t = Math.min(1, (now - start) / length);
-      const boss = 1 - t * (1 - result.bossLeft);
-      const team = 1 - t * (1 - result.teamLeft);
-      const bossBar = document.getElementById('tf-boss');
-      const teamBar = document.getElementById('tf-team');
-      // Another pop-up replaced the fight (e.g. Welcome back); the result is already applied.
-      if (!bossBar || !teamBar) return;
-      bossBar.style.width = `${boss * 100}%`;
-      teamBar.style.width = `${team * 100}%`;
-      $('tf-clock').textContent = `${Math.round(t * result.seconds)}s`;
-      if (t < 1) {
-        requestAnimationFrame(step);
-        return;
-      }
-      const res = $('tf-result');
-      res.hidden = false;
-      res.innerHTML = result.won
-        ? `Victory in ${Math.round(result.seconds * 10) / 10}s! ${winText}`
-        : `Defeated. Your ticket was kept. Raise Ember levels or stars and try again.`;
-      res.className = `tf-result ${result.won ? 'win' : 'lose'}`;
-      play(result.won ? 'clear' : 'defeat');
-      ok.disabled = false;
-      ok.textContent = 'Okay';
+    const scene = this.scene();
+    if (!scene || scene.inTrial() || !s.canStartTrial(el, tier)) return;
+    this.closeSheet();
+    document.body.classList.add('in-trial');
+    $('trial-hud').hidden = false;
+    $('trial-hud-name').textContent = `${title} (${cap(el)})`;
+    $('trial-leave').textContent = 'Leave';
+    this.trialLeft = false;
+    window.scrollTo(0, 0);
+    scene.startTrial(el, tier, (won, seconds) => {
+      $('trial-leave').textContent = 'Back';
+      const result = s.finishTrial(el, tier, won, seconds);
+      const html = result?.won
+        ? `<p class="tf-result win">Victory in ${seconds}s! ${this.trialWinText(el, result)}</p>`
+        : this.trialLeft
+          ? `<p class="tf-result lose">You left the Trial. Your ticket was kept.</p>`
+          : `<p class="tf-result lose">Defeated. Your ticket was kept. Raise Ember levels or stars and try again.</p>`;
+      // Let the last blow and the banner play before the result.
+      window.setTimeout(() => {
+        if (scene.inTrial()) this.showModal(title, html, 'Okay', () => this.endTrial());
+      }, 1200);
       this.render();
-    };
-    requestAnimationFrame(step);
+    });
+  }
+
+  /** Whether the player left the Trial in progress (shown instead of "Defeated"). */
+  private trialLeft = false;
+
+  /** Leave the Trial screen and go back to the run. */
+  private endTrial() {
+    const scene = this.scene();
+    if (scene?.inTrial()) scene.closeTrial();
+    document.body.classList.remove('in-trial');
+    $('trial-hud').hidden = true;
+    this.render();
+  }
+
+  private trialWinText(el: Element, result: TrialResult) {
+    // Group repeats: "Brine x3, Ripple x2".
+    const medalCounts = new Map<string, number>();
+    for (const id of result.medals) medalCounts.set(id, (medalCounts.get(id) ?? 0) + 1);
+    const medalNames = [...medalCounts].map(([id, n]) => `${HEROES.find((h) => h.id === id)!.name}${n > 1 ? ` x${n}` : ''}`).join(', ');
+    return `+${fmt(result.essence)} ${ESSENCE_NAMES[el]}${result.stones ? ` · +${result.stones} Enhance Stone${result.stones === 1 ? '' : 's'}` : ''} · medal${result.medals.length === 1 ? '' : 's'}: ${medalNames}`;
   }
 
   private renderBattle() {
