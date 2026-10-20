@@ -739,7 +739,7 @@ div.g-req { margin-bottom: 8px; }
 .relic.shop-offer { grid-template-columns: 52px 1fr auto; }
 .relic-peek-btn { all: unset; cursor: pointer; display: block; }
 .shop-offer .rs-rarity { font-weight: 800; }
-.shop-offer.r2 .rs-rarity { color: #4cd97a; } .shop-offer.r3 .rs-rarity { color: #5cc4ff; } .shop-offer.r4 .rs-rarity { color: #c06bff; } .shop-offer.r5 .rs-rarity { color: #ffa62b; }
+.shop-offer.r2 .rs-rarity { color: #4cd97a; } .shop-offer.r3 .rs-rarity { color: #5cc4ff; } .shop-offer.r4 .rs-rarity { color: #c06bff; } .shop-offer.r5 .rs-rarity { color: #ffa62b; } .shop-offer.r6 .rs-rarity { color: #ff6fae; } .shop-offer.r7 .rs-rarity { color: #ff5a4a; } .shop-offer.r8 .rs-rarity { color: #ffe36b; }
 .relic-buy { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 96px; padding: 6px 8px; font-size: 14px; }
 .relic-buy .relic-cost { flex-direction: column; gap: 2px; margin: 0; text-shadow: 0 1px 1px #6b3200; }
 .relic-buy .relic-cost span.short { color: #6e0a00; text-shadow: none; }
@@ -758,7 +758,7 @@ div.g-req { margin-bottom: 8px; }
 .relic-peek .relic-art { flex: none; }
 .relic-peek small { display: block; font-size: 12px; color: var(--muted); line-height: 1.3; }
 .relic-peek .rp-rarity { font-weight: 800; color: #fff; }
-.relic-peek .rp-rarity.r2 { color: #4cd97a; } .relic-peek .rp-rarity.r3 { color: #5cc4ff; } .relic-peek .rp-rarity.r4 { color: #c06bff; } .relic-peek .rp-rarity.r5 { color: #ffa62b; }
+.relic-peek .rp-rarity.r2 { color: #4cd97a; } .relic-peek .rp-rarity.r3 { color: #5cc4ff; } .relic-peek .rp-rarity.r4 { color: #c06bff; } .relic-peek .rp-rarity.r5 { color: #ffa62b; } .relic-peek .rp-rarity.r6 { color: #ff6fae; } .relic-peek .rp-rarity.r7 { color: #ff5a4a; } .relic-peek .rp-rarity.r8 { color: #ffe36b; }
 #modal .rp-status { font-weight: 700; color: #fff4dd; margin: 10px 0 6px; }
 #modal .rp-line { text-align: left; font-size: 13px; margin: 4px 0; line-height: 1.4; color: var(--muted); }
 .rp-line .relic-cost { display: inline-flex; vertical-align: middle; }

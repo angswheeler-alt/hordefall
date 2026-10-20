@@ -1075,6 +1075,32 @@ describe('Guild Quests', () => {
   });
 });
 
+describe('Relic list', () => {
+  it('has unique ids, relics at every star from 1★ to 8★, and 3 pieces in every set', () => {
+    expect(new Set(RELICS.map((r) => r.id)).size).toBe(RELICS.length);
+    for (let stars = 1; stars <= 8; stars++) expect(RELICS.some((r) => r.stars === stars)).toBe(true);
+    for (let stars = 2; stars <= 3; stars++) expect(RELICS.filter((r) => r.stars === stars).length).toBeGreaterThanOrEqual(4);
+    for (const set of RELIC_SETS) expect(RELICS.filter((r) => r.set === set.id).length).toBe(3);
+    for (const r of RELICS.filter((x) => x.set)) expect(RELIC_SETS.some((set) => set.id === r.set)).toBe(true);
+  });
+
+  it('crafting costs more for every star up', () => {
+    const cheapest = (n: number) => Math.min(...RELICS.filter((r) => r.stars === n).map((r) => r.craft));
+    const dearest = (n: number) => Math.max(...RELICS.filter((r) => r.stars === n).map((r) => r.craft));
+    for (let stars = 2; stars <= 8; stars++) expect(cheapest(stars)).toBeGreaterThan(dearest(stars - 1));
+  });
+
+  it('opens 8★ relics only after a 7★ relic reaches level 20', () => {
+    const s = fresh();
+    for (const r of RELICS.filter((x) => x.stars < 7)) s.relics[r.id] = RELIC_BASE_MAX;
+    const seven = RELICS.find((r) => r.stars === 7)!;
+    s.relics[seven.id] = 1;
+    expect(s.relicStarsOpen()).toBe(7);
+    s.relics[seven.id] = RELIC_BASE_MAX;
+    expect(s.relicStarsOpen()).toBe(8);
+  });
+});
+
 describe('Relic Shop', () => {
   const NOW = 1_800_000_000_000;
   const ones = RELICS.filter((r) => r.stars === 1);
