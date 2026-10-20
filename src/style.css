@@ -608,10 +608,10 @@ div.g-req { margin-bottom: 8px; }
 
 /* Hero rarity label under names: bold, colored by rarity. */
 .rarity { font-weight: 900; letter-spacing: .02em; text-shadow: 0 1px 2px #000, 0 0 2px #000; }
-.rarity.r-common { color: #fff; }
-.rarity.r-rare { color: #5cc4ff; }
-.rarity.r-epic { color: #c06bff; }
-.rarity.r-legendary { color: #ffa62b; }
+.rarity.r-common, #modal .rarity.r-common, .tm-card .rarity.r-common { color: #fff; }
+.rarity.r-rare, #modal .rarity.r-rare, .tm-card .rarity.r-rare { color: #5cc4ff; }
+.rarity.r-epic, #modal .rarity.r-epic, .tm-card .rarity.r-epic { color: #c06bff; }
+.rarity.r-legendary, #modal .rarity.r-legendary, .tm-card .rarity.r-legendary { color: #ffa62b; }
 #sheet-rarity .rarity { font-size: 14px; }
 .ct-name .rarity { display: block; font-size: 9px; }
 .team-who .rarity { font-size: 12px; }
@@ -619,3 +619,40 @@ div.g-req { margin-bottom: 8px; }
 /* Pulse the boss button while farming so it is hard to miss */
 #boss:not([hidden]) { animation: boss-pulse 1.4s ease-in-out infinite; }
 @keyframes boss-pulse { 50% { box-shadow: 0 0 0 3px rgba(255,255,255,.35), 0 0 14px var(--hot); transform: scale(1.04); } }
+
+/* Manage Team: team slots on top, a scrolling grid of hero cards, quick stats on tap; Done and ✕ always in view. */
+#modal.team-mode .card { max-width: 440px; display: flex; flex-direction: column; position: relative; padding: 16px 14px; }
+#modal.team-mode #modal-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; margin: 0 0 10px; }
+#modal.team-mode .modal-actions { flex: none; }
+.tm-x { position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; padding: 0; border-radius: 50%; font-size: 16px; line-height: 1; }
+.tm-slots { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 8px; flex: none; }
+.tm-slot { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px; border-radius: 10px; background: var(--panel-2); border: 2px solid var(--ok); min-width: 0; }
+.tm-slot.empty { border: 2px dashed rgba(255,255,255,.2); background: transparent; }
+.tm-slot .face, .tm-card .face { width: 40px; height: 40px; border-radius: 8px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
+.tm-slot.empty .face { border-color: transparent; }
+.tm-slot small { font-size: 11px; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.tm-chips { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }
+.tm-chip { font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 2px solid var(--el, rgba(255,255,255,.3)); background: transparent; }
+.tm-chip.on { background: var(--el, var(--panel-2)); color: #fff; text-shadow: 0 1px 1px #000; }
+.tm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
+.tm-card { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 4px; border-radius: 10px; background: var(--panel-2); border: 2px solid transparent; min-width: 0; position: relative; }
+.tm-card.on { border-color: var(--ok); }
+.tm-card.on::after { content: 'Team'; position: absolute; top: 3px; right: 3px; font-size: 9px; font-weight: 800; background: var(--ok); color: #10301c; border-radius: 4px; padding: 0 3px; }
+.tm-card b:not(.rarity) { font-size: 12px; color: var(--text) !important; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-card .rarity { font-size: 10px; }
+.tm-card small { font-size: 11px; color: var(--muted); }
+.tm-stars { color: var(--gold); font-size: 9px; letter-spacing: -1px; }
+.tm-peek { text-align: left; }
+.tm-peek-head { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+.tm-peek-head .face { width: 52px; height: 52px; flex: none; border-radius: 10px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; font-size: 20px; }
+.tm-peek-head div { display: flex; flex-direction: column; }
+.tm-peek-name { font-size: 17px; color: var(--text) !important; }
+.tm-peek-head small { color: var(--muted); font-size: 12px; }
+.tm-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.tm-stats div { background: var(--panel-2); border-radius: 8px; padding: 5px 6px; display: flex; flex-direction: column; }
+.tm-stats span { font-size: 11px; color: var(--muted); }
+.tm-stats b { font-size: 14px; }
+.tm-spec { font-size: 12px; margin: 8px 0 4px; }
+.tm-peek-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.tm-peek-btns button { flex: 1 1 auto; font-size: 13px; padding: 8px 10px; }
