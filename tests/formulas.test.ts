@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import Decimal from 'break_infinity.js';
-import { defended, bulkCost, enemyHp, fmt, upgradeCost, stallBulkCost, emberYield, emberCost, keeperLevel, keeperThreshold, relicCost, guildBossHp, guildBossAttemptCoins, guildBossKillCoins, researchPointsFor, researchRank } from '../src/formulas';
+import { defended, bulkCost, goldPerKill, enemyHp, fmt, upgradeCost, stallBulkCost, emberYield, emberCost, keeperLevel, keeperThreshold, relicCost, guildBossHp, guildBossAttemptCoins, guildBossKillCoins, researchPointsFor, researchRank } from '../src/formulas';
 import { HEROES, STALLS, elementBoss, bossElement, bossLabel, stageBoss, bossWeakness, bossHasElement, bossImmuneTo, STRONG_VS } from '../src/data';
 
 const hero = HEROES.find((h) => h.unlockCost !== 0)!;
@@ -32,6 +32,23 @@ describe('bulk buying', () => {
 
   it('opening a stall buys exactly one level', () => {
     expect(stallBulkCost(STALLS[0], 0, 'max', new Decimal(1e30)).levels).toBe(1);
+  });
+
+  it('Market Row has 30 Stalls, each dearer and richer than the last', () => {
+    expect(STALLS.length).toBe(30);
+    expect(new Set(STALLS.map((s) => s.id)).size).toBe(STALLS.length);
+    for (let i = 1; i < STALLS.length; i++) {
+      const a = STALLS[i - 1];
+      const b = STALLS[i];
+      expect(b.unlockCost).toBeGreaterThan(a.unlockCost * 20);
+      expect(b.baseIncome / b.cycle).toBeGreaterThan((a.baseIncome / a.cycle) * 10);
+      expect(b.cycle).toBeLessThanOrEqual(900);
+    }
+  });
+
+  it('new Stalls keep opening up past stage 1500', () => {
+    // The last Stall costs more than a stage-1500 kill pays, so there is always one left to save for.
+    expect(new Decimal(STALLS[STALLS.length - 1].unlockCost).gt(goldPerKill(1500))).toBe(true);
   });
 });
 
