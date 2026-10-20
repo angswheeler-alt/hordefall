@@ -410,6 +410,20 @@ describe('live trial fights', () => {
   });
 });
 
+describe('trial level unlocks', () => {
+  it('winning the highest open level opens the next one for that element only', () => {
+    const s = fresh();
+    s.bestStage = 51;
+    const [element] = s.openTrials();
+    expect(s.trialUnlocked(element)).toBe(1);
+    expect(s.finishTrial(element, 2, true, 10)).toBeNull();
+    expect(s.finishTrial(element, 1, true, 10)!.won).toBe(true);
+    expect(s.trialUnlocked(element)).toBe(2);
+    const other = ['water', 'earth', 'fire', 'light', 'dark'].find((e) => e !== element)!;
+    expect(s.trialUnlocked(other)).toBe(1);
+  });
+});
+
 describe('trial quick battle', () => {
   function strong() {
     const s = fresh();
