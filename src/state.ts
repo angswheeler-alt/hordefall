@@ -39,9 +39,6 @@ export interface TrialResult {
   won: boolean;
   /** Seconds the fight lasted (capped at the time limit). */
   seconds: number;
-  /** Boss HP fraction left at the end, team HP fraction left at the end. */
-  bossLeft: number;
-  teamLeft: number;
   essence: number;
   /** Enhance Stones won (Trial level 6 and up). */
   stones: number;
@@ -780,7 +777,7 @@ export class GameState {
     return HEROES.filter((h) => this.inLineup(h.id)).map((def) => ({ def, ...this.heroPower(def, Math.max(1, this.emberLevels[def.id] ?? 0)) }));
   }
 
-  /** Simulate a Trial fight against today's boss at `tier`. */
+  /** Estimate a Trial fight against today's boss at `tier` (the Trials panel's prediction; the real fight is live). */
   simulateTrial(tier: number, element: Element) {
     const team = this.trialTeam();
     let dps = new Decimal(0);
@@ -846,21 +843,28 @@ export class GameState {
     return this.trialsUnlocked() && this.trialOpen(element) && this.tickets > 0 && tier >= 1 && tier <= this.trialUnlocked(element) && this.trialReqMet(tier);
   }
 
-  /** Spend a ticket on an open Trial. A loss gives the ticket back. */
-  playTrial(element: Element, tier: number): TrialResult | null {
+  /** Whether a Trial fight can start now: open today, unlocked, requirement met and a ticket in hand. */
+  canStartTrial(element: Element, tier: number): boolean {
+    return this.trialPlayable(element, tier);
+  }
+
+  /**
+   * End a live Trial fight. A win spends the ticket, records the clear time and pays out;
+   * a loss (or leaving) keeps the ticket. Null when the Trial can't be played any more.
+   */
+  finishTrial(element: Element, tier: number, won: boolean, seconds: number): TrialResult | null {
     if (!this.trialPlayable(element, tier)) return null;
-    const sim = this.simulateTrial(tier, element);
-    const result: TrialResult = { won: sim.won, seconds: sim.seconds, bossLeft: sim.bossLeft, teamLeft: sim.teamLeft, essence: 0, stones: 0, medals: [] };
-    if (!sim.won) return result;
+    const result: TrialResult = { won, seconds, essence: 0, stones: 0, medals: [] };
+    if (!won) return result;
     const key = `${element}:${tier}`;
-    this.trialTimes[key] = Math.min(this.trialTimes[key] ?? Infinity, Math.round(sim.seconds * 10) / 10);
+    this.trialTimes[key] = Math.min(this.trialTimes[key] ?? Infinity, Math.round(Math.max(0, seconds) * 10) / 10);
     return this.payTrial(element, tier, result);
   }
 
   /** Skip the fight on a level already won fast enough: same ticket, same reward as a win. */
   quickTrial(element: Element, tier: number): TrialResult | null {
     if (!this.trialPlayable(element, tier) || !this.canQuickTrial(element, tier)) return null;
-    return this.payTrial(element, tier, { won: true, seconds: 0, bossLeft: 0, teamLeft: 1, essence: 0, stones: 0, medals: [] });
+    return this.payTrial(element, tier, { won: true, seconds: 0, essence: 0, stones: 0, medals: [] });
   }
 
   private payTrial(element: Element, tier: number, result: TrialResult): TrialResult {

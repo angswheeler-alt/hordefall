@@ -769,6 +769,11 @@ export const TRIAL_TIME = 30;
 export const TRIAL_QUICK_TIME = TRIAL_TIME / 2;
 /** Trials open once the stage 50 boss is beaten, so the 20 starting tickets don't flood a brand-new player with medals. */
 export const TRIAL_UNLOCK_STAGE = 51;
+/** The live Trial boss: seconds between hits; every Nth hit is a slam that hits every hero for TRIAL_SLAM_SHARE of a hit. Hits vary by ±TRIAL_HIT_SPREAD. */
+export const TRIAL_BOSS_COOLDOWN = 1.6;
+export const TRIAL_SLAM_EVERY = 5;
+export const TRIAL_SLAM_SHARE = 0.4;
+export const TRIAL_HIT_SPREAD = 0.2;
 export const TICKET_MINUTES = 30;
 export const TICKET_CAP = 20;
 export const TRIAL_BOSS_NAMES: Record<Element, string> = {

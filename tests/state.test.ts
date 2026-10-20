@@ -303,10 +303,11 @@ describe('trial tickets', () => {
   it('open only after the stage 50 boss', () => {
     const s = fresh();
     const element = s.openTrials()[0];
-    expect(s.playTrial(element, 1)).toBeNull();
+    expect(s.canStartTrial(element, 1)).toBe(false);
+    expect(s.finishTrial(element, 1, true, 10)).toBeNull();
     s.bestStage = 51;
-    // Only the gate matters here: a fresh level-1 team can lose some elements' trials (Earth beats Brine).
-    expect(s.playTrial(element, 1)).not.toBeNull();
+    expect(s.canStartTrial(element, 1)).toBe(true);
+    expect(s.finishTrial(element, 1, true, 10)).not.toBeNull();
   });
 
   it('each trial level pays more than the last', () => {
@@ -324,10 +325,51 @@ describe('trial tickets', () => {
     for (const h of HEROES) if (h.element === element) s.levels[h.id] = 1;
     for (const h of HEROES) s.emberLevels[h.id] = 500;
     const before = HEROES.reduce((t, h) => t + (s.crests[h.id] ?? 0), 0);
-    const r = s.playTrial(element, 8)!;
+    const r = s.finishTrial(element, 8, true, 20)!;
     expect(r.won).toBe(true);
     expect(r.medals).toHaveLength(TRIAL_LEVELS[7].medals);
     expect(HEROES.reduce((t, h) => t + (s.crests[h.id] ?? 0), 0) - before).toBe(TRIAL_LEVELS[7].medals);
+  });
+});
+
+describe('live trial fights', () => {
+  function ready() {
+    const s = fresh();
+    s.bestStage = 51;
+    return { s, element: s.openTrials()[0] };
+  }
+
+  it('a loss keeps the ticket and pays nothing', () => {
+    const { s, element } = ready();
+    const tickets = s.tickets;
+    const r = s.finishTrial(element, 1, false, 30)!;
+    expect(r.won).toBe(false);
+    expect(s.tickets).toBe(tickets);
+    expect(r.essence).toBe(0);
+    expect(r.medals).toEqual([]);
+    expect(s.trialBest[element] ?? 0).toBe(0);
+    expect(s.trialTime(element, 1)).toBeNull();
+  });
+
+  it('a win spends one ticket, pays out, opens the next level and keeps the fastest time', () => {
+    const { s, element } = ready();
+    const tickets = s.tickets;
+    const r = s.finishTrial(element, 1, true, 12)!;
+    expect(s.tickets).toBe(tickets - 1);
+    expect(r.essence).toBe(TRIAL_LEVELS[0].essence);
+    expect(s.trialUnlocked(element)).toBe(2);
+    s.finishTrial(element, 1, true, 20);
+    expect(s.trialTime(element, 1)).toBe(12);
+  });
+
+  it("can't skip ahead or play without a ticket", () => {
+    const { s, element } = ready();
+    expect(s.canStartTrial(element, 3)).toBe(false);
+    expect(s.finishTrial(element, 3, true, 5)).toBeNull();
+    s.tickets = 0;
+    s.ticketClock = Date.now();
+    expect(s.canStartTrial(element, 1)).toBe(false);
+    expect(s.finishTrial(element, 1, true, 5)).toBeNull();
   });
 });
 
@@ -345,24 +387,24 @@ describe('trial quick battle', () => {
     const { s, element } = strong();
     expect(s.canQuickTrial(element, 1)).toBe(false);
     expect(s.quickTrial(element, 1)).toBeNull();
-    const r = s.playTrial(element, 1)!;
+    const r = s.finishTrial(element, 1, true, 8.24)!;
     expect(r.won).toBe(true);
-    expect(r.seconds).toBeLessThanOrEqual(TRIAL_QUICK_TIME);
-    expect(s.trialTime(element, 1)).toBeCloseTo(r.seconds, 1);
+    expect(s.trialTime(element, 1)).toBe(8.2);
     expect(s.canQuickTrial(element, 1)).toBe(true);
     expect(s.canQuickTrial(element, 2)).toBe(false);
   });
 
   it('a slow win records the time but does not unlock it', () => {
     const { s, element } = strong();
-    s.trialTimes[`${element}:1`] = TRIAL_QUICK_TIME + 1;
+    s.finishTrial(element, 1, true, TRIAL_QUICK_TIME + 1);
+    expect(s.trialTime(element, 1)).toBe(TRIAL_QUICK_TIME + 1);
     expect(s.canQuickTrial(element, 1)).toBe(false);
     expect(s.quickTrial(element, 1)).toBeNull();
   });
 
   it('costs one ticket and pays the same as a normal win', () => {
     const { s, element } = strong();
-    s.playTrial(element, 1);
+    s.finishTrial(element, 1, true, 8);
     const tickets = s.tickets;
     const ess = s.essences[element] ?? 0;
     const crests = HEROES.reduce((t, h) => t + (s.crests[h.id] ?? 0), 0);
@@ -377,7 +419,7 @@ describe('trial quick battle', () => {
 
   it('needs a ticket', () => {
     const { s, element } = strong();
-    s.playTrial(element, 1);
+    s.finishTrial(element, 1, true, 8);
     s.tickets = 0;
     s.ticketClock = Date.now();
     expect(s.quickTrial(element, 1)).toBeNull();
@@ -385,7 +427,7 @@ describe('trial quick battle', () => {
 
   it('clear times survive a save, and old saves without them load', () => {
     const { s, element } = strong();
-    s.playTrial(element, 1);
+    s.finishTrial(element, 1, true, 8);
     s.save();
     const again = new GameState();
     again.load();
