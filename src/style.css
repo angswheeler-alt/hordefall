@@ -440,11 +440,12 @@ i.stone { display: inline-block; width: 12px; height: 12px; background: linear-g
 .bundle-hero .face { width: 44px; height: 44px; border-radius: 10px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
 .bundle-hero.done { opacity: .5; }
 .rw-wide { width: 100%; min-height: 40px; }
-.login-days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 8px; }
+.login-days { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 8px; }
 .login-days div { background: rgba(0,0,0,.25); border: 2px solid transparent; border-radius: 8px; padding: 6px 2px; text-align: center; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .login-days small { font-size: 10px; color: #e8d3b0; }
 .login-days b { font-size: 11px; line-height: 1.2; }
 .login-days .big b { color: #7fe3ff; }
+.login-days .week { background: rgba(255,216,74,.12); }
 .login-days .today { border-color: var(--gold); box-shadow: 0 0 8px rgba(255,216,74,.5); }
 .login-days .done { opacity: .55; }
 .login-days .done b { color: var(--ok); font-size: 16px; }

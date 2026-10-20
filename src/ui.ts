@@ -1272,17 +1272,17 @@ export class UI {
     const short = (v: number) => (v >= 1e4 ? fmt(v) : v.toLocaleString());
 
     const login = s.loginState(now);
-    // Claimed today with the cycle just finished: show all five as collected.
+    // Claimed today with the cycle just finished: show every day as collected.
     const doneDays = !login.ready && login.day === 0 && s.login.count > 0 ? LOGIN_CYCLE.length : login.day;
     setHtml(
       $('login-days'),
       LOGIN_CYCLE.map((r, i) => {
         const cls = i < doneDays ? 'done' : i === login.day && login.ready ? 'today' : '';
-        return `<div class="${cls}${r.gems ? ' big' : ''}"><small>Day ${i + 1}</small><b>${i < doneDays ? '✓' : sliceLabel(r)}</b></div>`;
+        return `<div class="${cls}${r.gems ? ' big' : ''}${(i + 1) % 7 === 0 || i >= LOGIN_CYCLE.length - 2 ? ' week' : ''}"><small>Day ${i + 1}</small><b>${i < doneDays ? '✓' : sliceLabel(r)}</b></div>`;
       }).join(''),
     );
     $<HTMLButtonElement>('login-claim').disabled = !login.ready;
-    $('login-claim').textContent = login.ready ? 'Claim' : 'Come back tomorrow';
+    $('login-claim').textContent = login.ready ? `Claim day ${login.day + 1}` : 'Come back tomorrow';
 
     const spinReady = s.spinReady(now) && !this.spinning;
     $<HTMLButtonElement>('spin-btn').disabled = !spinReady;
@@ -1519,7 +1519,11 @@ export function dropCards(drops: SummonDrop[]): string {
 
 /** Short label for a Lucky Spin slice. */
 function sliceLabel(r: Reward): string {
+  if (r.chests && r.gems) return `${r.chests === 1 ? 'Chest' : `${r.chests} Chests`} + ${r.gems} Gems`;
+  if (r.chests && r.stones) return `${r.chests} Chests + ${r.stones} Stones`;
   if (r.gems) return `${r.gems} Gems`;
+  if (r.stones) return `${r.stones} Stones`;
+  if (r.tickets) return `${r.tickets} Tickets`;
   if (r.goldMinutes) return r.goldMinutes >= 60 ? `${r.goldMinutes / 60}h gold` : `${r.goldMinutes}m gold`;
   return r.chests === 1 ? 'Chest' : `${r.chests} Chests`;
 }
