@@ -336,6 +336,7 @@ button.glass:disabled { opacity: .7; font-size: 11px; }
 .trial-tier .wood-btn { width: 34px; height: 34px; padding: 0; font-size: 18px; }
 #tr-fight, #tr-quick { min-height: 40px; padding: 6px 14px; }
 .trial-btns { display: flex; gap: 6px; }
+.quick-counts { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
 .trial-odds { margin: 0; font-size: 12px; color: #e8d3b0; }
 .trial-odds b { color: #fff; }
 .trial-odds .win { color: #8fe36b; font-weight: 700; }
