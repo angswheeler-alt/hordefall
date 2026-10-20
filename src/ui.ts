@@ -186,28 +186,76 @@ export class UI {
     setHtml($('coll-body'), groups.join(''));
   }
 
-  /** Manage Team: pick which recruited heroes fight. */
+  /** Manage Team filter (an element, or null for everyone) and the hero whose quick stats are open. */
+  private teamFilter: Element | null = null;
+  private teamPeek: string | null = null;
+
+  /**
+   * Manage Team: pick which recruited heroes fight. The team sits in a strip of
+   * slots at the top; everyone owned is a grid of cards below (filterable by
+   * element), and tapping a card shows that hero's stats at a glance.
+   */
   private openTeam(note = '') {
     const s = this.state;
     const count = s.lineupCount();
-    // Only heroes you own, team first. Locked heroes live in Collection.
     const owned = HEROES.filter((h) => (s.levels[h.id] ?? 0) > 0);
-    const rows = [...owned].sort((a, b) => Number(s.inLineup(b.id)) - Number(s.inLineup(a.id))).map((h) => {
-      const on = s.inLineup(h.id);
-      const spent = s.goldSpent(h.id);
-      const label = on ? (spent.gt(0) ? `Remove (+${fmt(spent)} gold)` : 'Remove') : 'Add';
-      const disabled = (on && count <= 1) || (!on && count >= LINEUP_SIZE);
-      return `<li class="team-row${on ? ' on' : ''}">
-        <span class="face art" style="${faceStyle(h)}">${h.name[0]}</span>
-        <span class="team-who"><b>${h.name}</b>${rarityTag(h)}<small>Lv ${s.heroLevel(h.id)} · ${on ? 'In team' : 'Benched'}</small></span>
-        <button data-lineup="${h.id}" class="${on ? '' : 'hot'}" ${disabled ? 'disabled' : ''}>${label}</button>
-      </li>`;
+    const team = owned.filter((h) => s.inLineup(h.id));
+    const peek = this.teamPeek ? HEROES.find((h) => h.id === this.teamPeek) : undefined;
+    const starsOf = (h: HeroDef) => `<span class="tm-stars">${'★'.repeat(Math.max(1, (s.stars[h.id] ?? 0) + 1))}</span>`;
+    const face = (h: HeroDef, cls = '') => `<span class="face art${cls}" style="${faceStyle(h)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span>`;
+    const slots = Array.from({ length: LINEUP_SIZE }, (_, i) => {
+      const h = team[i];
+      return h
+        ? `<button type="button" class="tm-slot on" data-peek="${h.id}" aria-label="${h.name}">${face(h)}<small>${h.name}</small></button>`
+        : '<span class="tm-slot empty"><span class="face"></span><small>Empty</small></span>';
     }).join('');
+    let body: string;
+    if (peek) {
+      body = this.teamPeekHtml(peek, count);
+    } else {
+      const shown = owned
+        .filter((h) => !this.teamFilter || h.element === this.teamFilter)
+        .sort((a, b) => Number(s.inLineup(b.id)) - Number(s.inLineup(a.id)) || s.heroLevel(b.id) - s.heroLevel(a.id));
+      const chips = [null, ...TRIAL_ROTATION]
+        .map((e) => `<button type="button" class="tm-chip${this.teamFilter === e ? ' on' : ''}" data-filter="${e ?? ''}"${e ? ` style="--el:${hex(ELEMENT_COLORS[e])}"` : ''}>${e ? cap(e) : 'All'}</button>`)
+        .join('');
+      const cards = shown
+        .map((h) => `<button type="button" class="tm-card${s.inLineup(h.id) ? ' on' : ''}" data-peek="${h.id}" style="--el:${hex(ELEMENT_COLORS[h.element])}">${face(h)}<b>${h.name}</b>${rarityTag(h)}<small>Lv ${s.heroLevel(h.id).toLocaleString()}</small>${starsOf(h)}</button>`)
+        .join('');
+      body = `<div class="tm-chips">${chips}</div><div class="tm-grid">${cards || '<p class="team-help">No heroes of this element yet.</p>'}</div>
+        <p class="team-help">Tap a hero to see their stats and add or remove them. Taking a hero out drops them to gold level 1 and gives that gold back. Their Ember levels stay. New heroes are unlocked in Collection.</p>`;
+    }
     this.showModal(
       `Team ${count}/${LINEUP_SIZE}`,
-      `${note ? `<p class="team-note">${note}</p>` : ''}<ul class="team-list">${rows}</ul><p class="team-help">Only heroes in the team fight. Taking a hero out drops them to gold level 1 and gives that gold back. Their Ember levels stay, since Embers also count in Trials and PvP. New heroes are unlocked in Collection.</p>`,
+      `<button type="button" class="tm-x" data-team-close aria-label="Close">✕</button>${note ? `<p class="team-note">${note}</p>` : ''}<div class="tm-slots">${slots}</div><div class="tm-scroll">${body}</div>`,
       'Done',
     );
+    $('modal').classList.add('team-mode');
+  }
+
+  /** A hero's quick stats inside Manage Team, with Add/Remove and a link to the full hero page. */
+  private teamPeekHtml(h: HeroDef, count: number): string {
+    const s = this.state;
+    const st = s.heroStats(h);
+    const prof = heroProfile(h);
+    const on = s.inLineup(h.id);
+    const spent = s.goldSpent(h.id);
+    const label = on ? (spent.gt(0) ? `Remove (+${fmt(spent)} gold)` : 'Remove') : 'Add to team';
+    const disabled = (on && count <= 1) || (!on && count >= LINEUP_SIZE);
+    const why = on && count <= 1 ? 'The team needs at least one hero.' : !on && count >= LINEUP_SIZE ? `The team is full (${LINEUP_SIZE}). Remove someone first.` : '';
+    const pct = (n: number) => `${(Math.round(n * 1000) / 10).toLocaleString()}%`;
+    const num = (n: number) => (Math.round(n * 100) / 100).toLocaleString();
+    const stat = (label: string, value: string) => `<div><span>${label}</span><b>${value}</b></div>`;
+    const ember = s.emberLevels[h.id] ?? 0;
+    return `<div class="tm-peek" style="--el:${hex(ELEMENT_COLORS[h.element])}">
+      <div class="tm-peek-head"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span>
+        <div><b class="tm-peek-name">${h.name}</b> ${rarityTag(h)}<small>${heroTitle(h)} · ${'★'.repeat(Math.max(1, (s.stars[h.id] ?? 0) + 1))}</small>
+        <small>Level ${s.heroLevel(h.id).toLocaleString()}${ember ? ` (incl. +${ember.toLocaleString()} Ember)` : ''} · ${on ? 'In team' : 'Benched'}</small></div></div>
+      <div class="tm-stats">${stat('Atk', fmt(st.atk.value))}${stat('HP', fmt(st.hp.value))}${stat('Def', fmt(st.def.value))}${stat('Atk per sec', num(st.attacksPerSec.value))}${stat('Crit', pct(st.critRate))}${stat('Crit Dmg', `+${pct(st.critDmg)}`)}${stat('Range', num(st.range.value))}${stat('Move', num(st.moveSpeed.value))}${stat('Dodge', pct(st.dodge.value))}</div>
+      <p class="tm-spec">${prof.specialty}</p>
+      ${why ? `<p class="team-help">${why}</p>` : ''}
+      <div class="tm-peek-btns"><button type="button" data-peek-back>Back</button><button type="button" data-team-page="${h.id}">Hero page</button><button type="button" data-lineup="${h.id}" class="${on ? '' : 'hot'}" ${disabled ? 'disabled' : ''}>${label}</button></div>
+    </div>`;
   }
 
   private stallRows: StallRow[] = [];
@@ -557,11 +605,40 @@ export class UI {
       const tile = (e.target as HTMLElement).closest<HTMLElement>('[data-coll]');
       if (tile) this.openSheet(tile.dataset.coll!);
     });
-    $('team-btn').addEventListener('click', () =>
-      this.openTeam(),
-    );
+    $('team-btn').addEventListener('click', () => {
+      this.teamPeek = null;
+      this.openTeam();
+    });
     $('modal-body').addEventListener('click', (e) => {
-      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-lineup]');
+      const t = e.target as HTMLElement;
+      const peek = t.closest<HTMLElement>('[data-peek]');
+      if (peek) {
+        this.teamPeek = peek.dataset.peek!;
+        this.openTeam();
+        return;
+      }
+      const filter = t.closest<HTMLElement>('[data-filter]');
+      if (filter) {
+        this.teamFilter = (filter.dataset.filter || null) as Element | null;
+        this.openTeam();
+        return;
+      }
+      if (t.closest('[data-peek-back]')) {
+        this.teamPeek = null;
+        this.openTeam();
+        return;
+      }
+      if (t.closest('[data-team-close]')) {
+        $('modal-ok').click();
+        return;
+      }
+      const page = t.closest<HTMLElement>('[data-team-page]');
+      if (page) {
+        $('modal-ok').click();
+        this.openSheet(page.dataset.teamPage!);
+        return;
+      }
+      const btn = t.closest<HTMLButtonElement>('button[data-lineup]');
       if (!btn || btn.disabled) return;
       const id = btn.dataset.lineup!;
       const refund = this.state.setInLineup(id, !this.state.inLineup(id));
@@ -849,6 +926,7 @@ export class UI {
   }
 
   showModal(title: string, html: string, ok: string, action: (() => void) | null = null, cancel = false, cancelLabel = 'Not yet') {
+    $('modal').classList.remove('team-mode');
     $('modal-title').textContent = title;
     $('modal-body').innerHTML = html;
     $('modal-ok').textContent = ok;
