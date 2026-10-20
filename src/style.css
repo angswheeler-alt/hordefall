@@ -181,7 +181,7 @@ button.link[disabled] { display: none; }
 /* Wood theme for the panels and tab bar, after the original's look */
 :root { --wood: #6b4425; --wood-hi: #9a6a3c; --wood-lo: #3e2513; --wood-deep: #2b190c; --plank: #57361d; --orange: #f39a1e; --orange-lo: #c86a0a; }
 #app { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
-#panels { background: var(--wood-lo); background-image: repeating-linear-gradient(0deg, rgba(0,0,0,.08) 0 2px, transparent 2px 28px); min-height: 50vh; padding: 10px 10px 16px; border-top: 3px solid var(--wood-deep); }
+#panels { background: var(--wood-lo); background-image: repeating-linear-gradient(0deg, rgba(0,0,0,.08) 0 2px, transparent 2px 28px); padding: 10px 10px 16px; border-top: 3px solid var(--wood-deep); }
 .panel-head { display: flex; align-items: center; justify-content: space-between; margin: 4px 4px 10px; }
 .panel-head h2 { margin: 0; font-size: 18px; color: #ffe9c4; text-shadow: 0 2px 0 var(--wood-deep); }
 .wood-btn { background: linear-gradient(180deg, var(--wood-hi), var(--wood)); border: 2px solid var(--wood-deep); border-radius: 10px; color: #fff4dd; font-weight: 800; text-shadow: 0 1px 0 var(--wood-deep); box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 2px 0 var(--wood-deep); line-height: 1.1; }
@@ -766,3 +766,11 @@ div.g-req { margin-bottom: 8px; }
 .evo-list li { display: flex; align-items: center; gap: 8px; background: var(--panel-2); border-radius: 8px; padding: 4px 8px; }
 .evo-list .face { width: 30px; height: 30px; border-radius: 6px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; }
 .evo-list .stars { margin-left: auto; color: var(--gold); font-size: 12px; }
+
+/* The page never scrolls: the battle lane stays on screen and only the panels below scroll. */
+html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+#app { box-sizing: border-box; height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+#app > * { flex: none; }
+#app > #panels { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+/* On short screens (landscape phones, small windows) the lane shrinks so the panels keep room. */
+#stagewrap { width: min(100%, calc(55vh * 1.6)); width: min(100%, calc(55dvh * 1.6)); margin: 0 auto; }
