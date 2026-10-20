@@ -2,7 +2,7 @@ import { DEV_TOOLS } from './config';
 import Decimal from 'break_infinity.js';
 import { combatPower, type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
@@ -659,6 +659,11 @@ export class UI {
       this.modalAction = null;
     });
     $('rekindle').addEventListener('click', () => this.openRekindle());
+    $('rk-head-on').addEventListener('change', () => {
+      this.state.headStart = $<HTMLInputElement>('rk-head-on').checked;
+      this.state.save();
+      this.renderRekindle();
+    });
     $('rk-close').addEventListener('click', () => this.closeRekindle());
     $('rk').addEventListener('click', (e) => {
       if (e.target === $('rk')) this.closeRekindle();
@@ -1259,6 +1264,12 @@ export class UI {
       ),
     ];
     setHtml($('rk-buttons'), buttons.join(''));
+    const head = s.headStartStage();
+    $('rk-head').hidden = head <= 1;
+    $<HTMLInputElement>('rk-head-on').checked = s.headStart;
+    setHtml($('rk-head-text'), `Head start: begin the next run at <b>stage ${head.toLocaleString()}</b>. Wheel slots only count stages you clear, and Rekindle opens ${HEAD_START_MIN_PUSH} stages past the start.`);
+    const start = head > 1 && s.headStart ? head : 1;
+    $('rk-reset-note').textContent = `You go back to stage ${start.toLocaleString()} and every hero drops to gold level 1. Embers, Ember levels, stars and Gems stay.`;
   }
 
   // ---------- free rewards (Shop tab) ----------
@@ -1455,7 +1466,7 @@ export class UI {
     this.showModal(
       'Rekindled!',
       `You earned <b class="ember-text">${fmt(r.embers)} Embers</b>.${wheel}${gift}<br>Tap any hero to spend Embers on Ember levels. Those levels stay through every Rekindle, so each run starts stronger.`,
-      'Start the new run',
+      r.start > 1 ? `Start at stage ${r.start.toLocaleString()}` : 'Start the new run',
     );
   }
 
@@ -1507,7 +1518,7 @@ export class UI {
     const rk = $<HTMLButtonElement>('rekindle');
     rk.hidden = s.runBestStage < 100 && s.rekindles === 0;
     rk.disabled = !s.canRekindle();
-    rk.textContent = s.canRekindle() ? `Rekindle +${fmt(s.pendingEmbers())}` : `Rekindle after ${REKINDLE_STAGE}`;
+    rk.textContent = s.canRekindle() ? `Rekindle +${fmt(s.pendingEmbers())}` : `Rekindle at stage ${s.rekindleStage()}`;
     const speedUnlocked = s.bestStage >= SPEED_UNLOCK_STAGE;
     const speed = $<HTMLButtonElement>('speed');
     speed.disabled = !speedUnlocked;

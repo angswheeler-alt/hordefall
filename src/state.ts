@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, MILESTONE_STEP, milestoneReward, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_RESTOCK_MINUTES, RELIC_SHOP_REFRESH_MINUTES, RELIC_SHOP_STAR_WEIGHTS, RELIC_SHOP_STAR_STAGES, RELIC_SHOP_CRAFT_GEMS, RELIC_SHOP_LEVEL_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, elementMultiplier, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_RESTOCK_MINUTES, RELIC_SHOP_REFRESH_MINUTES, RELIC_SHOP_STAR_WEIGHTS, RELIC_SHOP_STAR_STAGES, RELIC_SHOP_CRAFT_GEMS, RELIC_SHOP_LEVEL_GEMS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
 import { relicCost, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES, PLAYABLE_HEROES } from './data';
@@ -31,6 +31,8 @@ export interface RekindleResult {
   levelsGained: number;
   /** Enhance Stones gifted for new player levels. Rekindling never pays medals. */
   stones: number;
+  /** The stage the new run starts at (later than 1 with a head start). */
+  start: number;
 }
 
 export type SaveData = Record<string, any>;
@@ -84,6 +86,10 @@ export class GameState {
   bestStage = 1;
   /** Highest stage reached since the last Rekindle; sets the Ember payout. */
   runBestStage = 1;
+  /** Where this run started: 1, or later with a Rekindle head start. */
+  runStartStage = 1;
+  /** Whether Rekindles take the head start (the player can turn it off on the Rekindle page). */
+  headStart = true;
   embers = 0;
   emberLevels: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, 0]));
   rekindles = 0;
@@ -610,8 +616,25 @@ export class GameState {
     return done;
   }
 
+  /** The first stage this run that opens Rekindle: past REKINDLE_STAGE, and HEAD_START_MIN_PUSH past a head start. */
+  rekindleStage() {
+    return Math.max(REKINDLE_STAGE + 1, this.runStartStage > 1 ? this.runStartStage + HEAD_START_MIN_PUSH : 0);
+  }
+
   canRekindle() {
-    return this.runBestStage > REKINDLE_STAGE;
+    return this.runBestStage >= this.rekindleStage();
+  }
+
+  /** The stage the next run would start at with a head start (1 when there's none yet). See HEAD_START_*. */
+  headStartStage(): number {
+    if (this.bestStage < HEAD_START_FROM) return 1;
+    const team = HEROES.filter((h) => this.inLineup(h.id));
+    if (!team.length) return 1;
+    // Right after a Rekindle every hero is back to gold level 1, so the team's strength is its Ember levels.
+    const level = team.reduce((t, h) => t + effectiveLevel(1, this.emberLevels[h.id] ?? 0), 0) / team.length;
+    const cap = Math.min(this.bestStage * HEAD_START_SHARE, level * HEAD_START_POWER);
+    const start = Math.floor((cap - 1) / BOSS_EVERY) * BOSS_EVERY + 1;
+    return start > BOSS_EVERY ? start : 1;
   }
 
   /**
@@ -924,9 +947,9 @@ export class GameState {
    * Prestige reset (GDD section 7): back to stage 1 and gold level 1, keep
    * Embers and Ember levels. `mult` is a Gem-bought 2x or 3x payout.
    */
-  rekindle(mult = 1): RekindleResult | null {
+  rekindle(mult = 1, headStart = this.headStart): RekindleResult | null {
     const base = this.pendingEmbers();
-    if (base <= 0) return null;
+    if (base <= 0 || !this.canRekindle()) return null;
     const boost = REKINDLE_BOOSTS.find((b) => b.mult === mult);
     if (mult !== 1 && (!boost || this.gems < boost.gems)) return null;
     if (boost) this.gems -= boost.gems;
@@ -941,15 +964,18 @@ export class GameState {
     const stones = levelsGained * LEVEL_GIFT_STONES;
     this.enhanceStones += stones;
     this.gold = new Decimal(0);
-    this.stage = 1;
-    this.runBestStage = 1;
+    const start = headStart ? this.headStartStage() : 1;
+    this.headStart = headStart;
+    this.stage = start;
+    this.runBestStage = start;
+    this.runStartStage = start;
     for (const def of STALLS) this.stalls[def.id] = { level: 0, progress: 0 };
     this.autoAdvance = true;
     for (const h of HEROES) this.levels[h.id] = h.unlockCost === 0 ? 1 : this.levels[h.id] > 0 ? 1 : 0;
     this.secondsPerStage = 20;
     this.goldPerSec = 0;
     this.save();
-    return { embers: gained, wheel: wheel.lines, levelsGained, stones };
+    return { embers: gained, wheel: wheel.lines, levelsGained, stones, start };
   }
 
   /** Buy `count` Ember levels (or as many as the Embers pay for); all or nothing for x1 / x10. */
@@ -976,10 +1002,10 @@ export class GameState {
     return refund;
   }
 
-  /** Rekindle Wheel slots unlocked by this run's best stage. */
+  /** Rekindle Wheel slots unlocked by stages cleared this run (a head start's skipped stages don't count). */
   roadReached() {
-    if (this.runBestStage < ROAD_START) return 0;
-    return Math.min(ROAD_LENGTH, 1 + Math.floor((this.runBestStage - ROAD_START) / ROAD_STEP));
+    const slots = (stage: number) => (stage < ROAD_START ? 0 : 1 + Math.floor((stage - ROAD_START) / ROAD_STEP));
+    return Math.min(ROAD_LENGTH, slots(this.runBestStage) - slots(this.runStartStage - 1));
   }
 
   /** Spin the Rekindle Wheel once per unlocked slot. Ember prizes are a share of `base` and are added by the caller. */
@@ -1456,6 +1482,8 @@ export class GameState {
       stage: this.stage,
       bestStage: this.bestStage,
       runBestStage: this.runBestStage,
+      runStartStage: this.runStartStage,
+      headStart: this.headStart,
       embers: this.embers,
       emberLevels: this.emberLevels,
       rekindles: this.rekindles,
@@ -1553,6 +1581,8 @@ export class GameState {
       this.stage = d.stage ?? 1;
       this.bestStage = d.bestStage ?? this.stage;
       this.runBestStage = d.runBestStage ?? this.bestStage;
+      this.runStartStage = d.runStartStage ?? 1;
+      this.headStart = d.headStart ?? true;
       this.embers = d.embers ?? 0;
       this.emberLevels = { ...this.emberLevels, ...(d.emberLevels ?? {}) };
       this.rekindles = d.rekindles ?? 0;
@@ -1651,6 +1681,8 @@ export class GameState {
     this.stage = Math.max(1, Math.floor(num(this.stage, 1)));
     this.bestStage = Math.max(this.stage, Math.floor(num(this.bestStage, this.stage)));
     this.runBestStage = Math.max(this.stage, Math.floor(num(this.runBestStage, this.stage)));
+    this.runStartStage = Math.min(this.runBestStage, Math.max(1, Math.floor(num(this.runStartStage, 1))));
+    this.headStart = this.headStart !== false;
     this.gems = Math.max(0, Math.floor(num(this.gems, START_GEMS)));
     this.embers = Math.max(0, num(this.embers, 0));
     this.tickets = Math.min(TICKET_CAP, Math.max(0, Math.floor(num(this.tickets, TICKET_CAP))));
