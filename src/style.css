@@ -184,7 +184,7 @@ button.link[disabled] { display: none; }
 .wood-btn.small { font-size: 12px; padding: 5px 10px; }
 #acct-reset { margin-top: 10px; }
 .wood-btn.danger { background: linear-gradient(180deg, #a8352b, #6e1d16); color: #fff4dd; }
-.hero-head { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: stretch; margin-bottom: 8px; }
+.hero-head { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 8px; align-items: stretch; margin-bottom: 8px; }
 .hero-head .wood-btn { min-height: 50px; font-size: 14px; }
 .chest-btn { display: flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(180deg, #c0392b, #7d1f16); font-size: 15px !important; }
 .chest-ico { width: 32px; height: 32px; background: url('./assets/ui/chest.png') center / contain no-repeat; image-rendering: pixelated; flex: none; }
@@ -726,3 +726,12 @@ div.g-req { margin-bottom: 8px; }
 .element-wheel .ew-arrow text { fill: var(--gold); }
 .ew-note { font-size: 12px !important; text-align: left; }
 .ew-btn { font-size: 12px; padding: 6px 10px; }
+
+/* Evolve all: lights up when any hero has the medals for their next star */
+.evolve-all { background: linear-gradient(180deg, #8a5cd6, #4b2a8a) !important; }
+.evolve-all:not(:disabled) { box-shadow: 0 0 10px rgba(255,216,74,.6), inset 0 1px 0 rgba(255,255,255,.25), 0 2px 0 var(--wood-deep); }
+.evolve-all:disabled { filter: grayscale(.7); opacity: .6; }
+.evo-list { list-style: none; margin: 8px 0 0; padding: 0; text-align: left; display: flex; flex-direction: column; gap: 4px; }
+.evo-list li { display: flex; align-items: center; gap: 8px; background: var(--panel-2); border-radius: 8px; padding: 4px 8px; }
+.evo-list .face { width: 30px; height: 30px; border-radius: 6px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; }
+.evo-list .stars { margin-left: auto; color: var(--gold); font-size: 12px; }

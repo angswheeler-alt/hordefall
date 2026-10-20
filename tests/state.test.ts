@@ -956,3 +956,29 @@ describe('Relic Shop', () => {
     expect(t.relicShop).toEqual(s.relicShop);
   });
 });
+
+describe('Evolve all', () => {
+  it('evolves every recruited hero as far as their medals go, and skips the rest', () => {
+    const s = fresh();
+    const [a, b] = HEROES.filter((h) => h.id !== starter.id).slice(0, 2);
+    s.levels[a.id] = 1;
+    s.levels[b.id] = 1;
+    s.crests[starter.id] = STAR_CRESTS[0] + STAR_CRESTS[1]; // two stars' worth
+    s.crests[a.id] = STAR_CRESTS[0]; // one star
+    s.crests[b.id] = STAR_CRESTS[0] - 1; // not enough
+    expect(s.evolvable().map((h) => h.id).sort()).toEqual([starter.id, a.id].sort());
+    const done = s.evolveAll();
+    expect(done).toEqual(expect.arrayContaining([{ id: starter.id, from: 0, to: 2 }, { id: a.id, from: 0, to: 1 }]));
+    expect(done.length).toBe(2);
+    expect(s.stars[b.id] ?? 0).toBe(0);
+    expect(s.crests[starter.id]).toBe(0);
+    expect(s.evolvable().length).toBe(0);
+    expect(s.evolveAll()).toEqual([]);
+  });
+
+  it('ignores medals for heroes not recruited yet', () => {
+    const s = fresh();
+    s.crests[other.id] = 10_000;
+    expect(s.evolvable().some((h) => h.id === other.id)).toBe(false);
+  });
+});
