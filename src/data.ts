@@ -569,7 +569,8 @@ export const BOSS_TIME_LIMIT = 30;
 export const OFFLINE_BOSS_TIME_SHARE = 0.8;
 /** Seconds between a boss's hits (matches the battle). */
 export const OFFLINE_BOSS_COOLDOWN = 1.6;
-export const RESPAWN_SECONDS = 5;
+/** Seconds a fallen hero waits at the crystal before getting back up (Rattle Back shortens it). */
+export const RESPAWN_SECONDS = 6;
 export const ULT_UNLOCK_LEVEL = 30;
 export const ULT_COOLDOWN = 30;
 export const ULT_MULTIPLIER = 40;

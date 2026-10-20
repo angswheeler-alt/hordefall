@@ -5,7 +5,6 @@ import {
   ELEMENT_COLORS,
   bossLabel,
   BOSS_TIME_LIMIT,
-  RESPAWN_SECONDS,
   ULT_COOLDOWN,
   ULT_MULTIPLIER,
   ULT_STAR_BONUS,
@@ -59,6 +58,7 @@ import chestBronzeUrl from './assets/ui/chest-bronze.png';
 import chestGoldUrl from './assets/ui/chest-gold.png';
 import { sumEffect, mulEffect, everyNth, procEffect, procs } from './skills';
 import { marchCap, marchStep } from './movement';
+import { respawnTime, reviveIn, stageStartRevives } from './respawn';
 import { HERO_ANIMS } from './heroAnims';
 import { MOB_ANIMS } from './mobAnims';
 import { MOB_ELEMENTS, MOB_KINDS, pickMob, type MobId } from './mobs';
@@ -163,6 +163,8 @@ interface Unit {
   attacks: number;
   alive: boolean;
   respawnAt: number;
+  /** Fallen heroes: the countdown over their ghost at the crystal. */
+  reviveText?: Phaser.GameObjects.Text;
   ultReadyAt: number;
   /** Rogue Mastery: the next attack crits after a dodge. */
   riposte?: boolean;
@@ -277,6 +279,8 @@ export interface UltState {
   unlocked: boolean;
   alive: boolean;
   remaining: number;
+  /** Seconds until a fallen hero gets back up (0 while standing). */
+  reviveIn: number;
   /** Full cooldown in seconds (shorter for Ascended 8★ heroes). */
   total: number;
 }
@@ -302,6 +306,8 @@ export class BattleScene extends Phaser.Scene {
   private waveTimer = 0;
   private bossTimer = 0;
   private transitioning = false;
+  /** The stage just ended in a loss, so the next one starts with the whole team up. */
+  private lostStage = false;
   private chestTimer = 20;
   private incomeWindow = new Decimal(0);
   private incomeWindowReal = 0;
@@ -826,10 +832,14 @@ export class BattleScene extends Phaser.Scene {
     this.enemies = [];
     for (const z of this.zones) z.view.destroy();
     this.zones = [];
+    // Fallen heroes sit out their revive timer across a stage clear; a lost stage brings everyone back.
+    const lost = this.lostStage;
+    this.lostStage = false;
+    const up = new Set(stageStartRevives(this.heroes, this.clock, lost));
     for (const h of this.heroes) {
       h.shield = new Decimal(0);
       h.streakTarget = undefined;
-      this.reviveHero(h);
+      if (up.has(h)) this.reviveHero(h);
     }
     const stage = this.state.stage;
     this.crystal.maxHp = crystalHp(stage);
@@ -886,6 +896,9 @@ export class BattleScene extends Phaser.Scene {
 
   private reviveHero(h: Unit, x = PLAYER_CRYSTAL_X + 20 + Math.random() * 10, hpShare = 1) {
     h.alive = true;
+    h.reviveText?.destroy();
+    h.reviveText = undefined;
+    h.body.setAlpha(1);
     h.hp = h.maxHp.times(hpShare);
     h.rootedUntil = 0;
     this.giveKnightShield(h);
@@ -940,6 +953,7 @@ export class BattleScene extends Phaser.Scene {
     if (isBossStage(stage)) this.time.delayedCall(1400, () => this.banner('Tap FIGHT BOSS to retry', '#ffd27a'));
     play('defeat');
     this.state.save();
+    this.lostStage = true;
     this.nextStageTimer = this.time.delayedCall(1300, () => this.startStage());
   }
 
@@ -1136,6 +1150,7 @@ export class BattleScene extends Phaser.Scene {
     for (const h of this.heroes) {
       if (!h.alive) {
         if (this.clock >= h.respawnAt) this.reviveHero(h);
+        else h.reviveText?.setText(`${Math.ceil(reviveIn(h, this.clock))}`);
         continue;
       }
       this.stepHero(h, dt);
@@ -1747,10 +1762,29 @@ export class BattleScene extends Phaser.Scene {
         this.freeze(0.25);
       }
     } else {
-      u.respawnAt = this.clock + RESPAWN_SECONDS * this.mul('respawn', null);
+      u.respawnAt = respawnTime(this.clock, this.mul('respawn', null));
       this.puff(u.x, u.y, 0xffffff);
-      u.view.setVisible(false);
+      if (this.trial) u.view.setVisible(false);
+      else this.ghostHero(u);
     }
+  }
+
+  /** A fallen hero waits as a faded ghost at the player's crystal, with seconds to go above it. */
+  private ghostHero(h: Unit) {
+    this.tweens.killTweensOf(h.view);
+    h.hpBar.clear();
+    h.x = PLAYER_CRYSTAL_X + 20;
+    h.view.setPosition(h.x, h.y).setAlpha(1).setVisible(true);
+    h.body.setAlpha(0.3);
+    if (h.reviveText?.active) return;
+    const text = this.add
+      .text(0, -40, '', { fontFamily: 'monospace', fontSize: '12px', color: '#ffffff', stroke: '#000', strokeThickness: 3 })
+      .setOrigin(0.5);
+    // Inside the view so it moves with the ghost, at full strength over the faded body.
+    h.view.add(text);
+    h.view.once(Phaser.GameObjects.Events.DESTROY, () => text.destroy());
+    h.reviveText = text;
+    text.setText(`${Math.ceil(reviveIn(h, this.clock))}`);
   }
 
   private damageCrystal(amount: Decimal) {
@@ -1789,6 +1823,7 @@ export class BattleScene extends Phaser.Scene {
       unlocked: level >= ULT_UNLOCK_LEVEL,
       alive: !!h?.alive,
       remaining: h ? Math.max(0, h.ultReadyAt - this.clock) : 0,
+      reviveIn: h ? reviveIn(h, this.clock) : 0,
       total: this.ultCooldown(heroId),
     };
   }
