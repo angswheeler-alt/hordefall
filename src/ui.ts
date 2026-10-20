@@ -1136,6 +1136,7 @@ export class UI {
   private setTab(tab: Tab) {
     this.tab = tab;
     for (const panel of $('panels').querySelectorAll<HTMLElement>('.panel')) panel.hidden = panel.dataset.tab !== tab;
+    $('panels').scrollTop = 0;
     for (const btn of $('tabbar').querySelectorAll<HTMLButtonElement>('button')) {
       const on = btn.dataset.tab === tab;
       btn.classList.toggle('on', on);
@@ -1291,7 +1292,6 @@ export class UI {
     $('trial-hud-name').textContent = `${title} (${cap(el)})`;
     $('trial-leave').textContent = 'Leave';
     this.trialLeft = false;
-    window.scrollTo(0, 0);
     scene.startTrial(el, tier, (won, seconds) => {
       $('trial-leave').textContent = 'Back';
       const result = s.finishTrial(el, tier, won, seconds);
