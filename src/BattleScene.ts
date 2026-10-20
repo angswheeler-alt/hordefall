@@ -21,6 +21,7 @@ import {
   enemyElement,
   bossElement,
   bossWeakness,
+  bossImmuneTo,
   bossHasElement,
   stageBoss,
   type Element,
@@ -167,6 +168,10 @@ interface Unit {
   bossArt?: { id: string; flinchAt: number };
   /** Fights without an element (bosses before stage 600): no element bonus either way on its hits or on hits it takes. */
   noElement?: boolean;
+  /** Bosses from stage 600: the stage whose element lock applies (only their weakness can hurt them). */
+  lockStage?: number;
+  /** When IMMUNE last floated over this unit, so it doesn't flood the screen. */
+  immuneShownAt?: number;
   hpBar: Phaser.GameObjects.Graphics;
   barWidth: number;
   /** Riptide Combo: the enemy this hero is hitting and how many hits in a row. */
@@ -766,6 +771,7 @@ export class BattleScene extends Phaser.Scene {
       label: boss ? bossLabel(stage) : undefined,
     });
     if (boss && !bossHasElement(stage)) u.noElement = true;
+    if (boss && bossHasElement(stage)) u.lockStage = stage;
     this.enemies.push(u);
   }
 
@@ -799,7 +805,7 @@ export class BattleScene extends Phaser.Scene {
     if (boss) {
       this.spawnEnemy(true);
       const weak = bossWeakness(stage);
-      this.banner(`${stageBoss(stage).name.toUpperCase()}${weak ? `\nWEAK TO ${weak.toUpperCase()}` : ''}`, '#ff6680');
+      this.banner(`${stageBoss(stage).name.toUpperCase()}${weak ? `\nONLY ${weak.toUpperCase()} CAN HURT IT` : ''}`, '#ff6680');
       this.cameras.main.shake(400, 0.01);
       play('boss');
     }
@@ -1286,7 +1292,8 @@ export class BattleScene extends Phaser.Scene {
           (t.burnUntil > this.clock ? vsBurning : 1) *
           (splash ? 1 + st.aoeDmg : 1);
         const amount = atk.times(mult);
-        dealt = dealt.plus(amount);
+        // Lifesteal only counts hits that land (element-locked bosses shrug off the rest).
+        if (t.lockStage === undefined || !bossImmuneTo(t.lockStage, this.dealsAs(h))) dealt = dealt.plus(amount);
         this.damageUnit(t, amount, h, crit);
         if (t.alive) this.applyEffects(h, t, amount, procced);
         if (t.alive && blinded) {
@@ -1362,6 +1369,7 @@ export class BattleScene extends Phaser.Scene {
       if (e.poisonTick < BURN_TICK) continue;
       e.poisonTick -= BURN_TICK;
       const dmg = e.poisonDps.times(e.poisonStacks * BURN_TICK);
+      if (this.immune(e, e.poisonBy ?? null)) continue;
       this.floatText(e.x + Phaser.Math.Between(-6, 6), e.y - 22, fmt(dmg), '#8dff6a', 9);
       e.hp = e.hp.minus(dmg);
       this.drawHpBar(e);
@@ -1395,6 +1403,7 @@ export class BattleScene extends Phaser.Scene {
       if (e.burnTick < BURN_TICK) continue;
       e.burnTick -= BURN_TICK;
       const dmg = e.burnDps.times(BURN_TICK);
+      if (this.immune(e, e.burnBy ?? null)) continue;
       this.sparks(e.x, e.y - 6, 0xff8a3a, 2);
       this.floatText(e.x + Phaser.Math.Between(-6, 6), e.y - 22, fmt(dmg), '#ffa55a', 9);
       if (e.markUntil > this.clock) e.hp = e.hp.minus(dmg.times(e.markMult - 1));
@@ -1415,8 +1424,21 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  /** Element-locked bosses shrug off anything not dealt as their weakness, and say so. */
+  private immune(target: Unit, source: Unit | null): boolean {
+    if (target.lockStage === undefined) return false;
+    const as = source && source.side === 'hero' ? this.dealsAs(source) : null;
+    if (!bossImmuneTo(target.lockStage, as)) return false;
+    if (this.clock - (target.immuneShownAt ?? -Infinity) >= 0.6) {
+      target.immuneShownAt = this.clock;
+      this.floatText(target.x + Phaser.Math.Between(-8, 8), target.y - 30, 'IMMUNE', '#b8c0cc', 11);
+    }
+    return true;
+  }
+
   private damageUnit(target: Unit, amount: Decimal, source: Unit | null, crit = false) {
     if (!target.alive) return;
+    if (this.immune(target, source)) return;
     if (target.side === 'enemy' && target.markUntil > this.clock) amount = amount.times(target.markMult);
     if (target.side === 'enemy') amount = amount.times(this.mul('enemyVuln', null));
     let toHp = amount;
