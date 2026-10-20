@@ -1,6 +1,6 @@
 import { DEV_TOOLS } from './config';
 import Decimal from 'break_infinity.js';
-import { combatPower, type HeroStats, type BigStat, type StatPair } from './stats';
+import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
 import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
@@ -986,7 +986,7 @@ export class UI {
     });
     const top = `<b>${def.type}</b> · ${HERO_TYPES[def.type]}<br>${prof.specialty}${builds.length ? `<br><small>${builds.join(' · ')}. 2 heroes with the same effect: +25% time; 3: +50% damage too.</small>` : ''}`;
     const sheetStats = s.heroStats(def, shownLevel);
-    setHtml($('sheet-stats'), statPages(sheetStats, gold > 0 ? String(eff) : 'Locked', this.statPage, top, gold > 0 ? fmt(combatPower(sheetStats)) : ''));
+    setHtml($('sheet-stats'), statPages(sheetStats, gold > 0 ? String(eff) : 'Locked', this.statPage, top, gold > 0 ? fmt(s.heroCombatPower(def)) : ''));
 
     $('sheet-gold-lvl').textContent = gold > 0 ? String(gold) : '(locked)';
     const { levels, cost } = bulkCost(def, gold, s.buyAmount, s.gold, s.levelCostMult());
@@ -1666,7 +1666,7 @@ export class UI {
       } else {
         const next = eff + shown.levels;
         const now = s.heroPower(r.def, eff);
-        setHtml(r.stats, `<span class="st atk">${SWORD}${fmt(now.atk)} <span class="next">→ ${fmt(s.heroPower(r.def, next).atk)}</span></span><span class="st hp">${HEART}${fmt(now.hp)}</span><span class="st cp" title="Combat Power">CP ${fmt(s.heroCombatPower(r.def, eff))}</span>`);
+        setHtml(r.stats, `<span class="st atk">${SWORD}${fmt(now.atk)} <span class="next">→ ${fmt(s.heroPower(r.def, next).atk)}</span></span><span class="st hp">${HEART}${fmt(now.hp)}</span><span class="st cp" title="Combat Power">CP ${fmt(s.heroCombatPower(r.def))}</span>`);
         r.label.textContent = shown.levels === 1 ? 'Level Up' : `Level +${shown.levels}`;
       }
       if (locked) {

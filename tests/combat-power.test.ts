@@ -43,7 +43,7 @@ describe('Combat Power', () => {
     expect(v.gt('1e299')).toBe(true);
   });
 
-  it('total Combat Power adds up every recruited hero and grows with levels', () => {
+  it('total Combat Power adds up every recruited hero and grows with Ember levels, not gold levels', () => {
     GameState.frozen = false;
     localStorage.clear();
     const s = new GameState();
@@ -52,6 +52,8 @@ describe('Combat Power', () => {
     expect(s.totalCombatPower().eq(sum)).toBe(true);
     const before = s.totalCombatPower();
     s.levels[owned[0].id] = 50;
+    expect(s.totalCombatPower().eq(before)).toBe(true);
+    s.emberLevels[owned[0].id] = 50;
     expect(s.totalCombatPower().gt(before)).toBe(true);
   });
 });
