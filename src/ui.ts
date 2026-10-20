@@ -2,7 +2,7 @@ import { DEV_TOOLS } from './config';
 import Decimal from 'break_infinity.js';
 import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
@@ -414,21 +414,43 @@ export class UI {
         pieces.forEach((d) => tile(d, grid));
       }
     }
-    for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-relic-view]')) {
+    for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-relic-go]')) {
       btn.addEventListener('click', () => {
-        for (const b of document.querySelectorAll<HTMLButtonElement>('[data-relic-view]')) b.classList.toggle('on', b === btn);
-        for (const pane of document.querySelectorAll<HTMLElement>('[data-relic-pane]')) pane.hidden = pane.dataset.relicPane !== btn.dataset.relicView;
+        for (const pane of document.querySelectorAll<HTMLElement>('[data-relic-pane]')) pane.hidden = pane.dataset.relicPane !== btn.dataset.relicGo;
+        this.render();
       });
     }
-    $('relic-discover').addEventListener('click', (e) => {
-      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-discover]');
-      if (!btn || btn.disabled) return;
-      const def = this.state.discoverRelic(Number(btn.dataset.discover));
-      if (!def) return;
-      play('unlock');
-      this.scene()?.syncHeroes();
-      this.render();
-      this.showRelic(def, 'Relic found!');
+    $('relic-shop').addEventListener('click', (e) => {
+      const el = e.target as HTMLElement;
+      const buy = el.closest<HTMLButtonElement>('[data-buy-relic]');
+      if (buy) {
+        if (buy.disabled) return;
+        const def = RELICS.find((r) => r.id === buy.dataset.buyRelic)!;
+        if (!this.state.buyRelic(def.id)) return;
+        play('unlock');
+        this.scene()?.syncHeroes();
+        this.render();
+        this.showRelic(def, 'Relic bought!');
+        return;
+      }
+      const peek = el.closest<HTMLElement>('[data-peek-relic]');
+      if (peek) this.showRelic(RELICS.find((r) => r.id === peek.dataset.peekRelic)!);
+    });
+    $('relic-new').addEventListener('click', () => {
+      if (this.state.relicShopState().refreshIn > 0) return;
+      this.showModal(
+        'New relics?',
+        `Are you sure you want to refresh the Relic Shop? The relics on offer are swapped for new ones, and you can do it again in ${RELIC_SHOP_REFRESH_MINUTES} minutes.`,
+        'Refresh',
+        () => {
+          if (this.state.refreshRelicShop()) {
+            play('unlock');
+            this.render();
+          }
+        },
+        true,
+        'Cancel',
+      );
     });
     $('relic-buyslot').addEventListener('click', () => {
       if (this.state.buyRelicSlot()) {
@@ -449,8 +471,8 @@ export class UI {
       : !s.relicOpen(def)
         ? `Locked: ${def.stars}★ relics open when a ${def.stars - 1}★ relic reaches level ${RELIC_BASE_MAX}.`
         : s.canAffordRelic(def)
-          ? `Not found yet. You have the Essence for it, so a ${def.stars}★ discovery could turn it up.`
-          : `Not found yet. Gather the Essence below, then discover a ${def.stars}★ relic.`;
+          ? `Not owned yet. You have the Essence for it if it shows up in the Relic Shop.`
+          : `Not owned yet. When it shows up in the Relic Shop, buy it with the Essence below.`;
     const html = `<div class="relic-peek">
       ${this.relicArt(def)}
       <div>${title === def.name ? '' : `<b>${def.name}</b>`}<small class="rp-rarity r${def.stars}">${'★'.repeat(def.stars)} ${rarity}${set ? ` · ${set.name} set` : ''}</small><small>${def.blurb}</small></div>
@@ -463,7 +485,7 @@ export class UI {
     this.showModal(title, html, 'Close');
   }
 
-  /** Returns true when something on the Relics tab is worth a look (an upgrade for an equipped relic, a free slot, or a discovery you can afford). */
+  /** Returns true when something on the Relics tab is worth a look (an upgrade for an equipped relic, a free slot, or a shop relic you can afford). */
   private renderRelics(): boolean {
     const s = this.state;
     let worthALook = false;
@@ -483,20 +505,31 @@ export class UI {
     const freeSlot = s.equipped.length < s.relicSlots;
     const starsOpen = s.relicStarsOpen();
 
-    // Discover: one button per open star that still has relics to find.
-    let discover = '';
-    for (let stars = 1; stars <= RELIC_MAX_STARS; stars++) {
-      const left = RELICS.filter((r) => r.stars === stars && !owned(r));
-      if (!left.length) continue;
-      if (stars > starsOpen) {
-        discover += `<button class="wood-btn small" disabled>${stars}★ opens when a ${stars - 1}★ relic reaches Lv ${RELIC_BASE_MAX}</button>`;
-        break;
-      }
-      const can = s.discoverableRelics(stars).length;
-      if (can) worthALook = true;
-      discover += `<button class="wood-btn small${can ? ' levelall' : ''}" data-discover="${stars}" ${can ? '' : 'disabled'} title="Finds a random ${stars}★ relic you don't own among those your Essence can pay for">Discover ${stars}★<small>${can ? `${can} of ${left.length} affordable` : `Need Essence · ${left.length} to find`}</small></button>`;
-    }
-    setHtml($('relic-discover'), discover || '<p class="market-note">You own every relic.</p>');
+    // Relic Shop: the offers, their Essence prices, and the New relics timer.
+    const shop = s.relicShopState();
+    const newBtn = $<HTMLButtonElement>('relic-new');
+    newBtn.disabled = shop.refreshIn > 0;
+    newBtn.textContent = shop.refreshIn > 0 ? `New relics in ${Math.ceil(shop.refreshIn / 60_000)}m` : 'New relics';
+    const rarity = ['', 'Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
+    const shopHtml = shop.offers
+      .map((def) => {
+        const can = s.canAffordRelic(def);
+        if (can) worthALook = true;
+        return `<div class="relic shop-offer r${def.stars}">
+          <button type="button" class="relic-peek-btn" data-peek-relic="${def.id}" aria-label="Look at ${def.name}">${this.relicArt(def)}</button>
+          <div class="relic-info"><b>${def.name}</b><small class="rs-rarity">${rarity[def.stars] ?? ''}${def.set ? ` · ${RELIC_SETS.find((x) => x.id === def.set)!.name} set` : ''}</small><span class="eff">At Lv ${RELIC_BASE_MAX}: ${this.relicEffectText(def, RELIC_BASE_MAX)}</span></div>
+          <button class="wood-btn levelall relic-buy" data-buy-relic="${def.id}" ${can ? '' : 'disabled'}><span class="relic-cost">${this.relicCostHtml(def, s.relicCraftCost(def), def.stones ?? 0)}</span>Buy</button>
+        </div>`;
+      })
+      .join('');
+    const nextStar = starsOpen < RELIC_MAX_STARS ? `<p class="market-note">${starsOpen + 1}★ relics join the shop once a ${starsOpen}★ relic reaches level ${RELIC_BASE_MAX}.</p>` : '';
+    setHtml(
+      $('relic-shop'),
+      (shopHtml ||
+        (s.relicShopPool().length
+          ? `<p class="market-note">Nothing left on offer. ${shop.refreshIn > 0 ? 'New relics arrive when the timer runs out.' : 'Tap New relics for more.'}</p>`
+          : '<p class="market-note">You own every relic you can get right now.</p>')) + nextStar,
+    );
 
     for (const sec of this.relicSections) sec.head.hidden = !sec.defs.some(owned);
     for (const h of this.setHeads) {

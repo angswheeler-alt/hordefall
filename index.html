@@ -50,15 +50,20 @@
         </section>
         <section class="panel" data-tab="relics" hidden>
           <div class="panel-head"><h2>Relics</h2><span id="relic-slots" class="trial-tickets"></span></div>
-          <div class="hero-sub relic-views"><button data-relic-view="mine" class="wood-btn small on">My relics</button><button data-relic-view="all" class="wood-btn small">All relics</button></div>
-          <div class="relic-bar"><div id="relic-ess" class="trial-ess"></div><button id="relic-buyslot" class="gem-btn small">Slot</button></div>
+          <div class="relic-bar"><div id="relic-ess" class="trial-ess"></div></div>
           <div data-relic-pane="mine">
-            <p class="market-note">Relics can't be bought. Win Trials for Essence, then discover a relic: you find a random one among those your Essence can pay for. Level relics with Essence, and max one at level 20 to open relics with one more star. Equipped relics give their bonus; a set gives its bonus once you own every piece.</p>
-            <div class="relic-discover"><h3>Discover a relic</h3><div id="relic-discover"></div></div>
+            <div class="hero-sub relic-nav"><button id="relic-buyslot" class="gem-btn small">Slot</button><button data-relic-go="shop" class="wood-btn small levelall relic-shop-btn">Buy relics</button></div>
+            <p class="market-note">Relics can't be bought with Gems. Buy them in the Relic Shop with Trial Essence, then level them with Essence. Max one at level 20 to open relics with one more star. Equipped relics give their bonus; a set gives its bonus once you own every piece.</p>
             <div id="relics"></div>
-            <p id="relics-empty" class="market-note" hidden>You have no relics yet. Discover one above.</p>
+            <p id="relics-empty" class="market-note" hidden>You have no relics yet. Tap Buy relics.</p>
+          </div>
+          <div data-relic-pane="shop" hidden>
+            <div class="hero-sub relic-nav"><button data-relic-go="mine" class="wood-btn small">← Back</button><button data-relic-go="all" class="wood-btn small">Collection</button><button id="relic-new" class="wood-btn small">New relics</button></div>
+            <p class="market-note">Relics you don't own yet, paid for with their Essence. New relics swaps the offers for new ones.</p>
+            <div id="relic-shop"></div>
           </div>
           <div data-relic-pane="all" hidden>
+            <div class="hero-sub relic-nav"><button data-relic-go="shop" class="wood-btn small">← Back</button></div>
             <p class="market-note">Every relic in the game. Tap one to look at it.</p>
             <div id="relic-catalog"></div>
           </div>

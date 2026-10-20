@@ -946,6 +946,11 @@ export const RELIC_START_SLOTS = 2;
 export const RELIC_SLOT_COSTS = [50, 75, 100, 125, 150, 200, 250, 300, 350, 400, 450, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1500];
 export const RELIC_SLOT_STAGES = [25, 50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000, 1200, 1400, 1600, 1800, 2000, 2500];
 
+/** Relics on show in the Relic Shop at once; each is bought with its Essence, never Gems. */
+export const RELIC_SHOP_SIZE = 3;
+/** Wait after a New relics refresh before the next one. */
+export const RELIC_SHOP_REFRESH_MINUTES = 40;
+
 // ---------- guilds (server rules live in supabase/guilds.sql) ----------
 
 export const GUILD_MAX_MEMBERS = 30;

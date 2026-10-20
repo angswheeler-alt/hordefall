@@ -543,10 +543,10 @@ describe('relics', () => {
     const two = RELICS.find((r) => r.stars === 2)!;
     for (const e of two.essences) s.essences[e] = 1e12;
     expect(s.relicStarsOpen()).toBe(1);
-    expect(s.discoverRelic(2)).toBeNull();
+    expect(s.relicShopPool().some((r) => r.id === two.id)).toBe(false);
     s.relics[RELICS.find((r) => r.stars === 1)!.id] = RELIC_BASE_MAX;
     expect(s.relicStarsOpen()).toBe(2);
-    expect(s.discoverRelic(2)?.id).toBe(two.id);
+    expect(s.relicShopPool().some((r) => r.id === two.id)).toBe(true);
   });
 
   it('Enhance Stones raise the cap by 5 only at max level', () => {
@@ -586,12 +586,11 @@ describe('relics', () => {
     const s = fresh();
     const def = RELICS.find((r) => r.stones)!;
     for (const r of RELICS.filter((x) => x.stars < def.stars)) s.relics[r.id] = RELIC_BASE_MAX;
-    for (const r of RELICS) for (const e of r.essences) s.essences[e] = 1e12;
-    expect(s.discoverableRelics(def.stars).some((r) => r.id === def.id)).toBe(false);
+    for (const e of def.essences) s.essences[e] = 1e12;
+    s.relicShop = { offers: [def.id], refreshAt: 0, rolled: true };
+    expect(s.buyRelic(def.id)).toBe(false);
     s.enhanceStones = def.stones!;
-    expect(s.discoverableRelics(def.stars).some((r) => r.id === def.id)).toBe(true);
-    const found = s.discoverRelic(def.stars)!;
-    expect(found.stones).toBe(def.stones);
+    expect(s.buyRelic(def.id)).toBe(true);
     expect(s.enhanceStones).toBe(0);
   });
 
@@ -1062,45 +1061,68 @@ describe('Guild Quests', () => {
   });
 });
 
-describe('Relic discovery', () => {
+describe('Relic Shop', () => {
+  const NOW = 1_800_000_000_000;
   const ones = RELICS.filter((r) => r.stars === 1);
 
-  it('finds nothing without the Essence, and never costs Gems', () => {
+  it('offers 3 different relics you do not own, from opened stars only, and keeps them when reopened', () => {
+    const s = fresh();
+    s.relics[ones[0].id] = 1;
+    const first = s.relicShopState(NOW).offers.map((r) => r.id);
+    expect(first.length).toBe(3);
+    expect(new Set(first).size).toBe(3);
+    expect(first).not.toContain(ones[0].id);
+    for (const id of first) expect(RELICS.find((r) => r.id === id)!.stars).toBe(1);
+    expect(s.relicShopState(NOW + 5 * 3_600_000).offers.map((r) => r.id)).toEqual(first);
+  });
+
+  it('sells for Essence (never Gems): Lv 1, equipped into a free slot, gone from the shop', () => {
     const s = fresh();
     s.gems = 10_000;
-    expect(s.discoverableRelics(1)).toEqual([]);
-    expect(s.discoverRelic(1)).toBeNull();
+    const def = s.relicShopState(NOW).offers[0];
+    expect(s.buyRelic(def.id, NOW)).toBe(false);
     expect(s.gems).toBe(10_000);
-  });
-
-  it('only turns up relics whose two Essences you hold', () => {
-    const s = fresh();
-    const def = ones[0];
     const cost = s.relicCraftCost(def);
-    for (const e of def.essences) s.essences[e] = cost;
-    const pool = s.discoverableRelics(1);
-    expect(pool.map((r) => r.id)).toContain(def.id);
-    for (const r of pool) for (const e of r.essences) expect(s.essences[e]).toBeGreaterThanOrEqual(cost);
-  });
-
-  it('picks at random, pays the Essence, crafts at Lv 1 and equips into a free slot', () => {
-    const s = fresh();
-    for (const r of ones) for (const e of r.essences) s.essences[e] = 1000;
-    const pool = s.discoverableRelics(1);
-    const def = s.discoverRelic(1, () => 0.999)!;
-    expect(def.id).toBe(pool[pool.length - 1].id);
+    for (const e of def.essences) s.essences[e] = cost + 7;
+    expect(s.buyRelic(def.id, NOW)).toBe(true);
     expect(s.relics[def.id]).toBe(1);
     expect(s.equipped).toContain(def.id);
-    for (const e of def.essences) expect(s.essences[e]).toBe(1000 - s.relicCraftCost(def) * def.essences.filter((x) => x === e).length);
+    for (const e of def.essences) expect(s.essences[e]).toBe(7);
+    expect(s.gems).toBe(10_000);
+    expect(s.relicShopState(NOW).offers.map((r) => r.id)).not.toContain(def.id);
+    expect(s.buyRelic(def.id, NOW)).toBe(false);
   });
 
-  it('never finds a relic you already own, and runs dry once you own every one', () => {
+  it("can't buy a relic that isn't on offer", () => {
     const s = fresh();
-    for (const r of ones) for (const e of r.essences) s.essences[e] = 1e9;
-    const found = new Set<string>();
-    for (let i = 0; i < ones.length; i++) found.add(s.discoverRelic(1)!.id);
-    expect(found.size).toBe(ones.length);
-    expect(s.discoverRelic(1)).toBeNull();
+    const offered = s.relicShopState(NOW).offers.map((r) => r.id);
+    const other = ones.find((r) => !offered.includes(r.id))!;
+    for (const e of other.essences) s.essences[e] = 1e9;
+    expect(s.buyRelic(other.id, NOW)).toBe(false);
+  });
+
+  it('New relics re-rolls the shop, then waits 40 minutes', () => {
+    const s = fresh();
+    s.relicShopState(NOW);
+    expect(s.refreshRelicShop(NOW)).toBe(true);
+    expect(s.relicShopState(NOW).refreshIn).toBe(40 * 60_000);
+    expect(s.refreshRelicShop(NOW + 39 * 60_000)).toBe(false);
+    expect(s.refreshRelicShop(NOW + 40 * 60_000)).toBe(true);
+  });
+
+  it('round-trips through the save, and keeps unbought offers from the old Gem shop', () => {
+    const s = fresh();
+    s.relicShopState(NOW);
+    s.refreshRelicShop(NOW);
+    s.save();
+    const t = new GameState();
+    t.load();
+    expect(t.relicShop).toEqual(s.relicShop);
+    const old = { ...s.toJSON(), relicShop: { offers: [{ id: ones[0].id, bought: true }, { id: ones[1].id, bought: false }], restockAt: 1, refreshAt: 0 } };
+    localStorage.setItem('hordefall-save-v1', JSON.stringify(old));
+    const u = new GameState();
+    u.load();
+    expect(u.relicShop.offers).toEqual([ones[1].id]);
   });
 });
 
