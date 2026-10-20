@@ -592,6 +592,27 @@ export class GameState {
     return true;
   }
 
+  /** Recruited heroes with enough medals for their next star. */
+  evolvable(): HeroDef[] {
+    return HEROES.filter((h) => {
+      const cost = this.evolveCost(h.id);
+      return cost !== null && (this.levels[h.id] ?? 0) > 0 && (this.crests[h.id] ?? 0) >= cost;
+    });
+  }
+
+  /** Evolve every recruited hero as many stars as their medals allow. Returns each hero's stars before and after (1★ = 0). */
+  evolveAll(): Array<{ id: string; from: number; to: number }> {
+    const done: Array<{ id: string; from: number; to: number }> = [];
+    for (const h of this.evolvable()) {
+      const from = this.stars[h.id] ?? 0;
+      while (this.evolve(h.id)) {
+        /* keep going while medals last */
+      }
+      done.push({ id: h.id, from, to: this.stars[h.id] ?? 0 });
+    }
+    return done;
+  }
+
   canRekindle() {
     return this.runBestStage > REKINDLE_STAGE;
   }

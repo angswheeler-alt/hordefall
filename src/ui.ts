@@ -595,6 +595,20 @@ export class UI {
       this.trialTier = 0;
       this.renderTrials();
     });
+    $('evolve-all').addEventListener('click', () => {
+      const done = this.state.evolveAll();
+      if (!done.length) return;
+      play('unlock');
+      this.scene()?.syncHeroes();
+      this.render();
+      const rows = done
+        .map(({ id, from, to }) => {
+          const h = HEROES.find((x) => x.id === id)!;
+          return `<li><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span><b>${h.name}</b><span class="stars">${from + 1}★ → ${to + 1}★</span></li>`;
+        })
+        .join('');
+      this.showModal('Evolved!', `${done.length} hero${done.length === 1 ? '' : 'es'} gained stars.<ul class="evo-list">${rows}</ul>`, 'Nice');
+    });
     $('levelall').addEventListener('click', () => {
       if (this.state.levelAll() > 0) {
         play('unlock');
@@ -1473,6 +1487,9 @@ export class UI {
     $('mute').classList.toggle('on', !s.muted);
     $('mute').textContent = s.muted ? 'Sound off' : 'Sound on';
     $('autoult').classList.toggle('on', s.autoUlt);
+    const evolvable = s.evolvable().length;
+    $<HTMLButtonElement>('evolve-all').disabled = evolvable === 0;
+    $('evolve-all').textContent = evolvable ? `Evolve all (${evolvable})` : 'Evolve all';
     $<HTMLButtonElement>('levelall').disabled = !HEROES.some((h) => (s.levels[h.id] ?? 0) > 0 && s.inLineup(h.id) && upgradeCost(h, s.levels[h.id], s.levelCostMult()).lte(s.gold));
     $('buyamt').textContent = `Buy ${s.buyAmount === 'max' ? 'max' : `x${s.buyAmount}`}`;
     const bossBtn = $('boss');
