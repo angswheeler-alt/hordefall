@@ -1698,7 +1698,8 @@ export class UI {
       const ready = st.unlocked && st.alive && st.remaining <= 0;
       u.button.disabled = !ready;
       u.button.classList.toggle('ready', ready);
-      u.cd.textContent = !st.unlocked ? `Lv${ULT_UNLOCK_LEVEL}` : !st.alive ? 'down' : st.remaining > 0 ? `${Math.ceil(st.remaining)}` : '';
+      // A fallen hero's button counts down to their revive, even before the Ultimate unlocks.
+      u.cd.textContent = !st.alive ? `${Math.ceil(st.reviveIn)}s` : !st.unlocked ? `Lv${ULT_UNLOCK_LEVEL}` : st.remaining > 0 ? `${Math.ceil(st.remaining)}` : '';
       u.cd.style.display = ready ? 'none' : 'flex';
       // Cooldown shade drains from the top as the ultimate recharges.
       u.button.style.setProperty('--cd', !st.unlocked || !st.alive ? '1' : String(Math.min(1, st.remaining / st.total)));
