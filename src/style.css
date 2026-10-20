@@ -721,15 +721,16 @@ div.g-req { margin-bottom: 8px; }
 .sp-note.err { color: var(--hot) !important; }
 .sp-section { margin: 10px 0 6px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
 
-.relic-views { justify-content: flex-start; }
-.relic-views .wood-btn { flex: 1; font-size: 13px; padding: 7px 10px; }
-.relic-views .wood-btn:not(.on) { filter: brightness(.7); }
-.relic-discover { background: linear-gradient(180deg, var(--plank), #4a2d17); border: 2px solid var(--wood-deep); border-radius: 12px; padding: 8px; margin-bottom: 10px; color: #fff4dd; }
-.relic-discover h3 { margin: 0 0 6px; font-size: 15px; }
-#relic-discover { display: flex; flex-wrap: wrap; gap: 6px; }
-#relic-discover .wood-btn { flex: 1 1 120px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 13px; padding: 6px 8px; }
-#relic-discover .wood-btn small { font-size: 10px; font-weight: 700; opacity: .9; }
-#relic-discover .market-note { margin: 0; }
+.relic-nav { justify-content: flex-start; flex-wrap: wrap; }
+.relic-nav .wood-btn, .relic-nav .gem-btn { font-size: 13px; padding: 7px 12px; }
+.relic-nav .relic-shop-btn, .relic-nav #relic-new { margin-left: auto; }
+.relic.shop-offer { grid-template-columns: 52px 1fr auto; }
+.relic-peek-btn { all: unset; cursor: pointer; display: block; }
+.shop-offer .rs-rarity { font-weight: 800; }
+.shop-offer.r2 .rs-rarity { color: #4cd97a; } .shop-offer.r3 .rs-rarity { color: #5cc4ff; } .shop-offer.r4 .rs-rarity { color: #c06bff; } .shop-offer.r5 .rs-rarity { color: #ffa62b; }
+.relic-buy { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 96px; padding: 6px 8px; font-size: 14px; }
+.relic-buy .relic-cost { flex-direction: column; gap: 2px; margin: 0; text-shadow: 0 1px 1px #6b3200; }
+.relic-buy .relic-cost span.short { color: #6e0a00; text-shadow: none; }
 .relic-set.static { cursor: default; }
 .relic-set.static b::after { content: none; }
 .relic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; margin-bottom: 6px; }
