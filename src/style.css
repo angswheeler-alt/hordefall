@@ -369,7 +369,7 @@ i.medal { background-image: url('./assets/ui/crest.png'); }
 .trial-ess i { width: 12px; height: 12px; border-radius: 50%; background: var(--el); border: 1px solid #000; box-shadow: inset -2px -2px 0 rgba(0,0,0,.3); }
 /* A live Trial takes over the screen: only the lane, the Ultimate buttons and the Trial bar stay. */
 body.in-trial #wallet, body.in-trial #controls, body.in-trial #panels, body.in-trial #tabbar,
-body.in-trial #profile-btn, body.in-trial #settings-btn { display: none !important; }
+body.in-trial #settings-btn { display: none !important; }
 #trial-hud { display: flex; gap: 10px; align-items: center; padding: 10px 14px; background: linear-gradient(180deg, #3a1e2e, #241327); border-bottom: 3px solid #1c0f06; }
 #trial-hud[hidden] { display: none; }
 #trial-hud > div { flex: 1; min-width: 0; }
@@ -407,7 +407,13 @@ body.in-trial #profile-btn, body.in-trial #settings-btn { display: none !importa
 .settings-head { display: flex; align-items: center; justify-content: space-between; padding: 0 16px 8px; }
 .settings-head h2 { margin: 0; }
 #settings-close { background: none; border: 0; color: var(--muted); font-size: 28px; line-height: 1; cursor: pointer; }
-.settings-card h3 { margin: 12px 16px 6px; font-size: 15px; }
+.settings-card h3 { margin: 12px 16px 6px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.settings-card .ico { width: 20px; height: 20px; }
+.settings-label { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+/* Profile, Friends and the leaderboards sit at the top of Settings as a 2x2 grid of big buttons */
+.settings-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 16px 8px; }
+.settings-menu button { display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 10px; border: 2px solid var(--wood-deep); background: linear-gradient(180deg, var(--plank), #4a2d17); color: #fff4dd; font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; box-shadow: 0 2px 0 rgba(0,0,0,.4); text-align: left; }
+.settings-menu button .ico { width: 24px; height: 24px; filter: drop-shadow(0 1px 0 rgba(0,0,0,.6)); }
 .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 16px; }
 .settings-row small { color: var(--muted); text-align: right; max-width: 70%; line-height: 1.4; }
 .settings-card .acct-card { margin: 0 16px 8px; }
@@ -546,6 +552,14 @@ i.stone { display: inline-block; width: 12px; height: 12px; background: linear-g
 .ico { display: inline-block; flex: none; width: 16px; height: 16px; background: center / contain no-repeat; image-rendering: pixelated; }
 .ico-atk { background-image: url('./assets/ui/atk.png'); }
 .ico-hp { background-image: url('./assets/ui/hp.png'); }
+.ico-set-profile { background-image: url('./assets/ui/set-profile.png'); }
+.ico-set-friends { background-image: url('./assets/ui/set-friends.png'); }
+.ico-set-top-power { background-image: url('./assets/ui/set-top-power.png'); }
+.ico-set-top-stage { background-image: url('./assets/ui/set-top-stage.png'); }
+.ico-set-sound { background-image: url('./assets/ui/set-sound.png'); }
+.ico-set-save { background-image: url('./assets/ui/set-save.png'); }
+.ico-set-account { background-image: url('./assets/ui/set-account.png'); }
+.ico-set-tools { background-image: url('./assets/ui/set-tools.png'); }
 #tabbar button svg, #settings-btn svg, .rk-badge svg { display: none; }
 #tabbar button::before { content: ''; width: 28px; height: 28px; background: center / contain no-repeat; image-rendering: pixelated; filter: drop-shadow(0 1px 0 rgba(0,0,0,.6)); }
 #tabbar button[data-tab="heroes"]::before { background-image: url('./assets/ui/tab-heroes.png'); }
@@ -683,8 +697,6 @@ div.g-req { margin-bottom: 8px; }
 .st.cp { color: var(--gold); font-weight: 700; }
 
 /* Profile, friends and leaderboards: person button under the gear, a sheet like Settings */
-#profile-btn { position: absolute; top: 76px; right: 8px; width: 38px; height: 38px; padding: 0; border-radius: 10px; border: 2px solid var(--wood-deep); background: linear-gradient(180deg, var(--plank), #4a2d17); display: grid; place-items: center; cursor: pointer; z-index: 5; box-shadow: 0 2px 0 rgba(0,0,0,.4); }
-#profile-btn svg { width: 22px; height: 22px; fill: #fff4dd; }
 #social { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 19; padding: 16px; }
 #social[hidden] { display: none; }
 .social-card { display: flex; flex-direction: column; max-height: calc(100dvh - 32px); overflow: hidden; }

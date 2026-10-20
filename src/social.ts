@@ -58,10 +58,16 @@ export class Social {
     private state: GameState,
     private account: Account,
   ) {
-    $('profile-btn').addEventListener('click', () => this.open());
-    $('social-close').addEventListener('click', () => ($('social').hidden = true));
+    // Profile, Friends and the leaderboards open from the Settings menu, and closing goes back to Settings.
+    $('settings-social').addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-open-sview]');
+      if (!b) return;
+      $('settings').hidden = true;
+      this.open(b.dataset.openSview as SView);
+    });
+    $('social-close').addEventListener('click', () => this.close());
     $('social').addEventListener('click', (e) => {
-      if (e.target === $('social')) $('social').hidden = true;
+      if (e.target === $('social')) this.close();
     });
     $('social-tabs').addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-sview]');
@@ -84,10 +90,18 @@ export class Social {
     return this.account.userId ? this.account.client : null;
   }
 
-  private open() {
+  private open(view: SView) {
+    this.view = view;
+    this.viewing = null;
+    this.note = '';
     $('social').hidden = false;
     void this.report(true);
     void this.render();
+  }
+
+  private close() {
+    $('social').hidden = true;
+    $('settings').hidden = false;
   }
 
   /** Send this player's profile when it changed (or now and then anyway). */
