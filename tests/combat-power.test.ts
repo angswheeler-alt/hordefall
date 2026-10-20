@@ -55,3 +55,20 @@ describe('Combat Power', () => {
     expect(s.totalCombatPower().gt(before)).toBe(true);
   });
 });
+
+describe('profile report', () => {
+  it('sends total Combat Power with its log10, best stage, Rekindles and the team', async () => {
+    const { profilePayload } = await import('../src/social');
+    GameState.frozen = false;
+    localStorage.clear();
+    const s = new GameState();
+    s.reachStage(42);
+    const p = profilePayload(s);
+    expect(p.p_total_cp).toBe(s.totalCombatPower().toString());
+    expect(p.p_cp_log).toBeCloseTo(Math.log10(s.totalCombatPower().toNumber()), 6);
+    expect(p.p_best_stage).toBe(42);
+    expect(p.p_team.length).toBe(s.lineupCount());
+    expect(p.p_team[0].stars).toBeGreaterThanOrEqual(1);
+    expect(p.p_total_cp).toMatch(/^[0-9.e+]{1,40}$/);
+  });
+});

@@ -660,3 +660,42 @@ div.g-req { margin-bottom: 8px; }
 .tm-card .tm-cp { color: var(--gold); font-weight: 700; }
 .tm-cp-big { margin: 0 0 6px; font-size: 14px; }
 .st.cp { color: var(--gold); font-weight: 700; }
+
+/* Profile, friends and leaderboards: person button under the gear, a sheet like Settings */
+#profile-btn { position: absolute; top: 76px; right: 8px; width: 38px; height: 38px; padding: 0; border-radius: 10px; border: 2px solid var(--wood-deep); background: linear-gradient(180deg, var(--plank), #4a2d17); display: grid; place-items: center; cursor: pointer; z-index: 5; box-shadow: 0 2px 0 rgba(0,0,0,.4); }
+#profile-btn svg { width: 22px; height: 22px; fill: #fff4dd; }
+#social { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 19; padding: 16px; }
+#social[hidden] { display: none; }
+.social-card { display: flex; flex-direction: column; max-height: calc(100dvh - 32px); overflow: hidden; }
+#social-close { background: none; border: 0; color: var(--muted); font-size: 28px; line-height: 1; cursor: pointer; }
+.social-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 0 12px 8px; flex: none; }
+.social-tabs button { font-size: 12px; padding: 7px 2px; border-radius: 8px; }
+.social-tabs button.on { background: var(--hot); color: #1b1530; font-weight: 800; }
+.social-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 12px 12px; }
+.social-body p { color: var(--muted); font-size: 13px; line-height: 1.45; }
+.sp-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 4px 0 8px; }
+.sp-head b { font-size: 18px; }
+.sp-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 10px; }
+.sp-stats div { background: var(--panel-2); border-radius: 8px; padding: 6px; display: flex; flex-direction: column; }
+.sp-stats span { font-size: 11px; color: var(--muted); }
+.sp-stats b { font-size: 15px; color: var(--gold); }
+.sp-team { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.sp-team div { background: var(--panel-2); border-radius: 8px; padding: 4px 2px; display: flex; flex-direction: column; align-items: center; min-width: 0; font-size: 11px; }
+.sp-team .face { width: 38px; height: 38px; border-radius: 8px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; }
+.sp-team small { color: var(--muted); }
+.sp-team .cp { color: var(--gold); font-weight: 700; }
+.sp-row { display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; align-items: center; padding: 7px 6px; border-radius: 8px; background: var(--panel-2); margin-bottom: 4px; }
+.sp-row.me { outline: 2px solid var(--gold); }
+.sp-row .rk { font-weight: 800; color: var(--muted); text-align: center; }
+.sp-row .who { min-width: 0; display: flex; flex-direction: column; }
+.sp-row .who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-row .who small { color: var(--muted); font-size: 11px; }
+.sp-row .val { font-weight: 800; color: var(--gold); text-align: right; }
+.sp-row .acts { display: flex; gap: 4px; }
+.sp-row .acts button, .sp-row button.link { font-size: 12px; padding: 5px 8px; }
+.sp-friend { grid-template-columns: 1fr auto; }
+.sp-add { display: flex; gap: 6px; margin: 4px 0 10px; }
+.sp-add input { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.2); background: #1f1838; color: var(--text); font: inherit; }
+.sp-note { min-height: 1.2em; }
+.sp-note.err { color: var(--hot) !important; }
+.sp-section { margin: 10px 0 6px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
