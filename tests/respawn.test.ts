@@ -7,9 +7,9 @@ const down = (name: string, respawnAt: number) => ({ name, alive: false, respawn
 
 describe('revive cooldown', () => {
   it('a fallen hero waits RESPAWN_SECONDS, shorter with Rattle Back', () => {
-    expect(RESPAWN_SECONDS).toBe(8);
-    expect(respawnTime(100)).toBe(108);
-    expect(respawnTime(100, 0.8)).toBeCloseTo(106.4);
+    expect(RESPAWN_SECONDS).toBe(6);
+    expect(respawnTime(100)).toBe(106);
+    expect(respawnTime(100, 0.8)).toBeCloseTo(104.8);
   });
 
   it('counts down only while down', () => {
