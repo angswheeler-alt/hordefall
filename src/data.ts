@@ -945,23 +945,6 @@ export const RELIC_START_SLOTS = 2;
 export const RELIC_SLOT_COSTS = [50, 75, 100, 125, 150, 200, 250, 300, 350, 400, 450, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1500];
 export const RELIC_SLOT_STAGES = [25, 50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000, 1200, 1400, 1600, 1800, 2000, 2500];
 
-// ---------- Relic Shop: 4 random relics for Gems ----------
-
-/** Offers on show at once. */
-export const RELIC_SHOP_SIZE = 4;
-/** The shop restocks on its own this often; a free manual refresh restocks it now (and restarts this timer). */
-export const RELIC_SHOP_RESTOCK_MINUTES = 60;
-/** Wait between free manual refreshes. */
-export const RELIC_SHOP_REFRESH_MINUTES = 10;
-/** Chance of each relic star in an offer (1★ Common ... 5★ Legendary), shared out among the stars the player's best stage has opened. */
-export const RELIC_SHOP_STAR_WEIGHTS: Record<number, number> = { 1: 50, 2: 25, 3: 15, 4: 8, 5: 2 };
-/** Best stage needed before the shop offers relics of each star. */
-export const RELIC_SHOP_STAR_STAGES: Record<number, number> = { 1: 1, 2: 50, 3: 150, 4: 300, 5: 600 };
-/** Gems to buy an offered relic you don't have yet (it arrives crafted at level 1, no Essence or Stones needed). */
-export const RELIC_SHOP_CRAFT_GEMS: Record<number, number> = { 1: 30, 2: 60, 3: 120, 4: 250, 5: 500 };
-/** Gems for +1 level on an offered relic you already have. */
-export const RELIC_SHOP_LEVEL_GEMS: Record<number, number> = { 1: 10, 2: 20, 3: 40, 4: 80, 5: 160 };
-
 // ---------- guilds (server rules live in supabase/guilds.sql) ----------
 
 export const GUILD_MAX_MEMBERS = 30;

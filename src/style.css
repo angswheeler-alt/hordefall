@@ -707,24 +707,34 @@ div.g-req { margin-bottom: 8px; }
 .sp-note.err { color: var(--hot) !important; }
 .sp-section { margin: 10px 0 6px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
 
-/* Relic Shop: 4 offers on top of the Relics tab */
-.relic-shop { background: linear-gradient(180deg, var(--plank), #4a2d17); border: 2px solid var(--wood-deep); border-radius: 12px; padding: 8px; margin-bottom: 10px; color: #fff4dd; }
-.relic-shop-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.relic-shop-head h3 { margin: 0; font-size: 15px; }
-.relic-shop-head small { flex: 1; color: #e8d3b0; font-size: 11px; }
-.relic-shop-head button { font-size: 12px; padding: 6px 8px; }
-.relic-shop-offers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-.rs-offer { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; background: rgba(0,0,0,.25); border: 2px solid transparent; border-radius: 10px; padding: 6px 3px; min-width: 0; }
-.rs-offer .relic-art { width: 42px; height: 42px; font-size: 18px; }
-.rs-offer b { font-size: 11px; line-height: 1.15; }
-.rs-offer small { font-size: 10px; color: #e8d3b0; line-height: 1.2; }
-.rs-offer .rs-rarity { font-weight: 800; }
-.rs-offer.r2 { border-color: #4cd97a; } .rs-offer.r2 .rs-rarity { color: #4cd97a; }
-.rs-offer.r3 { border-color: #5cc4ff; } .rs-offer.r3 .rs-rarity { color: #5cc4ff; }
-.rs-offer.r4 { border-color: #c06bff; } .rs-offer.r4 .rs-rarity { color: #c06bff; }
-.rs-offer.r5 { border-color: #ffa62b; } .rs-offer.r5 .rs-rarity { color: #ffa62b; }
-.rs-offer button { margin-top: auto; width: 100%; font-size: 11px; padding: 5px 2px; }
-.rs-offer.sold { opacity: .5; }
+.relic-views { justify-content: flex-start; }
+.relic-views .wood-btn { flex: 1; font-size: 13px; padding: 7px 10px; }
+.relic-views .wood-btn:not(.on) { filter: brightness(.7); }
+.relic-discover { background: linear-gradient(180deg, var(--plank), #4a2d17); border: 2px solid var(--wood-deep); border-radius: 12px; padding: 8px; margin-bottom: 10px; color: #fff4dd; }
+.relic-discover h3 { margin: 0 0 6px; font-size: 15px; }
+#relic-discover { display: flex; flex-wrap: wrap; gap: 6px; }
+#relic-discover .wood-btn { flex: 1 1 120px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 13px; padding: 6px 8px; }
+#relic-discover .wood-btn small { font-size: 10px; font-weight: 700; opacity: .9; }
+#relic-discover .market-note { margin: 0; }
+.relic-set.static { cursor: default; }
+.relic-set.static b::after { content: none; }
+.relic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; margin-bottom: 6px; }
+.relic-tile { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; font: inherit; cursor: pointer; text-align: center; background: rgba(0,0,0,.25); border: 2px solid var(--wood-deep); border-radius: 10px; padding: 6px 3px; color: #fff4dd; }
+.relic-tile .relic-art { width: 44px; height: 44px; font-size: 18px; }
+.relic-tile b { font-size: 11px; line-height: 1.15; }
+.relic-tile small { font-size: 10px; color: #e8d3b0; }
+.relic-tile.owned { border-color: var(--gold); }
+.relic-tile.owned small { color: #9effa8; font-weight: 800; }
+.relic-tile:not(.owned) .relic-art { filter: grayscale(.6) brightness(.75); }
+.relic-tile.locked .relic-art { filter: grayscale(1) brightness(.5); }
+.relic-peek { display: flex; gap: 10px; align-items: center; text-align: left; }
+.relic-peek .relic-art { flex: none; }
+.relic-peek small { display: block; font-size: 12px; color: var(--muted); line-height: 1.3; }
+.relic-peek .rp-rarity { font-weight: 800; color: #fff; }
+.relic-peek .rp-rarity.r2 { color: #4cd97a; } .relic-peek .rp-rarity.r3 { color: #5cc4ff; } .relic-peek .rp-rarity.r4 { color: #c06bff; } .relic-peek .rp-rarity.r5 { color: #ffa62b; }
+#modal .rp-status { font-weight: 700; color: #fff4dd; margin: 10px 0 6px; }
+#modal .rp-line { text-align: left; font-size: 13px; margin: 4px 0; line-height: 1.4; color: var(--muted); }
+.rp-line .relic-cost { display: inline-flex; vertical-align: middle; }
 
 /* Element wheel */
 .element-wheel { width: 100%; max-width: 320px; display: block; margin: 0 auto; }

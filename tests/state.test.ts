@@ -522,10 +522,20 @@ describe('relics', () => {
   it('upgrades spend essence and fail without it', () => {
     const s = fresh();
     const def = RELICS[0];
+    s.relics[def.id] = 1;
     expect(s.upgradeRelic(def.id)).toBe(false);
     for (const e of def.essences) s.essences[e] = 1e9;
     expect(s.upgradeRelic(def.id)).toBe(true);
-    expect(s.relics[def.id]).toBe(1);
+    expect(s.relics[def.id]).toBe(2);
+    expect(s.essences[def.essences[0]]).toBeLessThan(1e9);
+  });
+
+  it("can't craft a relic you don't own by upgrading it: new relics only come from discovery", () => {
+    const s = fresh();
+    const def = RELICS[0];
+    for (const e of def.essences) s.essences[e] = 1e9;
+    expect(s.upgradeRelic(def.id)).toBe(false);
+    expect(s.relics[def.id] ?? 0).toBe(0);
   });
 
   it('opens the next star by maxing a relic of the star below', () => {
@@ -533,10 +543,10 @@ describe('relics', () => {
     const two = RELICS.find((r) => r.stars === 2)!;
     for (const e of two.essences) s.essences[e] = 1e12;
     expect(s.relicStarsOpen()).toBe(1);
-    expect(s.upgradeRelic(two.id)).toBe(false);
+    expect(s.discoverRelic(2)).toBeNull();
     s.relics[RELICS.find((r) => r.stars === 1)!.id] = RELIC_BASE_MAX;
     expect(s.relicStarsOpen()).toBe(2);
-    expect(s.upgradeRelic(two.id)).toBe(true);
+    expect(s.discoverRelic(2)?.id).toBe(two.id);
   });
 
   it('Enhance Stones raise the cap by 5 only at max level', () => {
@@ -576,10 +586,12 @@ describe('relics', () => {
     const s = fresh();
     const def = RELICS.find((r) => r.stones)!;
     for (const r of RELICS.filter((x) => x.stars < def.stars)) s.relics[r.id] = RELIC_BASE_MAX;
-    for (const e of def.essences) s.essences[e] = 1e12;
-    expect(s.upgradeRelic(def.id)).toBe(false);
+    for (const r of RELICS) for (const e of r.essences) s.essences[e] = 1e12;
+    expect(s.discoverableRelics(def.stars).some((r) => r.id === def.id)).toBe(false);
     s.enhanceStones = def.stones!;
-    expect(s.upgradeRelic(def.id)).toBe(true);
+    expect(s.discoverableRelics(def.stars).some((r) => r.id === def.id)).toBe(true);
+    const found = s.discoverRelic(def.stars)!;
+    expect(found.stones).toBe(def.stones);
     expect(s.enhanceStones).toBe(0);
   });
 
@@ -1050,80 +1062,45 @@ describe('Guild Quests', () => {
   });
 });
 
-describe('Relic Shop', () => {
-  const NOW = 1_800_000_000_000;
-  it('shows 4 offers that stay put when the shop is closed and reopened', () => {
-    const s = fresh();
-    s.bestStage = 1000;
-    const first = s.relicShopState(NOW).offers.map((o) => o.id);
-    expect(first.length).toBe(4);
-    expect(new Set(first).size).toBe(4);
-    expect(s.relicShopState(NOW + 30 * 60_000).offers.map((o) => o.id)).toEqual(first);
-  });
+describe('Relic discovery', () => {
+  const ones = RELICS.filter((r) => r.stars === 1);
 
-  it('only offers relic stars the best stage has opened', () => {
+  it('finds nothing without the Essence, and never costs Gems', () => {
     const s = fresh();
-    s.bestStage = 10;
-    for (let i = 0; i < 20; i++) {
-      s.relicShop.restockAt = 0;
-      for (const o of s.relicShopState(NOW).offers) expect(RELICS.find((r) => r.id === o.id)!.stars).toBe(1);
-    }
-  });
-
-  it('restocks on its own after an hour', () => {
-    const s = fresh();
-    s.bestStage = 1000;
-    s.relicShopState(NOW);
-    const at = s.relicShop.restockAt;
-    expect(at).toBe(NOW + 60 * 60_000);
-    s.relicShopState(at);
-    expect(s.relicShop.restockAt).toBe(at + 60 * 60_000);
-  });
-
-  it('gives one free manual refresh every 10 minutes, which restarts the restock timer', () => {
-    const s = fresh();
-    s.bestStage = 1000;
-    s.relicShopState(NOW);
-    expect(s.refreshRelicShop(NOW + 1000)).toBe(true);
-    expect(s.relicShop.restockAt).toBe(NOW + 1000 + 60 * 60_000);
-    expect(s.refreshRelicShop(NOW + 2000)).toBe(false);
-    expect(s.refreshRelicShop(NOW + 1000 + 10 * 60_000)).toBe(true);
-  });
-
-  it('sells each offer once for Gems: crafts a new relic, or +1 level on an owned one', () => {
-    const s = fresh();
-    s.bestStage = 1;
     s.gems = 10_000;
-    const offer = s.relicShopState(NOW).offers[0];
-    const def = RELICS.find((r) => r.id === offer.id)!;
-    expect(s.relics[def.id] ?? 0).toBe(0);
-    const price = s.relicOfferPrice(def)!;
-    expect(s.buyRelicOffer(0, NOW)).toBe(true);
+    expect(s.discoverableRelics(1)).toEqual([]);
+    expect(s.discoverRelic(1)).toBeNull();
+    expect(s.gems).toBe(10_000);
+  });
+
+  it('only turns up relics whose two Essences you hold', () => {
+    const s = fresh();
+    const def = ones[0];
+    const cost = s.relicCraftCost(def);
+    for (const e of def.essences) s.essences[e] = cost;
+    const pool = s.discoverableRelics(1);
+    expect(pool.map((r) => r.id)).toContain(def.id);
+    for (const r of pool) for (const e of r.essences) expect(s.essences[e]).toBeGreaterThanOrEqual(cost);
+  });
+
+  it('picks at random, pays the Essence, crafts at Lv 1 and equips into a free slot', () => {
+    const s = fresh();
+    for (const r of ones) for (const e of r.essences) s.essences[e] = 1000;
+    const pool = s.discoverableRelics(1);
+    const def = s.discoverRelic(1, () => 0.999)!;
+    expect(def.id).toBe(pool[pool.length - 1].id);
     expect(s.relics[def.id]).toBe(1);
-    expect(s.gems).toBe(10_000 - price);
-    expect(s.buyRelicOffer(0, NOW)).toBe(false);
-    // Owned relics cost less: a level, not a craft.
-    expect(s.relicOfferPrice(def)!).toBeLessThan(price);
+    expect(s.equipped).toContain(def.id);
+    for (const e of def.essences) expect(s.essences[e]).toBe(1000 - s.relicCraftCost(def) * def.essences.filter((x) => x === e).length);
   });
 
-  it('refuses without enough Gems and never offers maxed relics', () => {
+  it('never finds a relic you already own, and runs dry once you own every one', () => {
     const s = fresh();
-    s.gems = 0;
-    expect(s.buyRelicOffer(0, NOW)).toBe(false);
-    for (const r of RELICS.filter((r) => r.stars === 1)) s.relics[r.id] = s.relicMaxLevel(r);
-    s.bestStage = 10;
-    s.relicShop.restockAt = 0;
-    expect(s.relicShopState(NOW).offers.length).toBe(0);
-  });
-
-  it('round-trips through the save', () => {
-    const s = fresh();
-    s.bestStage = 500;
-    s.relicShopState(NOW);
-    s.save();
-    const t = new GameState();
-    t.load();
-    expect(t.relicShop).toEqual(s.relicShop);
+    for (const r of ones) for (const e of r.essences) s.essences[e] = 1e9;
+    const found = new Set<string>();
+    for (let i = 0; i < ones.length; i++) found.add(s.discoverRelic(1)!.id);
+    expect(found.size).toBe(ones.length);
+    expect(s.discoverRelic(1)).toBeNull();
   });
 });
 

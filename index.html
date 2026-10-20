@@ -50,13 +50,18 @@
         </section>
         <section class="panel" data-tab="relics" hidden>
           <div class="panel-head"><h2>Relics</h2><span id="relic-slots" class="trial-tickets"></span></div>
-          <p class="market-note">Equipped relics give their bonus, also in Trials. Craft and level them with Trial Essence. Max a relic at level 20 to open relics with one more star, then use Enhance Stones to raise its cap. A set gives its bonus once every piece is crafted.</p>
+          <div class="hero-sub relic-views"><button data-relic-view="mine" class="wood-btn small on">My relics</button><button data-relic-view="all" class="wood-btn small">All relics</button></div>
           <div class="relic-bar"><div id="relic-ess" class="trial-ess"></div><button id="relic-buyslot" class="gem-btn small">Slot</button></div>
-          <div class="relic-shop">
-            <div class="relic-shop-head"><h3>Relic Shop</h3><small id="relic-shop-timer"></small><button id="relic-shop-refresh" class="wood-btn small">Refresh</button></div>
-            <div id="relic-shop-offers" class="relic-shop-offers"></div>
+          <div data-relic-pane="mine">
+            <p class="market-note">Relics can't be bought. Win Trials for Essence, then discover a relic: you find a random one among those your Essence can pay for. Level relics with Essence, and max one at level 20 to open relics with one more star. Equipped relics give their bonus; a set gives its bonus once you own every piece.</p>
+            <div class="relic-discover"><h3>Discover a relic</h3><div id="relic-discover"></div></div>
+            <div id="relics"></div>
+            <p id="relics-empty" class="market-note" hidden>You have no relics yet. Discover one above.</p>
           </div>
-          <div id="relics"></div>
+          <div data-relic-pane="all" hidden>
+            <p class="market-note">Every relic in the game. Tap one to look at it.</p>
+            <div id="relic-catalog"></div>
+          </div>
         </section>
         <section class="panel" data-tab="battle" hidden>
           <div class="panel-head"><h2>Elemental Trials</h2><button id="tr-elements" class="wood-btn small ew-btn">Element wheel</button><span id="tr-tickets" class="trial-tickets"></span></div>

@@ -2,7 +2,7 @@ import { DEV_TOOLS } from './config';
 import Decimal from 'break_infinity.js';
 import { combatPower, type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
@@ -264,125 +264,17 @@ export class UI {
 
   private relicRows: { def: RelicDef; root: HTMLElement; eff: HTMLElement; tier: HTMLElement; cost: HTMLElement; up: HTMLButtonElement; equip: HTMLButtonElement }[] = [];
   private setHeads: { id: string; stars: number; box: HTMLElement; root: HTMLElement; count: HTMLElement }[] = [];
+  /** Section titles on My relics, with the relics under each, so empty sections hide. */
+  private relicSections: { head: HTMLElement; defs: RelicDef[] }[] = [];
+  private catalogTiles: { def: RelicDef; root: HTMLElement; status: HTMLElement }[] = [];
 
-  private buildRelics() {
-    const host = $('relics');
-    const section = (title: string) => {
-      const h = document.createElement('h3');
-      h.className = 'relic-section';
-      h.textContent = title;
-      host.appendChild(h);
-    };
-    const row = (def: RelicDef, parent: HTMLElement = host) => {
-      const root = document.createElement('div');
-      root.className = 'relic';
-      const [a, b] = def.essences;
-      root.innerHTML = `
-        <div class="relic-art" style="--a:${hex(ELEMENT_COLORS[a])};--b:${hex(ELEMENT_COLORS[b])}" aria-hidden="true">${def.name[0]}<span class="relic-stars">${'★'.repeat(def.stars)}</span></div>
-        <div class="relic-info"><b>${def.name} <small class="tier" style="display:inline"></small></b><span class="eff"></span><small>${def.blurb}</small><div class="relic-cost"></div></div>
-        <div class="relic-btns"><button class="wood-btn small up"></button><button class="wood-btn small equip"></button></div>`;
-      parent.appendChild(root);
-      const up = root.querySelector('.up') as HTMLButtonElement;
-      const equip = root.querySelector('.equip') as HTMLButtonElement;
-      up.addEventListener('click', () => {
-        const ok = this.state.relicNextCost(def) === null ? this.state.enhanceRelic(def.id) : this.state.upgradeRelic(def.id);
-        if (ok) {
-          play('unlock');
-          this.scene()?.syncHeroes();
-          this.render();
-        }
-      });
-      equip.addEventListener('click', () => {
-        if (this.state.toggleRelic(def.id)) {
-          this.scene()?.syncHeroes();
-          this.render();
-        }
-      });
-      this.relicRows.push({ def, root, eff: root.querySelector('.eff') as HTMLElement, tier: root.querySelector('.tier') as HTMLElement, cost: root.querySelector('.relic-cost') as HTMLElement, up, equip });
-    };
-    const byStars = (list: RelicDef[]) => [...list].sort((x, y) => x.stars - y.stars);
-    section('Relics');
-    byStars(RELICS.filter((r) => !r.set)).forEach((d) => row(d));
-    for (const stars of [...new Set(RELIC_SETS.map((set) => RELICS.find((r) => r.set === set.id)!.stars))].sort()) {
-      section(`${stars}★ sets`);
-      for (const set of RELIC_SETS) {
-        const pieces = byStars(RELICS.filter((r) => r.set === set.id));
-        if (pieces[0].stars !== stars) continue;
-        const box = document.createElement('div');
-        box.className = 'relic-setbox';
-        const head = document.createElement('button');
-        head.className = 'relic-set';
-        head.style.setProperty('--el', set.element ? hex(ELEMENT_COLORS[set.element]) : 'var(--gold)');
-        head.innerHTML = `<b>${set.name} set <span class="set-count"></span></b><small>All ${pieces.length} pieces crafted: ${set.text}</small>`;
-        head.addEventListener('click', () => {
-          box.dataset.user = '1';
-          box.classList.toggle('open');
-        });
-        box.appendChild(head);
-        host.appendChild(box);
-        this.setHeads.push({ id: set.id, stars, box, root: head, count: head.querySelector('.set-count') as HTMLElement });
-        pieces.forEach((d) => row(d, box));
-      }
-    }
-    $('relic-shop-refresh').addEventListener('click', () => {
-      if (this.state.refreshRelicShop()) {
-        play('unlock');
-        this.render();
-      }
-    });
-    $('relic-shop-offers').addEventListener('click', (e) => {
-      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-offer]');
-      if (!btn || btn.disabled) return;
-      if (this.state.buyRelicOffer(Number(btn.dataset.offer))) {
-        play('unlock');
-        this.scene()?.syncHeroes();
-        this.render();
-      }
-    });
-    $('relic-buyslot').addEventListener('click', () => {
-      if (this.state.buyRelicSlot()) {
-        play('unlock');
-        this.render();
-      }
-    });
+  private relicArt(def: RelicDef) {
+    const [a, b] = def.essences;
+    return `<div class="relic-art" style="--a:${hex(ELEMENT_COLORS[a])};--b:${hex(ELEMENT_COLORS[b])}" aria-hidden="true">${def.name[0]}<span class="relic-stars">${'★'.repeat(def.stars)}</span></div>`;
   }
 
-  /** The Relic Shop: 4 offers (each sells once), the restock timer and the free refresh. */
-  private renderRelicShop() {
-    const s = this.state;
-    const shop = s.relicShopState();
-    const mins = (ms: number) => {
-      const m = Math.max(1, Math.ceil(ms / 60_000));
-      return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
-    };
-    $('relic-shop-timer').textContent = `New stock in ${mins(shop.restockIn)}`;
-    const refresh = $<HTMLButtonElement>('relic-shop-refresh');
-    refresh.disabled = shop.refreshIn > 0;
-    refresh.textContent = shop.refreshIn > 0 ? `Free refresh in ${mins(shop.refreshIn)}` : 'Free refresh';
-    refresh.title = `One free refresh every ${RELIC_SHOP_REFRESH_MINUTES} minutes`;
-    const rarity = ['', 'Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
-    const html = shop.offers
-      .map((o, i) => {
-        const def = RELICS.find((r) => r.id === o.id)!;
-        const level = s.relics[def.id] ?? 0;
-        const price = s.relicOfferPrice(def);
-        const [a, b] = def.essences;
-        const what = level > 0 ? `+1 level (Lv ${level} → ${level + 1})` : 'Crafted for you, Lv 1';
-        const label = o.bought ? 'Sold' : price === null ? 'Maxed' : `${price} Gems`;
-        const can = !o.bought && price !== null && s.gems >= price;
-        return `<div class="rs-offer r${def.stars}${o.bought ? ' sold' : ''}">
-          <div class="relic-art" style="--a:${hex(ELEMENT_COLORS[a])};--b:${hex(ELEMENT_COLORS[b])}" aria-hidden="true">${def.name[0]}<span class="relic-stars">${'★'.repeat(def.stars)}</span></div>
-          <b>${def.name}</b><small class="rs-rarity">${rarity[def.stars] ?? ''}${def.set ? ' · set piece' : ''}</small><small>${what}</small>
-          <button class="gem-btn small" data-offer="${i}" ${can ? '' : 'disabled'}>${label}</button></div>`;
-      })
-      .join('');
-    setHtml($('relic-shop-offers'), html || '<p class="market-note">Nothing to offer: every relic you can get is maxed.</p>');
-  }
-
-  /** Returns true when something on the Relics tab is worth a look (an upgrade for an equipped relic, or a free slot). */
-  private renderRelics(): boolean {
-    const s = this.state;
-    let worthALook = false;
+  /** "All heroes ATK +40%" style text for a relic's effects at a level. */
+  private relicEffectText(def: RelicDef, level: number) {
     const names: Record<string, string> = {
       atk: 'All heroes ATK',
       hp: 'All heroes HP',
@@ -406,10 +298,162 @@ export class UI {
     const effectName = (e: string) =>
       names[e] ?? (e.endsWith('Hp') ? `${cap(e.slice(0, -2))} heroes HP` : e.endsWith('Def') ? `${cap(e.slice(0, -3))} heroes Defense` : `${cap(e)} heroes ATK`);
     const pct = (n: number) => `${Math.round(n * 1000) / 10}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    const effectText = (def: RelicDef, level: number) =>
-      def.fx.map(([e]) => `${effectName(e)} ${e === 'cost' || e === 'stallCost' ? '−' : '+'}${pct(s.relicEffect(def, e, level))}%`).join(' · ');
+    return def.fx.map(([e]) => `${effectName(e)} ${e === 'cost' || e === 'stallCost' ? '−' : '+'}${pct(this.state.relicEffect(def, e, level))}%`).join(' · ');
+  }
+
+  /** Essence (and Stones) chips for a cost, red where you're short. */
+  private relicCostHtml(def: RelicDef, cost: number, stones = 0) {
+    const s = this.state;
+    return (
+      def.essences.map((e) => `<span class="${(s.essences[e] ?? 0) < cost ? 'short' : ''}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}" style="--el:${hex(ELEMENT_COLORS[e])}"></i>${fmt(cost)}</span>`).join('') +
+      (stones ? `<span class="${s.enhanceStones < stones ? 'short' : ''}" title="Enhance Stones"><i class="stone"></i>${stones}</span>` : '')
+    );
+  }
+
+  private buildRelics() {
+    const host = $('relics');
+    const catalog = $('relic-catalog');
+    const section = (title: string, defs: RelicDef[]) => {
+      const h = document.createElement('h3');
+      h.className = 'relic-section';
+      h.textContent = title;
+      host.appendChild(h);
+      this.relicSections.push({ head: h, defs });
+      const c = document.createElement('h3');
+      c.className = 'relic-section';
+      c.textContent = title;
+      catalog.appendChild(c);
+    };
+    const tiles = () => {
+      const grid = document.createElement('div');
+      grid.className = 'relic-grid';
+      catalog.appendChild(grid);
+      return grid;
+    };
+    const tile = (def: RelicDef, grid: HTMLElement) => {
+      const root = document.createElement('button');
+      root.type = 'button';
+      root.className = 'relic-tile';
+      root.innerHTML = `${this.relicArt(def)}<b>${def.name}</b><small class="rt-status"></small>`;
+      root.addEventListener('click', () => this.showRelic(def));
+      grid.appendChild(root);
+      this.catalogTiles.push({ def, root, status: root.querySelector('.rt-status') as HTMLElement });
+    };
+    const row = (def: RelicDef, parent: HTMLElement = host) => {
+      const root = document.createElement('div');
+      root.className = 'relic';
+      root.innerHTML = `
+        ${this.relicArt(def)}
+        <div class="relic-info"><b>${def.name} <small class="tier" style="display:inline"></small></b><span class="eff"></span><small>${def.blurb}</small><div class="relic-cost"></div></div>
+        <div class="relic-btns"><button class="wood-btn small up"></button><button class="wood-btn small equip"></button></div>`;
+      parent.appendChild(root);
+      const up = root.querySelector('.up') as HTMLButtonElement;
+      const equip = root.querySelector('.equip') as HTMLButtonElement;
+      up.addEventListener('click', () => {
+        const ok = this.state.relicNextCost(def) === null ? this.state.enhanceRelic(def.id) : this.state.upgradeRelic(def.id);
+        if (ok) {
+          play('unlock');
+          this.scene()?.syncHeroes();
+          this.render();
+        }
+      });
+      equip.addEventListener('click', () => {
+        if (this.state.toggleRelic(def.id)) {
+          this.scene()?.syncHeroes();
+          this.render();
+        }
+      });
+      this.relicRows.push({ def, root, eff: root.querySelector('.eff') as HTMLElement, tier: root.querySelector('.tier') as HTMLElement, cost: root.querySelector('.relic-cost') as HTMLElement, up, equip });
+    };
+    const byStars = (list: RelicDef[]) => [...list].sort((x, y) => x.stars - y.stars);
+    const normal = byStars(RELICS.filter((r) => !r.set));
+    section('Relics', normal);
+    normal.forEach((d) => row(d));
+    const normalGrid = tiles();
+    normal.forEach((d) => tile(d, normalGrid));
+    for (const stars of [...new Set(RELIC_SETS.map((set) => RELICS.find((r) => r.set === set.id)!.stars))].sort()) {
+      section(`${stars}★ sets`, RELICS.filter((r) => r.set && r.stars === stars));
+      for (const set of RELIC_SETS) {
+        const pieces = byStars(RELICS.filter((r) => r.set === set.id));
+        if (pieces[0].stars !== stars) continue;
+        const box = document.createElement('div');
+        box.className = 'relic-setbox';
+        const head = document.createElement('button');
+        head.className = 'relic-set';
+        head.style.setProperty('--el', set.element ? hex(ELEMENT_COLORS[set.element]) : 'var(--gold)');
+        head.innerHTML = `<b>${set.name} set <span class="set-count"></span></b><small>Own all ${pieces.length} pieces: ${set.text}</small>`;
+        head.addEventListener('click', () => {
+          box.dataset.user = '1';
+          box.classList.toggle('open');
+        });
+        box.appendChild(head);
+        host.appendChild(box);
+        this.setHeads.push({ id: set.id, stars, box, root: head, count: head.querySelector('.set-count') as HTMLElement });
+        pieces.forEach((d) => row(d, box));
+        const ch = document.createElement('div');
+        ch.className = 'relic-set static';
+        ch.style.setProperty('--el', set.element ? hex(ELEMENT_COLORS[set.element]) : 'var(--gold)');
+        ch.innerHTML = `<b>${set.name} set</b><small>Own all ${pieces.length} pieces: ${set.text}</small>`;
+        catalog.appendChild(ch);
+        const grid = tiles();
+        pieces.forEach((d) => tile(d, grid));
+      }
+    }
+    for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-relic-view]')) {
+      btn.addEventListener('click', () => {
+        for (const b of document.querySelectorAll<HTMLButtonElement>('[data-relic-view]')) b.classList.toggle('on', b === btn);
+        for (const pane of document.querySelectorAll<HTMLElement>('[data-relic-pane]')) pane.hidden = pane.dataset.relicPane !== btn.dataset.relicView;
+      });
+    }
+    $('relic-discover').addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-discover]');
+      if (!btn || btn.disabled) return;
+      const def = this.state.discoverRelic(Number(btn.dataset.discover));
+      if (!def) return;
+      play('unlock');
+      this.scene()?.syncHeroes();
+      this.render();
+      this.showRelic(def, 'Relic found!');
+    });
+    $('relic-buyslot').addEventListener('click', () => {
+      if (this.state.buyRelicSlot()) {
+        play('unlock');
+        this.render();
+      }
+    });
+  }
+
+  /** A pop-up with everything about one relic: effects, what it costs to craft, its set, and whether you own it. */
+  private showRelic(def: RelicDef, title = def.name) {
+    const s = this.state;
+    const level = s.relics[def.id] ?? 0;
+    const set = def.set ? RELIC_SETS.find((x) => x.id === def.set) : undefined;
+    const rarity = ['', 'Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'][def.stars] ?? '';
+    const status = level
+      ? `You own it · Lv ${level}/${s.relicMaxLevel(def)}${s.equipped.includes(def.id) ? ' · equipped' : ''}`
+      : !s.relicOpen(def)
+        ? `Locked: ${def.stars}★ relics open when a ${def.stars - 1}★ relic reaches level ${RELIC_BASE_MAX}.`
+        : s.canAffordRelic(def)
+          ? `Not found yet. You have the Essence for it, so a ${def.stars}★ discovery could turn it up.`
+          : `Not found yet. Gather the Essence below, then discover a ${def.stars}★ relic.`;
+    const html = `<div class="relic-peek">
+      ${this.relicArt(def)}
+      <div>${title === def.name ? '' : `<b>${def.name}</b>`}<small class="rp-rarity r${def.stars}">${'★'.repeat(def.stars)} ${rarity}${set ? ` · ${set.name} set` : ''}</small><small>${def.blurb}</small></div>
+    </div>
+    <p class="rp-status">${status}</p>
+    ${level ? `<p class="rp-line"><b>Now:</b> ${this.relicEffectText(def, level)}</p>` : ''}
+    <p class="rp-line"><b>At level ${RELIC_BASE_MAX}:</b> ${this.relicEffectText(def, RELIC_BASE_MAX)}</p>
+    ${level ? '' : `<div class="rp-line"><b>To craft:</b> <span class="relic-cost">${this.relicCostHtml(def, s.relicCraftCost(def), def.stones ?? 0)}</span></div>`}
+    ${set ? `<p class="rp-line"><b>${set.name} set (${s.setPieces(set.id).owned}/${s.setPieces(set.id).total}):</b> ${set.text}</p>` : ''}`;
+    this.showModal(title, html, 'Close');
+  }
+
+  /** Returns true when something on the Relics tab is worth a look (an upgrade for an equipped relic, a free slot, or a discovery you can afford). */
+  private renderRelics(): boolean {
+    const s = this.state;
+    let worthALook = false;
+    const owned = (d: RelicDef) => (s.relics[d.id] ?? 0) > 0;
     $('relic-slots').textContent = `Equipped ${s.equipped.length}/${s.relicSlots}`;
-    this.renderRelicShop();
     setHtml(
       $('relic-ess'),
       TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}"></i>${fmt(s.essences[e] ?? 0)}</span>`).join('') +
@@ -423,43 +467,57 @@ export class UI {
     slotBtn.disabled = slotCost === null || s.gems < slotCost || s.bestStage < slotStage;
     const freeSlot = s.equipped.length < s.relicSlots;
     const starsOpen = s.relicStarsOpen();
+
+    // Discover: one button per open star that still has relics to find.
+    let discover = '';
+    for (let stars = 1; stars <= RELIC_MAX_STARS; stars++) {
+      const left = RELICS.filter((r) => r.stars === stars && !owned(r));
+      if (!left.length) continue;
+      if (stars > starsOpen) {
+        discover += `<button class="wood-btn small" disabled>${stars}★ opens when a ${stars - 1}★ relic reaches Lv ${RELIC_BASE_MAX}</button>`;
+        break;
+      }
+      const can = s.discoverableRelics(stars).length;
+      if (can) worthALook = true;
+      discover += `<button class="wood-btn small${can ? ' levelall' : ''}" data-discover="${stars}" ${can ? '' : 'disabled'} title="Finds a random ${stars}★ relic you don't own among those your Essence can pay for">Discover ${stars}★<small>${can ? `${can} of ${left.length} affordable` : `Need Essence · ${left.length} to find`}</small></button>`;
+    }
+    setHtml($('relic-discover'), discover || '<p class="market-note">You own every relic.</p>');
+
+    for (const sec of this.relicSections) sec.head.hidden = !sec.defs.some(owned);
     for (const h of this.setHeads) {
       const p = s.setPieces(h.id);
       h.count.textContent = `${p.owned}/${p.total}`;
       h.root.classList.toggle('done', p.owned === p.total);
-      if (!h.box.dataset.user) h.box.classList.toggle('open', h.stars <= starsOpen);
+      h.box.hidden = p.owned === 0;
+      if (!h.box.dataset.user) h.box.classList.add('open');
     }
+    $('relics-empty').hidden = RELICS.some(owned);
     for (const r of this.relicRows) {
       const level = s.relics[r.def.id] ?? 0;
+      r.root.hidden = level === 0;
+      if (!level) continue;
       const on = s.equipped.includes(r.def.id);
-      const open = s.relicOpen(r.def);
       const cost = s.relicNextCost(r.def);
       const can = s.canUpgradeRelic(r.def);
       const enhance = s.enhanceCost(r.def);
-      const capLv = s.relicMaxLevel(r.def);
       r.root.classList.toggle('on', on);
-      r.root.classList.toggle('uncrafted', level === 0);
-      r.root.classList.toggle('locked', !open);
-      r.tier.textContent = level ? `· Lv ${level}/${capLv}` : '';
-      r.eff.textContent = !open
-        ? `Opens when a ${r.def.stars - 1}★ relic reaches level ${RELIC_BASE_MAX}`
-        : level
-          ? effectText(r.def, level)
-          : `At level ${RELIC_BASE_MAX}: ${effectText(r.def, RELIC_BASE_MAX)}`;
-      if (!open) setHtml(r.cost, '');
-      else if (cost !== null) {
-        const stones = level === 0 && r.def.stones ? `<span class="${s.enhanceStones < r.def.stones ? 'short' : ''}" title="Enhance Stones"><i class="stone"></i>${r.def.stones}</span>` : '';
-        setHtml(r.cost, r.def.essences.map((e) => `<span class="${(s.essences[e] ?? 0) < cost ? 'short' : ''}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}" style="--el:${hex(ELEMENT_COLORS[e])}"></i>${fmt(cost)}</span>`).join('') + stones);
-      }
+      r.tier.textContent = `· Lv ${level}/${s.relicMaxLevel(r.def)}`;
+      r.eff.textContent = this.relicEffectText(r.def, level);
+      if (cost !== null) setHtml(r.cost, this.relicCostHtml(r.def, cost));
       else if (enhance !== null) setHtml(r.cost, `<span class="${s.enhanceStones < enhance ? 'short' : ''}" title="Enhance Stones"><i class="stone"></i>${enhance} → cap +5</span>`);
       else setHtml(r.cost, '<span>Max level</span>');
-      r.up.hidden = !open;
-      r.up.textContent = level === 0 ? 'Craft' : cost !== null ? 'Upgrade' : enhance !== null ? 'Enhance' : 'Maxed';
+      r.up.textContent = cost !== null ? 'Upgrade' : enhance !== null ? 'Enhance' : 'Maxed';
       r.up.disabled = cost !== null ? !can : enhance === null || s.enhanceStones < enhance;
-      r.equip.hidden = level === 0;
       r.equip.textContent = on ? 'Take off' : 'Equip';
       r.equip.disabled = !on && !freeSlot;
-      if ((on && can) || (level > 0 && !on && freeSlot)) worthALook = true;
+      if ((on && can) || (!on && freeSlot)) worthALook = true;
+    }
+    for (const t of this.catalogTiles) {
+      const level = s.relics[t.def.id] ?? 0;
+      const open = s.relicOpen(t.def);
+      t.root.classList.toggle('owned', level > 0);
+      t.root.classList.toggle('locked', !open);
+      t.status.textContent = level ? `Lv ${level}` : open ? 'Not found' : 'Locked';
     }
     return worthALook;
   }
