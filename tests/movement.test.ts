@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { HEROES, HERO_TYPES, type HeroType } from '../src/data';
 import { GameState } from '../src/state';
-import { TYPE_POSITION, MARCH_LEAD, BACKLINE_GAP, STRAGGLER_RANGE, marchCap, marchStep, type Marcher } from '../src/movement';
+import { TYPE_POSITION, BACKLINE_GAP, STRAGGLER_RANGE, marchCap, marchStep, type Marcher } from '../src/movement';
 
 const byId = (id: string) => HEROES.find((h) => h.id === id)!;
 const m = (type: HeroType, x: number, engaged = false): Marcher => ({ type, x, engaged, alive: true });
@@ -43,19 +43,23 @@ describe('hero movement', () => {
     expect(TYPE_POSITION.Support).toBe('support');
   });
 
-  it('lets a fast hero get only slightly ahead of teammates still marching', () => {
-    const brine = m('Samurai', 200);
-    expect(marchCap(brine, [brine, m('Knight', 150)])).toBe(150 + MARCH_LEAD);
-    // A teammate that stopped to fight doesn't hold the others back.
-    expect(marchCap(brine, [brine, m('Knight', 150, true)])).toBe(Infinity);
-    // Nor does one that just respawned far back at the crystal.
-    expect(marchCap(brine, [brine, m('Knight', 200 - STRAGGLER_RANGE - 1)])).toBe(Infinity);
+  it('lets melee heroes charge at their own speed', () => {
+    const rogue = m('Rogue', 200);
+    expect(marchCap(rogue, [rogue, m('Samurai', 150), m('Knight', 120)])).toBe(Infinity);
   });
 
-  it('lets melee heroes pass each other (a fast hero can go in first)', () => {
-    const [brine, thicket] = march([{ type: 'Samurai', speed: 120, x: 0 }, { type: 'Knight', speed: 100, x: 0 }], 3);
-    expect(brine.x).toBeGreaterThan(thicket.x);
-    expect(brine.x - thicket.x).toBeLessThanOrEqual(MARCH_LEAD);
+  it('a fast Rogue reaches the enemy well before a slower Samurai (user report: 170 vs 110)', () => {
+    const [rogue, samurai] = march([{ type: 'Rogue', speed: 170, x: 0 }, { type: 'Samurai', speed: 110, x: 0 }], 4);
+    expect(rogue.x).toBeCloseTo(170 * 4, -1);
+    expect(samurai.x).toBeCloseTo(110 * 4, -1);
+    // Walking 600 px to meet the enemy: the Rogue arrives in about 3.5 s, the Samurai in about 5.5 s.
+    const arrive = (speed: number) => 600 / speed;
+    expect(arrive(110) - arrive(170)).toBeGreaterThan(1.5);
+  });
+
+  it('ignores allies far back at the crystal (just respawned)', () => {
+    const rook = m('Ranger', 400);
+    expect(marchCap(rook, [rook, m('Knight', 400 - STRAGGLER_RANGE - 1)])).toBe(Infinity);
   });
 
   it('keeps ranged heroes behind the front line and Supports near their allies', () => {
@@ -68,7 +72,7 @@ describe('hero movement', () => {
     expect(marchCap(lumen, [lumen, m('Support', 90, true)])).toBe(Infinity);
   });
 
-  it('marches the five as a loose team: the fastest leads, nobody races off', () => {
+  it('marches the five with the melee in front and the back line behind them', () => {
     const team = march(
       ['brine', 'ember', 'thorn', 'lumen', 'rook'].map((id) => ({ type: byId(id).type, speed: byId(id).moveSpeed, x: 0 })),
       6,
@@ -79,8 +83,9 @@ describe('hero movement', () => {
     expect(at.ember).toBeLessThanOrEqual(front - BACKLINE_GAP);
     expect(at.rook).toBeLessThanOrEqual(front - BACKLINE_GAP);
     expect(at.lumen).toBeLessThan(front);
-    expect(front - Math.min(...Object.values(at))).toBeLessThanOrEqual(MARCH_LEAD + BACKLINE_GAP);
-    // The team still makes progress at roughly the slowest hero's pace.
+    // Each melee hero walks at its own speed; the back line keeps up behind the fastest.
+    expect(at.brine).toBeCloseTo(120 * 6, -1);
+    expect(at.thorn).toBeCloseTo(100 * 6, -1);
     expect(Math.min(...Object.values(at))).toBeGreaterThan(100 * 6 * 0.8);
   });
 

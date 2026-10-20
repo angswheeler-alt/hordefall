@@ -2,13 +2,12 @@ import type { HeroType } from './data';
 
 /**
  * How heroes move on the battle lane. Each hero walks at its own Move Speed (separate from attack speed),
- * so faster heroes reach the enemy first, but three soft rules keep the team together:
+ * so faster heroes reach the enemy first. Two soft rules keep the back line in place:
  * - Combat first: a hero with an enemy in range stops to fight (BattleScene does this before moving).
- * - A marching hero gets at most MARCH_LEAD ahead of teammates who are still marching behind it.
- * - Preferred positions by Type: melee Types engage at the front; Rangers, Gunners and Magicians stay a
- *   step behind the frontmost melee ally and shoot from their range; Supports keep just behind the
- *   frontmost ally of any other Type, close enough to help.
- * Melee heroes can still pass each other (a fast Rogue can go in ahead of the Knight).
+ * - Preferred positions by Type: melee Types charge at their own speed and engage at the front;
+ *   Rangers, Gunners and Magicians stay a step behind the frontmost melee ally and shoot from their
+ *   range; Supports keep just behind the frontmost ally of any other Type, close enough to help.
+ * Melee heroes pass each other freely: a 170-speed Rogue reaches the enemy well before a 110 Samurai.
  */
 export type LanePosition = 'front' | 'ranged' | 'support';
 
@@ -25,9 +24,7 @@ export const TYPE_POSITION: Record<HeroType, LanePosition> = {
   Support: 'support',
 };
 
-/** How far (px) a marching hero may get ahead of teammates still marching behind it. */
-export const MARCH_LEAD = 80;
-/** Teammates further back than this (just respawned at the crystal) don't hold the others back. */
+/** Allies further back than this (just respawned at the crystal) aren't anyone's anchor. */
 export const STRAGGLER_RANGE = 220;
 /** Ranged heroes and Supports stay at least this far behind the ally they keep behind. */
 export const BACKLINE_GAP = 24;
@@ -42,16 +39,15 @@ export interface Marcher {
 
 /** The furthest right `self` may walk to this frame (Infinity when nothing holds it back). */
 export function marchCap(self: Marcher, team: readonly Marcher[]): number {
-  let cap = Infinity;
-  let front = -Infinity;
   const pos = TYPE_POSITION[self.type];
+  if (pos === 'front') return Infinity;
+  let front = -Infinity;
   for (const m of team) {
     if (m === self || !m.alive || m.x < self.x - STRAGGLER_RANGE) continue;
-    if (!m.engaged && m.x < self.x) cap = Math.min(cap, m.x + MARCH_LEAD);
     const anchor = pos === 'ranged' ? TYPE_POSITION[m.type] === 'front' : pos === 'support' && TYPE_POSITION[m.type] !== 'support';
     if (anchor) front = Math.max(front, m.x);
   }
-  return front === -Infinity ? cap : Math.min(cap, front - BACKLINE_GAP);
+  return front === -Infinity ? Infinity : front - BACKLINE_GAP;
 }
 
 /** Where a marching hero ends up after `dt` seconds at `speed` px/s: never past `cap` or `stopAt`, never backwards. */
