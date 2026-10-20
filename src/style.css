@@ -656,3 +656,7 @@ div.g-req { margin-bottom: 8px; }
 .tm-spec { font-size: 12px; margin: 8px 0 4px; }
 .tm-peek-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .tm-peek-btns button { flex: 1 1 auto; font-size: 13px; padding: 8px 10px; }
+.tm-total { margin: -2px 0 8px; font-size: 13px; flex: none; }
+.tm-card .tm-cp { color: var(--gold); font-weight: 700; }
+.tm-cp-big { margin: 0 0 6px; font-size: 14px; }
+.st.cp { color: var(--gold); font-weight: 700; }
