@@ -65,8 +65,9 @@
         </section>
         <section class="panel" data-tab="battle" hidden>
           <div class="panel-head"><h2>Elemental Trials</h2><button id="tr-elements" class="wood-btn small ew-btn">Element wheel</button><span id="tr-tickets" class="trial-tickets"></span></div>
-          <div class="trial-card">
-            <div id="tr-days" class="trial-days"></div>
+          <div id="tr-list" class="trial-list"></div>
+          <div id="tr-detail" class="trial-card" hidden>
+            <button id="tr-back" class="wood-btn small trial-back">&#8592; All Trials</button>
             <div class="trial-boss">
               <span id="tr-face" class="trial-face"></span>
               <div><b id="tr-name"></b><small id="tr-info"></small></div>
@@ -76,8 +77,8 @@
               <div class="trial-btns"><button id="tr-quick" class="wood-btn levelall" hidden>Quick</button><button id="tr-fight" class="wood-btn levelall">Fight</button></div>
             </div>
             <p id="tr-odds" class="trial-odds"></p>
-            <div id="tr-ess" class="trial-ess"></div>
           </div>
+          <div id="tr-ess" class="trial-ess trial-ess-bar"></div>
           <div class="panel-head"><h2>Run stats</h2></div>
           <dl class="battle-stats">
             <dt>Stage</dt><dd id="bt-stage"></dd>

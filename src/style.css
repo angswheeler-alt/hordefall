@@ -329,12 +329,31 @@ button.glass:disabled { opacity: .7; font-size: 11px; }
 /* Elemental Trials */
 .trial-tickets { color: #ffe9c4; font-size: 13px; font-weight: 700; }
 .trial-card { background: linear-gradient(180deg, var(--plank), #4a2d17); border: 2px solid var(--wood-deep); border-radius: 10px; padding: 10px 12px; color: #fff4dd; margin: 0 0 16px; display: flex; flex-direction: column; gap: 10px; }
-.trial-days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
-.trial-day { text-align: center; font-size: 11px; font-weight: 700; padding: 4px 0; border-radius: 6px; background: color-mix(in srgb, var(--el) 30%, #1c0f06); color: #e8d3b0; border: 1px solid rgba(0,0,0,.5); }
-.trial-day.today { background: var(--el); color: #fff; text-shadow: 0 1px 2px #000; box-shadow: 0 0 0 2px #ffe9c4; }
 .trial-boss { display: flex; gap: 10px; align-items: center; }
 .trial-boss small { display: block; color: #d9bf98; font-size: 12px; margin-top: 2px; }
-.trial-face { flex: none; width: 48px; height: 48px; border-radius: 10px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
+/* Trial list: one wooden row per element boss, like the original's dungeon list. Enter glows on open days. */
+.trial-tickets { display: inline-flex; align-items: center; gap: 4px; }
+.trial-tickets small { font-size: 12px; color: #d9bf98; font-weight: 700; }
+i.ticket { display: inline-block; width: 18px; height: 14px; border-radius: 3px; background: linear-gradient(180deg, #ffd86b, #d99a1e); border: 1px solid #5a3200; box-shadow: inset 0 0 0 2px rgba(255,255,255,.25); -webkit-mask: radial-gradient(circle 3px at 0 50%, #0000 98%, #000) left / 51% 100% no-repeat, radial-gradient(circle 3px at 100% 50%, #0000 98%, #000) right / 51% 100% no-repeat; mask: radial-gradient(circle 3px at 0 50%, #0000 98%, #000) left / 51% 100% no-repeat, radial-gradient(circle 3px at 100% 50%, #0000 98%, #000) right / 51% 100% no-repeat; }
+.trial-list { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; }
+.trial-list[hidden], .trial-card[hidden] { display: none; }
+.trial-entry { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 8px; background: linear-gradient(180deg, #6b4220, #4f2f15); border: 2px solid var(--wood-deep); box-shadow: inset 0 1px 0 rgba(255,255,255,.12); }
+.trial-entry.open { background: linear-gradient(180deg, #7d4f27, #5a3618); }
+.trial-portrait, .trial-face { flex: none; border: 2px solid #1c0f06; border-radius: 6px; background-color: var(--el); background-image: none; background-repeat: no-repeat; image-rendering: pixelated; box-shadow: inset 0 0 14px rgba(0,0,0,.45); }
+.trial-portrait { width: 60px; height: 60px; background-blend-mode: normal; }
+.trial-entry-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.trial-entry-text b { color: #f2c98a; font-size: 14px; line-height: 1.2; }
+.trial-entry-text b span { font-weight: 700; }
+.trial-entry-text small { display: flex; align-items: center; gap: 5px; color: #f2c98a; font-size: 13px; font-weight: 700; }
+.trial-entry-text i { flex: none; width: 18px; height: 18px; background: center / contain no-repeat; image-rendering: pixelated; }
+i.medal { background-image: url('./assets/ui/crest.png'); }
+.trial-enter { flex: none; width: 92px; align-self: stretch; min-height: 56px; border-radius: 8px; font: inherit; font-size: 17px; font-weight: 900; color: #e8d3b0; text-shadow: 0 1px 0 #1c0f06, 0 0 2px #1c0f06; background: linear-gradient(180deg, #7a4b23, #5e3818); border: 2px solid #3a2110; box-shadow: inset 0 1px 0 rgba(255,255,255,.08); cursor: default; }
+.trial-enter.lit { color: #fff; background: linear-gradient(180deg, #ffbe4a, var(--orange) 55%, var(--orange-lo)); border-color: #6b3200; box-shadow: inset 0 2px 0 rgba(255,255,255,.35), 0 2px 0 #3a2110; cursor: pointer; }
+.trial-enter.lit:active { transform: translateY(1px); }
+.trial-lock { margin: 0 2px 2px; color: #ffe9c4; font-size: 13px; font-weight: 700; }
+.trial-back { align-self: flex-start; }
+.trial-ess-bar { margin: 0 0 16px; color: #ffe9c4; }
+.trial-face { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
 .trial-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .trial-tier { display: flex; align-items: center; gap: 8px; font-weight: 800; }
 .trial-tier .wood-btn { width: 34px; height: 34px; padding: 0; font-size: 18px; }
@@ -360,11 +379,6 @@ body.in-trial #profile-btn, body.in-trial #settings-btn { display: none !importa
 .tf-result.win { color: var(--ok) !important; }
 .tf-result.lose { color: var(--hot) !important; }
 
-.trial-day { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 4px 0; font: inherit; cursor: pointer; }
-.trial-day b { font-size: 11px; }
-.trial-day small { font-size: 9px; font-weight: 600; opacity: .85; }
-.trial-day:disabled { opacity: .55; cursor: default; filter: grayscale(.5); }
-.trial-day.open:not(.today) { color: #fff; box-shadow: inset 0 0 0 1px var(--el); }
 
 /* Account card and sign-in dialog */
 .acct-card { background: linear-gradient(180deg, var(--plank), #4a2d17); border: 2px solid var(--wood-deep); border-radius: 10px; padding: 10px 14px; color: #fff4dd; margin: 0 14px 8px; }
