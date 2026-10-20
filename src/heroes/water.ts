@@ -65,7 +65,7 @@ export const WATER_HEROES: HeroDef[] = [
   { id: 'nerissa', rarity: 'epic', name: 'Nerissa', element: 'water', type: 'Magician', baseAtk: 9, baseHp: 40, range: 175, attackCooldown: 1.3, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 36,
     ult: { kind: 'root', seconds: 3, bossSeconds: 1, shield: 0.15 },
     ultPlus: 'Frost armor also shields every hero for 15% of their max HP.',
-    bio: 'An elemental queen of living ice crystal, with a crown of icicles and a cold blue glow inside.',
+    bio: 'A frost swan queen with icicle-tipped feathers and a crown of ice, whose scepter freezes the air.',
     basic: { name: 'Ice Ball', text: 'Ranged balls of ice that splash every enemy near the target.' },
     ultimate: { name: 'Blizzard', text: `${ULT('A blizzard sweeps over')} Ice holds them in place for 3 seconds (bosses for 1).` },
     trait: { name: 'Frozen Heart', text: `Her spells can freeze enemies (15%); the ice bursts on enemies nearby when it melts. ${VS.water}` },
@@ -76,7 +76,7 @@ export const WATER_HEROES: HeroDef[] = [
   { id: 'glacius', rarity: 'epic', name: 'Glacius', element: 'water', type: 'Barbarian', baseAtk: 6, baseHp: 75, range: 30, attackCooldown: 1.4, moveSpeed: 95, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
     ult: { kind: 'root', seconds: 2, bossSeconds: 1, shield: 0.25 },
     ultPlus: 'The quake also coats every hero in ice: a shield worth 25% of their max HP.',
-    bio: 'A living block of ice with two huge frozen fists. It does not talk, and it does not melt.',
+    bio: 'A hulking yeti with two fists frozen into blocks of ice. It does not talk, and it does not melt.',
     basic: { name: 'Ice Fist', text: 'Slow, crushing punches at the nearest enemy ahead.' },
     ultimate: { name: 'Icy Wave', text: `${ULT('A giant fist slams the ground and ice hits')} Freezes them in place for 2 seconds (bosses for 1).` },
     trait: { name: 'Permafrost', text: `Boss blows never stun it, and its blows can freeze (10%). ${VS.water}` },
@@ -107,7 +107,7 @@ export const WATER_HEROES: HeroDef[] = [
   // Aurora (Valkyrie)
   { id: 'aurora', rarity: 'epic', name: 'Aurora', element: 'water', type: 'Ranger', baseAtk: 7, baseHp: 44, range: 190, attackCooldown: 1.0, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     signature: { kind: 'skyCrit' },
-    bio: 'A snowy owl valkyrie in a silver winged helm, who rides the north wind and shoots arrows of ice.',
+    bio: 'An emperor penguin valkyrie in a silver winged helm, who rides the north wind and shoots arrows of ice.',
     basic: { name: 'Ice Arrow', text: 'Long-range arrows of ice at the nearest enemy.' },
     ultimate: { name: 'Ice Arrow Shower', text: ULT('A volley of ice arrows falls on') },
     trait: { name: 'Valkyrie Sight', text: `Shots at flying enemies always crit, and her arrows can freeze (8%). ${VS.water}` },
@@ -118,7 +118,7 @@ export const WATER_HEROES: HeroDef[] = [
   // ---- Commons ----
   // Bubbles (Blue Fish)
   { id: 'bubbles', rarity: 'common', name: 'Bubbles', element: 'water', type: 'Magician', flying: true, baseAtk: 7, baseHp: 45, range: 150, attackCooldown: 1.2, moveSpeed: 140, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 32,
-    bio: 'A round blue blowfish that floats along on its own bubbles and spits more of them at enemies.',
+    bio: 'A small glowing jellyfish that floats along on its own bubbles and spits more of them at enemies.',
     basic: { name: 'Bubble Cast', text: 'Ranged bubbles that splash every enemy near the target.' },
     ultimate: { name: 'Bubble Rain', text: ULT('A downpour of bubbles hits') },
     trait: { name: 'Bubble Float', text: `Quick and hard to pin down. ${VS.water}` },
@@ -139,5 +139,5 @@ export const WATER_PROFILES: Record<string, HeroProfile> = {
   undine: { effectRes: 0.4, aoeDmg: 0.15, crit: 0.05, specialty: 'Ray glide: 40% Effect Resistance and +15% splash damage, rarely crits (5%)' },
   puff: { aoeDmg: 0.2, dodge: 0.06, critDmg: 1.8, specialty: 'Puffed up: +20% splash damage and dodges 6% of attacks, softer crits (+180%)' },
   aurora: { freezeChance: 0.08, crit: 0.2, critDmg: 1.7, specialty: 'Valkyrie frost: 8% chance to freeze and 20% crit, softer crits (+170%)' },
-  bubbles: { effectRes: 0.35, dodge: 0.08, atkMult: 0.95, specialty: 'Slippery fins: dodges 8% of attacks and 35% Effect Resistance, a little less ATK' },
+  bubbles: { effectRes: 0.35, dodge: 0.08, atkMult: 0.95, specialty: 'Slippery bell: dodges 8% of attacks and 35% Effect Resistance, a little less ATK' },
 };

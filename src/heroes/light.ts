@@ -66,7 +66,7 @@ export const LIGHT_HEROES: HeroDef[] = [
     aura: { name: 'Mountain Bulk', text: 'Brightmane gets +20% HP.', effect: { kind: 'hp', value: 1.2 } } },
   // Thor (Thundrum)
   { id: 'thundrum', rarity: 'rare', name: 'Thundrum', element: 'light', type: 'Barbarian', baseAtk: 8, baseHp: 60, range: 30, attackCooldown: 1.8, moveSpeed: 95, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
-    bio: 'A bearded mountain goat with curled horns and a thunder hammer that crackles when he swings it.',
+    bio: 'A hulking elephant in a horned helmet whose thunder hammer crackles every time he swings it.',
     basic: { name: 'Hammer Hit', text: 'Slow, crushing hammer blows at the nearest enemy ahead.' },
     ultimate: { name: 'Thunder Hammer', text: ULT('A giant hammer of light smashes') },
     trait: { name: 'Thunderclap', text: `His blows can stun (12%), and boss blows never stun him. ${VS.light}` },
@@ -88,7 +88,7 @@ export const LIGHT_HEROES: HeroDef[] = [
   // Monki Roboti (Gizmo)
   { id: 'gizmo', rarity: 'epic', name: 'Gizmo', element: 'light', type: 'Brawler', baseAtk: 6, baseHp: 85, range: 26, attackCooldown: 1.1, moveSpeed: 120, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
     signature: { kind: 'combo', perHit: 0.08, max: 0.4 },
-    bio: 'A clockwork ape of golden gears and brass plates, wound up and always ready to punch.',
+    bio: 'A clockwork kangaroo of golden gears and brass plates, wound up and always ready to punch.',
     basic: { name: 'Gear Punch', text: 'Heavy punches at the nearest enemy ahead.' },
     ultimate: { name: 'Super Lightning', text: ULT('Bolts of golden lightning strike') },
     trait: { name: 'Wind-Up Combo', text: `Each hit in a row on the same enemy deals +8% damage, up to +40%; the streak ends when it switches target. Its punches can stun (10%), and boss blows never stun it. ${VS.light}` },
@@ -171,7 +171,7 @@ export const LIGHT_HEROES: HeroDef[] = [
   // Swift (Swiftwing)
   { id: 'swiftwing', rarity: 'common', name: 'Swiftwing', element: 'light', type: 'Ranger', baseAtk: 5, baseHp: 40, range: 170, attackCooldown: 0.8, moveSpeed: 125, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     signature: { kind: 'skyCrit' },
-    bio: 'A quick little sparrow archer with a bow almost as long as her wings.',
+    bio: 'A flying squirrel archer who glides between shots with a bow almost as long as her tail.',
     basic: { name: 'Light Arrows', text: 'Fast long-range arrows at the nearest enemy.' },
     ultimate: { name: 'Arrow Shower', text: ULT('A shower of arrows falls on') },
     trait: { name: 'Bird Eye', text: `Shots at flying enemies always crit. ${VS.light}` },
@@ -197,5 +197,5 @@ export const LIGHT_PROFILES: Record<string, HeroProfile> = {
   mendbot: { effectRes: 0.45, dodge: 0.08, defMult: 1, specialty: 'Brass plating: 45% Effect Resistance and dodges 8% of attacks, less Defense' },
   glimmer: { dodge: 0.1, crit: 0.18, goldBonus: 0.1, specialty: 'Firefly glow: dodges 10% of attacks and +10% gold, but crits land less often (18%)' },
   quill: { stunChance: 0.08, defMult: 2, crit: 0.12, specialty: 'Spiny back: 8% chance to stun and 2x Defense, but crits land less often (12%)' },
-  swiftwing: { crit: 0.08, critDmg: 2.3, specialty: 'Sparrow eye: crits hit for +230%, but land rarely (8%)' },
+  swiftwing: { crit: 0.08, critDmg: 2.3, specialty: 'Glider eye: crits hit for +230%, but land rarely (8%)' },
 };
