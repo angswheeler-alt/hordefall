@@ -1,4 +1,4 @@
-import { HEROES, AURA_EVOLUTIONS, MASTERY_EVOLUTIONS, SUPPORT_RALLY, TYPE_MASTERY, type Effect, type EffectKind } from './data';
+import { HEROES, AURA_EVOLUTIONS, MASTERY_EVOLUTIONS, SUPPORT_RALLY, TYPE_MASTERY, type Effect, type EffectKind, type HeroDef } from './data';
 
 /** A star skill that is switched on, with the hero who owns it. */
 export interface ActiveEffect {
@@ -11,15 +11,17 @@ export interface ActiveEffect {
  * evolutions; `stars` counts evolutions, so 0 = 1★), the Aura at 4★ (AURA_EVOLUTIONS) and, at 7★, the
  * hero's Type Mastery when it is a plain effect (TYPE_MASTERY). Every Support also gives the team
  * SUPPORT_RALLY from 1★; Rallies add up (+15% each) as one effect instead of multiplying.
- * `hasStar` is GameState.hasStar (recruited, in the lineup, and evolved far enough).
+ * `hasStar` is GameState.hasStar (recruited, in the lineup, and evolved far enough). `resolve` gives a hero as it
+ * is now (an Ascendant hero's current form, whose star skills can differ from its Common entry).
  */
-export function activeEffects(hasStar: (id: string, star: number) => boolean): ActiveEffect[] {
+export function activeEffects(hasStar: (id: string, star: number) => boolean, resolve: (h: HeroDef) => HeroDef = (h) => h): ActiveEffect[] {
   const out: ActiveEffect[] = [];
   const rallies = HEROES.filter((h) => h.type === 'Support' && hasStar(h.id, 0));
   if (rallies.length) {
     out.push({ owner: rallies[0].id, effect: { ...SUPPORT_RALLY, value: 1 + (SUPPORT_RALLY.value - 1) * rallies.length } });
   }
-  for (const h of HEROES) {
+  for (const base of HEROES) {
+    const h = resolve(base);
     if (hasStar(h.id, 1) && h.sp1.effect) out.push({ owner: h.id, effect: h.sp1.effect });
     if (hasStar(h.id, 2) && h.sp2.effect) out.push({ owner: h.id, effect: h.sp2.effect });
     if (hasStar(h.id, AURA_EVOLUTIONS) && h.aura.effect) out.push({ owner: h.id, effect: h.aura.effect });

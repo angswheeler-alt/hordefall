@@ -95,6 +95,18 @@ export function resolveForm(def: AscendantDef, form: number): HeroDef & { formNa
   return { ...hero, rarity: FORM_RARITIES[f], formName: def.forms[f].formName, art, charge };
 }
 
+/**
+ * The art key to draw a hero in `form`: that form's own art when `has` it, else the nearest form before it
+ * that has art, else the hero's Common art.
+ */
+export function formArtKey(def: AscendantDef, form: number, has: (key: string) => boolean): string {
+  for (let i = clampForm(form); i > 0; i--) {
+    const art = def.forms[i].art;
+    if (art && has(art)) return art;
+  }
+  return def.forms[0].art && has(def.forms[0].art) ? def.forms[0].art : def.base.id;
+}
+
 /** What still stands in the way of the next form, or null when the hero can ascend now. */
 export type AscendBlocker = 'unknown' | 'max' | 'locked' | 'stars' | 'trial' | 'stage' | 'essence' | 'stones';
 
@@ -120,4 +132,19 @@ export function ascendBlocker(def: AscendantDef | undefined, c: AscendContext): 
   if (c.essence < step.essence) return 'essence';
   if (c.stones < step.stones) return 'stones';
   return null;
+}
+
+/** The next form's requirements as the hero page lists them, each marked met or not; null at the last form. */
+export function ascendNeeds(def: AscendantDef, c: AscendContext, essenceName: string): Array<{ text: string; met: boolean }> | null {
+  const form = clampForm(c.form);
+  if (form >= MAX_FORM) return null;
+  const step = def.steps[form];
+  const el = def.base.element;
+  return [
+    { text: `${step.evolutions + 1}★`, met: c.evolutions >= step.evolutions },
+    { text: `${el[0].toUpperCase()}${el.slice(1)} Trial level ${step.trialTier} cleared`, met: c.trialTier >= step.trialTier },
+    { text: `Stage ${step.bestStage.toLocaleString()} reached`, met: c.bestStage >= step.bestStage },
+    { text: `${step.essence.toLocaleString()} ${essenceName}`, met: c.essence >= step.essence },
+    { text: `${step.stones.toLocaleString()} Enhance Stones`, met: c.stones >= step.stones },
+  ];
 }

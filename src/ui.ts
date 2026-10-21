@@ -12,6 +12,8 @@ import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBoss
 import type { GameState, OfflineReport, SummonDrop, RekindleResult, TrialResult, PvpOpponent } from './state';
 import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, BOOTCAMP, MILESTONE_STEP, milestoneReward, milestoneText, rewardText, type Reward } from './rewards';
 import { rarityOdds, SHOP_HEROES, medalPackCost } from './state';
+import { FORM_RARITIES, MAX_FORM } from './ascendant';
+import { ascendantDef } from './heroes/ascendant';
 import type { BattleScene } from './BattleScene';
 import type { ColosseumLink } from './colosseumLink';
 import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, RANK_DAILY, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies } from './colosseum';
@@ -1010,6 +1012,15 @@ export class UI {
         this.render();
       }
     });
+    $('sheet-ascend-btn').addEventListener('click', () => {
+      const id = this.sheetHero;
+      if (id && this.state.ascend(id)) {
+        play('unlock');
+        this.scene()?.syncHeroes();
+        this.openSheet(id);
+        this.render();
+      }
+    });
     $('sheet-awaken').addEventListener('click', () => {
       if (this.sheetHero && this.state.awakenHero(this.sheetHero)) {
         play('unlock');
@@ -1129,7 +1140,8 @@ export class UI {
 
   openSheet(id: string) {
     this.sheetHero = id;
-    const def = HEROES.find((h) => h.id === id)!;
+    // An Ascendant hero shows its current form's name, rarity and story.
+    const def = this.state.formDef(HEROES.find((h) => h.id === id)!);
     const face = $('sheet-face');
     face.textContent = def.name[0];
     face.classList.add('art');
@@ -1210,16 +1222,20 @@ export class UI {
     const ultReady = eff >= ULT_UNLOCK_LEVEL;
     const ability = (kind: string, a: { name: string; text: string }, tag = '', ready = false) =>
       `<li><span class="kind">${kind}</span>${tag ? `<span class="tag${ready ? ' ready' : ''}">${tag}</span>` : ''}<div><b>${a.name}</b></div><p>${a.text}</p></li>`;
+    // Skills come from an Ascendant hero's current form; crests and stars stay the hero's own.
+    const now = s.formDef(def);
+    const form = s.formOf(id);
     const html = [
-      ability('Basic attack', def.basic),
-      ability('Ultimate', def.ultimate, ultReady ? 'Unlocked' : `Unlocks at Lv ${ULT_UNLOCK_LEVEL}`, ultReady),
-      ability(def.signature ? 'Signature' : 'Trait', def.trait),
+      ability('Basic attack', now.basic),
+      ability('Ultimate', now.ultimate, ultReady ? 'Unlocked' : `Unlocks at Lv ${ULT_UNLOCK_LEVEL}`, ultReady),
+      ability(now.signature ? 'Signature' : 'Trait', now.trait),
     ].join('');
     // Only re-render lists when content changes, so taps and hover states aren't lost every frame.
-    if ($('sheet-abilities').dataset.key !== `${id}:${ultReady}`) {
+    if ($('sheet-abilities').dataset.key !== `${id}:${ultReady}:${form}`) {
       $('sheet-abilities').innerHTML = html;
-      $('sheet-abilities').dataset.key = `${id}:${ultReady}`;
+      $('sheet-abilities').dataset.key = `${id}:${ultReady}:${form}`;
     }
+    this.renderAscension(id);
 
     const next = s.evolveCost(id);
     $('sheet-crest-label').textContent = legendary ? 'Legendary crests' : 'Hero Crests';
@@ -1240,23 +1256,45 @@ export class UI {
     awaken.textContent = `Awaken to pink ${pink + 1}★ (${moteCost} Starmotes)`;
     $('sheet-awaken-note').textContent = `${block && block !== `Need ${moteCost} Starmotes` ? `${block}. ` : ''}Each pink star multiplies all stats by ${AWAKEN_STAT_MULT}. A hero can hold as many pink stars as yellow stars. Starmotes come from the Colosseum.`;
     const unlocks: Array<[number, string, string]> = [
-      [1, `${def.sp1.name}`, def.sp1.text],
-      [2, `${def.sp2.name}`, def.sp2.text],
-      [AURA_EVOLUTIONS, `Aura: ${def.aura.name}`, def.aura.text],
-      [ULT_PLUS_EVOLUTIONS, `${def.ultimate.name}+`, def.ultPlus ?? `Ultimate hits for ${ULT_MULTIPLIER * ULT_STAR_BONUS}x instead of ${ULT_MULTIPLIER}x.`],
-      ...(def.signature && def.sigPlus ? [[SIG_PLUS_EVOLUTIONS, `${def.trait.name}+`, def.sigPlus] as [number, string, string]] : []),
+      [1, `${now.sp1.name}`, now.sp1.text],
+      [2, `${now.sp2.name}`, now.sp2.text],
+      [AURA_EVOLUTIONS, `Aura: ${now.aura.name}`, now.aura.text],
+      [ULT_PLUS_EVOLUTIONS, `${now.ultimate.name}+`, now.ultPlus ?? `Ultimate hits for ${ULT_MULTIPLIER * ULT_STAR_BONUS}x instead of ${ULT_MULTIPLIER}x.`],
+      ...(now.signature && now.sigPlus ? [[SIG_PLUS_EVOLUTIONS, `${now.trait.name}+`, now.sigPlus] as [number, string, string]] : []),
       [MASTERY_EVOLUTIONS, `${def.type} Mastery: ${TYPE_MASTERY[def.type].name}`, TYPE_MASTERY[def.type].text],
       [ASCENDED_EVOLUTIONS, 'Ascended', `The Ultimate recharges in ${ASCENDED_ULT_COOLDOWN} seconds instead of ${ULT_COOLDOWN}. Every ${LEGENDARY_MEDAL_RATE} extra crests for this hero become a Legendary crest, used to get Legendary heroes.`],
     ];
-    if ($('sheet-unlocks').dataset.key !== `${id}:${stars}`) {
+    if ($('sheet-unlocks').dataset.key !== `${id}:${stars}:${form}`) {
       $('sheet-unlocks').innerHTML = unlocks
         .map(([star, name, text]) => {
           const on = stars >= star;
           return `<li class="${on ? '' : 'locked'}"><span class="kind">${star + 1}★</span><span class="tag${on ? ' ready' : ''}">${on ? 'Unlocked' : 'Locked'}</span><div><b>${name}</b></div><p>${text}</p></li>`;
         })
         .join('');
-      $('sheet-unlocks').dataset.key = `${id}:${stars}`;
+      $('sheet-unlocks').dataset.key = `${id}:${stars}:${form}`;
     }
+  }
+
+  /** The hero page's Ascension section: shown only for Ascendant heroes. */
+  private renderAscension(id: string) {
+    const s = this.state;
+    const def = ascendantDef(id);
+    $('sheet-ascend').hidden = !def;
+    if (!def) return;
+    const form = s.formOf(id);
+    const shown = s.formDef(HEROES.find((h) => h.id === id) ?? def.base);
+    $('sheet-form-name').textContent = `${def.forms[form].formName} · ${cap(shown.rarity)}`;
+    $('sheet-form-next').textContent = form >= MAX_FORM ? 'Final form' : `Next: ${def.forms[form + 1].formName} (${cap(FORM_RARITIES[form + 1])})`;
+    const needs = s.ascendNeeds(id) ?? [];
+    const key = `${id}:${form}:${needs.map((n) => +n.met).join('')}`;
+    if ($('sheet-ascend-needs').dataset.key !== key) {
+      setHtml($('sheet-ascend-needs'), needs.map((n) => `<li class="${n.met ? 'met' : ''}">${n.met ? '✓' : '○'} ${n.text}</li>`).join(''));
+      $('sheet-ascend-needs').dataset.key = key;
+    }
+    const btn = $<HTMLButtonElement>('sheet-ascend-btn');
+    btn.hidden = form >= MAX_FORM;
+    btn.disabled = s.ascendBlocker(id) !== null;
+    btn.textContent = form >= MAX_FORM ? 'Ascend' : `Ascend to ${def.forms[form + 1].formName}`;
   }
 
   private modalAction: (() => void) | null = null;

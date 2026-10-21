@@ -62,6 +62,8 @@ import { marchCap, marchStep } from './movement';
 import { respawnTime, reviveIn, stageStartRevives } from './respawn';
 import { PVP_RESPAWN_MULT } from './colosseum';
 import { HERO_ANIMS } from './heroAnims';
+import { formArtKey } from './ascendant';
+import { ASCENDANT_HEROES, ascendantDef } from './heroes/ascendant';
 import { MOB_ANIMS } from './mobAnims';
 import { MOB_ELEMENTS, MOB_KINDS, pickMob, type MobId } from './mobs';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES, type BossAnim } from './bossAnims';
@@ -392,6 +394,8 @@ export class BattleScene extends Phaser.Scene {
     for (const r of [...REGIONS, 'colosseum']) for (const layer of ['sky', 'far', 'ground']) this.load.image(`bg-${r}-${layer}`, `bg/${r}_${layer}.png`);
     // Hero sprites (32x32, feet on row 30). A hero without a file falls back to its placeholder block.
     for (const h of HEROES) if (HERO_ANIMS[h.id]) this.load.image(`hero-${h.id}`, `heroes/${h.id}.png`);
+    // Ascendant heroes' form art (src/ascendant.ts), for forms whose art has landed.
+    for (const a of ASCENDANT_HEROES) for (const f of a.forms) if (f.art && HERO_ANIMS[f.art]) this.load.image(`hero-${f.art}`, `heroes/${f.art}.png`);
     for (const [id, a] of Object.entries(HERO_ANIMS)) {
       const size = { frameWidth: a.frame[0], frameHeight: a.frame[1] };
       this.load.spritesheet(`hero-${id}-run`, `heroes/${id}_run.png`, size);
@@ -541,6 +545,8 @@ export class BattleScene extends Phaser.Scene {
   private makeUnit(opts: {
     side: 'hero' | 'enemy';
     def?: HeroDef;
+    /** HERO_ANIMS key to draw a hero with (an Ascendant hero's form art); defaults to the hero's id. */
+    art?: string;
     texture: string;
     x: number;
     hp: Decimal;
@@ -571,8 +577,9 @@ export class BattleScene extends Phaser.Scene {
     const bossDef = opts.bossArt ? BOSS_ANIMS[opts.bossArt] : undefined;
     if (bossDef) body.setOrigin(1 - bossDef.feet[0] / bossDef.frame[0], bossDef.feet[1] / bossDef.frame[1]).setY(FOOT_Y).setScale(BOSS_SCALE).play(`boss-${opts.bossArt}-idle`);
     // Frame-animated heroes stand on their feet point, on the same foot line as everyone else.
-    const animDef = opts.def ? HERO_ANIMS[opts.def.id] : undefined;
-    const anim = animDef && this.anims.exists(`${opts.def!.id}-run`) ? { id: opts.def!.id, state: 'idle' as AnimState } : undefined;
+    const artId = opts.art ?? opts.def?.id;
+    const animDef = artId ? HERO_ANIMS[artId] : undefined;
+    const anim = animDef && this.anims.exists(`${artId}-run`) ? { id: artId!, state: 'idle' as AnimState } : undefined;
     // A Colosseum foe is a hero facing left, so its feet point mirrors.
     if (anim && animDef) body.setOrigin(opts.side === 'enemy' ? 1 - animDef.feet[0] / animDef.frame[0] : animDef.feet[0] / animDef.frame[0], animDef.feet[1] / animDef.frame[1]).setY(FOOT_Y);
     // Mob art faces right like the heroes and is flipped above, so its feet point mirrors too.
@@ -744,8 +751,10 @@ export class BattleScene extends Phaser.Scene {
     // Heroes taken out of the lineup leave the lane.
     for (const h of this.heroes) if (h.def && !this.fights(h.def.id)) h.view.destroy();
     this.heroes = this.heroes.filter((h) => h.def && this.fights(h.def.id));
-    for (const def of HEROES) {
-      if (!this.fights(def.id)) continue;
+    for (const base of HEROES) {
+      if (!this.fights(base.id)) continue;
+      // An Ascendant hero fights in its current form.
+      const def = this.state.formDef(base);
       const level = this.levelOf(def.id);
       if (level <= 0) continue;
       const stats = this.state.heroStats(def, level);
@@ -758,6 +767,7 @@ export class BattleScene extends Phaser.Scene {
         const ratio = u.maxHp.gt(0) ? u.hp.div(u.maxHp) : new Decimal(1);
         u.maxHp = hp;
         u.atk = atk;
+        u.def = def;
         u.defense = defense;
         u.stats = stats;
         u.speed = stats.moveSpeed.value;
@@ -768,7 +778,8 @@ export class BattleScene extends Phaser.Scene {
         const u = this.makeUnit({
           side: 'hero',
           def,
-          texture: `hero-${def.id}`,
+          art: this.heroArt(def),
+          texture: `hero-${this.heroArt(def)}`,
           x: PLAYER_CRYSTAL_X + 20 - i * 12,
           hp,
           atk,
@@ -787,6 +798,12 @@ export class BattleScene extends Phaser.Scene {
         this.puff(u.x, u.y, ELEMENT_COLORS[def.element]);
       }
     }
+  }
+
+  /** The art a hero is drawn with: an Ascendant hero's form art when it has landed, else the hero's own. */
+  private heroArt(def: HeroDef): string {
+    const a = ascendantDef(def.id);
+    return a ? formArtKey(a, this.state.formOf(def.id), (key) => !!HERO_ANIMS[key]) : def.id;
   }
 
   /** Whether a hero is on the field: the lineup, or the attack team in a Colosseum battle. */
