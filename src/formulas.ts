@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import type { HeroDef, StallDef, Element } from './data';
-import { STALL_MILESTONE, GUILD_BOSS_KILL_COINS, GUILD_BOSS_WEEK_COINS, GUILD_BOSS_LEVELS_PER_CHEST, GUILD_BOSS_WEEK_MAX_CHESTS } from './data';
+import { STALL_MILESTONE, GUILD_BOSS_FIGHT_GAP_SECONDS, GUILD_BOSS_KILL_COINS, GUILD_BOSS_WEEK_COINS, GUILD_BOSS_LEVELS_PER_CHEST, GUILD_BOSS_WEEK_MAX_CHESTS } from './data';
 
 // Tuning from an economy sim: the stage 100 boss falls when the lead hero is
 // around level 100 (gold + Ember levels), the first Rekindle (after stage 125)
@@ -255,10 +255,26 @@ export function guildBossWeekReward(top: number): { coins: number; chests: numbe
   return { coins: GUILD_BOSS_WEEK_COINS * (10 + top), chests: Math.min(GUILD_BOSS_WEEK_MAX_CHESTS, Math.ceil(top / GUILD_BOSS_LEVELS_PER_CHEST)) };
 }
 
+/** The Monday (UTC) of the week holding `now`, as YYYY-MM-DD: the Guild Boss week. */
+export function utcWeekStart(now: number): string {
+  const day = (new Date(now).getUTCDay() + 6) % 7;
+  return new Date(now - day * 86_400_000).toISOString().slice(0, 10);
+}
+
 /** The boss element for a week (its Monday): water, fire, earth, light, dark in turn, like guild_boss_element. */
 export function guildBossElement(week: string): Element {
   const n = Math.round((Date.parse(week) - Date.parse('2025-12-29')) / (7 * 86_400_000));
   return (['water', 'fire', 'earth', 'light', 'dark'] as const)[((n % 5) + 5) % 5];
+}
+
+/**
+ * Whether this player can fight the Guild Boss now: not while it rests after a kill (`restUntil`), and not within
+ * GUILD_BOSS_FIGHT_GAP_SECONDS of their own last fight (`lastFight`), like hit_guild_boss. Times are ms since epoch.
+ */
+export function guildBossFightWait(restUntil: number | null, lastFight: number | null, now: number): { kind: 'ready' } | { kind: 'resting' | 'cooldown'; ms: number } {
+  if (restUntil !== null && restUntil > now) return { kind: 'resting', ms: restUntil - now };
+  const free = lastFight === null ? 0 : lastFight + GUILD_BOSS_FIGHT_GAP_SECONDS * 1000;
+  return free > now ? { kind: 'cooldown', ms: free - now } : { kind: 'ready' };
 }
 
 /** Points needed to reach a Guild Research rank: 300 x (1^2 + ... + rank^2). */

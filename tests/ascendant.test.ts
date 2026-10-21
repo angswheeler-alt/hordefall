@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GameState } from '../src/state';
-import { HEROES, RELEASED_HEROES, PLAYABLE_HEROES, MAX_STARS } from '../src/data';
+import { HEROES, RELEASED_HEROES, PLAYABLE_HEROES, MAX_STARS, ASCENDANT_CHEST, CHEST_DROPS } from '../src/data';
 import { FORM_RARITIES, MAX_FORM, COUNTERED_BY, resolveForm, clampForm, ascendBlocker, formArtKey } from '../src/ascendant';
 import { activeEffects } from '../src/skills';
 import { ASCENDANT_HEROES, ascendantDef, isAscendant } from '../src/heroes/ascendant';
@@ -242,5 +242,74 @@ describe('forms in play', () => {
     for (let i = 0; i < MAX_FORM; i++) s.ascend('asc_test');
     expect(s.ascendNeeds('asc_test')).toBeNull();
     expect(s.ascendNeeds(HEROES[0].id)).toBeNull();
+  });
+});
+
+describe('Ascendant Chest', () => {
+  // Weeks (Monday UTC): 2026-10-19 has the Earth Guild Boss, 2026-10-26 the Light one, which Dark beats.
+  const lightWeek = Date.parse('2026-10-28T12:00:00Z');
+  const earthWeek = Date.parse('2026-10-21T12:00:00Z');
+  const pool = [test];
+
+  it('is hidden while no Ascendant hero is out', () => {
+    const s = fresh();
+    expect(s.ascendantChestState(lightWeek)).toBeNull();
+    expect(s.buyAscendantChest(lightWeek)).toBeNull();
+  });
+
+  it('sells the hero whose element beats the Guild Boss of the week', () => {
+    const s = fresh();
+    const st = s.ascendantChestState(lightWeek, pool)!;
+    expect([st.hero.id, st.boss, st.week, st.bought]).toEqual(['asc_test', 'light', '2026-10-26', 0]);
+    expect(st.endsAt).toBe(Date.parse('2026-11-02'));
+    expect(s.ascendantChestState(earthWeek, pool)).toBeNull();
+  });
+
+  it('each chest costs more and gives more, then sells out', () => {
+    for (let i = 1; i < ASCENDANT_CHEST.length; i++) {
+      expect(ASCENDANT_CHEST[i].gems).toBeGreaterThan(ASCENDANT_CHEST[i - 1].gems);
+      expect(ASCENDANT_CHEST[i].crests).toBeGreaterThan(ASCENDANT_CHEST[i - 1].crests);
+    }
+    const s = fresh();
+    s.gems = 1e6;
+    let crests = 0;
+    for (const step of ASCENDANT_CHEST) {
+      const gems = s.gems;
+      const got = s.buyAscendantChest(lightWeek, pool)!;
+      crests += step.crests;
+      expect([got.heroId, got.crests, gems - s.gems, s.crests.asc_test, got.drops.length]).toEqual(['asc_test', step.crests, step.gems, crests, CHEST_DROPS]);
+    }
+    expect(s.ascendantChestState(lightWeek, pool)!.next).toBeNull();
+    const gems = s.gems;
+    expect(s.buyAscendantChest(lightWeek, pool)).toBeNull();
+    expect(s.gems).toBe(gems);
+  });
+
+  it('never sells the Ascendant hero through its other drops', () => {
+    const s = fresh();
+    s.gems = 1e6;
+    for (let i = 0; i < 5; i++) for (const d of s.buyAscendantChest(lightWeek, pool)!.drops) expect(isAscendant(d.heroId)).toBe(false);
+  });
+
+  it('without enough Gems nothing is spent', () => {
+    const s = fresh();
+    s.gems = ASCENDANT_CHEST[0].gems - 1;
+    expect(s.buyAscendantChest(lightWeek, pool)).toBeNull();
+    expect([s.gems, s.crests.asc_test ?? 0, s.ascChest.bought]).toEqual([ASCENDANT_CHEST[0].gems - 1, 0, 0]);
+  });
+
+  it('prices reset with the next Light week and survive a reload', () => {
+    const s = fresh();
+    s.gems = 1e6;
+    s.buyAscendantChest(lightWeek, pool);
+    s.buyAscendantChest(lightWeek, pool);
+    s.save();
+    const t = new GameState();
+    expect(t.load()).toBe(true);
+    expect(t.ascendantChestState(lightWeek, pool)!.bought).toBe(2);
+    // Five weeks later the Light boss is back, and the price starts over.
+    const later = lightWeek + 5 * 7 * 86_400_000;
+    expect(t.ascendantChestState(later, pool)!.bought).toBe(0);
+    expect(t.ascendantChestState(later, pool)!.next).toEqual(ASCENDANT_CHEST[0]);
   });
 });
