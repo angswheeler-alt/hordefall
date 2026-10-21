@@ -171,7 +171,7 @@ export const ELEMENT_COLORS: Record<Element, number> = {
   dark: 0x9b59d0,
 };
 
-// The first 20 heroes: four per element, all Common, then Rare heroes. Brine is the free starter.
+// The first 20 heroes: four per element, each with its Crush unit's rarity (Rook has none and stays Common). Brine is the free starter.
 // Brine, Ember, Thicket (id thorn), Lumen and Rook are built to the hero standard (Signature, unique Ultimate);
 // the others take the kit of the closest Crush Them All hero (same element and class) under our own names and text
 // (design/crush-hero-remap.md). Thorn and Blaze were renamed Thicket and Flare
