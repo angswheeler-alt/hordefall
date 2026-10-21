@@ -1,0 +1,193 @@
+import { describe, expect, it } from 'vitest';
+import { GameState } from '../src/state';
+import { HEROES, RELEASED_HEROES, PLAYABLE_HEROES, MAX_STARS } from '../src/data';
+import { FORM_RARITIES, MAX_FORM, COUNTERED_BY, resolveForm, clampForm, ascendBlocker } from '../src/ascendant';
+import { ASCENDANT_HEROES, ascendantDef, isAscendant } from '../src/heroes/ascendant';
+import { elementMultiplier } from '../src/data';
+
+const test = ascendantDef('asc_test')!;
+
+function fresh() {
+  GameState.frozen = false;
+  localStorage.clear();
+  return new GameState();
+}
+
+/** A game where asc_test is recruited and has everything for every form. */
+function ready() {
+  const s = fresh();
+  s.levels.asc_test = 1;
+  s.stars.asc_test = MAX_STARS;
+  s.trialBest.dark = 99;
+  s.bestStage = 5000;
+  s.essences.dark = 1e9;
+  s.enhanceStones = 1e6;
+  return s;
+}
+
+describe('Ascendant framework', () => {
+  it('keeps Ascendant heroes out of the game for now', () => {
+    for (const a of ASCENDANT_HEROES) {
+      expect(HEROES.some((h) => h.id === a.base.id)).toBe(false);
+      expect(RELEASED_HEROES).not.toContain(a.base.id);
+      expect(PLAYABLE_HEROES.some((h) => h.id === a.base.id)).toBe(false);
+    }
+    expect(isAscendant('asc_test')).toBe(true);
+    expect(isAscendant(HEROES[0].id)).toBe(false);
+  });
+
+  it('every Ascendant hero has four forms, starts Common and needs more for each step', () => {
+    for (const a of ASCENDANT_HEROES) {
+      expect(a.forms).toHaveLength(MAX_FORM + 1);
+      expect(a.base.rarity).toBe('common');
+      for (let i = 1; i < a.steps.length; i++) {
+        for (const k of ['evolutions', 'trialTier', 'bestStage', 'essence', 'stones'] as const) expect(a.steps[i][k]).toBeGreaterThanOrEqual(a.steps[i - 1][k]);
+      }
+      expect(a.steps[a.steps.length - 1].evolutions).toBeLessThanOrEqual(MAX_STARS);
+    }
+  });
+
+  it('each form shows its rarity and lays its changes over the forms before it', () => {
+    const forms = [0, 1, 2, 3].map((f) => resolveForm(test, f));
+    expect(forms.map((f) => f.rarity)).toEqual(FORM_RARITIES);
+    expect(forms.map((f) => f.formName)).toEqual(['Form I', 'Form II', 'Form III', 'Form IV']);
+    expect(forms[0].baseAtk).toBe(test.base.baseAtk);
+    // Form III sets its own ATK and HP but keeps Form II's attack speed change... until it sets its own.
+    expect(forms[2].baseAtk).toBe(9);
+    expect(forms[3].attackCooldown).toBe(0.6);
+    // The Charge from Form II carries on until Form IV replaces it.
+    expect(forms[2].charge).toEqual(forms[1].charge);
+    expect(forms[3].charge?.boost).toBe('bossDamage');
+    // Art falls back to the form before when a form names none.
+    expect(forms[0].art).toBe('asc_test');
+    expect(forms[3].art).toBe('asc_test_f4');
+    // Stats only go up from form to form, and the id and element never change.
+    for (let i = 1; i < forms.length; i++) {
+      expect(forms[i].baseAtk).toBeGreaterThanOrEqual(forms[i - 1].baseAtk);
+      expect(forms[i].baseHp).toBeGreaterThanOrEqual(forms[i - 1].baseHp);
+      expect(forms[i].id).toBe(test.base.id);
+      expect(forms[i].element).toBe(test.base.element);
+    }
+    // The hero entry itself is never changed.
+    expect(test.base.rarity).toBe('common');
+  });
+
+  it('clamps bad form values', () => {
+    expect([clampForm(-2), clampForm(1.7), clampForm(9), clampForm('2'), clampForm(NaN)]).toEqual([0, 1, MAX_FORM, 0, 0]);
+    expect(resolveForm(test, 42).rarity).toBe('legendary');
+  });
+
+  it('the chest hero counters the boss element', () => {
+    for (const [boss, hero] of Object.entries(COUNTERED_BY)) expect(elementMultiplier(hero as never, boss as never)).toBeGreaterThan(1);
+  });
+});
+
+describe('ascending', () => {
+  it('names what is missing, in order', () => {
+    const base = { form: 0, recruited: true, evolutions: 9, trialTier: 99, bestStage: 1e6, essence: 1e9, stones: 1e9 };
+    expect(ascendBlocker(undefined, base)).toBe('unknown');
+    expect(ascendBlocker(test, { ...base, form: MAX_FORM })).toBe('max');
+    expect(ascendBlocker(test, { ...base, recruited: false })).toBe('locked');
+    expect(ascendBlocker(test, { ...base, evolutions: 1 })).toBe('stars');
+    expect(ascendBlocker(test, { ...base, trialTier: 0 })).toBe('trial');
+    expect(ascendBlocker(test, { ...base, bestStage: 1 })).toBe('stage');
+    expect(ascendBlocker(test, { ...base, essence: 0 })).toBe('essence');
+    expect(ascendBlocker(test, { ...base, stones: 0 })).toBe('stones');
+    expect(ascendBlocker(test, base)).toBeNull();
+  });
+
+  it('spends the step cost once and moves up one form', () => {
+    const s = ready();
+    const step = test.steps[0];
+    expect(s.formOf('asc_test')).toBe(0);
+    expect(s.ascend('asc_test')).toBe(true);
+    expect(s.formOf('asc_test')).toBe(1);
+    expect(s.essences.dark).toBe(1e9 - step.essence);
+    expect(s.enhanceStones).toBe(1e6 - step.stones);
+  });
+
+  it('goes all the way to Legendary and no further, keeping stars and levels', () => {
+    const s = ready();
+    s.levels.asc_test = 40;
+    s.emberLevels.asc_test = 12;
+    s.awaken.asc_test = 2;
+    for (let i = 0; i < MAX_FORM; i++) expect(s.ascend('asc_test')).toBe(true);
+    expect(s.formOf('asc_test')).toBe(MAX_FORM);
+    const essence = s.essences.dark;
+    expect(s.ascend('asc_test')).toBe(false);
+    expect(s.essences.dark).toBe(essence);
+    expect([s.levels.asc_test, s.stars.asc_test, s.emberLevels.asc_test, s.awaken.asc_test]).toEqual([40, MAX_STARS, 12, 2]);
+  });
+
+  it('a failed try spends nothing', () => {
+    for (const lack of ['stars', 'trial', 'stage', 'essence', 'stones', 'locked'] as const) {
+      const s = ready();
+      if (lack === 'stars') s.stars.asc_test = 1;
+      if (lack === 'trial') s.trialBest.dark = 1;
+      if (lack === 'stage') s.bestStage = 10;
+      if (lack === 'essence') s.essences.dark = 1;
+      if (lack === 'stones') s.enhanceStones = 1;
+      if (lack === 'locked') s.levels.asc_test = 0;
+      const before = { essence: s.essences.dark, stones: s.enhanceStones };
+      expect(s.ascendBlocker('asc_test')).toBe(lack);
+      expect(s.ascend('asc_test')).toBe(false);
+      expect({ essence: s.essences.dark, stones: s.enhanceStones }).toEqual(before);
+      expect(s.formOf('asc_test')).toBe(0);
+    }
+  });
+
+  it('only Ascendant heroes ascend', () => {
+    const s = ready();
+    const normal = HEROES[0].id;
+    s.levels[normal] = 1;
+    s.stars[normal] = MAX_STARS;
+    expect(s.ascendBlocker(normal)).toBe('unknown');
+    expect(s.ascend(normal)).toBe(false);
+    expect(s.forms[normal]).toBeUndefined();
+  });
+});
+
+describe('Ascendant saves', () => {
+  it('older saves load with every hero in its Common form', () => {
+    const s = fresh();
+    const data = s.toJSON();
+    delete data.forms;
+    GameState.writeLocal(data);
+    const t = new GameState();
+    expect(t.load()).toBe(true);
+    expect(t.forms).toEqual({});
+    expect(t.formOf('asc_test')).toBe(0);
+  });
+
+  it('forms survive a save and load, and bad values are repaired', () => {
+    const s = ready();
+    s.ascend('asc_test');
+    s.ascend('asc_test');
+    s.save();
+    const t = new GameState();
+    expect(t.load()).toBe(true);
+    expect(t.formOf('asc_test')).toBe(2);
+
+    const data = t.toJSON();
+    data.forms = { asc_test: 7, other: -3, odd: 'x', half: 1.5 };
+    GameState.writeLocal(data);
+    const u = new GameState();
+    expect(u.load()).toBe(true);
+    expect(u.forms).toEqual({ asc_test: MAX_FORM, other: 0, half: 1 });
+  });
+
+  it('keeps save fields this version does not know, but not the cloud rev', () => {
+    const s = fresh();
+    GameState.writeLocal({ ...s.toJSON(), futureThing: { a: 1 }, rev: 12 });
+    const t = new GameState();
+    expect(t.load()).toBe(true);
+    const out = t.toJSON();
+    expect(out.futureThing).toEqual({ a: 1 });
+    expect(out.rev).toBeUndefined();
+    // Known fields always come from the game, never from the kept extras.
+    t.gems = 777;
+    expect(t.toJSON().gems).toBe(777);
+    // A new game carries no extras.
+    expect(Object.keys(GameState.freshSave())).not.toContain('futureThing');
+  });
+});
