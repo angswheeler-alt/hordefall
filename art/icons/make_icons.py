@@ -4,7 +4,7 @@ Run: python3 art/icons/make_icons.py            (every picture)
      python3 art/icons/make_icons.py bakery     (just these ids)
 
 art/icons/stalls/<id>.jpg and art/icons/relics/<id>.jpg are single items on a flat magenta background. Each one
-becomes public/stalls/<id>.png or public/relics/<id>.png: the magenta keyed out (same test as the hero sprites),
+becomes src/assets/stalls/<id>.png or src/assets/relics/<id>.png (bundled by Vite): the magenta keyed out (same test as the hero sprites),
 stray specks dropped, trimmed, then shrunk by averaging only the item's own pixels in each block, so no pink
 fringe survives, and centred on a square canvas.
 """
@@ -14,7 +14,7 @@ import sys
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-PUBLIC = os.path.join(ROOT, '..', '..', 'public')
+ASSETS = os.path.join(ROOT, '..', '..', 'src', 'assets')
 SIZE = {'stalls': 96, 'relics': 96}  # canvas px; shown at 58 and 52 css px, so about 2x for sharp phones
 PAD = 2
 
@@ -118,8 +118,8 @@ def make(kind, ident):
                         r += c[0]; g += c[1]; b += c[2]; n += 1
             if total and n * 2 >= total:
                 op[ox + bx, oy + by] = (r // n, g // n, b // n, 255)
-    os.makedirs(os.path.join(PUBLIC, kind), exist_ok=True)
-    out.save(os.path.join(PUBLIC, kind, ident + '.png'), optimize=True)
+    os.makedirs(os.path.join(ASSETS, kind), exist_ok=True)
+    out.save(os.path.join(ASSETS, kind, ident + '.png'), optimize=True)
 
 
 if __name__ == '__main__':

@@ -4,8 +4,8 @@ import { BOSS_ANIMS, BOSS_ANIM_FRAMES } from '../src/bossAnims';
 
 // Generated images by file name (Vite lists them without loading them).
 const names = (files: Record<string, unknown>) => new Set(Object.keys(files).map((f) => f.split('/').pop()));
-const stalls = names(import.meta.glob('../public/stalls/*.png'));
-const relics = names(import.meta.glob('../public/relics/*.png'));
+const stalls = names(import.meta.glob('../src/assets/stalls/*.png'));
+const relics = names(import.meta.glob('../src/assets/relics/*.png'));
 const bosses = names(import.meta.glob('../public/bosses/*.png'));
 
 describe('item and Trial boss art', () => {

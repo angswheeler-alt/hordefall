@@ -31,6 +31,10 @@ const escHtml = (text: string) => String(text).replace(/[&<>"']/g, (c) => `&#${c
  * stylesheet that uses it (assets/ in a build), not the page, so portraits went missing there.
  */
 const heroArt = (id: string) => (HERO_ANIMS[id] ? `url('${new URL(`heroes/${id}.png`, document.baseURI).href}')` : 'none');
+// Stall and relic icons (art/icons/make_icons.py), bundled so the single-file build carries them too.
+const iconUrls = (files: Record<string, string>) => Object.fromEntries(Object.entries(files).map(([f, url]) => [f.split('/').pop()!.slice(0, -4), url]));
+const STALL_ICONS = iconUrls(import.meta.glob('./assets/stalls/*.png', { eager: true, query: '?url', import: 'default' }));
+const RELIC_ICONS = iconUrls(import.meta.glob('./assets/relics/*.png', { eager: true, query: '?url', import: 'default' }));
 // Heroes still waiting for art show their initial on the element color instead of a picture.
 export const faceStyle = (def: HeroDef) =>
   `background-color:${hex(ELEMENT_COLORS[def.element])};--art:${heroArt(def.id)}${HERO_ANIMS[def.id] ? '' : ';color:#fff !important;text-shadow:0 1px 0 #000 !important'}`;
@@ -81,17 +85,22 @@ interface UltButton {
 
 /** HTML overlay for everything that isn't the lane: gold, hero upgrades, toggles. */
 
-/** CSS for a Trial boss portrait: the first idle frame, cropped to a `size` px box from just above the head. */
+/** CSS for a Trial boss portrait: the first idle frame in a `size` px box. */
 function bossFace(el: Element, size: number): Partial<CSSStyleDeclaration> {
   const id = BOSS_ANIMS[TRIAL_BOSS_ART[el]] ? TRIAL_BOSS_ART[el] : el;
   const a = BOSS_ANIMS[id];
   if (!a) return {};
-  // Zoomed in a little past the frame width so the head and shoulders fill the box.
-  const scale = (size / a.frame[0]) * 1.35;
+  const [x0, x1] = a.idleX ?? [0, a.frame[0]];
+  const tall = a.frame[1] - a.headTop;
+  // A long four-legged boss (head off to one side, a shrine or chimneys on top) is shown whole, centred on
+  // itself; an upright one is zoomed in a little past the frame width so the head and shoulders fill the box.
+  const whole = a.frame[0] > 100;
+  const scale = whole ? (size / Math.max(x1 - x0, tall)) * 1.05 : (size / a.frame[0]) * 1.35;
+  const top = whole ? -a.headTop * scale + (size - tall * scale) / 2 : -Math.max(0, a.headTop - 4) * scale;
   return {
     backgroundImage: `url(bosses/${id}_idle.png)`,
     backgroundSize: `${a.frame[0] * BOSS_ANIM_FRAMES.idle * scale}px auto`,
-    backgroundPosition: `${-(a.frame[0] * scale - size) / 2}px ${-Math.max(0, a.headTop - 4) * scale}px`,
+    backgroundPosition: `${size / 2 - ((x0 + x1) / 2) * scale}px ${top}px`,
   };
 }
 
@@ -313,7 +322,7 @@ export class UI {
 
   private relicArt(def: RelicDef) {
     const [a, b] = def.essences;
-    return `<div class="relic-art" style="--a:${hex(ELEMENT_COLORS[a])};--b:${hex(ELEMENT_COLORS[b])}" aria-hidden="true"><img class="relic-img" src="relics/${def.id}.png" alt="" draggable="false"><span class="relic-stars">${def.stars > 5 ? `${def.stars}★` : '★'.repeat(def.stars)}</span></div>`;
+    return `<div class="relic-art" style="--a:${hex(ELEMENT_COLORS[a])};--b:${hex(ELEMENT_COLORS[b])}" aria-hidden="true"><img class="relic-img" src="${RELIC_ICONS[def.id]}" alt="" draggable="false"><span class="relic-stars">${def.stars > 5 ? `${def.stars}★` : '★'.repeat(def.stars)}</span></div>`;
   }
 
   /** "All heroes ATK +40%" style text for a relic's effects at a level. */
@@ -615,7 +624,7 @@ export class UI {
       const root = document.createElement('div');
       root.className = 'stall';
       root.innerHTML = `
-        <div class="stall-art" style="--c:${hex(def.color)}" aria-hidden="true"><img class="stall-img" src="stalls/${def.id}.png" alt="" draggable="false"><span class="stall-lv"></span></div>
+        <div class="stall-art" style="--c:${hex(def.color)}" aria-hidden="true"><img class="stall-img" src="${STALL_ICONS[def.id]}" alt="" draggable="false"><span class="stall-lv"></span></div>
         <div class="stall-info">
           <div class="banner" style="--el:${hex(def.color)}"><span class="name">${def.name}</span></div>
           <button class="stall-bar" aria-label="Collect ${def.name}"><i></i><span class="stall-amt"></span></button>
