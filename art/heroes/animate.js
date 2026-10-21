@@ -28,6 +28,17 @@ const HERO_SIZE = {
   brine: 1, ember: 1, rook: 1, brook: 1,
   lumen: 0.95, seraph: 0.95, flint: 0.95, ripple: 0.95,
   briar: 0.9, moss: 0.85, shade: 0.85, sol: 0.8, nyx: 0.75, fern: 0.7,
+  // The full roster. Squads (archers, scrappers, spears...) stay at 1: the game draws each fighter at 0.7.
+  magmabrute: 1.3, bonebrute: 1.3, crabbrute: 1.25, glacius: 1.25, thundrum: 1.25,
+  pyrrhus: 1.2, boulder: 1.2, brightmane: 1.2, malgrave: 1.2,
+  tusk: 1.15, grumm: 1.15, rime: 1.15, ruin: 1.15, brasha: 1.15, weaver: 1.15, gloom: 1.15, drakebot: 1.15,
+  lanternqueen: 1.1, gourdon: 1.1, halden: 1.05, valorian: 1.05, barnacle: 1.05,
+  quill: 0.95, burrow: 0.95, volta: 0.95, vesper: 0.95, celeste: 0.95, fuse: 0.95, kestra: 0.95,
+  scorpia: 0.95, sunjo: 0.95, gizmo: 0.95, nettle: 0.95, scorch: 0.95, boomer: 0.95,
+  hibachi: 0.9, nerissa: 0.9, skiff: 0.9, bluster: 0.9, croaker: 0.9, glimmer: 0.9, aurora: 0.9,
+  juggles: 0.85, kindra: 0.85, cyclo: 0.85, swiftwing: 0.85,
+  bubbles: 0.8, buzz: 0.8, flit: 0.8, flicker: 0.8, puff: 0.8, mendbot: 0.8, wyrmling: 0.8,
+  halo: 0.75, glint: 0.7, seedling: 0.7,
 };
 const PALETTE = 24;
 const OUTLINE = [30, 22, 40];
@@ -40,8 +51,9 @@ const median = a => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)];
 // do bright pinks (a glowing core) that the fairly dark magenta never reaches.
 const isBg = p => p[2] - p[0] <= 20 && lum(p) < 130 && ((p[0] - p[1] > 80 && p[2] - p[1] > 40) || (p[0] > 60 && p[1] < 30 && p[2] > 40 && p[0] - p[1] > 50));
 
-// Each figure is one connected shape (weapons can reach into the next figure's columns).
-function figures(file, target = TARGET_HEIGHT) {
+// Each figure is one connected shape (weapons can reach into the next figure's columns). `scale` (source px per
+// sprite px) overrides the sheet's own, so two sheets cut from one image keep one size.
+function figures(file, target = TARGET_HEIGHT, scale) {
   const img = readPNG(file);
   const W = img.w, H = img.h, label = new Int32Array(W * H).fill(-1);
   const shapes = [];
@@ -64,9 +76,40 @@ function figures(file, target = TARGET_HEIGHT) {
     }
     shapes.push(s);
   }
-  const big = shapes.filter(s => s.n > 2000).sort((a, b) => a.x0 - b.x0);
+  let big = shapes.filter(s => s.n > 2000);
+  // A fireball, bomb or slash flying on its own between frames is no frame: drop shapes far smaller than a figure.
+  const typicalN = median(big.map(s => s.n));
+  big = big.filter(s => s.n >= typicalN * 0.3);
+  // A beam or web line can join two neighbouring frames into one shape twice as wide as the rest: cut it into
+  // frames at the emptiest columns near the even divisions.
+  const typicalW = median(big.map(s => s.x1 - s.x0 + 1));
+  for (const s of [...big]) {
+    const w = s.x1 - s.x0 + 1, k = Math.round(w / typicalW);
+    if (w < typicalW * 1.7 || k < 2) continue;
+    const colN = x => { let n = 0; for (let y = s.y0; y <= s.y1; y++) if (label[y * W + x] === s.id) n++; return n; };
+    const cuts = [s.x0];
+    for (let j = 1; j < k; j++) {
+      const mid = Math.round(s.x0 + (w * j) / k), reach = Math.round(typicalW * 0.3);
+      let cut = mid;
+      for (let x = mid - reach; x <= mid + reach; x++) if (colN(x) < colN(cut)) cut = x;
+      cuts.push(cut);
+    }
+    cuts.push(s.x1 + 1);
+    big.splice(big.indexOf(s), 1);
+    for (let j = 0; j < k; j++) {
+      const piece = { id: shapes.length, n: 0, x0: W, x1: 0, y0: H, y1: 0 };
+      for (let y = s.y0; y <= s.y1; y++) for (let x = cuts[j]; x < cuts[j + 1]; x++) {
+        if (label[y * W + x] !== s.id) continue;
+        label[y * W + x] = piece.id;
+        piece.n++; piece.x0 = Math.min(piece.x0, x); piece.x1 = Math.max(piece.x1, x); piece.y0 = Math.min(piece.y0, y); piece.y1 = Math.max(piece.y1, y);
+      }
+      shapes.push(piece);
+      if (piece.n >= typicalN * 0.3) big.push(piece); // a stretch of beam on its own is no frame
+    }
+  }
+  big.sort((a, b) => a.x0 - b.x0);
   const ground = Math.max(...big.map(s => s.y1)) + 1;
-  const block = median(big.map(s => s.y1 - s.y0 + 1)) / target;
+  const block = scale ?? median(big.map(s => s.y1 - s.y0 + 1)) / target;
   return big.map(s => {
     const fg = (x, y) => x >= 0 && y >= 0 && x < W && y < H && label[y * W + x] === s.id;
     // Head anchor: centre of the top fifth of the figure.
@@ -107,9 +150,13 @@ function shrink(f) {
 function buildHero(id) {
   const dir = path.join(ROOT, id);
   const size = HERO_SIZE[id] ?? 1;
+  const attack = figures(path.join(dir, 'attack_sheet.png'), TARGET_HEIGHT * size);
+  // Sheets cut from one image by split.js are drawn at one size, so the run keeps the attack's scale (a hero who
+  // rides a balloon between fights stays the same size in it); separately generated sheets each find their own.
+  const oneImage = fs.existsSync(path.join(dir, 'split.json'));
   const small = {
-    attack: figures(path.join(dir, 'attack_sheet.png'), TARGET_HEIGHT * size).map(shrink),
-    run: figures(path.join(dir, 'run_sheet.png'), TARGET_HEIGHT * size).map(shrink),
+    attack: attack.map(shrink),
+    run: figures(path.join(dir, 'run_sheet.png'), TARGET_HEIGHT * size, oneImage ? attack[0].block : undefined).map(shrink),
   };
   // One canvas for every frame: head anchor at a fixed column, ground on the bottom rows.
   let minX = 0, maxX = 0, minY = 0;
