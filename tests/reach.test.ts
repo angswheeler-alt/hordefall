@@ -5,10 +5,10 @@ import { MOB_KINDS } from '../src/mobs';
 import { canReach, isMelee, pickVictim } from '../src/reach';
 import { simulatePvp, type PvpUnit } from '../src/colosseum';
 
-const flyer = { flying: true, isHero: true };
-const walker = { isHero: true };
+const flyer = { flying: true };
+const walker = {};
 
-describe('melee vs flying heroes', () => {
+describe('melee vs flyers', () => {
   it('melee attackers on the ground cannot hit flying heroes', () => {
     expect(canReach({ range: MOB_KINDS.grunt.range }, flyer)).toBe(false);
     expect(canReach({ range: MOB_KINDS.brute.range }, flyer)).toBe(false);
@@ -21,8 +21,12 @@ describe('melee vs flying heroes', () => {
     expect(canReach({ range: 40, isBoss: true }, flyer)).toBe(true);
   });
 
-  it('flying mobs can still be hit by melee heroes', () => {
-    expect(canReach({ range: 30 }, { flying: true })).toBe(true);
+  it('melee heroes on the ground cannot hit flying mobs either', () => {
+    const brine = HEROES.find((h) => h.id === 'brine')!;
+    expect(canReach(brine, { flying: true })).toBe(false);
+    expect(canReach(brine, {})).toBe(true);
+    expect(canReach({ range: 30, flying: true }, { flying: true })).toBe(true);
+    expect(canReach(HEROES.find((h) => h.id === 'rook')!, { flying: true })).toBe(true);
   });
 
   it('counts every hero Type the same way the Colosseum front line does', () => {
@@ -36,35 +40,35 @@ describe('who an enemy goes for', () => {
 
   it('skips a flying hero in front for the ground hero behind it', () => {
     const pick = pickVictim(grunt, [
-      { x: 400, alive: true, flying: true, isHero: true },
-      { x: 300, alive: true, isHero: true },
+      { x: 400, alive: true, flying: true },
+      { x: 300, alive: true },
     ]);
     expect(pick.target?.x).toBe(300);
   });
 
   it('turns back for a ground hero it walked past', () => {
     const pick = pickVictim(grunt, [
-      { x: 450, alive: true, flying: true, isHero: true },
-      { x: 560, alive: true, isHero: true },
+      { x: 450, alive: true, flying: true },
+      { x: 560, alive: true },
     ]);
     expect(pick.target?.x).toBe(560);
   });
 
   it('waits under the nearest flyer when only flyers are left', () => {
     const pick = pickVictim(grunt, [
-      { x: 200, alive: true, flying: true, isHero: true },
-      { x: 420, alive: true, flying: true, isHero: true },
-      { x: 480, alive: false, isHero: true },
+      { x: 200, alive: true, flying: true },
+      { x: 420, alive: true, flying: true },
+      { x: 480, alive: false },
     ]);
     expect(pick).toEqual({ holdX: 420 });
   });
 
   it('a caster still shoots the flyer', () => {
-    expect(pickVictim({ x: 500, range: 100 }, [{ x: 420, alive: true, flying: true, isHero: true }]).target?.x).toBe(420);
+    expect(pickVictim({ x: 500, range: 100 }, [{ x: 420, alive: true, flying: true }]).target?.x).toBe(420);
   });
 
   it('has nothing to do when the whole team is down', () => {
-    expect(pickVictim(grunt, [{ x: 420, alive: false, isHero: true }])).toEqual({});
+    expect(pickVictim(grunt, [{ x: 420, alive: false }])).toEqual({});
   });
 });
 
