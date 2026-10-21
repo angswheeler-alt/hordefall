@@ -1371,7 +1371,7 @@ export class UI {
         return `<div class="trial-entry${isOpen ? ' open' : ''}" style="--el:${hex(ELEMENT_COLORS[e])}">` +
           `<span class="trial-portrait" style="${face}" title="${cap(e)}"></span>` +
           `<div class="trial-entry-text"><b>${TRIAL_BOSS_NAMES[e]} <span>(${days})</span></b>` +
-          `<small>Rewards: <i class="ess-${e}" title="${ESSENCE_NAMES[e]}"></i> and <i class="crest" title="${TRIAL_MEDALS} crests for random ${cap(e)} heroes"></i> x${TRIAL_MEDALS}</small></div>` +
+          `<small>Rewards: <i class="ess-${e}" title="${ESSENCE_NAMES[e]}"></i> and <i class="medal" title="${TRIAL_MEDALS} crests for random ${cap(e)} heroes"></i> x${TRIAL_MEDALS}</small></div>` +
           `<button class="trial-enter${isOpen && unlocked ? ' lit' : ''}" data-el="${e}" ${isOpen && unlocked ? '' : 'disabled'} title="${isOpen ? (unlocked ? `Open today` : 'Opens after the stage 50 boss') : `Open ${days}`}">${btn}</button>` +
           `</div>`;
       }).join('');
