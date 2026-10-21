@@ -888,7 +888,7 @@ export class GameState {
   /** A hero as a Colosseum fighter: permanent stats only, like CP. */
   pvpUnit(def: HeroDef): PvpUnit {
     const st = this.heroStats(def, this.permanentLevel(def.id));
-    return { id: def.id, element: def.element, atk: st.atk.value, hp: st.hp.value, def: st.def.value, attacksPerSec: st.attacksPerSec.value, critRate: st.critRate, critDmg: st.critDmg, melee: def.range <= 60 };
+    return { id: def.id, element: def.element, atk: st.atk.value, hp: st.hp.value, def: st.def.value, attacksPerSec: st.attacksPerSec.value, critRate: st.critRate, critDmg: st.critDmg, melee: def.range <= 60, flying: def.flying };
   }
 
   /** Colosseum tickets regained over time. Returns seconds until the next one (0 when full). */
@@ -1135,7 +1135,7 @@ export class GameState {
         const base = g.heroStats(def, 1);
         const pair = (v: string) => ({ value: new Decimal(v), base: new Decimal(v) });
         const stats: HeroStats = { ...base, atk: pair(x.atk), hp: pair(x.hp), def: pair(x.def), attacksPerSec: { value: x.aps, base: base.attacksPerSec.base }, critRate: x.crit, critDmg: x.critDmg, moveSpeed: { value: x.move, base: base.moveSpeed.base } };
-        return { def, unit: { id: def.id, element: def.element, atk: stats.atk.value, hp: stats.hp.value, def: stats.def.value, attacksPerSec: x.aps, critRate: x.crit, critDmg: x.critDmg, melee: def.range <= 60 }, stats };
+        return { def, unit: { id: def.id, element: def.element, atk: stats.atk.value, hp: stats.hp.value, def: stats.def.value, attacksPerSec: x.aps, critRate: x.crit, critDmg: x.critDmg, melee: def.range <= 60, flying: def.flying }, stats };
       });
     }
     return foe.heroes.map((x) => {
