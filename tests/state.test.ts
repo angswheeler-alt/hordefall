@@ -6,7 +6,7 @@ import { emberBulk, emberCost, emberRefund } from '../src/formulas';
 import { mulEffect } from '../src/skills';
 import {
   HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, AURA_EVOLUTIONS, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOTS_MAX, ULT_SLOT_COSTS,
-  TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_MIN_PUSH, ROAD_START, ROAD_STEP, RELICS, RELIC_SETS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, TRIAL_QUICK_TIME, TRIAL_FEATURED_HEROES, TRIAL_MEDALS, TRIAL_ROTATION, PLAYABLE_HEROES, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL, bossWeakness,
+  TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_MIN_PUSH, ROAD_START, ROAD_STEP, RELICS, RELIC_SETS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, TRIAL_QUICK_TIME, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, TRIAL_ROTATION, PLAYABLE_HEROES, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL, bossWeakness,
 } from '../src/data';
 
 const starter = HEROES.find((h) => h.unlockCost === 0)!;
@@ -403,52 +403,42 @@ describe('trial tickets', () => {
     }
   });
 
-  it('a win pays 2 medals, each to one of the two heroes featured today, at any level', () => {
+  it('a win gives 2 medals to random heroes of the element at any level', () => {
     const s = fresh();
     s.bestStage = 51;
     const element = s.openTrials()[0];
     s.trialBest[element] = 7;
-    for (const h of HEROES) if (h.element === element) s.levels[h.id] = 1;
     for (const h of HEROES) s.emberLevels[h.id] = 500;
+    const pool = s.trialPool(element).map((h) => h.id);
     const before = HEROES.reduce((t, h) => t + (s.crests[h.id] ?? 0), 0);
-    const featured = s.trialHeroes(element);
-    expect(featured).toHaveLength(TRIAL_FEATURED_HEROES);
-    expect(new Set(featured).size).toBe(featured.length);
     const r = s.finishTrial(element, 8, true, 20)!;
     expect(r.won).toBe(true);
     expect(r.medals).toHaveLength(TRIAL_MEDALS);
-    for (const id of r.medals) expect(featured).toContain(id);
+    for (const id of r.medals) expect(pool).toContain(id);
     expect(HEROES.reduce((t, h) => t + (s.crests[h.id] ?? 0), 0) - before).toBe(TRIAL_MEDALS);
   });
 
-  it('both Trial medals can land on the same featured hero', () => {
+  it('both Trial medals can land on the same hero', () => {
     const s = fresh();
     s.bestStage = 51;
     const element = s.openTrials()[0];
-    const featured = s.trialHeroes(element);
     vi.spyOn(Math, 'random').mockReturnValue(0);
     const r = s.finishTrial(element, 1, true, 10)!;
     vi.restoreAllMocks();
-    expect(r.medals).toEqual(Array(TRIAL_MEDALS).fill(featured[0]));
+    expect(r.medals).toHaveLength(TRIAL_MEDALS);
+    expect(new Set(r.medals).size).toBe(1);
   });
 
-  it('featured Trial heroes are of the element, not Legendary, and every hero comes up in turn', () => {
+  it('every non-Legendary hero of the element can get Trial medals, Epics rarest', () => {
     const s = fresh();
     for (const element of TRIAL_ROTATION) {
-      const pool = PLAYABLE_HEROES.filter((h) => h.element === element && h.rarity !== 'legendary').map((h) => h.id);
-      const seen = new Set<string>();
-      const day0 = new Date(2026, 9, 1, 12).getTime();
-      for (let d = 0; d < pool.length; d++) {
-        const ids = s.trialHeroes(element, day0 + d * 86_400_000);
-        for (const id of ids) {
-          expect(pool).toContain(id);
-          seen.add(id);
-        }
-      }
-      expect(seen.size).toBe(pool.length);
-      // Same pair all day.
-      expect(s.trialHeroes(element, day0)).toEqual(s.trialHeroes(element, day0 + 3 * 3_600_000));
+      const pool = s.trialPool(element);
+      const all = PLAYABLE_HEROES.filter((h) => h.element === element && h.rarity !== 'legendary');
+      expect(pool.map((h) => h.id).sort()).toEqual(all.map((h) => h.id).sort());
+      expect(pool.length).toBeGreaterThan(0);
     }
+    expect(TRIAL_RARITY_WEIGHTS.epic).toBeLessThan(TRIAL_RARITY_WEIGHTS.rare);
+    expect(TRIAL_RARITY_WEIGHTS.rare).toBeLessThan(TRIAL_RARITY_WEIGHTS.common);
   });
 });
 

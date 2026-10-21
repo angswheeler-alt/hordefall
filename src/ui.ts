@@ -2,7 +2,7 @@ import { DEV_TOOLS } from './config';
 import Decimal from 'break_infinity.js';
 import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { HEROES, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_MEDALS, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
@@ -1360,7 +1360,7 @@ export class UI {
     if (this.trialEntered && (!unlocked || !this.trialPick || !open.includes(this.trialPick))) this.trialEntered = false;
     $('tr-list').hidden = this.trialEntered;
     $('tr-detail').hidden = !this.trialEntered;
-    const listKey = `${open.join(',')}:${unlocked}:${TRIAL_ROTATION.map((e) => s.trialHeroes(e).join('+')).join(',')}`;
+    const listKey = `${open.join(',')}:${unlocked}`;
     if ($('tr-list').dataset.key !== listKey) {
       $('tr-list').dataset.key = listKey;
       $('tr-list').innerHTML = (unlocked ? '' : '<p class="trial-lock">Trials open once you beat the stage 50 boss.</p>') + TRIAL_ROTATION.map((e) => {
@@ -1371,7 +1371,7 @@ export class UI {
         return `<div class="trial-entry${isOpen ? ' open' : ''}" style="--el:${hex(ELEMENT_COLORS[e])}">` +
           `<span class="trial-portrait" style="${face}" title="${cap(e)}"></span>` +
           `<div class="trial-entry-text"><b>${TRIAL_BOSS_NAMES[e]} <span>(${days})</span></b>` +
-          `<small>Rewards: <i class="ess-${e}" title="${ESSENCE_NAMES[e]}"></i>${this.trialMedalFaces(e)}</small></div>` +
+          `<small>Rewards: <i class="ess-${e}" title="${ESSENCE_NAMES[e]}"></i> and <i class="medal" title="${TRIAL_MEDALS} medals for random ${cap(e)} heroes"></i> x${TRIAL_MEDALS}</small></div>` +
           `<button class="trial-enter${isOpen && unlocked ? ' lit' : ''}" data-el="${e}" ${isOpen && unlocked ? '' : 'disabled'} title="${isOpen ? (unlocked ? `Open today` : 'Opens after the stage 50 boss') : `Open ${days}`}">${btn}</button>` +
           `</div>`;
       }).join('');
@@ -1389,12 +1389,11 @@ export class UI {
       $('tr-name').textContent = `${TRIAL_BOSS_NAMES[el]} (${cap(el)})`;
     }
     const level = TRIAL_LEVELS[tier - 1];
-    const featured = s.trialHeroes(el).map((id) => HEROES.find((h) => h.id === id)!.name);
-    $('tr-info').textContent = `Uses Ember levels and stars, not gold levels. Drops ${ESSENCE_NAMES[el]} and ${TRIAL_MEDALS} medals, each for ${featured.join(' or ')} (today's heroes).`;
-    const medalKey = featured.join('+');
-    if ($('tr-medals').dataset.key !== medalKey) {
-      $('tr-medals').dataset.key = medalKey;
-      setHtml($('tr-medals'), `${TRIAL_MEDALS} medals for ${this.trialMedalFaces(el)}`);
+    $('tr-info').textContent = `Uses Ember levels and stars, not gold levels. Drops ${ESSENCE_NAMES[el]} and ${TRIAL_MEDALS} medals, each for a random ${cap(el)} hero.`;
+    if ($('tr-medals').dataset.key !== el) {
+      $('tr-medals').dataset.key = el;
+      const odds = rarityOdds(s.trialPool(el), TRIAL_RARITY_WEIGHTS).map(([r, pct]) => `${cap(r)} ${+pct.toFixed(1)}%`).join(' · ');
+      setHtml($('tr-medals'), `Medal odds: ${odds}`);
     }
     $('tr-tier').textContent = `Level ${tier} / ${TRIAL_TIERS}`;
     $<HTMLButtonElement>('tr-down').disabled = tier <= 1;
@@ -1455,7 +1454,7 @@ export class UI {
     if (!result) return;
     this.showModal(
       `${TRIAL_BOSS_NAMES[el]} · Level ${tier}`,
-      `<p class="tf-result win">Quick Battle${result.runs > 1 ? ` x${result.runs}` : ''}! ${this.trialWinText(el, result)}</p>`,
+      `<p class="tf-result win">Quick Battle${result.runs > 1 ? ` x${result.runs}` : ''}! ${this.trialWinText(el, result)}`,
       'Okay',
     );
     play('clear');
@@ -1480,7 +1479,7 @@ export class UI {
       $('trial-leave').textContent = 'Back';
       const result = s.finishTrial(el, tier, won, seconds);
       const html = result?.won
-        ? `<p class="tf-result win">Victory in ${seconds}s! ${this.trialWinText(el, result)}</p>`
+        ? `<p class="tf-result win">Victory in ${seconds}s! ${this.trialWinText(el, result)}`
         : this.trialLeft
           ? `<p class="tf-result lose">You left the Trial. Your ticket was kept.</p>`
           : `<p class="tf-result lose">Defeated. Your ticket was kept. Raise Ember levels or stars and try again.</p>`;
@@ -1504,20 +1503,17 @@ export class UI {
     this.render();
   }
 
-  /** Today's two featured heroes of an element's Trial, as small portraits: each win's medals go to these. */
-  private trialMedalFaces(el: Element) {
-    return this.state.trialHeroes(el).map((id) => {
-      const h = HEROES.find((x) => x.id === id)!;
-      return `<span class="trial-medal" title="${h.name} medals"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span></span>`;
-    }).join('');
-  }
-
+  /** The reward line (closes the caller's open <p>) and pictures of the heroes the medals went to. */
   private trialWinText(el: Element, result: TrialResult) {
     // Group repeats: "Brine x3, Ripple x2".
     const medalCounts = new Map<string, number>();
     for (const id of result.medals) medalCounts.set(id, (medalCounts.get(id) ?? 0) + 1);
-    const medalNames = [...medalCounts].map(([id, n]) => `${HEROES.find((h) => h.id === id)!.name}${n > 1 ? ` x${n}` : ''}`).join(', ');
-    return `+${fmt(result.essence)} ${ESSENCE_NAMES[el]}${result.stones ? ` · +${result.stones} Enhance Stone${result.stones === 1 ? '' : 's'}` : ''} · medal${result.medals.length === 1 ? '' : 's'}: ${medalNames}`;
+    // Pictures of the heroes the medals went to, with how many each got.
+    const faces = [...medalCounts].map(([id, n]) => {
+      const h = HEROES.find((x) => x.id === id)!;
+      return `<span class="trial-medal"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span><b>${h.name}</b><small>x${n}</small></span>`;
+    }).join('');
+    return `+${fmt(result.essence)} ${ESSENCE_NAMES[el]}${result.stones ? ` · +${result.stones} Enhance Stone${result.stones === 1 ? '' : 's'}` : ''} · ${result.medals.length} medal${result.medals.length === 1 ? '' : 's'}:</p><div class="trial-won">${faces}</div>`;
   }
 
   // ---------- Colosseum ----------
