@@ -1076,14 +1076,22 @@ export const GUILD_OFFER_COST = { common: 50, rare: 80, epic: 120 } as const;
 export const GUILD_WILD_COST = { common: 8, rare: 15, epic: 30 } as const;
 export const GUILD_WILD_PER_WEEK = 20;
 
-/** Guild Boss: attempts per player per day (UTC), and how long each attempt lasts. */
+/** Guild Boss (a weekly guild event): attempts per player per day (UTC), and how long each attempt lasts. */
 export const GUILD_BOSS_ATTEMPTS = 3;
 export const GUILD_BOSS_SECONDS = 30;
 /** Rough number of solid attempts a boss is built to take; one such attempt earns the full damage bonus. */
 export const GUILD_BOSS_PAR_ATTEMPTS = 15;
 /** Gold per attempt, in minutes of income. */
 export const GUILD_BOSS_GOLD_MINUTES = 30;
-/** Boss for each day's element (the server picks the element). */
+/** Every level beaten pays each member who hit the boss that week: Guild Coins per level (x (10 + level)) and a share of lifetime Embers. */
+export const GUILD_BOSS_KILL_COINS = 3;
+export const GUILD_BOSS_KILL_EMBERS = 0.0025;
+export const GUILD_BOSS_KILL_MIN_EMBERS = 5;
+/** Weekly reward by the highest level beaten: Guild Coins (x (10 + level)) and a Hero Chest per few levels, up to a cap. */
+export const GUILD_BOSS_WEEK_COINS = 10;
+export const GUILD_BOSS_LEVELS_PER_CHEST = 3;
+export const GUILD_BOSS_WEEK_MAX_CHESTS = 10;
+/** Boss for each week's element (guildBossElement / the server pick the element). */
 export const GUILD_BOSS_NAMES: Record<Element, string> = {
   water: 'Leviathan of the Deep',
   fire: 'Cinder Tyrant',

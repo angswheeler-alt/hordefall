@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import Decimal from 'break_infinity.js';
-import { defended, bulkCost, goldPerKill, enemyHp, fmt, upgradeCost, stallBulkCost, emberYield, emberCost, keeperLevel, keeperThreshold, relicCost, guildBossHp, guildBossAttemptCoins, guildBossKillCoins, researchPointsFor, researchRank } from '../src/formulas';
+import { defended, bulkCost, goldPerKill, enemyHp, fmt, upgradeCost, stallBulkCost, emberYield, emberCost, keeperLevel, keeperThreshold, relicCost, guildBossHp, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, guildBossElement, researchPointsFor, researchRank } from '../src/formulas';
 import { HEROES, STALLS, elementBoss, bossElement, bossLabel, stageBoss, bossWeakness, bossHasElement, bossImmuneTo, STRONG_VS } from '../src/data';
 
 const hero = HEROES.find((h) => h.unlockCost !== 0)!;
@@ -122,7 +122,16 @@ describe('Guild Boss', () => {
     expect(guildBossAttemptCoins(5, new Decimal(0), hp)).toBe(15);
     expect(guildBossAttemptCoins(5, hp.div(30), hp)).toBe(23);
     expect(guildBossAttemptCoins(5, hp, hp)).toBe(30);
-    expect(guildBossKillCoins(5)).toBe(75);
+    expect(guildBossKillCoins(5)).toBe(45);
+    expect(guildBossWeekReward(0)).toEqual({ coins: 0, chests: 0 });
+    expect(guildBossWeekReward(1)).toEqual({ coins: 110, chests: 1 });
+    expect(guildBossWeekReward(10)).toEqual({ coins: 200, chests: 4 });
+    expect(guildBossWeekReward(60)).toEqual({ coins: 700, chests: 10 });
+  });
+
+  it('a new boss each week, rotating like the server', () => {
+    // Matches guild_boss_element in supabase/guilds.sql (checked by the SQL test).
+    expect(['2026-10-12', '2026-10-19', '2026-10-26', '2026-11-02', '2026-11-09', '2026-11-16'].map(guildBossElement)).toEqual(['fire', 'earth', 'light', 'dark', 'water', 'fire']);
   });
 });
 

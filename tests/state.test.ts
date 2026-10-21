@@ -973,16 +973,21 @@ describe('Guild Boss rewards', () => {
     if (weakTo) expect(s.guildBossDamage(weakTo).toNumber()).toBeCloseTo(plain.toNumber() * 4, -1);
   });
 
-  it('attempts and kills pay Guild Coins, gold, Embers and a chest', () => {
+  it('attempts, beaten levels and the weekly reward pay out', () => {
     const s = fresh();
     const a = s.payGuildBossAttempt(3, new Decimal(0), new Decimal(1000));
     expect(a.coins).toBe(13);
     expect(a.gold.gt(0)).toBe(true);
     s.lifetimeEmbers = 50_000;
-    const k = s.payGuildBossKill(3);
-    expect(k).toMatchObject({ coins: 65, embers: 500 });
-    expect(k.drops.length).toBe(CHEST_DROPS);
-    expect(s.guildCredits).toBe(13 + 65);
+    const k = s.payGuildBossRewards([1, 2], []);
+    expect(k).toMatchObject({ coins: 33 + 36, embers: 125 + 125 });
+    expect(k.drops.length).toBe(0);
+    const w = s.payGuildBossRewards([], [7]);
+    expect(w).toMatchObject({ coins: 170, embers: 0 });
+    expect(w.drops.length).toBe(3 * CHEST_DROPS);
+    expect(s.guildCredits).toBe(13 + 69 + 170);
+    s.lifetimeEmbers = 0;
+    expect(s.payGuildBossRewards([1], []).embers).toBe(5);
   });
 });
 
