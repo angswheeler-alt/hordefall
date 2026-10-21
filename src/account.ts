@@ -199,8 +199,11 @@ export class Account {
       case 'take-cloud':
         this.replace(cloud as SaveData);
         return;
+      case 'keep-device':
+        await this.keepDevice(cloud as SaveData, 'This device was played more recently, so its save was kept. A copy of the cloud save is on this device.');
+        return;
       case 'ask':
-        this.askWhichSave(cloud as SaveData, local, Number((cloud as SaveData).rev ?? 0));
+        this.askWhichSave(cloud as SaveData, local);
         return;
     }
   }
@@ -259,8 +262,8 @@ export class Account {
     });
   }
 
-  /** Both sides have progress the other lacks: the player picks, and the other is replaced. */
-  private askWhichSave(cloud: SaveData, local: SaveData, cloudRev: number) {
+  /** The player picks between this device's save and the cloud's, and the other is replaced. */
+  private askWhichSave(cloud: SaveData, local: SaveData) {
     this.choosing = true;
     this.openDialog(
       'Which save do you want?',
@@ -274,13 +277,19 @@ export class Account {
       this.replace(cloud);
     });
     $('acct-keep-device').addEventListener('click', async () => {
-      backup('cloud-replaced', cloud);
-      this.choosing = false;
       this.closeDialog();
-      this.synced = true;
-      this.cloudProgress = null; // the player chose this device's save, even if it is behind
-      await this.upload(cloudRev);
+      await this.keepDevice(cloud);
     });
+  }
+
+  /** Save this device over the cloud, keeping a copy of the cloud save on this device. */
+  private async keepDevice(cloud: SaveData, note?: string) {
+    backup('cloud-replaced', cloud);
+    this.choosing = false;
+    this.synced = true;
+    this.cloudProgress = null; // this device's save wins, even if it is behind
+    await this.upload(Number(cloud.rev ?? 0));
+    if (note) this.render(note);
   }
 
   private replace(data: SaveData) {

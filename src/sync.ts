@@ -34,9 +34,13 @@ export type SyncMode = 'start' | 'signin' | 'conflict';
  * - `create`: the account has no cloud save yet; upload this device's.
  * - `upload`: this device is current; keep saving over the cloud.
  * - `take-cloud`: load the cloud save on this device.
- * - `ask`: both sides have progress; the player picks.
+ * - `keep-device`: this device was played last; save it over the cloud (keeping a copy of the cloud save).
+ * - `ask`: the player picks.
  */
-export type SyncAction = 'pause' | 'missing' | 'create' | 'upload' | 'take-cloud' | 'ask';
+export type SyncAction = 'pause' | 'missing' | 'create' | 'upload' | 'take-cloud' | 'keep-device' | 'ask';
+
+/** True when `a` has clearly less than `b`: under half its best stage. A save that played on wouldn't drop that far. */
+export const isFarBehind = (a: Progress, b: Progress) => a.best * 2 < b.best;
 
 export interface SyncInput {
   mode: SyncMode;
@@ -53,7 +57,9 @@ export interface SyncInput {
  * The sync rules. A failed request is never read as "no save"; a save with
  * real progress is never replaced by a stage 1 save without asking; a fresh
  * device always takes the account's save; and a device that hasn't played
- * since another one saved quietly loads the newer cloud save.
+ * since another one saved quietly loads the newer cloud save. When both
+ * sides played, the game opens on whichever was played last, unless that
+ * save has clearly less progress than the other (then it asks).
  */
 export function decideSync({ mode, cloud, local, knownRev, loadedLastSeen }: SyncInput): SyncAction {
   if (cloud === undefined) return 'pause';
@@ -70,6 +76,7 @@ export function decideSync({ mode, cloud, local, knownRev, loadedLastSeen }: Syn
   }
   // Another device saved since (or this device never synced).
   if (isFresh(cloud) && !isFresh(local)) return 'ask';
-  if (mode === 'start' && (cloud.lastSeen ?? 0) >= loadedLastSeen && !isBehind(cloudP, localP)) return 'take-cloud';
-  return 'ask';
+  if (mode !== 'start') return 'ask';
+  if ((cloud.lastSeen ?? 0) >= loadedLastSeen) return isFarBehind(cloudP, localP) ? 'ask' : 'take-cloud';
+  return isFarBehind(localP, cloudP) ? 'ask' : 'keep-device';
 }

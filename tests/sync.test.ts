@@ -47,13 +47,24 @@ describe('cloud save sync rules', () => {
     expect(run({ cloud: { ...fresh, rev: 1 }, local: fresh, knownRev: 1 })).toBe('upload');
   });
 
-  it('asks when both sides have progress the other lacks', () => {
-    const cloud = played(500, 1, NOW, 9);
-    expect(run({ cloud, local: played(300, 4, NOW + 1), knownRev: 8, loadedLastSeen: NOW + 1 })).toBe('ask');
-    expect(run({ mode: 'signin', cloud, local: played(50) })).toBe('ask');
-    expect(run({ mode: 'conflict', cloud, local: played(600, 1), knownRev: 8 })).toBe('ask');
-    // Newer cloud save that is behind this device: ask rather than load it.
+  it('opens on whichever save was played last when both sides have progress', () => {
+    // Cloud played last: load it, even with fewer Rekindles.
+    expect(run({ cloud: played(500, 1, NOW, 9), local: played(300, 4, NOW - 1), knownRev: 8, loadedLastSeen: NOW - 1 })).toBe('take-cloud');
+    // This device played last (another device saved while it was offline): keep it.
+    expect(run({ cloud: played(500, 1, NOW, 9), local: played(300, 4, NOW + 1), knownRev: 8, loadedLastSeen: NOW + 1 })).toBe('keep-device');
+    expect(run({ cloud: played(500, 1, NOW, 9), local: played(450, 1, NOW + 1), loadedLastSeen: NOW + 1 })).toBe('keep-device');
+  });
+
+  it('still asks when the save played last has clearly less progress', () => {
     expect(run({ cloud: played(100, 0, NOW + 5, 9), local: played(300), knownRev: 8 })).toBe('ask');
+    expect(run({ cloud: played(500, 2, NOW, 9), local: played(200, 0, NOW + 1), knownRev: 8, loadedLastSeen: NOW + 1 })).toBe('ask');
+  });
+
+  it('asks when both sides have progress outside of opening the game', () => {
+    const cloud = played(500, 1, NOW, 9);
+    expect(run({ mode: 'signin', cloud, local: played(50) })).toBe('ask');
+    expect(run({ mode: 'signin', cloud, local: played(400, 0, NOW + 1), loadedLastSeen: NOW + 1 })).toBe('ask');
+    expect(run({ mode: 'conflict', cloud, local: played(600, 1), knownRev: 8 })).toBe('ask');
   });
 
   it('reads saves defensively', () => {
