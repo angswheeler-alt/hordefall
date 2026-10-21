@@ -579,6 +579,7 @@ i.stone { display: inline-block; width: 12px; height: 12px; background: linear-g
 .ico-set-tools { background-image: url('./assets/ui/set-tools.png'); }
 .ico-set-effects { background-image: url('./assets/ui/set-effects.png'); }
 .ico-set-music { background-image: url('./assets/ui/set-music.png'); }
+.ico-set-install { background-image: url('./assets/ui/set-install.png'); }
 .ico-set-tutorial { background-image: url('./assets/ui/set-tutorial.png'); }
 #tabbar button svg, #settings-btn svg, .rk-badge svg { display: none; }
 #tabbar button::before { content: ''; width: 28px; height: 28px; background: center / contain no-repeat; image-rendering: pixelated; filter: drop-shadow(0 1px 0 rgba(0,0,0,.6)); }
@@ -916,3 +917,5 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .vol-row output { width: 40px; text-align: right; font-size: 13px; color: var(--muted); }
 .vol-row.off { opacity: .45; }
 .vol-row .settings-label { width: 104px; }
+.install-row { flex-wrap: wrap; }
+.install-row small { flex-basis: 100%; max-width: none; text-align: left; }

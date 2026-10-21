@@ -5,8 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#1b1530" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Hordefall" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="description" content="Idle hero battler: build a team, crush the horde, and keep progressing while you're away." />
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="./icons/favicon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
     <title>Hordefall</title>
   </head>
   <body>
@@ -320,6 +325,7 @@
         <div class="settings-row"><span class="settings-label"><span class="ico ico-set-sound"></span>Sound</span><button id="mute" class="toggle" aria-label="Sound">Sound</button></div>
         <div class="settings-row vol-row"><span class="settings-label"><span class="ico ico-set-effects"></span>Effects</span><input id="vol-sfx" type="range" min="0" max="100" step="5" aria-label="Sound effects volume" /><output id="vol-sfx-n"></output></div>
         <div class="settings-row vol-row"><span class="settings-label"><span class="ico ico-set-music"></span>Music</span><input id="vol-music" type="range" min="0" max="100" step="5" aria-label="Music volume" /><output id="vol-music-n"></output></div>
+        <div class="settings-row install-row"><span class="settings-label"><span class="ico ico-set-install"></span>Phone app</span><button id="install-btn" class="wood-btn small">Install</button><small id="install-note" hidden></small></div>
         <div class="settings-row"><span class="settings-label"><span class="ico ico-set-tutorial"></span>Tutorial</span><button id="tut-replay" class="wood-btn small">Replay</button></div>
         <div class="settings-row"><span class="settings-label"><span class="ico ico-set-save"></span>Saving</span><small>Progress saves automatically every few seconds. Sign in to back it up online.</small></div>
         <h3><span class="ico ico-set-account"></span>Account</h3>
