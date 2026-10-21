@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { GameState } from '../src/state';
 import { HEROES, RELEASED_HEROES, PLAYABLE_HEROES, MAX_STARS } from '../src/data';
-import { FORM_RARITIES, MAX_FORM, COUNTERED_BY, resolveForm, clampForm, ascendBlocker } from '../src/ascendant';
+import { FORM_RARITIES, MAX_FORM, COUNTERED_BY, resolveForm, clampForm, ascendBlocker, formArtKey } from '../src/ascendant';
+import { activeEffects } from '../src/skills';
 import { ASCENDANT_HEROES, ascendantDef, isAscendant } from '../src/heroes/ascendant';
 import { elementMultiplier } from '../src/data';
 
@@ -189,5 +190,57 @@ describe('Ascendant saves', () => {
     expect(t.toJSON().gems).toBe(777);
     // A new game carries no extras.
     expect(Object.keys(GameState.freshSave())).not.toContain('futureThing');
+  });
+});
+
+describe('forms in play', () => {
+  it('stats come from the current form, on top of stars and levels', () => {
+    const s = ready();
+    const base = test.base;
+    const before = s.heroStats(base, 10);
+    for (let i = 0; i < MAX_FORM; i++) s.ascend('asc_test');
+    const after = s.heroStats(base, 10);
+    // Form IV: ATK 11 and HP 64 against Form I's 6 and 48, with the same 8★ and level.
+    expect(after.atk.base.div(before.atk.base).toNumber()).toBeCloseTo(11 / 6, 6);
+    expect(after.hp.base.div(before.hp.base).toNumber()).toBeCloseTo(64 / 48, 6);
+    expect(after.attacksPerSec.base).toBeCloseTo(1 / 0.6, 6);
+    expect(s.heroPower(base, 10).atk.gt(s.heroPower(base, 9).atk)).toBe(true);
+  });
+
+  it('other heroes are untouched', () => {
+    const s = ready();
+    for (const h of HEROES) expect(s.formDef(h)).toBe(h);
+  });
+
+  it('star skills read the hero as it is now', () => {
+    const h = HEROES.find((x) => x.sp1.effect)!;
+    const swapped = { kind: 'bossDamage' as const, value: 1.7 };
+    const all = () => true;
+    const plain = activeEffects(all).filter((a) => a.owner === h.id);
+    const resolved = activeEffects(all, (x) => (x.id === h.id ? { ...x, sp1: { ...x.sp1, effect: swapped } } : x)).filter((a) => a.owner === h.id);
+    expect(plain.map((a) => a.effect)).toContainEqual(h.sp1.effect);
+    expect(resolved.map((a) => a.effect)).toContainEqual(swapped);
+    expect(resolved.map((a) => a.effect)).not.toContainEqual(h.sp1.effect);
+  });
+
+  it('draws each form with the nearest art that has landed', () => {
+    const has = (keys: string[]) => (k: string) => keys.includes(k);
+    expect(formArtKey(test, 3, has(['asc_test_f2', 'asc_test_f3', 'asc_test_f4']))).toBe('asc_test_f4');
+    expect(formArtKey(test, 3, has(['asc_test_f2']))).toBe('asc_test_f2');
+    expect(formArtKey(test, 2, has([]))).toBe('asc_test');
+    expect(formArtKey(test, 0, has(['asc_test_f4']))).toBe('asc_test');
+  });
+
+  it('lists the next form\'s needs for the hero page', () => {
+    const s = ready();
+    s.trialBest.dark = 1;
+    const needs = s.ascendNeeds('asc_test')!;
+    expect(needs).toHaveLength(5);
+    expect(needs.map((n) => n.met)).toEqual([true, false, true, true, true]);
+    expect(needs[1].text).toBe(`Dark Trial level ${test.steps[0].trialTier} cleared`);
+    s.trialBest.dark = 99;
+    for (let i = 0; i < MAX_FORM; i++) s.ascend('asc_test');
+    expect(s.ascendNeeds('asc_test')).toBeNull();
+    expect(s.ascendNeeds(HEROES[0].id)).toBeNull();
   });
 });

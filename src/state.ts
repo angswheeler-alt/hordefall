@@ -9,7 +9,7 @@ import { isKnight, combatPower, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
 import { PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_TICKET_GEMS, PVP_TICKET_BUYS, PVP_REFRESH_MINUTES, PVP_CP_MIN, PVP_CP_MAX, PVP_REAL_MIN, PVP_REAL_MAX, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_FIRST_WIN_MOTES, PVP_STREAK_DMG, PVP_STREAK_MAX, RANK_PRESSURE, RANK_DAILY, RANK_WEEKLY, rankIndex, rankName, droppedTrophies, seededRandom, ghostName, simulatePvp, type PvpUnit, type PvpResult } from './colosseum';
 import { TUTORIAL_DONE, TIP_IDS } from './tutorialSteps';
-import { ascendBlocker, clampForm, type AscendBlocker } from './ascendant';
+import { ascendBlocker, ascendNeeds, clampForm, resolveForm, type AscendBlocker, type AscendContext } from './ascendant';
 import { ascendantDef } from './heroes/ascendant';
 
 const SAVE_KEY = 'hordefall-save-v1';
@@ -356,7 +356,13 @@ export class GameState {
 
   /** Star skills currently in force (see skills.ts). */
   effects(): ActiveEffect[] {
-    return activeEffects((id, star) => this.hasStar(id, star));
+    return activeEffects((id, star) => this.hasStar(id, star), (h) => this.formDef(h));
+  }
+
+  /** A hero as it is now: an Ascendant hero in its current form (look, stats, skills, rarity); any other hero as is. */
+  formDef(def: HeroDef): HeroDef {
+    const a = ascendantDef(def.id);
+    return a ? resolveForm(a, this.formOf(def.id)) : def;
   }
 
   /** All-stat multiplier from a hero's yellow stars (x STAR_STAT_MULT each) and pink awakening stars (x AWAKEN_STAT_MULT each). */
@@ -365,7 +371,8 @@ export class GameState {
   }
 
   /** ATK and HP after levels, stars (x STAR_STAT_MULT each), ATK/HP star skills and relics. `level` overrides the hero's current level. */
-  heroPower(def: HeroDef, level = this.heroLevel(def.id)): { atk: Decimal; hp: Decimal; defense: Decimal } {
+  heroPower(base: HeroDef, level = this.heroLevel(base.id)): { atk: Decimal; hp: Decimal; defense: Decimal } {
+    const def = this.formDef(base);
     const starMult = this.starMultiplier(def.id);
     const atkRelics = (1 + this.relicBonus('atk') + this.relicBonus(def.element)) * (1 + this.researchBonus('combat'));
     const hpRelics = 1 + this.relicBonus('hp') + this.relicBonus(`${def.element}Hp`);
@@ -403,7 +410,8 @@ export class GameState {
   }
 
   /** Every number on the hero's stat pages, as battle uses them. */
-  heroStats(def: HeroDef, level = this.heroLevel(def.id)): HeroStats {
+  heroStats(base: HeroDef, level = this.heroLevel(base.id)): HeroStats {
+    const def = this.formDef(base);
     const fx = this.effects();
     const sum = (kind: Parameters<typeof sumEffect>[1]) => sumEffect(fx, kind, def.id);
     const mul = (kind: Parameters<typeof mulEffect>[1]) => mulEffect(fx, kind, def.id);
@@ -875,8 +883,18 @@ export class GameState {
 
   /** Why an Ascendant hero can't take its next form yet, or null when it can. */
   ascendBlocker(id: string): AscendBlocker | null {
+    return ascendBlocker(ascendantDef(id), this.ascendContext(id));
+  }
+
+  /** The next form's requirements, met or not, for the hero page (null for other heroes and at the last form). */
+  ascendNeeds(id: string): Array<{ text: string; met: boolean }> | null {
     const def = ascendantDef(id);
-    return ascendBlocker(def, {
+    return def ? ascendNeeds(def, this.ascendContext(id), ESSENCE_NAMES[def.base.element]) : null;
+  }
+
+  private ascendContext(id: string): AscendContext {
+    const def = ascendantDef(id);
+    return {
       form: this.formOf(id),
       recruited: (this.levels[id] ?? 0) > 0,
       evolutions: this.stars[id] ?? 0,
@@ -884,7 +902,7 @@ export class GameState {
       bestStage: this.bestStage,
       essence: def ? this.essences[def.base.element] ?? 0 : 0,
       stones: this.enhanceStones,
-    });
+    };
   }
 
   /** Take an Ascendant hero to its next form. Checks everything first, so a failed try spends nothing. Permanent. */
