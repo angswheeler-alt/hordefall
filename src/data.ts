@@ -1120,8 +1120,15 @@ export const GUILD_OFFER_COST = { common: 50, rare: 80, epic: 120 } as const;
 export const GUILD_WILD_COST = { common: 8, rare: 15, epic: 30 } as const;
 export const GUILD_WILD_PER_WEEK = 20;
 
-/** Guild Boss (a weekly guild event): attempts per player per day (UTC), and how long each attempt lasts. */
+/**
+ * Guild Boss (a weekly guild event). Members fight as often as they like, one fight every GUILD_BOSS_FIGHT_GAP_SECONDS;
+ * the first GUILD_BOSS_ATTEMPTS fights a player makes each UTC day pay attempt rewards and research. After each kill the
+ * boss rests GUILD_BOSS_REST_MINUTES, then comes back one level higher (Samuel, 2026-10-21). supabase/guilds.sql
+ * (hit_guild_boss) enforces all three.
+ */
 export const GUILD_BOSS_ATTEMPTS = 3;
+export const GUILD_BOSS_FIGHT_GAP_SECONDS = 120;
+export const GUILD_BOSS_REST_MINUTES = 30;
 export const GUILD_BOSS_SECONDS = 30;
 /** Rough number of solid attempts a boss is built to take; one such attempt earns the full damage bonus. */
 export const GUILD_BOSS_PAR_ATTEMPTS = 15;
@@ -1135,6 +1142,16 @@ export const GUILD_BOSS_KILL_MIN_EMBERS = 5;
 export const GUILD_BOSS_WEEK_COINS = 10;
 export const GUILD_BOSS_LEVELS_PER_CHEST = 3;
 export const GUILD_BOSS_WEEK_MAX_CHESTS = 10;
+/**
+ * Ascendant Chest (Samuel, 2026-10-21): Gems only, sold each week (Monday 00:00 UTC, with the Guild Boss) for the Ascendant
+ * hero whose element beats that week's Guild Boss. Each buy gives that hero's crests plus a Hero Chest's drops for other
+ * heroes; each buy costs more and gives more Ascendant crests, and the price resets every week. Test values until the
+ * balance pass. Hidden while no Ascendant hero is released.
+ */
+export const ASCENDANT_CHEST: ReadonlyArray<{ gems: number; crests: number }> = [
+  { gems: 100, crests: 10 }, { gems: 150, crests: 12 }, { gems: 200, crests: 15 }, { gems: 300, crests: 18 }, { gems: 400, crests: 22 },
+  { gems: 500, crests: 26 }, { gems: 650, crests: 30 }, { gems: 800, crests: 35 }, { gems: 1000, crests: 40 }, { gems: 1250, crests: 50 },
+];
 /** Boss for each week's element (guildBossElement / the server pick the element). */
 export const GUILD_BOSS_NAMES: Record<Element, string> = {
   water: 'Leviathan of the Deep',

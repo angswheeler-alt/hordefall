@@ -1,16 +1,16 @@
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, MILESTONE_STEP, milestoneReward, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
 import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_DEALS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TRIAL_EVENT_EVERY, TRIAL_EVENT_PHASE, TRIAL_EVENT_DAYS, TRIAL_EVENT_MEDAL_MULT, TICKET_CRATE, HERO_VOUCHER, ALL_TRIALS_WITH, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, RAISED_RARITY_OLD_COST, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, AWAKEN_STARMOTES, MAX_AWAKEN, AWAKEN_STAT_MULT, AWAKEN_UNLOCK_LEVEL, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_KILL_EMBERS, GUILD_BOSS_KILL_MIN_EMBERS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
-import { relicCost, bossHp, bossAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward } from './formulas';
+import { utcWeekStart, guildBossElement, relicCost, bossHp, bossAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
-import { RENAMED_HEROES, PLAYABLE_HEROES } from './data';
+import { RENAMED_HEROES, PLAYABLE_HEROES, RELEASED_HEROES, ASCENDANT_CHEST } from './data';
 import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills';
 import { isKnight, combatPower, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
 import { PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_TICKET_GEMS, PVP_TICKET_BUYS, PVP_REFRESH_MINUTES, PVP_CP_MIN, PVP_CP_MAX, PVP_REAL_MIN, PVP_REAL_MAX, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_FIRST_WIN_MOTES, PVP_STREAK_DMG, PVP_STREAK_MAX, RANK_PRESSURE, RANK_DAILY, RANK_WEEKLY, rankIndex, rankName, droppedTrophies, seededRandom, ghostName, simulatePvp, type PvpUnit, type PvpResult } from './colosseum';
 import { TUTORIAL_DONE, TIP_IDS } from './tutorialSteps';
-import { ascendBlocker, ascendNeeds, clampForm, resolveForm, type AscendBlocker, type AscendContext } from './ascendant';
-import { ascendantDef } from './heroes/ascendant';
+import { ascendBlocker, ascendNeeds, clampForm, resolveForm, COUNTERED_BY, type AscendBlocker, type AscendContext, type AscendantDef } from './ascendant';
+import { ascendantDef, isAscendant, ASCENDANT_HEROES } from './heroes/ascendant';
 
 const SAVE_KEY = 'hordefall-save-v1';
 
@@ -192,7 +192,8 @@ export function weekIndex(now = Date.now()): number {
 /** Legendary heroes unlock and gain stars from the shared Legendary medal pool, never from their own medals. */
 const isLegendary = (id: string) => HEROES.find((h) => h.id === id)?.rarity === 'legendary';
 
-export const SHOP_HEROES: HeroDef[] = PLAYABLE_HEROES.filter((h) => h.rarity !== 'legendary');
+// Ascendant heroes come only from their own sources (the Ascendant Chest), never from chests, shops or Trials.
+export const SHOP_HEROES: HeroDef[] = PLAYABLE_HEROES.filter((h) => h.rarity !== 'legendary' && !isAscendant(h.id));
 /** Featured hero order: every shop hero once per round, mixed by a fixed hash so neighbours differ. */
 const FEATURED_ORDER: HeroDef[] = [...SHOP_HEROES].sort((a, b) => idHash(a.id) - idHash(b.id) || a.id.localeCompare(b.id));
 function idHash(id: string): number {
@@ -312,6 +313,8 @@ export class GameState {
   boughtTickets = 0;
   /** Limited deals: the week index each was last bought in, and Hero Vouchers not used yet. */
   deals: { crateWeek: number; voucherWeek: number } = { crateWeek: -1, voucherWeek: -1 };
+  /** Ascendant Chests bought this Guild Boss week (Monday UTC). */
+  ascChest: { week: string; bought: number } = { week: '', bought: 0 };
   vouchers = 0;
   /** Counts for Guild Quests not yet sent to the server. */
   guildQuestPending = { kills: 0, stages: 0, trials: 0 };
@@ -825,7 +828,7 @@ export class GameState {
   private rollChest(): SummonDrop[] {
     const drops: SummonDrop[] = [];
     for (let i = 0; i < CHEST_DROPS; i++) {
-      const hero = pickByRarity(PLAYABLE_HEROES, CHEST_RARITY_WEIGHTS);
+      const hero = pickByRarity(SHOP_HEROES, CHEST_RARITY_WEIGHTS);
       if (!hero) break;
       const crests = weighted(CREST_ROLLS[hero.rarity as keyof typeof CREST_ROLLS]);
       const locked = (this.levels[hero.id] ?? 0) === 0;
@@ -1529,6 +1532,31 @@ export class GameState {
       : { kind: 'voucher', bought: this.deals.voucherWeek === week, endsAt, gems: HERO_VOUCHER.gems };
   }
 
+  /**
+   * This week's Ascendant Chest: the released Ascendant hero whose element beats the Guild Boss of the week, how many
+   * were bought and the next price (null when sold out). null when no such hero is out (`pool` is for tests).
+   */
+  ascendantChestState(now = Date.now(), pool: AscendantDef[] = ASCENDANT_HEROES.filter((a) => RELEASED_HEROES.includes(a.base.id) && HEROES.some((h) => h.id === a.base.id))) {
+    const week = utcWeekStart(now);
+    const boss = guildBossElement(week);
+    const hero = pool.find((a) => a.base.element === COUNTERED_BY[boss])?.base;
+    if (!hero) return null;
+    const bought = this.ascChest.week === week ? this.ascChest.bought : 0;
+    return { hero, boss, week, bought, next: ASCENDANT_CHEST[bought] ?? null, endsAt: Date.parse(week) + 7 * 86_400_000 };
+  }
+
+  /** Buy the next Ascendant Chest: the hero's crests plus a Hero Chest's drops. Nothing is spent when it can't be bought. */
+  buyAscendantChest(now = Date.now(), pool?: AscendantDef[]): { heroId: string; crests: number; drops: SummonDrop[] } | null {
+    const st = pool ? this.ascendantChestState(now, pool) : this.ascendantChestState(now);
+    if (!st || !st.next || this.gems < st.next.gems) return null;
+    this.gems -= st.next.gems;
+    this.ascChest = { week: st.week, bought: st.bought + 1 };
+    this.addCrests(st.hero.id, st.next.crests);
+    const drops = this.rollChest();
+    this.save();
+    return { heroId: st.hero.id, crests: st.next.crests, drops };
+  }
+
   /** Buy this week's deal. The Ticket Crate needs room in the bought-ticket stash. */
   buyDeal(now = Date.now()): boolean {
     const d = this.dealState(now);
@@ -1692,7 +1720,7 @@ export class GameState {
 
   /** Heroes a Trial of this element can pay medals to: every hero of the element except Legendaries (special means only). */
   trialPool(element: Element): HeroDef[] {
-    return PLAYABLE_HEROES.filter((h) => h.element === element && h.rarity !== 'legendary');
+    return PLAYABLE_HEROES.filter((h) => h.element === element && h.rarity !== 'legendary' && !isAscendant(h.id));
   }
 
   /** Whether a Trial fight can start now: open today, unlocked, requirement met and a ticket in hand. */
@@ -2475,6 +2503,7 @@ export class GameState {
       ticketBuys: this.ticketBuys,
       boughtTickets: this.boughtTickets,
       deals: this.deals,
+      ascChest: { ...this.ascChest },
       vouchers: this.vouchers,
       guildCredits: this.guildCredits,
       guildResearch: this.guildResearch,
@@ -2614,6 +2643,7 @@ export class GameState {
       if (d.ticketBuys && typeof d.ticketBuys === 'object') this.ticketBuys = { day: String(d.ticketBuys.day ?? ''), used: Math.max(0, Number(d.ticketBuys.used) || 0) };
       this.boughtTickets = Math.min(BOUGHT_TICKET_CAP, Math.max(0, Math.floor(Number(d.boughtTickets) || 0)));
       if (d.deals && typeof d.deals === 'object') this.deals = { crateWeek: Number.isFinite(Number(d.deals.crateWeek)) ? Number(d.deals.crateWeek) : -1, voucherWeek: Number.isFinite(Number(d.deals.voucherWeek)) ? Number(d.deals.voucherWeek) : -1 };
+      if (d.ascChest && typeof d.ascChest === 'object') this.ascChest = { week: String(d.ascChest.week ?? ''), bought: Math.max(0, Math.floor(Number(d.ascChest.bought) || 0)) };
       this.vouchers = Math.max(0, Math.floor(Number(d.vouchers) || 0));
       if (d.medalBundle && Array.isArray(d.medalBundle.drops)) {
         const drops = d.medalBundle.drops.filter((x: { heroId?: unknown; crests?: unknown }) => HEROES.some((h) => h.id === x?.heroId) && Number(x.crests) > 0);

@@ -264,8 +264,10 @@ end $$;
 -- ---------- Guild Boss ----------
 -- A weekly guild event. Each week (Monday 00:00 UTC) the guild faces a new boss
 -- (the element rotates week by week) starting at level 1. The whole guild hits
--- the same health bar, 3 attempts per player per UTC day. Every time it dies it
--- comes straight back one level higher; damage past the kill carries over.
+-- the same health bar and members fight as often as they like (one fight per
+-- player every 2 minutes); the first 3 fights a player makes each UTC day pay
+-- attempt rewards and research. Every time it dies it rests 30 minutes, then
+-- comes back one level higher (damage past the kill is lost).
 -- Rewards: every level beaten pays everyone in the guild who hit the boss that
 -- week (claim right away), and when the week ends the highest level beaten
 -- decides a weekly reward for the same players (claim during the next week).
@@ -316,6 +318,9 @@ create table if not exists public.guild_boss_week_claims (
   user_id uuid not null references auth.users (id) on delete cascade,
   primary key (guild_id, week, user_id)
 );
+
+-- When the boss comes back after its last defeat (null = it's up).
+alter table public.guild_boss_weeks add column if not exists rest_until timestamptz;
 
 alter table public.guild_boss_hits enable row level security;
 alter table public.guild_boss_weeks enable row level security;
@@ -458,35 +463,45 @@ begin
   update guilds set research_focus = p_branch where id = public.my_guild();
 end $$;
 
--- Boss attempts feed the focus branch. A hit that beats the boss brings the next
--- level straight back, and leftover damage carries into it (up to 100 levels at once).
+-- One fight. Members fight as often as they like, one fight every 2 minutes each; the first 3 a
+-- player makes each UTC day are "paid" (the game pays attempt rewards) and feed the focus branch.
+-- A fight that beats the boss puts it to rest for 30 minutes; it comes back one level higher.
 create or replace function public.hit_guild_boss(p_damage numeric) returns json
 language plpgsql security definer set search_path = public as $$
-declare boss guild_boss_weeks; used integer; dmg numeric; left_over numeric; start_level integer; start_hp numeric; kills integer := 0; focus text; who text := public.guild_username();
+declare boss guild_boss_weeks; used integer; last_hit timestamptz; paid boolean; dmg numeric; left_over numeric; start_level integer; start_hp numeric; kills integer := 0; focus text; who text := public.guild_username();
 begin
   boss := public.guild_boss_week();
   select * into boss from guild_boss_weeks where guild_id = boss.guild_id and week = boss.week for update;
+  if boss.rest_until is not null and boss.rest_until > now() then
+    raise exception 'The boss is resting after its defeat. It comes back at level % in % min.', boss.level, ceil(extract(epoch from boss.rest_until - now()) / 60);
+  end if;
+  select max(created_at) into last_hit from guild_boss_hits where user_id = auth.uid();
+  if last_hit is not null and last_hit > now() - interval '2 minutes' then
+    raise exception 'Catch your breath: you can fight again in % s.', ceil(extract(epoch from last_hit + interval '2 minutes' - now()));
+  end if;
   select count(*) into used from guild_boss_hits where user_id = auth.uid() and day = (now() at time zone 'utc')::date;
-  if used >= 3 then raise exception 'No attempts left today. You get 3 more tomorrow.'; end if;
+  paid := used < 3;
   dmg := greatest(0, coalesce(p_damage, 0));
   insert into guild_boss_hits (guild_id, day, user_id, username, damage) values (boss.guild_id, (now() at time zone 'utc')::date, auth.uid(), who, dmg);
   start_level := boss.level;
   start_hp := boss.hp;
   left_over := boss.damage + dmg;
-  while left_over >= boss.hp and kills < 100 loop
+  if left_over >= boss.hp then
     insert into guild_boss_kills (guild_id, week, level, username) values (boss.guild_id, boss.week, boss.level, who) on conflict do nothing;
-    left_over := left_over - boss.hp;
     boss.level := boss.level + 1;
     boss.hp := public.guild_boss_hp(boss.level);
-    kills := kills + 1;
-  end loop;
-  update guild_boss_weeks set level = boss.level, hp = boss.hp, damage = least(left_over, boss.hp)
+    boss.rest_until := now() + interval '30 minutes';
+    left_over := 0;
+    kills := 1;
+  end if;
+  update guild_boss_weeks set level = boss.level, hp = boss.hp, damage = least(left_over, boss.hp), rest_until = boss.rest_until
     where guild_id = boss.guild_id and week = boss.week
     returning * into boss;
   select research_focus into focus from guilds where id = boss.guild_id;
-  perform public.add_guild_research(boss.guild_id, focus, 10 + start_level);
-  return json_build_object('attempt', used + 1, 'level', start_level, 'hp', start_hp, 'kills', kills,
-    'next_level', boss.level, 'next_hp', boss.hp, 'damage', boss.damage, 'research', 10 + start_level, 'focus', focus);
+  if paid then perform public.add_guild_research(boss.guild_id, focus, 10 + start_level); end if;
+  return json_build_object('attempt', used + 1, 'paid', paid, 'level', start_level, 'hp', start_hp, 'kills', kills,
+    'next_level', boss.level, 'next_hp', boss.hp, 'damage', boss.damage, 'rest_until', boss.rest_until,
+    'research', case when paid then 10 + start_level else 0 end, 'focus', focus);
 end $$;
 
 -- ---------- Guild Quests ----------
@@ -542,7 +557,9 @@ begin
     select 'kills' kind, coalesce(sum(kills), 0) total, coalesce(sum(kills) filter (where user_id = auth.uid()), 0) mine from guild_quest_progress where guild_id = g and week = wk
     union all select 'stages', coalesce(sum(stages), 0), coalesce(sum(stages) filter (where user_id = auth.uid()), 0) from guild_quest_progress where guild_id = g and week = wk
     union all select 'trials', coalesce(sum(trials), 0), coalesce(sum(trials) filter (where user_id = auth.uid()), 0) from guild_quest_progress where guild_id = g and week = wk
-    union all select 'boss', count(*), count(*) filter (where user_id = auth.uid()) from guild_boss_hits where guild_id = g and day >= wk and day < wk + 7
+    -- Boss fights count up to 3 a day per player (the paid ones), so extra fights don't fill the quest.
+    union all select 'boss', coalesce(sum(daily.fights), 0), coalesce(sum(daily.fights) filter (where daily.user_id = auth.uid()), 0)
+      from (select h.user_id, least(count(*), 3) fights from guild_boss_hits h where h.guild_id = g and h.day >= wk and h.day < wk + 7 group by h.user_id, h.day) daily
   )
   select json_build_object(
     'week', wk,

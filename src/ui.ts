@@ -885,6 +885,16 @@ export class UI {
       this.showModal(kind === 'crate' ? 'Ticket Crate' : 'Hero Voucher', kind === 'crate' ? `<p>${TICKET_CRATE.tickets} Trial tickets went to your bought stash (${this.state.boughtTickets}/${BOUGHT_TICKET_CAP}). They're used after your free tickets run out.</p>` : '<p>You have a Hero Voucher. Use it now, or keep it for later.</p>', 'Okay');
       this.render();
     });
+    $('hs-asc').addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-asc]');
+      if (!btn || btn.disabled) return;
+      const got = this.state.buyAscendantChest();
+      if (!got) return;
+      play('chest');
+      const h = HEROES.find((x) => x.id === got.heroId);
+      this.showModal('Ascendant Chest', `<p><b>+${got.crests} ${h?.name ?? ''} crests</b></p>${dropCards(got.drops)}Bought with Gems.`, 'Collect');
+      this.render();
+    });
     $('events-btn').addEventListener('click', () => this.showCalendar());
     $('rewards').addEventListener('click', (e) => {
       const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-hs]');
@@ -2087,6 +2097,19 @@ export class UI {
     const buy = `<button type="button" class="gem-btn" data-deal="buy" ${deal.bought || gems < deal.gems || !crateRoom ? 'disabled' : ''}>${deal.bought ? 'Bought' : `${deal.gems} <span class="gem"></span>`}</button>`;
     const use = s.vouchers > 0 ? `<button type="button" class="wood-btn" data-deal="use">Use Hero Voucher (${s.vouchers})</button>` : '';
     setHtml($('hs-deal'), `<div class="deal-head"><div><span class="deal-tag">Limited deal · ends in ${ends}</span>${what}</div>${buy}</div>${use}`);
+    // The Ascendant Chest: only while an Ascendant hero that beats this week's Guild Boss is out.
+    const asc = s.ascendantChestState(now);
+    $('hs-asc').hidden = !asc;
+    if (asc) {
+      const h = asc.hero;
+      const n = asc.next;
+      const leftMs = asc.endsAt - now;
+      const ascBuy = `<button type="button" class="gem-btn" data-asc="buy" ${!n || gems < n.gems ? 'disabled' : ''}>${n ? `${n.gems} <span class="gem"></span>` : 'Sold out'}</button>`;
+      setHtml(
+        $('hs-asc'),
+        `<div class="deal-head">${face(h)}<div><span class="deal-tag">Ascendant Chest · ${cap(asc.boss)} boss week · ends in ${leftMs >= 86_400_000 ? `${Math.floor(leftMs / 86_400_000)}d ${Math.floor((leftMs % 86_400_000) / 3_600_000)}h` : `${Math.floor(leftMs / 3_600_000)}h ${Math.ceil((leftMs % 3_600_000) / 60_000)}m`}</span><b>${h.name}</b><small>${n ? `${n.crests} ${h.name} crests plus a Hero Chest's crests for other heroes. Bought ${asc.bought} this week; each one costs more and gives more ${h.name} crests. Prices reset Monday.` : 'All chests bought this week. Prices reset Monday.'}</small></div>${ascBuy}</div>`,
+      );
+    }
   }
 
   /** Spend a Hero Voucher: pick any non-Legendary hero, fewer medals for rarer ones. */

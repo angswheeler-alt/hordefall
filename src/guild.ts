@@ -1,11 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   HEROES, RELEASED_HEROES, GUILD_MAX_MEMBERS, GUILD_REQUEST_GOAL, GUILD_REQUEST_HOURS, GUILD_REQUEST_OPEN_HOURS, GUILD_DONATE_MAX, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP,
-  GUILD_BOSS_ATTEMPTS, GUILD_BOSS_NAMES, GUILD_BOSS_PAR_ATTEMPTS, ELEMENT_COLORS, elementMultiplier, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, guildResearchPerAttempt, GUILD_WILD_PER_WEEK, GUILD_WILD_COST, GUILD_EMBER_POUCHES_PER_DAY, GUILD_QUESTS, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS,
+  GUILD_BOSS_ATTEMPTS, GUILD_BOSS_FIGHT_GAP_SECONDS, GUILD_BOSS_REST_MINUTES, GUILD_BOSS_NAMES, GUILD_BOSS_PAR_ATTEMPTS, ELEMENT_COLORS, elementMultiplier, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, guildResearchPerAttempt, GUILD_WILD_PER_WEEK, GUILD_WILD_COST, GUILD_EMBER_POUCHES_PER_DAY, GUILD_QUESTS, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS,
   type HeroDef, type GuildShopId, type Element, type ResearchBranch,
 } from './data';
 import Decimal from 'break_infinity.js';
-import { fmt, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, guildBossElement, researchPointsFor, researchRank } from './formulas';
+import { fmt, guildBossFightWait, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, guildBossElement, researchPointsFor, researchRank } from './formulas';
 import type { GameState } from './state';
 import type { Account } from './account';
 import { faceStyle, dropCards, type UI } from './ui';
@@ -29,10 +29,10 @@ type Role = 'leader' | 'officer' | 'member';
 interface GuildRow { id: string; name: string; description: string; min_stage: number; created_at: string; research_focus?: ResearchBranch; guild_members?: Array<{ count: number }> }
 interface MemberRow { user_id: string; guild_id: string; username: string; role: Role; best_stage: number; joined_at: string }
 interface MessageRow { id: number; user_id: string; username: string; body: string; created_at: string }
-interface BossRow { guild_id: string; week: string; level: number; element: Element; hp: number | string; damage: number | string }
+interface BossRow { guild_id: string; week: string; level: number; element: Element; hp: number | string; damage: number | string; rest_until?: string | null }
 interface KillRow { level: number; username: string; killed_at: string }
 interface BossRewards { kills: Array<{ week: string; level: number }>; weekly: Array<{ week: string; top: number }> }
-interface HitRow { user_id: string; username: string; damage: number | string; day: string }
+interface HitRow { user_id: string; username: string; damage: number | string; day: string; created_at?: string }
 interface QuestRow { kind: string; goal: number; progress: number; mine: number; personal: number }
 interface QuestData { week: string; members: number; quests: QuestRow[]; claimed: string[] }
 interface RequestRow { id: number; user_id: string; username: string; hero_id: string; goal: number; received: number; collected: number; created_at: string }
@@ -104,6 +104,8 @@ export class Guild {
     });
     setInterval(() => {
       if (this.visible() && Date.now() - this.lastFetch > POLL_SECONDS * 1000) void this.refresh();
+      // The boss's rest and the fight cooldown count down on the button.
+      else if (this.visible() && this.mode === 'home' && this.view === 'boss' && this.boss) this.renderBoss();
     }, 1000);
     setInterval(() => void this.reportQuests().catch(() => undefined), QUEST_REPORT_SECONDS * 1000);
     // Opening the tab fetches right away.
@@ -273,7 +275,7 @@ export class Guild {
     if (boss.error) throw boss.error;
     this.boss = boss.data as BossRow;
     const [hits, kills, rewards] = await Promise.all([
-      db.from('guild_boss_hits').select('user_id, username, damage, day').eq('guild_id', gid).gte('day', this.boss.week),
+      db.from('guild_boss_hits').select('user_id, username, damage, day, created_at').eq('guild_id', gid).gte('day', this.boss.week),
       db.from('guild_boss_kills').select('level, username, killed_at').eq('guild_id', gid).eq('week', this.boss.week).order('level', { ascending: false }).limit(5),
       db.rpc('guild_boss_rewards'),
     ]);
@@ -295,19 +297,23 @@ export class Guild {
         this.ui.showModal('Guild Boss', esc(this.message(res.error)), 'Okay');
         return;
       }
-      const r = res.data as { attempt: number; level: number; hp: number | string; kills: number; next_level: number };
+      const r = res.data as { attempt: number; paid?: boolean; level: number; hp: number | string; kills: number; next_level: number };
       const hp = big(r.hp);
-      const pay = this.state.payGuildBossAttempt(r.level, damage, hp);
+      // Only the first few fights a day pay (the server says which); the rest still add damage.
+      const paid = r.paid ?? r.attempt <= GUILD_BOSS_ATTEMPTS;
+      const pay = paid ? this.state.payGuildBossAttempt(r.level, damage, hp) : null;
       play(r.kills ? 'chest' : 'coin');
       const pct = hp.gt(0) ? damage.div(hp).times(100).toNumber() : 0;
       const share = pct > 100 ? 'more than its whole health' : `${pct >= 0.1 ? pct.toFixed(1) : '<0.1'}% of its health`;
       const focus = GUILD_RESEARCH.find((b) => b.id === this.guild?.research_focus);
-      let html = `<p>Your team dealt <b>${fmt(damage)}</b> damage (${share}).</p><p>+${pay.coins} Guild Coins · +${fmt(pay.gold)} gold${focus ? ` · +${guildResearchPerAttempt(r.level)} ${focus.name} research` : ''}</p>`;
+      let html = `<p>Your team dealt <b>${fmt(damage)}</b> damage (${share}).</p>`;
+      html += pay
+        ? `<p>+${pay.coins} Guild Coins · +${fmt(pay.gold)} gold${focus ? ` · +${guildResearchPerAttempt(r.level)} ${focus.name} research` : ''}</p>`
+        : `<p>Today's ${GUILD_BOSS_ATTEMPTS} rewarded fights are used up, so this one only adds damage. Level and weekly rewards still count it.</p>`;
       if (r.kills) {
-        const what = r.kills === 1 ? `level ${r.level}` : `levels ${r.level} to ${r.next_level - 1}`;
-        html += `<p><b>You beat ${what}!</b> It's back at level ${r.next_level} and stronger. Everyone who hit it this week can claim the level rewards.</p>`;
+        html += `<p><b>You beat level ${r.level}!</b> It rests for ${GUILD_BOSS_REST_MINUTES} minutes, then comes back at level ${r.next_level} and stronger. Everyone who hit it this week can claim the level rewards.</p>`;
       }
-      this.ui.showModal(`Attempt ${r.attempt}/${GUILD_BOSS_ATTEMPTS} today`, html, 'Nice');
+      this.ui.showModal(paid ? `Rewarded fight ${r.attempt}/${GUILD_BOSS_ATTEMPTS} today` : `Fight ${r.attempt} today`, html, 'Nice');
       this.ui.render();
     } finally {
       this.fighting = false;
@@ -674,18 +680,28 @@ export class Guild {
     const dayReset = Date.parse(today) + 24 * HOUR - Date.now();
     const coins = guildBossAttemptCoins(boss.level, mine, hp, GUILD_BOSS_PAR_ATTEMPTS);
     const next = guildBossElement(new Date(Date.parse(boss.week) + 7 * 24 * HOUR).toISOString().slice(0, 10));
-    const btn = `<button type="button" class="hot rw-wide" data-g="fight" ${used >= GUILD_BOSS_ATTEMPTS || this.fighting || !team.length ? 'disabled' : ''}>${
-      this.fighting ? 'Fighting…' : used >= GUILD_BOSS_ATTEMPTS ? `No attempts left · 3 more in ${untilText(dayReset)}` : `Fight (${GUILD_BOSS_ATTEMPTS - used} left today) · about ${fmt(mine)} damage`
-    }</button>`;
+    const myLast = Math.max(0, ...this.hits.filter((h) => h.user_id === uid && h.created_at).map((h) => Date.parse(h.created_at!)));
+    const wait = guildBossFightWait(boss.rest_until ? Date.parse(boss.rest_until) : null, myLast || null, Date.now());
+    const paidLeft = Math.max(0, GUILD_BOSS_ATTEMPTS - used);
+    const secs = (ms: number) => (ms >= 60_000 ? untilText(ms) : `${Math.ceil(ms / 1000)}s`);
+    const btn = `<button type="button" class="hot rw-wide" data-g="fight" ${wait.kind !== 'ready' || this.fighting || !team.length ? 'disabled' : ''}>${
+      this.fighting
+        ? 'Fighting…'
+        : wait.kind === 'resting'
+          ? `Defeated! Back at level ${boss.level} in ${secs(wait.ms)}`
+          : wait.kind === 'cooldown'
+            ? `Catch your breath · fight again in ${secs(wait.ms)}`
+            : `Fight · about ${fmt(mine)} damage${paidLeft ? ` (${paidLeft} rewarded left today)` : ''}`
+    }</button><small class="g-boss-next">${paidLeft ? '' : `Rewarded fights come back in ${untilText(dayReset)}. Extra fights still add damage.`}</small>`;
     setHtml(
       $('g-boss'),
       `<div class="g-boss-top"><span class="g-boss-face" style="background:#${ELEMENT_COLORS[boss.element].toString(16).padStart(6, '0')}">${GUILD_BOSS_NAMES[boss.element][0]}</span>
         <div><b>${GUILD_BOSS_NAMES[boss.element]}</b><small>Level ${boss.level} · ${boss.element} · new boss in ${untilText(reset)}</small></div>
         <div class="g-boss-best"><b>${top}</b><small>beaten</small></div></div>
        <div class="g-boss-bar"><i style="width:${hp.gt(0) ? Math.max(0, Math.min(100, left.div(hp).times(100).toNumber())) : 0}%"></i><span>${fmt(left)} / ${fmt(hp)}</span></div>
-       <p>This week's guild event. The whole guild fights this boss, and every member gets ${GUILD_BOSS_ATTEMPTS} attempts a day with their Trial team (Ember levels). Each time it falls it comes straight back one level stronger. ${tip}</p>
+       <p>This week's guild event. The whole guild fights this boss with their Trial teams (Ember levels), as often as they like: one fight every ${GUILD_BOSS_FIGHT_GAP_SECONDS / 60} minutes each. Each time it falls it rests ${GUILD_BOSS_REST_MINUTES} minutes, then comes back one level stronger. ${tip}</p>
        <ul class="g-boss-pay">
-         <li><b>Each attempt</b> ${10 + boss.level} to ${2 * (10 + boss.level)} Guild Coins (about ${coins} for yours) and gold</li>
+         <li><b>First ${GUILD_BOSS_ATTEMPTS} fights a day</b> ${10 + boss.level} to ${2 * (10 + boss.level)} Guild Coins each (about ${coins} for yours) and gold</li>
          <li><b>Each level beaten</b> ${guildBossKillCoins(boss.level)} Guild Coins and Embers for everyone who hit it this week</li>
          <li><b>End of the week</b> ${top ? `${fmt(week.coins)} Guild Coins and ${week.chests} Hero Chest${week.chests === 1 ? '' : 's'} so far (level ${top})` : 'Guild Coins and Hero Chests by the highest level beaten'}, for everyone who hit it</li>
        </ul>${btn}<small class="g-boss-next">Next week: ${GUILD_BOSS_NAMES[next]} (${next}), starting at level 1</small>`,
@@ -716,7 +732,7 @@ export class Guild {
       $('g-board'),
       rows.length
         ? rows
-            .map(([id, t], i) => `<li class="${id === uid ? 'g-me' : ''}"><div class="rw-text"><span><b>${i + 1}. ${esc(t.name)}</b></span><small>${fmt(t.dmg)} damage · ${t.n} attempt${t.n === 1 ? '' : 's'} this week · ${t.today}/${GUILD_BOSS_ATTEMPTS} today</small></div></li>`)
+            .map(([id, t], i) => `<li class="${id === uid ? 'g-me' : ''}"><div class="rw-text"><span><b>${i + 1}. ${esc(t.name)}</b></span><small>${fmt(t.dmg)} damage · ${t.n} fight${t.n === 1 ? '' : 's'} this week · ${t.today} today</small></div></li>`)
             .join('')
         : '<li><div class="rw-text"><span>No one has fought this week yet. Be the first!</span></div></li>',
     );
