@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
-import type { HeroDef, StallDef } from './data';
-import { STALL_MILESTONE } from './data';
+import type { HeroDef, StallDef, Element } from './data';
+import { STALL_MILESTONE, GUILD_BOSS_KILL_COINS, GUILD_BOSS_WEEK_COINS, GUILD_BOSS_LEVELS_PER_CHEST, GUILD_BOSS_WEEK_MAX_CHESTS } from './data';
 
 // Tuning from an economy sim: the stage 100 boss falls when the lead hero is
 // around level 100 (gold + Ember levels), the first Rekindle (after stage 125)
@@ -244,9 +244,21 @@ export function guildBossAttemptCoins(level: number, damage: Decimal, hp: Decima
   return Math.round(base * (1 + share));
 }
 
-/** Guild Coins for every member who hit a boss that was beaten. */
+/** Guild Coins for each level beaten, paid to every member who hit the boss that week. */
 export function guildBossKillCoins(level: number): number {
-  return 5 * (10 + level);
+  return GUILD_BOSS_KILL_COINS * (10 + level);
+}
+
+/** The weekly reward when the highest level beaten is `top`: Guild Coins and Hero Chests (none for 0). */
+export function guildBossWeekReward(top: number): { coins: number; chests: number } {
+  if (!(top > 0)) return { coins: 0, chests: 0 };
+  return { coins: GUILD_BOSS_WEEK_COINS * (10 + top), chests: Math.min(GUILD_BOSS_WEEK_MAX_CHESTS, Math.ceil(top / GUILD_BOSS_LEVELS_PER_CHEST)) };
+}
+
+/** The boss element for a week (its Monday): water, fire, earth, light, dark in turn, like guild_boss_element. */
+export function guildBossElement(week: string): Element {
+  const n = Math.round((Date.parse(week) - Date.parse('2025-12-29')) / (7 * 86_400_000));
+  return (['water', 'fire', 'earth', 'light', 'dark'] as const)[((n % 5) + 5) % 5];
 }
 
 /** Points needed to reach a Guild Research rank: 300 x (1^2 + ... + rank^2). */

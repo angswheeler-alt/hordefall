@@ -264,20 +264,14 @@ begin
 end $$;
 
 -- ---------- Guild Boss ----------
--- One boss per guild per day (UTC). Every member gets 3 attempts a day and
--- their damage fills a shared health bar. A boss killed today comes back one
--- level higher tomorrow; one that survives comes back at the same level.
-
-create table if not exists public.guild_boss_days (
-  guild_id uuid not null references public.guilds (id) on delete cascade,
-  day date not null,
-  level integer not null,
-  element text not null,
-  hp numeric not null,
-  damage numeric not null default 0,
-  killed_at timestamptz,
-  primary key (guild_id, day)
-);
+-- A weekly guild event. Each week (Monday 00:00 UTC) the guild faces a new boss
+-- (the element rotates week by week) starting at level 1. The whole guild hits
+-- the same health bar, 3 attempts per player per UTC day. Every time it dies it
+-- comes straight back one level higher; damage past the kill carries over.
+-- Rewards: every level beaten pays everyone in the guild who hit the boss that
+-- week (claim right away), and when the week ends the highest level beaten
+-- decides a weekly reward for the same players (claim during the next week).
+-- The old daily boss (guild_boss_days, guild_boss_claims) is no longer used.
 
 create table if not exists public.guild_boss_hits (
   id bigint generated always as identity primary key,
@@ -291,63 +285,132 @@ create table if not exists public.guild_boss_hits (
 create index if not exists guild_boss_hits_day on public.guild_boss_hits (guild_id, day);
 create index if not exists guild_boss_hits_user on public.guild_boss_hits (user_id, day);
 
-create table if not exists public.guild_boss_claims (
+create table if not exists public.guild_boss_weeks (
   guild_id uuid not null references public.guilds (id) on delete cascade,
-  day date not null,
-  user_id uuid not null references auth.users (id) on delete cascade,
-  primary key (guild_id, day, user_id)
+  week date not null,
+  element text not null,
+  level integer not null default 1,
+  hp numeric not null,
+  damage numeric not null default 0,
+  primary key (guild_id, week)
 );
 
-alter table public.guild_boss_days enable row level security;
-alter table public.guild_boss_hits enable row level security;
-alter table public.guild_boss_claims enable row level security;
+create table if not exists public.guild_boss_kills (
+  guild_id uuid not null references public.guilds (id) on delete cascade,
+  week date not null,
+  level integer not null,
+  username text not null,
+  killed_at timestamptz not null default now(),
+  primary key (guild_id, week, level)
+);
 
-drop policy if exists "Members read their guild boss" on public.guild_boss_days;
-create policy "Members read their guild boss" on public.guild_boss_days for select to authenticated using (guild_id = public.my_guild());
+create table if not exists public.guild_boss_kill_claims (
+  guild_id uuid not null references public.guilds (id) on delete cascade,
+  week date not null,
+  level integer not null,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  primary key (guild_id, week, level, user_id)
+);
+
+create table if not exists public.guild_boss_week_claims (
+  guild_id uuid not null references public.guilds (id) on delete cascade,
+  week date not null,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  primary key (guild_id, week, user_id)
+);
+
+alter table public.guild_boss_hits enable row level security;
+alter table public.guild_boss_weeks enable row level security;
+alter table public.guild_boss_kills enable row level security;
+alter table public.guild_boss_kill_claims enable row level security;
+alter table public.guild_boss_week_claims enable row level security;
+
 drop policy if exists "Members read their guild boss hits" on public.guild_boss_hits;
 create policy "Members read their guild boss hits" on public.guild_boss_hits for select to authenticated using (guild_id = public.my_guild());
-drop policy if exists "Players read their own boss claims" on public.guild_boss_claims;
-create policy "Players read their own boss claims" on public.guild_boss_claims for select to authenticated using (user_id = auth.uid());
+drop policy if exists "Members read their weekly boss" on public.guild_boss_weeks;
+create policy "Members read their weekly boss" on public.guild_boss_weeks for select to authenticated using (guild_id = public.my_guild());
+drop policy if exists "Members read their boss kills" on public.guild_boss_kills;
+create policy "Members read their boss kills" on public.guild_boss_kills for select to authenticated using (guild_id = public.my_guild());
+drop policy if exists "Players read their own kill claims" on public.guild_boss_kill_claims;
+create policy "Players read their own kill claims" on public.guild_boss_kill_claims for select to authenticated using (user_id = auth.uid());
+drop policy if exists "Players read their own week claims" on public.guild_boss_week_claims;
+create policy "Players read their own week claims" on public.guild_boss_week_claims for select to authenticated using (user_id = auth.uid());
+
+-- The old daily boss.
+drop function if exists public.guild_boss_today();
+drop function if exists public.claim_guild_boss(date);
 
 -- Boss health for a level: about 15 attempts by a team of five 1-star heroes
--- at Ember level 30 x level (src/guild.ts mirrors this as guildBossHp).
+-- at Ember level 30 x level (src/formulas.ts mirrors this as guildBossHp).
 create or replace function public.guild_boss_hp(p_level integer) returns numeric
 language sql immutable as $$
   select round(14400 * (30 * p_level) * power(2::numeric, 1.5 * p_level))
 $$;
 
--- Today's boss for the caller's guild, made on the first look of the day.
-create or replace function public.guild_boss_today() returns public.guild_boss_days
+-- The boss element for a week (its Monday): water, fire, earth, light, dark in turn
+-- (src/formulas.ts mirrors this as guildBossElement).
+create or replace function public.guild_boss_element(p_week date) returns text
+language sql immutable as $$
+  select (array['water', 'fire', 'earth', 'light', 'dark'])[1 + (((p_week - date '2025-12-29') / 7) % 5 + 5) % 5]
+$$;
+
+-- This week's boss for the caller's guild, made on the first look of the week.
+create or replace function public.guild_boss_week() returns public.guild_boss_weeks
 language plpgsql security definer set search_path = public as $$
-declare g uuid := public.my_guild(); today date := (now() at time zone 'utc')::date; row guild_boss_days; prev guild_boss_days; lvl integer;
+declare g uuid := public.my_guild(); wk date := date_trunc('week', now() at time zone 'utc')::date; row guild_boss_weeks;
 begin
   if g is null then raise exception 'Join a guild first.'; end if;
-  select * into row from guild_boss_days where guild_id = g and day = today;
-  if found then return row; end if;
-  select * into prev from guild_boss_days where guild_id = g order by day desc limit 1;
-  lvl := case when prev.guild_id is null then 1 when prev.killed_at is not null then prev.level + 1 else prev.level end;
-  insert into guild_boss_days (guild_id, day, level, element, hp)
-    values (g, today, lvl, (array['water', 'fire', 'earth', 'light', 'dark'])[1 + ((today - date '2026-01-01') % 5)], public.guild_boss_hp(lvl))
-    on conflict (guild_id, day) do nothing;
-  select * into row from guild_boss_days where guild_id = g and day = today;
+  insert into guild_boss_weeks (guild_id, week, element, hp)
+    values (g, wk, public.guild_boss_element(wk), public.guild_boss_hp(1))
+    on conflict (guild_id, week) do nothing;
+  select * into row from guild_boss_weeks where guild_id = g and week = wk;
   return row;
 end $$;
 
 -- One attempt (hit_guild_boss) is defined in the research section below, since it also feeds research.
 
--- The kill reward, once per beaten boss for every member who hit it (up to 7 days back).
--- Returns the boss level, or null when there is nothing to claim.
-create or replace function public.claim_guild_boss(p_day date) returns integer
+-- Rewards the caller can claim: levels beaten this week or last week, and last week's
+-- weekly reward (by the highest level beaten). Only for weeks the caller hit the boss.
+create or replace function public.guild_boss_rewards() returns json
 language plpgsql security definer set search_path = public as $$
-declare g uuid := public.my_guild(); lvl integer;
+declare g uuid := public.my_guild(); wk date := date_trunc('week', now() at time zone 'utc')::date; result json;
 begin
-  select level into lvl from guild_boss_days
-    where guild_id = g and day = p_day and killed_at is not null and day > (now() at time zone 'utc')::date - 7;
-  if lvl is null then return null; end if;
-  if not exists (select 1 from guild_boss_hits where guild_id = g and day = p_day and user_id = auth.uid()) then return null; end if;
-  insert into guild_boss_claims (guild_id, day, user_id) values (g, p_day, auth.uid()) on conflict do nothing;
-  if not found then return null; end if;
-  return lvl;
+  if g is null then raise exception 'Join a guild first.'; end if;
+  with hit_weeks as (
+    select distinct date_trunc('week', day)::date week from guild_boss_hits
+      where guild_id = g and user_id = auth.uid() and day >= wk - 7
+  )
+  select json_build_object(
+    'kills', (select coalesce(json_agg(json_build_object('week', k.week, 'level', k.level) order by k.week, k.level), '[]'::json)
+      from guild_boss_kills k join hit_weeks h on h.week = k.week
+      where k.guild_id = g and not exists (select 1 from guild_boss_kill_claims c where c.guild_id = g and c.week = k.week and c.level = k.level and c.user_id = auth.uid())),
+    'weekly', (select coalesce(json_agg(json_build_object('week', b.week, 'top', b.level - 1)), '[]'::json)
+      from guild_boss_weeks b join hit_weeks h on h.week = b.week
+      where b.guild_id = g and b.week = wk - 7 and b.level > 1
+        and not exists (select 1 from guild_boss_week_claims c where c.guild_id = g and c.week = b.week and c.user_id = auth.uid()))
+  ) into result;
+  return result;
+end $$;
+
+-- Claims everything guild_boss_rewards() lists. Returns only what this call claimed
+-- (a second tab gets nothing twice); the game pays it.
+create or replace function public.claim_guild_boss_rewards() returns json
+language plpgsql security definer set search_path = public as $$
+declare g uuid := public.my_guild(); r json; kills json; weekly json;
+begin
+  r := public.guild_boss_rewards();
+  with ins as (
+    insert into guild_boss_kill_claims (guild_id, week, level, user_id)
+      select g, (x ->> 'week')::date, (x ->> 'level')::integer, auth.uid() from json_array_elements(r -> 'kills') x
+      on conflict do nothing returning week, level
+  ) select coalesce(json_agg(json_build_object('week', week, 'level', level) order by week, level), '[]'::json) into kills from ins;
+  with ins as (
+    insert into guild_boss_week_claims (guild_id, week, user_id)
+      select g, (x ->> 'week')::date, auth.uid() from json_array_elements(r -> 'weekly') x
+      on conflict do nothing returning week
+  ) select coalesce(json_agg(json_build_object('week', i.week, 'top', b.level - 1)), '[]'::json) into weekly
+      from ins i join guild_boss_weeks b on b.guild_id = g and b.week = i.week;
+  return json_build_object('kills', kills, 'weekly', weekly);
 end $$;
 
 -- ---------- Guild Research ----------
@@ -397,26 +460,35 @@ begin
   update guilds set research_focus = p_branch where id = public.my_guild();
 end $$;
 
--- Boss attempts feed the focus branch.
+-- Boss attempts feed the focus branch. A hit that beats the boss brings the next
+-- level straight back, and leftover damage carries into it (up to 100 levels at once).
 create or replace function public.hit_guild_boss(p_damage numeric) returns json
 language plpgsql security definer set search_path = public as $$
-declare boss guild_boss_days; used integer; dmg numeric; killed boolean := false; focus text;
+declare boss guild_boss_weeks; used integer; dmg numeric; left_over numeric; start_level integer; start_hp numeric; kills integer := 0; focus text; who text := public.guild_username();
 begin
-  boss := public.guild_boss_today();
-  select * into boss from guild_boss_days where guild_id = boss.guild_id and day = boss.day for update;
-  if boss.killed_at is not null then raise exception 'Today''s boss is already beaten. A stronger one comes tomorrow.'; end if;
-  select count(*) into used from guild_boss_hits where user_id = auth.uid() and day = boss.day;
-  if used >= 3 then raise exception 'No attempts left today.'; end if;
+  boss := public.guild_boss_week();
+  select * into boss from guild_boss_weeks where guild_id = boss.guild_id and week = boss.week for update;
+  select count(*) into used from guild_boss_hits where user_id = auth.uid() and day = (now() at time zone 'utc')::date;
+  if used >= 3 then raise exception 'No attempts left today. You get 3 more tomorrow.'; end if;
   dmg := greatest(0, coalesce(p_damage, 0));
-  insert into guild_boss_hits (guild_id, day, user_id, username, damage) values (boss.guild_id, boss.day, auth.uid(), public.guild_username(), dmg);
-  update guild_boss_days set damage = least(hp, damage + dmg),
-    killed_at = case when damage + dmg >= hp then now() else null end
-    where guild_id = boss.guild_id and day = boss.day
+  insert into guild_boss_hits (guild_id, day, user_id, username, damage) values (boss.guild_id, (now() at time zone 'utc')::date, auth.uid(), who, dmg);
+  start_level := boss.level;
+  start_hp := boss.hp;
+  left_over := boss.damage + dmg;
+  while left_over >= boss.hp and kills < 100 loop
+    insert into guild_boss_kills (guild_id, week, level, username) values (boss.guild_id, boss.week, boss.level, who) on conflict do nothing;
+    left_over := left_over - boss.hp;
+    boss.level := boss.level + 1;
+    boss.hp := public.guild_boss_hp(boss.level);
+    kills := kills + 1;
+  end loop;
+  update guild_boss_weeks set level = boss.level, hp = boss.hp, damage = least(left_over, boss.hp)
+    where guild_id = boss.guild_id and week = boss.week
     returning * into boss;
-  killed := boss.killed_at is not null;
   select research_focus into focus from guilds where id = boss.guild_id;
-  perform public.add_guild_research(boss.guild_id, focus, 10 + boss.level);
-  return json_build_object('attempt', used + 1, 'level', boss.level, 'hp', boss.hp, 'damage', boss.damage, 'killed', killed, 'research', 10 + boss.level, 'focus', focus);
+  perform public.add_guild_research(boss.guild_id, focus, 10 + start_level);
+  return json_build_object('attempt', used + 1, 'level', start_level, 'hp', start_hp, 'kills', kills,
+    'next_level', boss.level, 'next_hp', boss.hp, 'damage', boss.damage, 'research', 10 + start_level, 'focus', focus);
 end $$;
 
 -- ---------- Guild Quests ----------
@@ -528,7 +600,7 @@ revoke all on function public.my_guild(), public.guild_username(), public.guild_
   public.set_guild_role(uuid, text), public.kick_guild_member(uuid), public.update_guild(text, integer),
   public.touch_guild_member(integer), public.post_guild_message(text), public.request_guild_medals(text, integer),
   public.donate_guild_medals(bigint, integer), public.collect_guild_medals(),
-  public.guild_boss_today(), public.hit_guild_boss(numeric), public.claim_guild_boss(date),
+  public.guild_boss_week(), public.hit_guild_boss(numeric), public.guild_boss_rewards(), public.claim_guild_boss_rewards(),
   public.add_guild_research(uuid, text, bigint), public.contribute_guild_research(text, integer), public.set_guild_research_focus(text),
   public.guild_quests(), public.report_guild_quests(integer, integer, integer), public.claim_guild_quest(text) from public, anon;
 grant execute on function public.my_guild(), public.guild_username(), public.guild_role(),
@@ -536,6 +608,6 @@ grant execute on function public.my_guild(), public.guild_username(), public.gui
   public.set_guild_role(uuid, text), public.kick_guild_member(uuid), public.update_guild(text, integer),
   public.touch_guild_member(integer), public.post_guild_message(text), public.request_guild_medals(text, integer),
   public.donate_guild_medals(bigint, integer), public.collect_guild_medals(),
-  public.guild_boss_today(), public.hit_guild_boss(numeric), public.claim_guild_boss(date),
+  public.guild_boss_week(), public.hit_guild_boss(numeric), public.guild_boss_rewards(), public.claim_guild_boss_rewards(),
   public.contribute_guild_research(text, integer), public.set_guild_research_focus(text),
   public.guild_quests(), public.report_guild_quests(integer, integer, integer), public.claim_guild_quest(text) to authenticated;
