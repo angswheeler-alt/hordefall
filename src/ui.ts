@@ -2,7 +2,7 @@ import { DEV_TOOLS } from './config';
 import Decimal from 'break_infinity.js';
 import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { HEROES, byRarity, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, byRarity, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
@@ -873,6 +873,17 @@ export class UI {
       this.render();
     });
     $('hs-pack').addEventListener('click', () => this.pickMedalPack());
+    $('hs-deal').addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-deal]');
+      if (!btn || btn.disabled) return;
+      if (btn.dataset.deal === 'use') return this.pickVoucherHero();
+      const kind = this.state.dealState().kind;
+      if (!this.state.buyDeal()) return;
+      play('unlock');
+      this.showModal(kind === 'crate' ? 'Ticket Crate' : 'Hero Voucher', kind === 'crate' ? `<p>${TICKET_CRATE.tickets} Trial tickets went to your bought stash (${this.state.boughtTickets}/${BOUGHT_TICKET_CAP}). They're used after your free tickets run out.</p>` : '<p>You have a Hero Voucher. Use it now, or keep it for later.</p>', 'Okay');
+      this.render();
+    });
+    $('events-btn').addEventListener('click', () => this.showCalendar());
     $('rewards').addEventListener('click', (e) => {
       const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-hs]');
       if (!btn || btn.disabled) return;
@@ -1353,25 +1364,28 @@ export class UI {
     const wait = s.refreshTickets();
     const mm = Math.floor(wait / 60);
     const ss = String(wait % 60).padStart(2, '0');
-    setHtml($('tr-tickets'), `<i class="ticket"></i>${s.tickets}/${TICKET_CAP} ${wait ? `<small>next ${mm}:${ss}</small>` : '<small>(Maxed)</small>'}`);
+    const stash = s.boughtTickets ? ` <span class="tr-stash" title="Bought tickets, used after the free ones">+${s.boughtTickets} bought</span>` : '';
+    const event = s.trialEventOn() ? ' <span class="tr-event">x2 crests today</span>' : '';
+    setHtml($('tr-tickets'), `<i class="ticket"></i>${s.tickets}/${TICKET_CAP}${stash} ${wait ? `<small>next ${mm}:${ss}</small>` : '<small>(Maxed)</small>'}${event}`);
     const open = s.openTrials();
     const unlocked = s.trialsUnlocked();
     // A Trial that closed at midnight (or was never open) drops back to the list.
     if (this.trialEntered && (!unlocked || !this.trialPick || !open.includes(this.trialPick))) this.trialEntered = false;
     $('tr-list').hidden = this.trialEntered;
     $('tr-detail').hidden = !this.trialEntered;
-    const listKey = `${open.join(',')}:${unlocked}`;
+    const medals = s.trialMedals();
+    const listKey = `${open.join(',')}:${unlocked}:${medals}`;
     if ($('tr-list').dataset.key !== listKey) {
       $('tr-list').dataset.key = listKey;
       $('tr-list').innerHTML = (unlocked ? '' : '<p class="trial-lock">Trials open once you beat the stage 50 boss.</p>') + TRIAL_ROTATION.map((e) => {
         const isOpen = open.includes(e);
-        const days = TRIAL_SCHEDULE[e].map((d) => DAY_NAMES[d]).join(', ');
+        const days = s.trialDays(e).map((d) => DAY_NAMES[d]).join(', ');
         const face = Object.entries(bossFace(e, 60)).map(([k, v]) => `${k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}:${v}`).join(';');
         const btn = unlocked ? 'Enter' : 'Locked';
         return `<div class="trial-entry${isOpen ? ' open' : ''}" style="--el:${hex(ELEMENT_COLORS[e])}">` +
           `<span class="trial-portrait" style="${face}" title="${cap(e)}"></span>` +
           `<div class="trial-entry-text"><b>${TRIAL_BOSS_NAMES[e]} <span>(${days})</span></b>` +
-          `<small>Rewards: <i class="ess-${e}" title="${ESSENCE_NAMES[e]}"></i> and <i class="medal" title="${TRIAL_MEDALS} crests for random ${cap(e)} heroes"></i> x${TRIAL_MEDALS}</small></div>` +
+          `<small>Rewards: <i class="ess-${e}" title="${ESSENCE_NAMES[e]}"></i> and <i class="medal" title="${medals} crests for random ${cap(e)} heroes"></i> x${medals}</small></div>` +
           `<button class="trial-enter${isOpen && unlocked ? ' lit' : ''}" data-el="${e}" ${isOpen && unlocked ? '' : 'disabled'} title="${isOpen ? (unlocked ? `Open today` : 'Opens after the stage 50 boss') : `Open ${days}`}">${btn}</button>` +
           `</div>`;
       }).join('');
@@ -1389,7 +1403,7 @@ export class UI {
       $('tr-name').textContent = `${TRIAL_BOSS_NAMES[el]} (${cap(el)})`;
     }
     const level = TRIAL_LEVELS[tier - 1];
-    $('tr-info').textContent = `Uses Ember levels and stars, not gold levels. Drops ${ESSENCE_NAMES[el]} and ${TRIAL_MEDALS} crests, each for a random ${cap(el)} hero.`;
+    $('tr-info').textContent = `Uses Ember levels and stars, not gold levels. Drops ${ESSENCE_NAMES[el]} and ${s.trialMedals()} crests, each for a random ${cap(el)} hero.`;
     if ($('tr-medals').dataset.key !== el) {
       $('tr-medals').dataset.key = el;
       const odds = rarityOdds(s.trialPool(el), TRIAL_RARITY_WEIGHTS).map(([r, pct]) => `${cap(r)} ${+pct.toFixed(1)}%`).join(' · ');
@@ -1418,15 +1432,16 @@ export class UI {
         ? ((s.trialBest[el] ?? 0) >= TRIAL_TIERS ? '<span class="win">Top level cleared</span><br>' : 'This is the top level<br>')
         : `<b>Win this level to open level ${tier + 1}</b>${nextReq}<br>`;
     $('tr-up').title = tier < top ? `Level ${tier + 1}` : next ? `Win level ${tier} to open level ${tier + 1}` : 'Top level';
-    setHtml($('tr-odds'), `Difficulty <b>${level.difficulty.toLocaleString()}</b> · reward <b>${fmt(level.essence)}</b> Essence · ${TRIAL_MEDALS} crests<br>${req}<br>${nextLine}${bestLine}<br>Boss HP <b>${fmt(trialHp(level))}</b> · team damage in ${TRIAL_TIME}s <b>${fmt(sim.dps.times(TRIAL_TIME))}</b> · <span class="${sim.won ? 'win' : 'lose'}">${sim.won ? 'Should be winnable' : 'Too strong for now'}</span>`);
+    setHtml($('tr-odds'), `Difficulty <b>${level.difficulty.toLocaleString()}</b> · reward <b>${fmt(level.essence)}</b> Essence · ${s.trialMedals()} crests${s.trialEventOn() ? ' (x2 weekend)' : ''}<br>${req}<br>${nextLine}${bestLine}<br>Boss HP <b>${fmt(trialHp(level))}</b> · team damage in ${TRIAL_TIME}s <b>${fmt(sim.dps.times(TRIAL_TIME))}</b> · <span class="${sim.won ? 'win' : 'lose'}">${sim.won ? 'Should be winnable' : 'Too strong for now'}</span>`);
     const fight = $<HTMLButtonElement>('tr-fight');
-    fight.disabled = !unlocked || s.tickets <= 0 || !reqMet;
-    fight.textContent = !unlocked ? 'Beat the stage 50 boss' : !reqMet ? 'Locked' : s.tickets > 0 ? 'Fight · 1 ticket' : 'No tickets';
+    const have = s.trialTickets();
+    fight.disabled = !unlocked || have <= 0 || !reqMet;
+    fight.textContent = !unlocked ? 'Beat the stage 50 boss' : !reqMet ? 'Locked' : have > 0 ? 'Fight · 1 ticket' : 'No tickets';
     const quick = $<HTMLButtonElement>('tr-quick');
     quick.hidden = !unlocked || !reqMet || !quickOk;
-    quick.disabled = s.tickets <= 0;
+    quick.disabled = have <= 0;
     quick.title = 'Quick Battle: skip the fight, same reward as a win for each ticket spent';
-    if (!quick.hidden) fight.textContent = s.tickets > 0 ? 'Fight' : 'No tickets';
+    if (!quick.hidden) fight.textContent = have > 0 ? 'Fight' : 'No tickets';
     quick.textContent = 'Quick';
   }
 
@@ -1436,12 +1451,14 @@ export class UI {
     s.refreshTickets();
     const tier = this.currentTier();
     const el = this.trialEl();
-    if (!s.canQuickTrial(el, tier) || s.tickets <= 0) return;
-    const counts = [...new Set([1, 5, 10, s.tickets].filter((n) => n <= s.tickets))].sort((a, b) => a - b);
-    const buttons = counts.map((n) => `<button type="button" class="wood-btn levelall" data-quick="${n}">${n === s.tickets && n > 1 ? `All ${n}` : `x${n}`}</button>`).join('');
+    const have = s.trialTickets();
+    if (!s.canQuickTrial(el, tier) || have <= 0) return;
+    const counts = [...new Set([1, 5, 10, s.tickets, have].filter((n) => n >= 1 && n <= have))].sort((a, b) => a - b);
+    const buttons = counts.map((n) => `<button type="button" class="wood-btn levelall" data-quick="${n}">${n === have && n > 1 ? `All ${n}` : `x${n}`}</button>`).join('');
+    const stash = s.boughtTickets ? ` (${s.tickets} free + ${s.boughtTickets} bought; free ones go first)` : '';
     this.showModal(
       `Quick Battle · Level ${tier}`,
-      `<p>Skip the fight and take a win's reward for each ticket. You have <b>${s.tickets}</b> ticket${s.tickets === 1 ? '' : 's'}.</p><div class="quick-counts">${buttons}</div>`,
+      `<p>Skip the fight and take a win's reward for each ticket. You have <b>${have}</b> ticket${have === 1 ? '' : 's'}${stash}.</p><div class="quick-counts">${buttons}</div>`,
       'Cancel',
     );
     $('modal-body').querySelectorAll<HTMLButtonElement>('[data-quick]').forEach((b) =>
@@ -1784,9 +1801,10 @@ export class UI {
     const s = this.state;
     const open = s.openTrials();
     const trialsOn = s.trialsUnlocked();
-    $('hub-tr-tickets').textContent = `${s.tickets}/${TICKET_CAP}`;
-    $('hub-tr-note').textContent = trialsOn ? (open.length ? `Open today: ${open.map(cap).join(', ')}` : 'None open today') : 'Opens after the stage 50 boss';
-    $('hub-tr-alert').hidden = !(trialsOn && open.length && s.tickets > 0);
+    $('hub-tr-tickets').textContent = `${s.tickets}/${TICKET_CAP}${s.boughtTickets ? ` +${s.boughtTickets}` : ''}`;
+    const all = open.length === TRIAL_ROTATION.length ? 'all elements' : open.map(cap).join(', ');
+    $('hub-tr-note').textContent = trialsOn ? (open.length ? `${s.trialEventOn() ? 'x2 crests! ' : ''}Open today: ${all}` : 'None open today') : 'Opens after the stage 50 boss';
+    $('hub-tr-alert').hidden = !(trialsOn && open.length && s.trialTickets() > 0);
     const pvpOn = s.pvpOpen();
     $('hub-pvp-tickets').textContent = pvpOn ? `${s.pvp.tickets}/${PVP_TICKET_CAP}` : '-';
     $('hub-pvp-note').textContent = pvpOn ? `${rankName(rankIndex(s.pvp.trophies))} · ${s.pvp.trophies} trophies` : `Opens at player level ${s.pvpUnlockLevel()}`;
@@ -2021,6 +2039,78 @@ export class UI {
     rf.disabled = gems < HERO_SHOP_REFRESH_GEMS;
     setHtml(rf, `Refresh now · ${HERO_SHOP_REFRESH_GEMS} <span class="gem"></span>`);
     setHtml($('hs-pack'), `Pick a hero · ${MEDAL_PACK.medals} crests from ${MEDAL_PACK.gems.common} <span class="gem"></span>`);
+    const deal = s.dealState(now);
+    const left = deal.endsAt - now;
+    const ends = left >= 86_400_000 ? `${Math.floor(left / 86_400_000)}d ${Math.floor((left % 86_400_000) / 3_600_000)}h` : `${Math.floor(left / 3_600_000)}h ${Math.ceil((left % 3_600_000) / 60_000)}m`;
+    const crateRoom = deal.kind !== 'crate' || s.boughtTickets + TICKET_CRATE.tickets <= BOUGHT_TICKET_CAP;
+    const what = deal.kind === 'crate'
+      ? `<b>Ticket Crate</b><small>${TICKET_CRATE.tickets} Trial tickets into your bought stash, saved for this weekend's x${TRIAL_EVENT_MEDAL_MULT} crest Trials.${crateRoom ? '' : ` Stash too full (${s.boughtTickets}/${BOUGHT_TICKET_CAP}).`}</small>`
+      : `<b>Hero Voucher</b><small>Pick any hero when you use it: Common ${HERO_VOUCHER.medals.common}, Rare ${HERO_VOUCHER.medals.rare} or Epic ${HERO_VOUCHER.medals.epic} crests. Keeps until used.</small>`;
+    const buy = `<button type="button" class="gem-btn" data-deal="buy" ${deal.bought || gems < deal.gems || !crateRoom ? 'disabled' : ''}>${deal.bought ? 'Bought' : `${deal.gems} <span class="gem"></span>`}</button>`;
+    const use = s.vouchers > 0 ? `<button type="button" class="wood-btn" data-deal="use">Use Hero Voucher (${s.vouchers})</button>` : '';
+    setHtml($('hs-deal'), `<div class="deal-head"><div><span class="deal-tag">Limited deal · ends in ${ends}</span>${what}</div>${buy}</div>${use}`);
+  }
+
+  /** Spend a Hero Voucher: pick any non-Legendary hero, fewer medals for rarer ones. */
+  private pickVoucherHero() {
+    const s = this.state;
+    if (s.vouchers <= 0) return;
+    const faces = SHOP_HEROES.map((h) => {
+      const owned = (s.levels[h.id] ?? 0) > 0;
+      return `<button type="button" class="g-pick" data-hero="${h.id}"><span class="face art" style="${faceStyle(h)}">${h.name[0]}</span><b>${h.name}</b><small>${owned ? '' : 'Locked · '}${s.voucherMedals(h.id)} crests</small></button>`;
+    }).join('');
+    this.showModal('Hero Voucher', `<p>Pick the hero who gets the crests. You have ${s.vouchers} voucher${s.vouchers === 1 ? '' : 's'}.</p><div class="g-picks">${faces}</div>`, 'Cancel');
+    $('modal-body').querySelectorAll<HTMLButtonElement>('.g-pick').forEach((btn) =>
+      btn.addEventListener('click', () => {
+        const h = HEROES.find((x) => x.id === btn.dataset.hero)!;
+        this.showModal(`Voucher for ${h.name}?`, `<p>${s.voucherMedals(h.id)} ${h.name} crests for 1 Hero Voucher.</p>`, 'Use voucher', () => {
+          const drops = s.useVoucher(h.id);
+          if (!drops) return;
+          play('chest');
+          this.scene()?.syncHeroes();
+          this.showModal('Hero Voucher', `${dropCards(drops)}`, 'Collect');
+          this.render();
+        }, true, 'Cancel');
+      }),
+    );
+  }
+
+  /** Settings > Events: four weeks of open Trials, double-medal weekends and the weekly deals. */
+  private showCalendar() {
+    const s = this.state;
+    const now = Date.now();
+    const monday = new Date(now);
+    monday.setHours(12, 0, 0, 0);
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    const days = s.calendar(28, monday.getTime());
+    const today = new Date(now).toDateString();
+    const head = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => `<span class="cal-h">${d}</span>`).join('');
+    const cells = days.map((d) => {
+      const date = new Date(d.date);
+      const past = d.date + 86_400_000 <= now;
+      const dots = d.open.map((e) => `<i style="background:${hex(ELEMENT_COLORS[e])}" title="${cap(e)}"></i>`).join('');
+      const cls = `cal-day${past ? ' past' : ''}${date.toDateString() === today ? ' today' : ''}${d.double ? ' double' : ''}`;
+      return `<div class="${cls}"><b>${date.getDate()}</b><span class="cal-dots">${dots}</span>${d.double ? '<span class="cal-x2">x2</span>' : ''}</div>`;
+    }).join('');
+    const fmtDay = (t: number) => new Date(t).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+    const ev = s.nextTrialEvent(now);
+    const evLine = ev.start <= now ? `<b>Now:</b> x${TRIAL_EVENT_MEDAL_MULT} Trial crests until ${fmtDay(ev.end - 1)}` : `<b>Next x${TRIAL_EVENT_MEDAL_MULT} Trial crests:</b> ${fmtDay(ev.start)} to ${fmtDay(ev.end - 1)}`;
+    const deals: string[] = [];
+    for (let w = 0; w < 4; w++) {
+      const t = monday.getTime() + w * 7 * 86_400_000;
+      const d = s.dealState(t);
+      deals.push(`<li>${fmtDay(t)} to ${fmtDay(t + 6 * 86_400_000)}: ${d.kind === 'crate' ? `Ticket Crate (${TICKET_CRATE.tickets} tickets)` : 'Hero Voucher'}, ${d.gems} Gems</li>`);
+    }
+    const legend = TRIAL_ROTATION.map((e) => `<li><i style="background:${hex(ELEMENT_COLORS[e])}"></i>${cap(e)}</li>`).join('');
+    this.showModal(
+      'Events',
+      `<p>${evLine}. Every other weekend, Trials pay x${TRIAL_EVENT_MEDAL_MULT} crests.</p>
+      <div class="cal-grid">${head}${cells}</div>
+      <ul class="cal-legend">${legend}<li><span class="cal-x2">x2</span> double crests</li></ul>
+      <p>Dots show which Trials are open. On Light and Dark days every Trial is open.</p>
+      <h3>Limited deals</h3><ul class="cal-list">${deals.join('')}</ul>`,
+      'Close',
+    );
   }
 
   /** The Gem Shop rows: what each costs, what it gives and whether it can be bought now. */
@@ -2037,7 +2127,7 @@ export class UI {
     gb.disabled = !s.goldBoostReady(now);
     setHtml(gb, `${GOLD_BOOST_GEMS} <span class="gem"></span>`);
     const can = s.ticketsBuyable(now);
-    $('gs-tickets-note').textContent = `${TICKET_GEMS} Gems each, up to the ${TICKET_CAP} cap. ${s.ticketBuysLeft(now)}/${TICKETS_PER_DAY} left today. You have ${s.tickets}.`;
+    $('gs-tickets-note').textContent = `${TICKET_GEMS} Gems each into your bought stash (up to ${BOUGHT_TICKET_CAP}), kept apart from the ${TICKET_CAP} free ones. ${s.ticketBuysLeft(now)}/${TICKETS_PER_DAY} left today. Stash: ${s.boughtTickets}.`;
     for (const n of [1, 5]) {
       const b = $<HTMLButtonElement>(`gs-ticket${n}`);
       b.disabled = can < n;

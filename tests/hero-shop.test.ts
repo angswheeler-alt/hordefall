@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { GameState, SHOP_HEROES, weekIndex, medalPackCost } from '../src/state';
-import { MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_CAP, TICKET_GEMS, TICKETS_PER_DAY } from '../src/data';
+import { MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_CAP, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP } from '../src/data';
 
 const DAY = 86_400_000;
 const NOW = Date.UTC(2026, 9, 21, 12);
@@ -92,17 +92,22 @@ describe('featured hero', () => {
 });
 
 describe('Trial tickets for Gems', () => {
-  it('only fills up to the cap and the daily limit', () => {
-    s.tickets = TICKET_CAP - 3;
-    expect(s.ticketsBuyable(NOW)).toBe(3);
-    expect(s.buyTickets(5, NOW)).toBe(false);
+  it('go to the bought stash, apart from the refilling tickets, within the daily limit', () => {
+    s.tickets = TICKET_CAP;
+    expect(s.ticketsBuyable(NOW)).toBe(TICKETS_PER_DAY);
+    expect(s.buyTickets(TICKETS_PER_DAY + 1, NOW)).toBe(false);
     expect(s.buyTickets(3, NOW)).toBe(true);
     expect(s.tickets).toBe(TICKET_CAP);
+    expect(s.boughtTickets).toBe(3);
+    expect(s.trialTickets()).toBe(TICKET_CAP + 3);
     expect(s.gems).toBe(100_000 - 3 * TICKET_GEMS);
-    s.tickets = 0;
     expect(s.ticketsBuyable(NOW)).toBe(TICKETS_PER_DAY - 3);
-    s.ticketClock = NOW + DAY;
-    expect(s.ticketsBuyable(NOW + DAY)).toBe(Math.min(TICKETS_PER_DAY, TICKET_CAP));
+    expect(s.ticketsBuyable(NOW + DAY)).toBe(TICKETS_PER_DAY);
+  });
+
+  it('stop at the stash cap', () => {
+    s.boughtTickets = BOUGHT_TICKET_CAP - 2;
+    expect(s.ticketsBuyable(NOW)).toBe(2);
   });
 });
 

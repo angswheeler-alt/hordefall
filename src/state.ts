@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, MILESTONE_STEP, milestoneReward, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_DEALS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_GEMS, TICKETS_PER_DAY, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, RAISED_RARITY_OLD_COST, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, AWAKEN_STARMOTES, MAX_AWAKEN, AWAKEN_STAT_MULT, AWAKEN_UNLOCK_LEVEL, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_KILL_EMBERS, GUILD_BOSS_KILL_MIN_EMBERS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_DEALS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TRIAL_EVENT_EVERY, TRIAL_EVENT_PHASE, TRIAL_EVENT_DAYS, TRIAL_EVENT_MEDAL_MULT, TICKET_CRATE, HERO_VOUCHER, ALL_TRIALS_WITH, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, RAISED_RARITY_OLD_COST, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, AWAKEN_STARMOTES, MAX_AWAKEN, AWAKEN_STAT_MULT, AWAKEN_UNLOCK_LEVEL, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_KILL_EMBERS, GUILD_BOSS_KILL_MIN_EMBERS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
 import { relicCost, bossHp, bossAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES, PLAYABLE_HEROES } from './data';
@@ -306,6 +306,11 @@ export class GameState {
   featured: { week: number; small: boolean; big: boolean } = { week: 0, small: false, big: false };
   /** Trial tickets bought with Gems today. */
   ticketBuys: { day: string; used: number } = { day: '', used: 0 };
+  /** Bought Trial tickets, kept apart from the ones that refill over time (up to BOUGHT_TICKET_CAP). */
+  boughtTickets = 0;
+  /** Limited deals: the week index each was last bought in, and Hero Vouchers not used yet. */
+  deals: { crateWeek: number; voucherWeek: number } = { crateWeek: -1, voucherWeek: -1 };
+  vouchers = 0;
   /** Counts for Guild Quests not yet sent to the server. */
   guildQuestPending = { kills: 0, stages: 0, trials: 0 };
   /** Guild Research ranks of the player's guild, cached from the server (empty outside a guild). */
@@ -1392,7 +1397,118 @@ export class GameState {
 
   /** Whether an element's Trial is open today (player's local day). */
   trialOpen(element: Element, now = Date.now()): boolean {
-    return TRIAL_SCHEDULE[element].includes(new Date(now).getDay());
+    const day = new Date(now).getDay();
+    return TRIAL_SCHEDULE[element].includes(day) || ALL_TRIALS_WITH.some((e) => TRIAL_SCHEDULE[e].includes(day));
+  }
+
+  /** Days of the week (Date.getDay numbers) this element's Trial is open. */
+  trialDays(element: Element): number[] {
+    return [0, 1, 2, 3, 4, 5, 6].filter((day) => TRIAL_SCHEDULE[element].includes(day) || ALL_TRIALS_WITH.some((e) => TRIAL_SCHEDULE[e].includes(day)));
+  }
+
+  /** Medals one Trial win pays right now (double on an event weekend). */
+  trialMedals(now = Date.now()): number {
+    return TRIAL_MEDALS * (this.trialEventOn(now) ? TRIAL_EVENT_MEDAL_MULT : 1);
+  }
+
+  /** Trial tickets in hand: the refilling ones plus the bought stash. */
+  trialTickets(): number {
+    return this.tickets + this.boughtTickets;
+  }
+
+  /** Use one Trial ticket: refilling ones first, so the bought stash keeps for later. */
+  private spendTrialTicket(now = Date.now()) {
+    if (this.tickets > 0) {
+      if (this.tickets >= TICKET_CAP) this.ticketClock = now;
+      this.tickets -= 1;
+    } else this.boughtTickets = Math.max(0, this.boughtTickets - 1);
+  }
+
+  /** Whether `now` falls in a week with a double-medal Trial weekend (and the Ticket Crate). */
+  eventWeek(now = Date.now()): boolean {
+    return (((weekIndex(now) - TRIAL_EVENT_PHASE) % TRIAL_EVENT_EVERY) + TRIAL_EVENT_EVERY) % TRIAL_EVENT_EVERY === 0;
+  }
+
+  /** Whether Trials pay double medals right now. */
+  trialEventOn(now = Date.now()): boolean {
+    return this.eventWeek(now) && TRIAL_EVENT_DAYS.includes(new Date(now).getDay());
+  }
+
+  /** Start of the local day `days` after the one holding `now`. */
+  private dayStart(now: number, days = 0): number {
+    const d = new Date(now);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + days);
+    return d.getTime();
+  }
+
+  /** The current or next double-medal weekend: [start, end) in ms. */
+  nextTrialEvent(now = Date.now()): { start: number; end: number } {
+    for (let i = 0; i < 7 * TRIAL_EVENT_EVERY + 7; i++) {
+      const t = this.dayStart(now, i) + 12 * 3_600_000;
+      if (!this.trialEventOn(t)) continue;
+      let start = this.dayStart(t);
+      while (this.trialEventOn(this.dayStart(start, -1) + 12 * 3_600_000)) start = this.dayStart(start, -1);
+      let end = this.dayStart(t, 1);
+      while (this.trialEventOn(end + 12 * 3_600_000)) end = this.dayStart(end, 1);
+      return { start, end };
+    }
+    return { start: now, end: now };
+  }
+
+  /** End of the week (next Monday 00:00, local) holding `now`. */
+  weekEnd(now = Date.now()): number {
+    return this.dayStart(now, 7 - ((new Date(now).getDay() + 6) % 7));
+  }
+
+  /** This week's limited deal: the Ticket Crate in event weeks, the Hero Voucher otherwise. */
+  dealState(now = Date.now()): { kind: 'crate' | 'voucher'; bought: boolean; endsAt: number; gems: number } {
+    const week = weekIndex(now);
+    const endsAt = this.weekEnd(now);
+    return this.eventWeek(now)
+      ? { kind: 'crate', bought: this.deals.crateWeek === week, endsAt, gems: TICKET_CRATE.gems }
+      : { kind: 'voucher', bought: this.deals.voucherWeek === week, endsAt, gems: HERO_VOUCHER.gems };
+  }
+
+  /** Buy this week's deal. The Ticket Crate needs room in the bought-ticket stash. */
+  buyDeal(now = Date.now()): boolean {
+    const d = this.dealState(now);
+    if (d.bought || this.gems < d.gems) return false;
+    if (d.kind === 'crate') {
+      if (this.boughtTickets + TICKET_CRATE.tickets > BOUGHT_TICKET_CAP) return false;
+      this.boughtTickets += TICKET_CRATE.tickets;
+      this.deals.crateWeek = weekIndex(now);
+    } else {
+      this.vouchers += 1;
+      this.deals.voucherWeek = weekIndex(now);
+    }
+    this.gems -= d.gems;
+    this.save();
+    return true;
+  }
+
+  /** Medals a Hero Voucher gives this hero (fewer for rarer heroes); null for Legendaries. */
+  voucherMedals(heroId: string): number | null {
+    const h = SHOP_HEROES.find((x) => x.id === heroId);
+    return h ? HERO_VOUCHER.medals[h.rarity as keyof typeof HERO_VOUCHER.medals] ?? null : null;
+  }
+
+  /** Spend a Hero Voucher on a hero of the player's choice. */
+  useVoucher(heroId: string): SummonDrop[] | null {
+    const n = this.voucherMedals(heroId);
+    if (n === null || this.vouchers <= 0) return null;
+    this.vouchers -= 1;
+    return this.receiveGuildMedals([{ heroId, crests: n }]);
+  }
+
+  /** Days from today on: open Trials, double medals and the week's deal, for the events calendar. */
+  calendar(days: number, now = Date.now()): Array<{ date: number; open: Element[]; double: boolean; deal: 'crate' | 'voucher' }> {
+    const out: Array<{ date: number; open: Element[]; double: boolean; deal: 'crate' | 'voucher' }> = [];
+    for (let i = 0; i < days; i++) {
+      const t = this.dayStart(now, i) + 12 * 3_600_000;
+      out.push({ date: this.dayStart(t), open: this.openTrials(t), double: this.trialEventOn(t), deal: this.eventWeek(t) ? 'crate' : 'voucher' });
+    }
+    return out;
   }
 
   openTrials(now = Date.now()): Element[] {
@@ -1512,7 +1628,7 @@ export class GameState {
 
   private trialPlayable(element: Element, tier: number): boolean {
     this.refreshTickets();
-    return this.trialsUnlocked() && this.trialOpen(element) && this.tickets > 0 && tier >= 1 && tier <= this.trialUnlocked(element) && this.trialReqMet(tier);
+    return this.trialsUnlocked() && this.trialOpen(element) && this.trialTickets() > 0 && tier >= 1 && tier <= this.trialUnlocked(element) && this.trialReqMet(tier);
   }
 
   /** Heroes a Trial of this element can pay medals to: every hero of the element except Legendaries (special means only). */
@@ -1560,8 +1676,7 @@ export class GameState {
 
   private payTrial(element: Element, tier: number, result: TrialResult): TrialResult {
     const level = TRIAL_LEVELS[tier - 1];
-    if (this.tickets >= TICKET_CAP) this.ticketClock = Date.now();
-    this.tickets -= 1;
+    this.spendTrialTicket();
     this.track('trials');
     const explore = 1 + this.researchBonus('exploration');
     result.essence = Math.round(level.essence * explore);
@@ -1570,7 +1685,8 @@ export class GameState {
     this.enhanceStones += result.stones;
     // Each medal goes to a random hero of the element, rarer heroes less likely; both can land on the same one.
     const pool = this.trialPool(element);
-    for (let i = 0; i < TRIAL_MEDALS; i++) {
+    const medals = this.trialMedals();
+    for (let i = 0; i < medals; i++) {
       const hero = pickByRarity(pool, TRIAL_RARITY_WEIGHTS);
       if (!hero) break;
       result.medals.push(hero.id);
@@ -2034,7 +2150,7 @@ export class GameState {
   /** How many tickets can be bought right now: today's limit, the room under the cap and the Gems. */
   ticketsBuyable(now = Date.now()): number {
     this.refreshTickets(now);
-    return Math.max(0, Math.min(this.ticketBuysLeft(now), TICKET_CAP - this.tickets, Math.floor(this.gems / TICKET_GEMS)));
+    return Math.max(0, Math.min(this.ticketBuysLeft(now), BOUGHT_TICKET_CAP - this.boughtTickets, Math.floor(this.gems / TICKET_GEMS)));
   }
 
   buyTickets(n: number, now = Date.now()): boolean {
@@ -2042,8 +2158,7 @@ export class GameState {
     const today = dayKey(now);
     this.ticketBuys = { day: today, used: (this.ticketBuys.day === today ? this.ticketBuys.used : 0) + n };
     this.gems -= n * TICKET_GEMS;
-    this.tickets += n;
-    if (this.tickets >= TICKET_CAP) this.ticketClock = now;
+    this.boughtTickets += n;
     this.save();
     return true;
   }
@@ -2298,6 +2413,9 @@ export class GameState {
       heroShop: this.heroShop,
       featured: this.featured,
       ticketBuys: this.ticketBuys,
+      boughtTickets: this.boughtTickets,
+      deals: this.deals,
+      vouchers: this.vouchers,
       guildCredits: this.guildCredits,
       guildResearch: this.guildResearch,
       achieved: this.achieved,
@@ -2433,6 +2551,9 @@ export class GameState {
       }
       if (d.featured && typeof d.featured === 'object') this.featured = { week: Number(d.featured.week) || 0, small: !!d.featured.small, big: !!d.featured.big };
       if (d.ticketBuys && typeof d.ticketBuys === 'object') this.ticketBuys = { day: String(d.ticketBuys.day ?? ''), used: Math.max(0, Number(d.ticketBuys.used) || 0) };
+      this.boughtTickets = Math.min(BOUGHT_TICKET_CAP, Math.max(0, Math.floor(Number(d.boughtTickets) || 0)));
+      if (d.deals && typeof d.deals === 'object') this.deals = { crateWeek: Number.isFinite(Number(d.deals.crateWeek)) ? Number(d.deals.crateWeek) : -1, voucherWeek: Number.isFinite(Number(d.deals.voucherWeek)) ? Number(d.deals.voucherWeek) : -1 };
+      this.vouchers = Math.max(0, Math.floor(Number(d.vouchers) || 0));
       if (d.medalBundle && Array.isArray(d.medalBundle.drops)) {
         const drops = d.medalBundle.drops.filter((x: { heroId?: unknown; crests?: unknown }) => HEROES.some((h) => h.id === x?.heroId) && Number(x.crests) > 0);
         this.medalBundle = { day: String(d.medalBundle.day ?? ''), drops: drops.map((x: { heroId: string; crests: number }) => ({ heroId: x.heroId, crests: Number(x.crests) })), claimed: !!d.medalBundle.claimed };
