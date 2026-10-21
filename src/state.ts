@@ -265,6 +265,9 @@ export class GameState {
   speed2x = false;
   autoUlt = false;
   muted = false;
+  /** Sound effects and music volume, 0 to 1. */
+  sfxVolume = 1;
+  musicVolume = 0.6;
   /** First-time guide: the intro step the player is on (TUTORIAL_DONE once finished or skipped), and the one-off tips already shown. */
   tutorialStep = 0;
   tipsSeen: string[] = [];
@@ -2279,6 +2282,8 @@ export class GameState {
       speed2x: this.speed2x,
       autoUlt: this.autoUlt,
       muted: this.muted,
+      sfxVolume: this.sfxVolume,
+      musicVolume: this.musicVolume,
       tutorialStep: this.tutorialStep,
       tipsSeen: this.tipsSeen,
       buyAmount: this.buyAmount,
@@ -2416,6 +2421,8 @@ export class GameState {
       this.speed2x = !!d.speed2x;
       this.autoUlt = !!d.autoUlt;
       this.muted = !!d.muted;
+      this.sfxVolume = typeof d.sfxVolume === 'number' ? Math.max(0, Math.min(1, d.sfxVolume)) : 1;
+      this.musicVolume = typeof d.musicVolume === 'number' ? Math.max(0, Math.min(1, d.musicVolume)) : 0.6;
       // Saves from before the guide existed belong to players who already know the game: no intro, no tips.
       this.tutorialStep = typeof d.tutorialStep === 'number' ? d.tutorialStep : TUTORIAL_DONE;
       this.tipsSeen = Array.isArray(d.tipsSeen) ? d.tipsSeen.filter((t: unknown) => typeof t === 'string') : d.tutorialStep === undefined ? [...TIP_IDS] : [];
