@@ -12,7 +12,7 @@ import { faceStyle, dropCards, type UI } from './ui';
 import { play } from './sfx';
 
 // Guilds: browse, create and join; the weekly Guild Boss event; Guild Research; weekly Guild Quests; members and ranks;
-// chat; medal requests and donations for Guild Coins; and a guild shop. The rules are enforced
+// chat; crest requests and donations for Guild Coins; and a guild shop. The rules are enforced
 // on the server (supabase/guilds.sql); this file only reads and asks.
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -43,7 +43,7 @@ const ROLE_ORDER: Record<Role, number> = { leader: 0, officer: 1, member: 2 };
 const ROLE_NAME: Record<Role, string> = { leader: 'Leader', officer: 'Officer', member: 'Member' };
 
 const hero = (id: string) => HEROES.find((h) => h.id === id);
-/** Heroes Wild Medals can buy: any released non-Legendary. */
+/** Heroes Wild Crests can buy: any released non-Legendary. */
 const wildable = (h: HeroDef) => h.rarity !== 'legendary' && RELEASED_HEROES.includes(h.id);
 /** Heroes guildmates can be asked for: released Commons only (the server checks this too). */
 const requestable = (h: HeroDef) => h.rarity === 'common' && RELEASED_HEROES.includes(h.id);
@@ -79,9 +79,9 @@ export class Guild {
   private reporting = false;
   /** Research points per branch. */
   private research: Partial<Record<ResearchBranch, number>> = {};
-  /** Medals this player already gave, per request id. */
+  /** Crests this player already gave, per request id. */
   private given = new Map<number, number>();
-  /** When this player last asked for medals. */
+  /** When this player last asked for crests. */
   private lastAsk = 0;
   private list: GuildRow[] = [];
   private busy = false;
@@ -340,7 +340,7 @@ export class Guild {
     await this.refresh();
   }
 
-  /** Bring in medals guildmates gave since the last look. */
+  /** Bring in crests guildmates gave since the last look. */
   private async collect() {
     // Includes requests older than the open window, which the list above leaves out.
     const res = await this.db!.rpc('collect_guild_medals');
@@ -350,7 +350,7 @@ export class Guild {
     const drops = this.state.receiveGuildMedals(gifts);
     for (const r of this.requests) r.collected = r.received;
     play('chest');
-    this.ui.showModal('Guild gift', `Your guildmates sent you medals.${dropCards(drops)}`, 'Collect');
+    this.ui.showModal('Guild gift', `Your guildmates sent you crests.${dropCards(drops)}`, 'Collect');
     this.ui.render();
   }
 
@@ -429,8 +429,8 @@ export class Guild {
       })
       .join('');
     this.ui.showModal(
-      'Ask for medals',
-      `<p>Guildmates can each give up to ${GUILD_DONATE_MAX}. You can ask for a Common hero's medals, up to ${GUILD_REQUEST_GOAL} once every ${GUILD_REQUEST_HOURS} hours.</p><div class="g-picks">${faces}</div>`,
+      'Ask for crests',
+      `<p>Guildmates can each give up to ${GUILD_DONATE_MAX}. You can ask for a Common hero's crests, up to ${GUILD_REQUEST_GOAL} once every ${GUILD_REQUEST_HOURS} hours.</p><div class="g-picks">${faces}</div>`,
       'Cancel',
     );
     $('modal-body').querySelectorAll<HTMLButtonElement>('.g-pick').forEach((btn) =>
@@ -453,8 +453,8 @@ export class Guild {
       })
       .join('');
     this.ui.showModal(
-      'Wild Medals',
-      `<p>Pick the hero these medals go to. ${left} of ${GUILD_WILD_PER_WEEK} left this week. You have ${this.state.guildCredits.toLocaleString()} Guild Coins.</p><div class="g-picks">${faces}</div>`,
+      'Wild Crests',
+      `<p>Pick the hero these crests go to. ${left} of ${GUILD_WILD_PER_WEEK} left this week. You have ${this.state.guildCredits.toLocaleString()} Guild Coins.</p><div class="g-picks">${faces}</div>`,
       'Cancel',
     );
     $('modal-body').querySelectorAll<HTMLButtonElement>('.g-pick').forEach((btn) =>
@@ -467,7 +467,7 @@ export class Guild {
     const most = Math.min(this.state.wildMedalsLeft(), Math.floor(this.state.guildCredits / cost));
     const amounts = [...new Set([1, 5, most].filter((n) => n >= 1 && n <= most))].sort((a, b) => a - b);
     this.ui.showModal(
-      `Medals for ${esc(h.name)}`,
+      `Crests for ${esc(h.name)}`,
       `<p>${cost} Guild Coins each.</p><div class="g-wild-amounts">${amounts.map((n) => `<button type="button" class="gem-btn" data-n="${n}">${n === most && n > 5 ? 'Max ' : ''}x${n}<small>${(n * cost).toLocaleString()} coins</small></button>`).join('')}</div>`,
       'Cancel',
     );
@@ -476,7 +476,7 @@ export class Guild {
         const drops = this.state.buyWildMedals(h.id, Number(btn.dataset.n));
         if (!drops) return;
         play('chest');
-        this.ui.showModal('Wild Medals', `${dropCards(drops)}Bought with Guild Coins.`, 'Collect');
+        this.ui.showModal('Wild Crests', `${dropCards(drops)}Bought with Guild Coins.`, 'Collect');
         this.ui.render();
         this.render();
       }),
@@ -512,7 +512,7 @@ export class Guild {
     const alone = this.members.length <= 1;
     this.ui.showModal(
       'Leave the guild?',
-      `${alone ? 'You are the last member, so the guild will close.' : this.me!.role === 'leader' ? 'An officer (or the longest-serving member) becomes leader.' : 'You can join another guild right away.'} Your open medal request is dropped. Guild Coins stay with you.`,
+      `${alone ? 'You are the last member, so the guild will close.' : this.me!.role === 'leader' ? 'An officer (or the longest-serving member) becomes leader.' : 'You can join another guild right away.'} Your open crest request is dropped. Guild Coins stay with you.`,
       'Leave',
       () => void this.call('leave_guild'),
       true,
@@ -576,7 +576,7 @@ export class Guild {
     if (mode === 'off') {
       const text = locked ?? (this.error ? this.error : 'Loading your guild…');
       const button = !this.account.userId && this.db ? '<button type="button" class="hot" data-g="signin">Sign in</button>' : this.error && !locked ? '<button type="button" data-g="retry">Try again</button>' : '';
-      setHtml($('g-off'), `<h3>Guilds</h3><p class="soon-when">${esc(text)}</p><ul><li>Up to ${GUILD_MAX_MEMBERS} members with chat and officer ranks.</li><li>Ask guildmates for a hero's medals and give medals to earn Guild Coins.</li><li>Fight the weekly Guild Boss together, take on weekly quests, research shared bonuses and spend Guild Coins in the guild shop.</li></ul>${button}`);
+      setHtml($('g-off'), `<h3>Guilds</h3><p class="soon-when">${esc(text)}</p><ul><li>Up to ${GUILD_MAX_MEMBERS} members with chat and officer ranks.</li><li>Ask guildmates for a hero's crests and give crests to earn Guild Coins.</li><li>Fight the weekly Guild Boss together, take on weekly quests, research shared bonuses and spend Guild Coins in the guild shop.</li></ul>${button}`);
     } else if (mode === 'browse') this.renderBrowse();
     else this.renderHome();
   }
@@ -630,7 +630,7 @@ export class Guild {
             ? `<div class="rw-card"><ul id="g-members" class="rw-list"></ul></div><div id="g-edit-box"></div><button type="button" class="wood-btn rw-wide" data-g="leave">Leave guild</button>`
             : this.view === 'shop'
               ? `<div class="rw-card"><h3>Today's heroes <small id="g-credits"></small></h3><p id="g-offers-note"></p><div id="g-offers" class="g-offers"></div></div>
-                 <div class="rw-card"><h3>Wild Medals <small id="g-wild-note"></small></h3><p>Medals for any hero you pick: Common ${GUILD_WILD_COST.common}, Rare ${GUILD_WILD_COST.rare}, Epic ${GUILD_WILD_COST.epic} coins each.</p><button type="button" class="gem-btn rw-wide" data-g="wild" id="g-wild">Pick a hero</button></div>
+                 <div class="rw-card"><h3>Wild Crests <small id="g-wild-note"></small></h3><p>Crests for any hero you pick: Common ${GUILD_WILD_COST.common}, Rare ${GUILD_WILD_COST.rare}, Epic ${GUILD_WILD_COST.epic} coins each.</p><button type="button" class="gem-btn rw-wide" data-g="wild" id="g-wild">Pick a hero</button></div>
                  <div class="rw-card"><h3>Always in stock</h3><p>Earn Guild Coins from the Guild Boss and by giving medals: Common ${GUILD_CREDITS_PER_MEDAL.common}, Rare ${GUILD_CREDITS_PER_MEDAL.rare}, Epic ${GUILD_CREDITS_PER_MEDAL.epic} each.</p><ul id="g-shop" class="rw-list"></ul></div>`
               : this.view === 'quests'
                 ? `<div class="rw-card"><h3>Guild rewards <small id="g-week"></small></h3><p>Every quest counts toward the guild's weekly track. Members who helped this week claim each step.</p><div class="rw-bar g-track-bar"><i id="g-track-fill"></i></div><div id="g-track" class="g-track"></div></div><div class="rw-card"><h3>This week's quests</h3><p>Goals grow with the guild. Do half a member's share of a quest for ${GUILD_QUEST_PERSONAL_COINS} Guild Coins of your own.</p><ul id="g-quests" class="rw-list"></ul></div>`
@@ -759,8 +759,8 @@ export class Guild {
     const next = this.lastAsk + GUILD_REQUEST_HOURS * HOUR;
     const mine = this.requests.find((r) => r.user_id === uid);
     $('g-ask-note').textContent = next > now ? `next in ${untilText(next - now)}` : 'ready';
-    const ask = `<button type="button" class="hot rw-wide" data-g="ask" ${next > now ? 'disabled' : ''}>${next > now ? `Ask again in ${untilText(next - now)}` : 'Ask for medals'}</button>`;
-    setHtml($('g-mine'), (mine ? this.requestRow(mine, true) : '<p>Ask your guildmates for a hero\'s medals.</p>') + ask);
+    const ask = `<button type="button" class="hot rw-wide" data-g="ask" ${next > now ? 'disabled' : ''}>${next > now ? `Ask again in ${untilText(next - now)}` : 'Ask for crests'}</button>`;
+    setHtml($('g-mine'), (mine ? this.requestRow(mine, true) : '<p>Ask your guildmates for a hero\'s crests.</p>') + ask);
     const others = this.requests.filter((r) => r.user_id !== uid);
     setHtml($('g-requests'), others.length ? others.map((r) => this.requestRow(r, false)).join('') : '<li><div class="rw-text"><span>No open requests right now.</span></div></li>');
   }
@@ -853,7 +853,7 @@ export class Guild {
       shop.offers
         .map((o, i) => {
           const h = hero(o.heroId)!;
-          return `<div class="g-offer${o.bought ? ' done' : ''}"><span class="face art" style="${faceStyle(h)}">${h.name[0]}</span><b>${esc(h.name)}</b><small>${o.crests} medals</small><button type="button" class="gem-btn" data-g="offer:${i}" ${o.bought || coins < o.cost ? 'disabled' : ''}>${o.bought ? 'Bought' : `${o.cost} coins`}</button></div>`;
+          return `<div class="g-offer${o.bought ? ' done' : ''}"><span class="face art" style="${faceStyle(h)}">${h.name[0]}</span><b>${esc(h.name)}</b><small>${o.crests} crests</small><button type="button" class="gem-btn" data-g="offer:${i}" ${o.bought || coins < o.cost ? 'disabled' : ''}>${o.bought ? 'Bought' : `${o.cost} coins`}</button></div>`;
         })
         .join(''),
     );

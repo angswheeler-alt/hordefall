@@ -282,7 +282,7 @@ describe('medals, unlocks and evolution', () => {
     const s = fresh();
     const a = s.heroPower(starter, 10).atk;
     s.stars[starter.id] = 1;
-    // Star skills can add more, so at least x1.5, and well short of the original's x2.
+    // Star skills can add more, so at least x1.5, and well short of x2.
     expect(s.heroPower(starter, 10).atk.gte(a.times(STAR_STAT_MULT))).toBe(true);
     expect(STAR_STAT_MULT).toBe(1.5);
     const ranger = HEROES.find((h) => h.type === 'Ranger')!;
@@ -746,7 +746,7 @@ describe('relics', () => {
     expect(s.heroStats(byId('brine')).ultAtk).toBeCloseTo(0.2);
     expect(s.heroStats(byId('marina')).critRate).toBeCloseTo(0.2);
     expect(s.heroStats(byId('aegis')).stunChance).toBeCloseTo(0.1);
-    expect(s.heroStats(byId('flint')).bonusGold).toBeCloseTo(1); // 2x gold, like Crush's Extra Gold
+    expect(s.heroStats(byId('flint')).bonusGold).toBeCloseTo(1); // 2x gold
     expect(s.heroStats(byId('briar')).critRate).toBeGreaterThanOrEqual(0.25);
   });
 

@@ -2,7 +2,7 @@ import Decimal from 'break_infinity.js';
 import type { HeroDef } from './data';
 
 /**
- * The hero stat sheet, following the original's three stat pages. GameState.heroStats works these
+ * The hero stat sheet's three pages. GameState.heroStats works these
  * out from level, stars, star skills, Signatures and relics; battle and the hero page both read them.
  */
 

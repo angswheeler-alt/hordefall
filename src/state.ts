@@ -779,7 +779,7 @@ export class GameState {
     return true;
   }
 
-  /** Saves from before the Crush rarity mix: a locked hero holding its old unlock cost in medals unlocks now. */
+  /** Saves from before the rarity mix: a locked hero holding its old unlock cost in medals unlocks now. */
   unlockRaisedRarity() {
     for (const [id, cost] of Object.entries(RAISED_RARITY_OLD_COST)) {
       if ((this.levels[id] ?? 0) > 0 || (this.crests[id] ?? 0) < cost) continue;
@@ -2468,7 +2468,7 @@ export class GameState {
       this.tipsSeen = Array.isArray(d.tipsSeen) ? d.tipsSeen.filter((t: unknown) => typeof t === 'string') : d.tutorialStep === undefined ? [...TIP_IDS] : [];
       this.buyAmount = d.buyAmount ?? 1;
       this.stallBuyAmount = d.stallBuyAmount ?? 1;
-      // Relics no longer in the game (the list changed to follow the original) are dropped.
+      // Relics no longer in the game (the list changed) are dropped.
       this.relics = Object.fromEntries(Object.entries(d.relics ?? {}).filter(([id]) => RELICS.some((r) => r.id === id))) as Record<string, number>;
       this.relicEnhance = { ...(d.relicEnhance ?? {}) };
       // Older saves kept Gem-shop offers as { id, bought }: keep the unbought ones.

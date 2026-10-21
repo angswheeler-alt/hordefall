@@ -103,12 +103,12 @@ const CRYSTAL_Y = LANE_TOP + 10;
 const WAVE_INTERVAL = 7;
 /** Burning deals its damage in ticks this many seconds apart. */
 const BURN_TICK = 0.5;
-/** Big Boom slams hit enemies this close to the target. */
+/** Slam attacks (Piston Slam, Spring Slam) hit hit enemies this close to the target. */
 const SLAM_RADIUS = 50;
-/** Runaway Snowball rolls through enemies this far behind the target, who take more damage for SNOWBALL_SECONDS. */
+/** Rolling Snowball rolls through enemies this far behind the target, who take more damage for SNOWBALL_SECONDS. */
 const SNOWBALL_REACH = 120;
 const SNOWBALL_SECONDS = 4;
-/** Assassination reaches enemies this far ahead. */
+/** Shadow Pounce reaches enemies this far ahead. */
 const ASSASSIN_REACH = 220;
 /** Yolky Eggs blind for this long. */
 const BLIND_SECONDS = 3;
@@ -221,12 +221,12 @@ interface Unit {
   /** Slowed (Sticky Spores): moves and attacks at slowMult speed until slowUntil. */
   slowUntil: number;
   slowMult: number;
-  /** Possess: fights the other enemies until charmUntil. */
+  /** Puppet Bind: fights the other enemies until charmUntil. */
   charmUntil: number;
   /** Yolky Eggs: misses blindMiss of its attacks until blindUntil. */
   blindUntil: number;
   blindMiss: number;
-  /** Avalanche: deals weakMult damage until weakUntil. */
+  /** Snowdrift: deals weakMult damage until weakUntil. */
   weakUntil: number;
   weakMult: number;
   /** Poison: poisonDps per stack until poisonUntil. */
@@ -335,7 +335,7 @@ export class BattleScene extends Phaser.Scene {
   private heroes: Unit[] = [];
   private enemies: Unit[] = [];
   private zones: Zone[] = [];
-  /** Forest Strength: until then, every non-Fire hero deals Earth damage. */
+  /** Rootcall: until then, every non-Fire hero deals Earth damage. */
   private earthenUntil = 0;
   private crystal = { hp: new Decimal(1), maxHp: new Decimal(1) };
   private crystalView!: Phaser.GameObjects.Image;
@@ -1507,7 +1507,7 @@ export class BattleScene extends Phaser.Scene {
     return base * (h.hasteUntil > this.clock ? h.hasteMult : 1);
   }
 
-  /** Enemies the heroes fight: everyone but those Possessed for now. */
+  /** Enemies the heroes fight: everyone but those under Puppet Bind for now. */
   private foes(): Unit[] {
     return this.enemies.filter((e) => !(e.charmUntil > this.clock));
   }
@@ -1520,7 +1520,7 @@ export class BattleScene extends Phaser.Scene {
       this.mobBob(e, false);
       return;
     }
-    // Possessed: hits the closest other enemy in reach instead of the heroes.
+    // Under Puppet Bind: hits the closest other enemy in reach instead of the heroes.
     if (e.charmUntil > this.clock) {
       const victim = this.enemies.filter((o) => o.alive && o !== e && !(o.charmUntil > this.clock) && Math.abs(o.x - e.x) <= e.range + 20).sort((a, b) => Math.abs(a.x - e.x) - Math.abs(b.x - e.x))[0];
       if (victim && e.cooldownLeft <= 0) {
@@ -1651,7 +1651,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  /** The element a hero deals damage as: Earth for non-Fire heroes during Forest Strength. */
+  /** The element a hero deals damage as: Earth for non-Fire heroes during Rootcall. */
   private dealsAs(h: Unit): Element {
     return this.earthenUntil > this.clock && h.element !== 'fire' ? 'earth' : h.element;
   }
@@ -1690,7 +1690,7 @@ export class BattleScene extends Phaser.Scene {
     const slam = procEffect(fx, 'slam', def.id);
     const snowball = procEffect(fx, 'snowball', def.id);
     const assassin = procEffect(fx, 'assassinate', def.id);
-    // Possess: every Nth attack turns a regular enemy near the target against its own side.
+    // Puppet Bind: every Nth attack turns a regular enemy near the target against its own side.
     const charm = procEffect(fx, 'charm', def.id);
     if (procs(charm, h.attacks) && !target.isBoss && target.alive) {
       target.charmUntil = this.clock + charm!.value;
@@ -1702,7 +1702,7 @@ export class BattleScene extends Phaser.Scene {
     const blind = procEffect(fx, 'blind', def.id);
     const blinded = procs(blind, h.attacks);
     const element = this.dealsAs(h);
-    // Assassination: every Nth attack blinks to the farthest enemy in reach, or to a boss in reach.
+    // Shadow Pounce: every Nth attack blinks to the farthest enemy in reach, or to a boss in reach.
     if (procs(assassin, h.attacks)) {
       const inReach = this.enemies.filter((e) => e.alive && e.x >= h.x && e.x - h.x <= ASSASSIN_REACH && this.reaches(h, e));
       const far = inReach.find((e) => e.isBoss) ?? inReach.sort((a, b) => b.x - a.x)[0];
@@ -1741,7 +1741,7 @@ export class BattleScene extends Phaser.Scene {
       let atk = (crit ? h.atk.times(critMult) : h.atk).times(beacon * rage * this.state.boostMult('horn'));
       const procced = !!(nth && nth.every && h.attacks % nth.every === 0);
       if (procced) atk = atk.times(nth!.value);
-      // Big Boom: every Nth attack slams every enemy near the target.
+      // Slam: every Nth attack slams every enemy near the target.
       const slammed = procs(slam, h.attacks);
       if (slammed) atk = atk.times(slam!.value);
       if (procs(assassin, h.attacks)) atk = atk.times(assassin!.value);
@@ -1754,7 +1754,7 @@ export class BattleScene extends Phaser.Scene {
         const pierce = Math.round(this.sum('pierce', h));
         const behind = pierce > 0 ? this.enemies.filter((e) => e.alive && e !== target && e.x > target.x && e.x - target.x <= 60).sort((a, b) => a.x - b.x).slice(0, pierce) : [];
         targets = [target, ...behind];
-        // Runaway Snowball: every Nth shot rolls through the enemies just behind the target.
+        // Rolling Snowball: every Nth shot rolls through the enemies just behind the target.
         if (rolled) targets = [target, ...this.enemies.filter((e) => e.alive && e !== target && e.x > target.x && e.x - target.x <= SNOWBALL_REACH)];
       }
       for (const t of targets) {
@@ -1797,7 +1797,7 @@ export class BattleScene extends Phaser.Scene {
       t.x = Math.min(t.x + sig.push, ENEMY_CRYSTAL_X - 12);
       this.tweens.add({ targets: t.view, x: t.x, duration: 160, ease: 'Quad.out' });
     }
-    // Sticky Spores: a chance to slow (Bee Swarm attacks always slow).
+    // Sticky Spores: a chance to slow (Spore Cloud attacks always slow).
     if (sig?.kind === 'slow' && (procced || Math.random() < sig.chance) && !(t.isBoss && t.ccImmuneUntil > this.clock)) {
       if (t.slowUntil <= this.clock) this.floatText(t.x, t.y - 30, 'SLOW', '#b5e48c', 9);
       t.slowMult = sig.mult;

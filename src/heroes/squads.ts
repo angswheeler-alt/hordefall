@@ -3,9 +3,8 @@ import type { HeroProfile } from '../profiles';
 import { VS, ULT } from '../heroText';
 
 /**
- * Crush's troop Commons (design/crush-full-roster.md): Bugonaut, Vulcan, Voodoo and Skeleton troops become our
- * Crabkin, Magmites, Mudmasks and Bonekin. Archers, fighters and spears are squads of 3 small fighters in one slot
- * (HeroDef.squad); each faction's giant is one big hero. Crush lists no SP4 for these, so the auras are our own.
+ * Squad Commons of four factions: Crabkin, Magmites, Mudmasks and Bonekin. Archers, fighters and spears are squads
+ * of 3 small fighters in one slot (HeroDef.squad); each faction's giant is one big hero.
  */
 const SQUAD = 3;
 const base = { rarity: 'common' as const, unlockCost: 50, upgradeBaseCost: 15 };
@@ -22,10 +21,10 @@ function archers(f: Faction, id: string, o: { atk: number; hp: number; range: nu
     ...base, id, name: `${f.name} Archers`, element: f.element, type: 'Ranger', squad: SQUAD, signature: { kind: 'skyCrit' },
     baseAtk: o.atk, baseHp: o.hp, range: o.range, attackCooldown: 1.0, moveSpeed: 115, goldMult: 1,
     bio: `A squad of three ${f.look}, with bows. They fight as one hero.`,
-    basic: { name: 'Arrows', text: 'Three archers shoot at the nearest enemy, each with a third of the ATK.' },
-    ultimate: { name: 'Arrow Shower', text: ULT('A shower of arrows falls on') },
+    basic: { name: 'Volley', text: 'Three archers shoot at the nearest enemy, each with a third of the ATK.' },
+    ultimate: { name: 'Squad Barrage', text: ULT('A shower of arrows falls on') },
     trait: { name: 'Sky Watch', text: `Shots at flying enemies always crit. ${VS[f.element]}` },
-    sp1: { name: 'Multi Fire', text: 'Arrows pierce 1 more enemy.', effect: { kind: 'pierce', value: 1 } },
+    sp1: { name: 'Pierce Shot', text: 'Arrows pierce 1 more enemy.', effect: { kind: 'pierce', value: 1 } },
     sp2: o.sp2,
     aura: o.aura,
   };
@@ -40,7 +39,7 @@ function fighters(f: Faction, id: string, label: string, o: { atk: number; hp: n
     basic: { name: 'Blades', text: 'Three fighters slash at the closest enemy, each with a third of the ATK.' },
     ultimate: { name: 'Blade Rain', text: ULT('Giant blades rain down on') },
     trait: { name: 'Scrappers', text: `Dodge attacks and earn 2x gold from every kill. ${VS[f.element]}` },
-    sp1: { name: 'Multi Hit', text: 'Every 4th attack is a flurry (2.5x damage).', effect: { kind: 'everyNth', value: 2.5, every: 4 } },
+    sp1: { name: 'Pack Flurry', text: 'Every 4th attack is a flurry (2.5x damage).', effect: { kind: 'everyNth', value: 2.5, every: 4 } },
     sp2: o.sp2,
     aura: o.aura,
   };
@@ -52,8 +51,8 @@ function spears(f: Faction, id: string, o: { atk: number; hp: number; sp2: HeroD
     ...base, id, name: `${f.name} Spears`, element: f.element, type: 'Lancer', squad: SQUAD,
     baseAtk: o.atk, baseHp: o.hp, range: 36, attackCooldown: 1.0, moveSpeed: 110, goldMult: 1,
     bio: `A squad of three ${f.look}, with long spears. They fight as one hero.`,
-    basic: { name: 'Spear Hit', text: 'Three spears thrust at the nearest enemy ahead, each with a third of the ATK.' },
-    ultimate: { name: 'Spear Wave', text: ULT('A wave of flying spears hits') },
+    basic: { name: 'Spear Line', text: 'Three spears thrust at the nearest enemy ahead, each with a third of the ATK.' },
+    ultimate: { name: 'Spear Toss', text: ULT('A wave of flying spears hits') },
     trait: { name: 'Spear Wall', text: `Their thrusts can stun. ${VS[f.element]}` },
     sp1: { name: 'Piercing Thrust', text: 'Each thrust also hits the next 2 enemies just behind the target.', effect: { kind: 'pierce', value: 2 } },
     sp2: o.sp2,
@@ -77,7 +76,6 @@ function giant(f: Faction, id: string, o: { name: string; atk: number; hp: numbe
 }
 
 export const SQUAD_HEROES: HeroDef[] = [
-  // Crabkin (Bugonaut)
   { ...archers(CRAB, 'crabarchers', { atk: 5, hp: 42, range: 175,
     sp2: { name: 'Tide Aim', text: '+10% critical hit chance.', effect: { kind: 'crit', value: 0.1 } },
     aura: { name: 'Shell Line', text: 'Water heroes get +20% Defense.', effect: { kind: 'def', value: 1.2, team: true, element: 'water' } } }), name: 'Shrimp Archers', bio: 'A squad of three little mantis shrimp with eyes on stalks, with bows. They fight as one hero.' },
@@ -89,24 +87,22 @@ export const SQUAD_HEROES: HeroDef[] = [
     aura: { name: 'Shoal Spirit', text: 'Water heroes +10% HP.', effect: { kind: 'hp', value: 1.1, team: true, element: 'water' } } }), name: 'Lobster Spears', bio: 'A squad of three little lobster soldiers, with long spears. They fight as one hero.' },
   { ...giant(CRAB, 'crabbrute', { name: 'Crabkin Brute', atk: 6, hp: 72, basic: 'Club Hit',
     bio: 'One big hermit crab in a borrowed barrel shell, swinging a driftwood club.',
-    sp1: { name: 'Multi Hit', text: 'Every 4th attack is three quick blows (2.5x damage).', effect: { kind: 'everyNth', value: 2.5, every: 4 } },
+    sp1: { name: 'Shell Pummel', text: 'Every 4th attack is three quick blows (2.5x damage).', effect: { kind: 'everyNth', value: 2.5, every: 4 } },
     sp2: { name: 'Barrel Shell', text: '+40% Defense.', effect: { kind: 'def', value: 1.4 } },
     aura: { name: 'Big Brother', text: 'Water heroes +10% ATK.', effect: { kind: 'atk', value: 1.1, team: true, element: 'water' } } }), name: 'Hermit Brute', bio: 'One big hermit crab in a borrowed barrel shell, swinging a driftwood club.' },
 
-  // Magmites (Vulcan)
   { ...archers(MAGMA, 'magmaarchers', { atk: 5.2, hp: 40, range: 170,
     sp2: { name: 'Hot Tips', text: '+20% damage to Burning enemies.', effect: { kind: 'vsBurning', value: 1.2 } },
     aura: { name: 'Ember Sight', text: 'Fire heroes +5% critical hit chance.', effect: { kind: 'crit', value: 0.05, team: true, element: 'fire' } } }), name: 'Imp Archers', bio: 'A squad of three little fire imps with glowing lava cracks, with bows. They fight as one hero.' },
   { ...fighters(MAGMA, 'magmascrappers', 'Scrappers', { atk: 4.8, hp: 48, speed: 150,
     sp2: { name: 'Hot Knives', text: '+10% critical hit chance.', effect: { kind: 'crit', value: 0.1 } },
     aura: { name: 'Lava Run', text: 'Fire heroes move 15% faster.', effect: { kind: 'moveSpeed', value: 1.15, team: true, element: 'fire' } } }), name: 'Fire Ant Scrappers', bio: 'A squad of three fire ants with glowing bellies, with tiny knives. They fight as one hero.' },
-  { ...giant(MAGMA, 'magmabrute', { name: 'Magmite Brute', atk: 7, hp: 66, basic: 'Mace Hit',
+  { ...giant(MAGMA, 'magmabrute', { name: 'Magmite Brute', atk: 7, hp: 66, basic: 'Lava Mace',
     bio: 'One big lava imp, belly glowing like a forge, with a stone hammer.',
     sp1: { name: 'Multi Hammer', text: 'Every 4th attack is three quick blows (3x damage).', effect: { kind: 'everyNth', value: 3, every: 4 } },
     sp2: { name: 'Molten Hide', text: 'Reflects 10% of the damage it takes.', effect: { kind: 'reflect', value: 0.1 } },
     aura: { name: 'Forge Heat', text: 'Fire heroes +10% ATK.', effect: { kind: 'atk', value: 1.1, team: true, element: 'fire' } } }), name: 'Lava Ogre', bio: 'One big ogre with a belly glowing like a furnace and a stone hammer.' },
 
-  // Mudmasks (Voodoo)
   archers(MUD, 'mudarchers', { atk: 5, hp: 46, range: 180,
     sp2: { name: 'Swamp Darts', text: 'Attacks 10% faster.', effect: { kind: 'attackSpeed', value: 0.9 } },
     aura: { name: 'Mask Ward', text: 'Earth heroes +10% Effect Resistance.', effect: { kind: 'effectRes', value: 0.1, team: true, element: 'earth' } } }),
@@ -117,7 +113,6 @@ export const SQUAD_HEROES: HeroDef[] = [
     sp2: { name: 'Bog Grip', text: '+20% damage to bosses.', effect: { kind: 'bossDamage', value: 1.2 } },
     aura: { name: 'War Drums', text: 'Earth heroes +10% ATK.', effect: { kind: 'atk', value: 1.1, team: true, element: 'earth' } } }), name: 'Rootling Spears', bio: 'A squad of three little walking saplings, with sharpened stick spears. They fight as one hero.' },
 
-  // Bonekin (Skeleton)
   archers(BONE, 'bonearchers', { atk: 5.4, hp: 40, range: 185,
     sp2: { name: 'Hollow Eyes', text: '+30% critical damage.', effect: { kind: 'critDmg', value: 0.3 } },
     aura: { name: 'Grave Volley', text: 'Dark heroes +5% critical hit chance.', effect: { kind: 'crit', value: 0.05, team: true, element: 'dark' } } }),
@@ -126,7 +121,7 @@ export const SQUAD_HEROES: HeroDef[] = [
     aura: { name: 'Bone March', text: 'Dark heroes move 15% faster.', effect: { kind: 'moveSpeed', value: 1.15, team: true, element: 'dark' } } }), name: 'Plague Rat Swords', bio: 'A squad of three scrawny hooded rats, with rusty short swords. They fight as one hero.' },
   { ...giant(BONE, 'bonebrute', { name: 'Bonekin Brute', atk: 6.8, hp: 70, basic: 'Bone Club',
     bio: 'One big skeleton warrior with a rib-cage shield and a club made from a thigh bone.',
-    sp1: { name: 'Shockwave Stomp', text: 'Every 3rd attack stomps for 1.5x damage to every enemy near the target.', effect: { kind: 'slam', value: 1.5, every: 3 } },
+    sp1: { name: 'Bone Quake', text: 'Every 3rd attack stomps for 1.5x damage to every enemy near the target.', effect: { kind: 'slam', value: 1.5, every: 3 } },
     sp2: { name: 'Thick Bones', text: '+15% HP.', effect: { kind: 'hp', value: 1.15 } },
     aura: { name: 'Dread March', text: 'Dark heroes +10% HP.', effect: { kind: 'hp', value: 1.1, team: true, element: 'dark' } } }), name: 'Ghoul Brute', bio: 'One big hunched ghoul with a rib-cage shield and a bone club.' },
 ];

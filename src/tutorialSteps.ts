@@ -95,7 +95,7 @@ export const TIPS: GuideTip[] = [
     id: 'trials',
     target: '#tabbar button[data-tab="battle"]',
     title: 'Daily Trials are open',
-    text: 'Fight element bosses in Battle to earn hero medals. Medals unlock new heroes and add stars.',
+    text: 'Fight element bosses in Battle to earn hero crests. Crests unlock new heroes and add stars.',
     button: 'Got it',
     when: (v) => v.bestStage >= TRIAL_UNLOCK_STAGE,
   },
