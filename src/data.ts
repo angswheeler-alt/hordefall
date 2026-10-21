@@ -710,8 +710,6 @@ export const CREST_ROLLS: Record<Exclude<Rarity, 'legendary'>, Array<[number, nu
   rare: [[3, 60], [6, 30], [12, 10]],
   epic: [[2, 60], [4, 30], [8, 10]],
 };
-/** Trial medals: rarity weights for which hero of the element gets each medal. */
-export const TRIAL_RARITY_WEIGHTS: Record<Exclude<Rarity, 'legendary'>, number> = { common: 80, rare: 17, epic: 3 };
 
 /** The order the five bosses take turns on ordinary boss stages (50, 100, 150...). */
 const BOSS_TURNS: Element[] = ['fire', 'water', 'earth', 'dark', 'light'];
@@ -850,12 +848,9 @@ export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 /**
  * Trial levels from Samuel's table (original dungeon chart). Essence is the
  * resource reward, difficulty sets the boss strength (roughly the Ember level
- * the team needs), `req` is [heroes, Ember level] needed to enter, and medals
- * is how many Hero Crests random heroes of the element get on a win: one per
- * level number (level 20 pays 20), so high Trials are the main way to raise
- * stars, which push past the Rekindle wall.
+ * the team needs) and `req` is [heroes, Ember level] needed to enter.
  */
-export interface TrialLevel { essence: number; difficulty: number; req: [number, number] | null; medals: number }
+export interface TrialLevel { essence: number; difficulty: number; req: [number, number] | null }
 const TRIAL_DIFFICULTY = [1, 10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 950, 1100, 1300, 1500, 1700, 2000, 2300, 2600, 2900, 3200, 3600];
 const TRIAL_REQS: ([number, number] | null)[] = [
   null, null, null, null, null, null, null, null, null,
@@ -866,8 +861,15 @@ export const TRIAL_LEVELS: TrialLevel[] = TRIAL_DIFFICULTY.map((difficulty, i) =
   essence: 20 * 2 ** i,
   difficulty,
   req: TRIAL_REQS[i],
-  medals: i + 1,
 }));
+/**
+ * Trial medals (Samuel, 2026-10-21): each element's Trial features two of its heroes, shown with
+ * their pictures, and a win at any level gives TRIAL_MEDALS medals, each to one of the two at
+ * random (both can go to the same hero). The pair moves on every day so every hero of the element
+ * comes up in turn.
+ */
+export const TRIAL_FEATURED_HEROES = 2;
+export const TRIAL_MEDALS = 2;
 export const TRIAL_TIERS = TRIAL_LEVELS.length;
 export const TRIAL_TIME = 30;
 /** A Trial level won in this many seconds or less (half the timer) can be Quick Battled: skip the fight, same ticket and reward. */

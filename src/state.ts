@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, MILESTONE_STEP, milestoneReward, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_DEALS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_GEMS, TICKETS_PER_DAY, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, AWAKEN_STARMOTES, MAX_AWAKEN, AWAKEN_STAT_MULT, AWAKEN_UNLOCK_LEVEL, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_KILL_EMBERS, GUILD_BOSS_KILL_MIN_EMBERS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_DEALS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_GEMS, TICKETS_PER_DAY, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_FEATURED_HEROES, TRIAL_MEDALS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, AWAKEN_STARMOTES, MAX_AWAKEN, AWAKEN_STAT_MULT, AWAKEN_UNLOCK_LEVEL, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_KILL_EMBERS, GUILD_BOSS_KILL_MIN_EMBERS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
 import { relicCost, bossHp, bossAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES, PLAYABLE_HEROES } from './data';
@@ -1505,6 +1505,21 @@ export class GameState {
     return this.trialsUnlocked() && this.trialOpen(element) && this.tickets > 0 && tier >= 1 && tier <= this.trialUnlocked(element) && this.trialReqMet(tier);
   }
 
+  /**
+   * The heroes an element's Trial pays medals to today: TRIAL_FEATURED_HEROES of that element,
+   * moving on by that many every local day so the whole element comes up in turn.
+   * Legendary heroes only come through special means, so they are never featured.
+   */
+  trialHeroes(element: Element, now = Date.now()): string[] {
+    const pool = PLAYABLE_HEROES.filter((h) => h.element === element && h.rarity !== 'legendary');
+    if (!pool.length) return [];
+    const d = new Date(now);
+    const day = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86_400_000);
+    const count = Math.min(TRIAL_FEATURED_HEROES, pool.length);
+    const start = (day * count) % pool.length;
+    return Array.from({ length: count }, (_, i) => pool[(start + i) % pool.length].id);
+  }
+
   /** Whether a Trial fight can start now: open today, unlocked, requirement met and a ticket in hand. */
   canStartTrial(element: Element, tier: number): boolean {
     return this.trialPlayable(element, tier);
@@ -1553,15 +1568,10 @@ export class GameState {
     this.essences[element] = (this.essences[element] ?? 0) + result.essence;
     result.stones = Math.round(trialStones(tier) * explore);
     this.enhanceStones += result.stones;
-    // Medals go to different random heroes of the element while there are enough of them.
-    // Medals go to different heroes of the element where possible, picked by rarity weight.
-    // Legendary heroes only come through special means, so they get none.
-    const pool = PLAYABLE_HEROES.filter((h) => h.element === element);
-    for (let i = 0; i < level.medals; i++) {
-      const left = pool.filter((h) => !result.medals.includes(h.id));
-      const hero = pickByRarity(left.length ? left : pool, TRIAL_RARITY_WEIGHTS);
-      if (!hero) break;
-      const id = hero.id;
+    // Each medal goes to one of today's featured heroes at random, so both can land on the same one.
+    const featured = this.trialHeroes(element);
+    for (let i = 0; i < TRIAL_MEDALS && featured.length; i++) {
+      const id = featured[Math.floor(Math.random() * featured.length)];
       result.medals.push(id);
       this.addCrests(id, 1);
     }
