@@ -683,11 +683,13 @@ export const TYPE_MASTERY: Record<HeroType, { name: string; text: string; effect
  * Legendary heroes come only from late-game progression (Samuel, 2026-10-21: no event, no chests, shops or Trials).
  * An 8★ hero turns every LEGENDARY_MEDAL_RATE extra medals into one Legendary medal. All Legendary medals share
  * one pool, and the player spends it on whichever Legendary hero they want: LEGENDARY_UNLOCK_MEDALS to unlock,
- * then LEGENDARY_STAR_MEDALS[n] for each star (1★→2★ first).
+ * then LEGENDARY_STAR_MEDALS[n] for each star (1★→2★ first): half a normal hero's star costs, but each Legendary
+ * medal is 10 medals, so a Legendary 8★ takes ~50,000 extra medals. Sim (2026-10-21, 3 h/day): ~5,000 medals a day
+ * spread over the roster and no 8★ hero in the first 40 days, so Legendaries are a months-in goal.
  */
 export const LEGENDARY_MEDAL_RATE = 10;
-export const LEGENDARY_UNLOCK_MEDALS = 50;
-export const LEGENDARY_STAR_MEDALS = [10, 25, 50, 100, 200, 350, 500];
+export const LEGENDARY_UNLOCK_MEDALS = 80;
+export const LEGENDARY_STAR_MEDALS = [5, 25, 125, 300, 750, 1250, 2500];
 
 // Gems (premium currency) and the Hero Chest summon.
 export const START_GEMS = 60;
