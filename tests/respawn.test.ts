@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { RESPAWN_SECONDS } from '../src/data';
 import { respawnTime, reviveIn, stageStartRevives } from '../src/respawn';
+import { PVP_RESPAWN_MULT } from '../src/colosseum';
 
 const up = (name: string) => ({ name, alive: true, respawnAt: 0 });
 const down = (name: string, respawnAt: number) => ({ name, alive: false, respawnAt });
@@ -31,5 +32,12 @@ describe('revive cooldown', () => {
   it('never starts a stage with nobody standing', () => {
     const team = [down('a', 108), down('b', 109)];
     expect(stageStartRevives(team, 102, false)).toHaveLength(2);
+  });
+});
+
+describe('Colosseum respawn', () => {
+  it('brings fighters back in half the lane time (3 s instead of 6 s)', () => {
+    expect(respawnTime(10, PVP_RESPAWN_MULT) - 10).toBe(RESPAWN_SECONDS / 2);
+    expect(RESPAWN_SECONDS * PVP_RESPAWN_MULT).toBe(3);
   });
 });
