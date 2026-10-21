@@ -11,7 +11,7 @@ import { BOSS_ANIMS, BOSS_ANIM_FRAMES } from './bossAnims';
 import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberRefund, emberBulk, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
 import type { GameState, OfflineReport, SummonDrop, RekindleResult, TrialResult, PvpOpponent } from './state';
 import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, BOOTCAMP, MILESTONE_STEP, milestoneReward, milestoneText, rewardText, type Reward } from './rewards';
-import { rarityOdds, SHOP_HEROES } from './state';
+import { rarityOdds, SHOP_HEROES, medalPackCost } from './state';
 import type { BattleScene } from './BattleScene';
 import type { ColosseumLink } from './colosseumLink';
 import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_BANDS, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, RANK_DAILY, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies } from './colosseum';
@@ -1920,21 +1920,22 @@ export class UI {
     const s = this.state;
     const faces = SHOP_HEROES.map((h) => {
       const owned = (s.levels[h.id] ?? 0) > 0;
-      return `<button type="button" class="g-pick" data-hero="${h.id}"><span class="face art" style="${faceStyle(h)}">${h.name[0]}</span><b>${h.name}</b><small>${owned ? cap(h.rarity) : `Locked · ${cap(h.rarity)}`}</small></button>`;
+      return `<button type="button" class="g-pick" data-hero="${h.id}"><span class="face art" style="${faceStyle(h)}">${h.name[0]}</span><b>${h.name}</b><small>${owned ? '' : 'Locked · '}${medalPackCost(h.id)} Gems</small></button>`;
     }).join('');
     this.showModal(
       'Medal pack',
-      `<p>${MEDAL_PACK.medals} medals for the hero you pick, ${MEDAL_PACK.gems} Gems. You have ${s.gems.toLocaleString()} Gems.</p><div class="g-picks">${faces}</div>`,
+      `<p>${MEDAL_PACK.medals} medals for the hero you pick: Common ${MEDAL_PACK.gems.common}, Rare ${MEDAL_PACK.gems.rare}, Epic ${MEDAL_PACK.gems.epic} Gems. You have ${s.gems.toLocaleString()} Gems.</p><div class="g-picks">${faces}</div>`,
       'Cancel',
     );
     $('modal-body').querySelectorAll<HTMLButtonElement>('.g-pick').forEach((btn) =>
       btn.addEventListener('click', () => {
         const h = HEROES.find((x) => x.id === btn.dataset.hero)!;
-        const afford = s.gems >= MEDAL_PACK.gems;
+        const cost = medalPackCost(h.id)!;
+        const afford = s.gems >= cost;
         this.showModal(
           `Medals for ${h.name}`,
-          `<p>${MEDAL_PACK.medals} ${h.name} medals for ${MEDAL_PACK.gems} Gems. You have ${s.gems.toLocaleString()}${afford ? '' : `, ${MEDAL_PACK.gems - s.gems} short`}.</p>`,
-          afford ? `Buy · ${MEDAL_PACK.gems} Gems` : 'Okay',
+          `<p>${MEDAL_PACK.medals} ${h.name} medals for ${cost} Gems. You have ${s.gems.toLocaleString()}${afford ? '' : `, ${cost - s.gems} short`}.</p>`,
+          afford ? `Buy · ${cost} Gems` : 'Okay',
           afford
             ? () => {
                 const drops = s.buyMedalPack(h.id);
@@ -1980,7 +1981,7 @@ export class UI {
     const rf = $<HTMLButtonElement>('hs-refresh');
     rf.disabled = gems < HERO_SHOP_REFRESH_GEMS;
     setHtml(rf, `Refresh now · ${HERO_SHOP_REFRESH_GEMS} <span class="gem"></span>`);
-    setHtml($('hs-pack'), `Pick a hero · ${MEDAL_PACK.medals} medals for ${MEDAL_PACK.gems} <span class="gem"></span>`);
+    setHtml($('hs-pack'), `Pick a hero · ${MEDAL_PACK.medals} medals from ${MEDAL_PACK.gems.common} <span class="gem"></span>`);
   }
 
   /** The Gem Shop rows: what each costs, what it gives and whether it can be bought now. */

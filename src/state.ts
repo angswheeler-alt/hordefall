@@ -203,6 +203,12 @@ function idHash(id: string): number {
   return h >>> 0;
 }
 
+/** A medal pack's Gem price for a hero, or null for heroes the shop doesn't sell. */
+export function medalPackCost(heroId: string): number | null {
+  const h = SHOP_HEROES.find((x) => x.id === heroId);
+  return h ? MEDAL_PACK.gems[h.rarity as keyof typeof MEDAL_PACK.gems] ?? null : null;
+}
+
 export interface HeroShopOffer { heroId: string; medals: number; gems: number; bought: boolean }
 
 export class GameState {
@@ -1903,8 +1909,9 @@ export class GameState {
 
   /** Medal pack: MEDAL_PACK.medals for a hero the player picked. */
   buyMedalPack(heroId: string): SummonDrop[] | null {
-    if (!SHOP_HEROES.some((h) => h.id === heroId) || this.gems < MEDAL_PACK.gems) return null;
-    this.gems -= MEDAL_PACK.gems;
+    const cost = medalPackCost(heroId);
+    if (cost === null || this.gems < cost) return null;
+    this.gems -= cost;
     return this.receiveGuildMedals([{ heroId, crests: MEDAL_PACK.medals }]);
   }
 
