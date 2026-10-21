@@ -21,6 +21,7 @@
         <div><b id="trial-hud-name"></b><small id="trial-hud-note">Your team fights at its Ember levels. Fallen heroes stay down until the Trial ends. Beat the boss before time runs out.</small></div>
         <button id="trial-leave" class="wood-btn small">Leave</button>
       </div>
+      <div id="pvp-meter" hidden></div>
       <div id="wallet">
         <div class="pill"><span class="gem"></span><b id="gems">0</b></div>
         <div class="pill" id="embers-stat" hidden><span class="ember"></span><b id="embers">0</b></div>
@@ -68,33 +69,55 @@
           </div>
         </section>
         <section class="panel" data-tab="battle" hidden>
-          <div class="panel-head"><h2>Elemental Trials</h2><button id="tr-elements" class="wood-btn small ew-btn">Element wheel</button><span id="tr-tickets" class="trial-tickets"></span></div>
-          <div id="tr-list" class="trial-list"></div>
-          <div id="tr-detail" class="trial-card" hidden>
-            <button id="tr-back" class="wood-btn small trial-back">&#8592; All Trials</button>
-            <div class="trial-boss">
-              <span id="tr-face" class="trial-face"></span>
-              <div><b id="tr-name"></b><small id="tr-info"></small></div>
-            </div>
-            <div class="trial-row">
-              <div class="trial-tier"><button id="tr-down" class="wood-btn small" aria-label="Lower tier">&#8249;</button><span id="tr-tier"></span><button id="tr-up" class="wood-btn small" aria-label="Higher tier">&#8250;</button></div>
-              <div class="trial-btns"><button id="tr-quick" class="wood-btn levelall" hidden>Quick</button><button id="tr-fight" class="wood-btn levelall">Fight</button></div>
-            </div>
-            <p id="tr-odds" class="trial-odds"></p>
+          <div data-battle-pane="hub">
+            <button class="mode-card trials" data-battle-go="trials">
+              <span class="mode-count"><i class="ticket"></i><b id="hub-tr-tickets"></b></span>
+              <span class="mode-orbs" aria-hidden="true"><i class="mode-orb fire"></i><i class="mode-orb earth"></i><i class="mode-orb water"></i><i class="mode-orb light"></i><i class="mode-orb dark"></i></span>
+              <b class="mode-title">Daily Trials</b>
+              <small id="hub-tr-note" class="mode-note"></small>
+              <i id="hub-tr-alert" class="mode-alert" hidden>!</i>
+            </button>
+            <button class="mode-card arena" data-battle-go="arena">
+              <span class="mode-count"><i class="ticket pvp-ticket"></i><b id="hub-pvp-tickets"></b></span>
+              <svg class="mode-trophy" viewBox="0 0 64 64" aria-hidden="true"><path d="M18 8h28v14c0 9-6 16-14 16s-14-7-14-16z" fill="#ffd34a" stroke="#7a4a00" stroke-width="3"/><path d="M18 14H8c0 9 5 14 12 14M46 14h10c0 9-5 14-12 14" fill="none" stroke="#7a4a00" stroke-width="4"/><path d="M18 14H8c0 9 5 14 12 14M46 14h10c0 9-5 14-12 14" fill="none" stroke="#ffd34a" stroke-width="2"/><rect x="28" y="38" width="8" height="10" fill="#e0a51e" stroke="#7a4a00" stroke-width="3"/><rect x="18" y="48" width="28" height="8" rx="2" fill="#ffd34a" stroke="#7a4a00" stroke-width="3"/><path d="M32 14l4 8h-8z" fill="#fff6c8"/></svg>
+              <b class="mode-title">Colosseum</b>
+              <small id="hub-pvp-note" class="mode-note"></small>
+              <i id="hub-pvp-alert" class="mode-alert" hidden>!</i>
+            </button>
+            <div class="panel-head"><h2>Run stats</h2></div>
+            <dl class="battle-stats">
+              <dt>Stage</dt><dd id="bt-stage"></dd>
+              <dt>Next boss</dt><dd id="bt-boss"></dd>
+              <dt>Best stage ever</dt><dd id="bt-best"></dd>
+              <dt>Best stage this run</dt><dd id="bt-run"></dd>
+              <dt>Gold per second</dt><dd id="bt-gps"></dd>
+              <dt>Time per stage</dt><dd id="bt-pace"></dd>
+              <dt>Rekindles</dt><dd id="bt-rk"></dd>
+            </dl>
           </div>
-          <div id="tr-ess" class="trial-ess trial-ess-bar"></div>
-          <div class="panel-head"><h2>Colosseum</h2><span id="pvp-tickets" class="trial-tickets"></span></div>
-          <div id="pvp" class="trial-card pvp"></div>
-          <div class="panel-head"><h2>Run stats</h2></div>
-          <dl class="battle-stats">
-            <dt>Stage</dt><dd id="bt-stage"></dd>
-            <dt>Next boss</dt><dd id="bt-boss"></dd>
-            <dt>Best stage ever</dt><dd id="bt-best"></dd>
-            <dt>Best stage this run</dt><dd id="bt-run"></dd>
-            <dt>Gold per second</dt><dd id="bt-gps"></dd>
-            <dt>Time per stage</dt><dd id="bt-pace"></dd>
-            <dt>Rekindles</dt><dd id="bt-rk"></dd>
-          </dl>
+          <div data-battle-pane="trials" hidden>
+            <button class="wood-btn small trial-back" data-battle-go="hub">&#8592; Battle</button>
+            <div class="panel-head"><h2>Elemental Trials</h2><button id="tr-elements" class="wood-btn small ew-btn">Element wheel</button><span id="tr-tickets" class="trial-tickets"></span></div>
+            <div id="tr-list" class="trial-list"></div>
+            <div id="tr-detail" class="trial-card" hidden>
+              <button id="tr-back" class="wood-btn small trial-back">&#8592; All Trials</button>
+              <div class="trial-boss">
+                <span id="tr-face" class="trial-face"></span>
+                <div><b id="tr-name"></b><small id="tr-info"></small></div>
+              </div>
+              <div class="trial-row">
+                <div class="trial-tier"><button id="tr-down" class="wood-btn small" aria-label="Lower tier">&#8249;</button><span id="tr-tier"></span><button id="tr-up" class="wood-btn small" aria-label="Higher tier">&#8250;</button></div>
+                <div class="trial-btns"><button id="tr-quick" class="wood-btn levelall" hidden>Quick</button><button id="tr-fight" class="wood-btn levelall">Fight</button></div>
+              </div>
+              <p id="tr-odds" class="trial-odds"></p>
+            </div>
+            <div id="tr-ess" class="trial-ess trial-ess-bar"></div>
+          </div>
+          <div data-battle-pane="arena" hidden>
+            <button class="wood-btn small trial-back" data-battle-go="hub">&#8592; Battle</button>
+            <div class="panel-head"><h2>Colosseum</h2><span id="pvp-tickets" class="trial-tickets"></span></div>
+            <div id="pvp" class="trial-card pvp"></div>
+          </div>
         </section>
         <section class="panel" data-tab="shop" hidden>
           <div class="panel-head"><h2>Shop</h2></div>

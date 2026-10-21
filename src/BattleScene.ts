@@ -290,7 +290,21 @@ interface PvpLive {
   timeLeft: number;
   done: boolean;
   onEnd: (won: boolean) => void;
+  /** Damage dealt, taken and healed by each of the player's fighters (by hero id), for the battle meter. */
+  meter: Map<string, PvpMeterRow>;
+  /** The same totals for the whole opposing team. */
+  foeMeter: PvpMeterRow;
 }
+
+/** One line of the Colosseum battle meter. */
+export interface PvpMeterRow {
+  id: string;
+  dealt: Decimal;
+  taken: Decimal;
+  healed: Decimal;
+}
+
+const meterRow = (id: string): PvpMeterRow => ({ id, dealt: new Decimal(0), taken: new Decimal(0), healed: new Decimal(0) });
 
 /** Each crystal holds this many times its team's total HP. */
 const PVP_CRYSTAL_HP = 1.5;
@@ -1024,6 +1038,19 @@ export class BattleScene extends Phaser.Scene {
     return !!this.pvp;
   }
 
+  /** The battle meter of the current (or just finished) Colosseum battle: the player's fighters, then the foes' totals. */
+  pvpMeter(): { mine: PvpMeterRow[]; foes: PvpMeterRow } | null {
+    return this.pvp ? { mine: [...this.pvp.meter.values()], foes: this.pvp.foeMeter } : null;
+  }
+
+  /** Count damage or healing on the Colosseum meter: `unit` is who did (or took) it. */
+  private meter(unit: Unit | null | undefined, kind: 'dealt' | 'taken' | 'healed', amount: Decimal) {
+    const p = this.pvp;
+    if (!p || p.done || !unit || amount.lte(0)) return;
+    const row = unit.side === 'hero' ? (unit.def ? p.meter.get(unit.def.id) : undefined) : p.foeMeter;
+    if (row) row[kind] = row[kind].plus(amount);
+  }
+
   /**
    * Start a Colosseum battle: the run pauses, the attack team (`ids`, Ember levels only) starts at the
    * blue crystal and the opponent's team at the red one. Fallen fighters on both sides get back up after
@@ -1033,7 +1060,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.trial || this.pvp) return;
     this.nextStageTimer?.remove();
     this.nextStageTimer = undefined;
-    this.pvp = { ids: new Set(ids), bonus, mine: { hp: new Decimal(1), max: new Decimal(1) }, theirs: { hp: new Decimal(1), max: new Decimal(1) }, timeLeft: PVP_LIVE_TIME, done: false, onEnd };
+    this.pvp = { ids: new Set(ids), bonus, mine: { hp: new Decimal(1), max: new Decimal(1) }, theirs: { hp: new Decimal(1), max: new Decimal(1) }, timeLeft: PVP_LIVE_TIME, done: false, onEnd, meter: new Map(ids.map((id) => [id, meterRow(id)])), foeMeter: meterRow('foes') };
     const ults = new Map(this.heroes.map((h) => [h.def?.id, h.ultReadyAt]));
     for (const h of this.heroes) h.view.destroy();
     this.heroes = [];
@@ -1162,8 +1189,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** A Colosseum foe hits the blue crystal. */
-  private damagePlayerCrystal(amount: Decimal) {
+  private damagePlayerCrystal(amount: Decimal, by: Unit) {
     const p = this.pvp!;
+    this.meter(by, 'dealt', Decimal.min(amount, p.mine.hp));
     p.mine.hp = Decimal.max(0, p.mine.hp.minus(amount));
     this.sparks(PLAYER_CRYSTAL_X + 8, LANE_TOP + 26, 0x8fd0ff, 3);
     play('hurt');
@@ -1440,7 +1468,7 @@ export class BattleScene extends Phaser.Scene {
         if (def.range > 60) this.shot(h, ENEMY_CRYSTAL_X, LANE_TOP + 26, ELEMENT_COLORS[def.element]);
         else this.lunge(h, 1);
         if (h.anim) this.setAnim(h, 'attack');
-        this.damageCrystal(h.atk);
+        this.damageCrystal(h.atk, h);
       }
       if (!target) return;
     }
@@ -1506,7 +1534,7 @@ export class BattleScene extends Phaser.Scene {
         if (e.range > 60) this.shot(e, PLAYER_CRYSTAL_X, LANE_TOP + 26, ELEMENT_COLORS[e.element]);
         else this.lunge(e, -1);
         if (e.anim) this.setAnim(e, 'attack');
-        this.damagePlayerCrystal(e.atk);
+        this.damagePlayerCrystal(e.atk, e);
       }
       return;
     }
@@ -1556,6 +1584,7 @@ export class BattleScene extends Phaser.Scene {
     }
     const mult = this.elem(e, target) * this.mul('damageTaken', target) * (e.weakUntil > this.clock ? e.weakMult : 1);
     const dmg = defended(e.atk.times(mult), target.defense);
+    if (target.alive) this.meter(e, 'dealt', Decimal.min(dmg, target.hp.plus(target.shield)));
     this.damageUnit(target, dmg, null);
     // Frost Curse: the enemy that fells this hero freezes and takes more damage.
     const curse = target.def?.signature;
@@ -1715,7 +1744,9 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     if (lifesteal > 0 && h.alive && h.hp.lt(h.maxHp)) {
-      h.hp = Decimal.min(h.maxHp, h.hp.plus(dealt.times(lifesteal)));
+      const stolen = Decimal.min(h.maxHp.minus(h.hp), dealt.times(lifesteal));
+      this.meter(h, 'healed', stolen);
+      h.hp = h.hp.plus(stolen);
       this.drawHpBar(h);
     }
   }
@@ -1779,6 +1810,8 @@ export class BattleScene extends Phaser.Scene {
       const dmg = e.poisonDps.times(e.poisonStacks * BURN_TICK);
       if (this.immune(e, e.poisonBy ?? null)) continue;
       this.floatText(e.x + Phaser.Math.Between(-6, 6), e.y - 22, fmt(dmg), '#8dff6a', 9);
+      this.meter(e.poisonBy, 'dealt', Decimal.min(dmg, e.hp));
+      this.meter(e, 'taken', Decimal.min(dmg, e.hp));
       e.hp = e.hp.minus(dmg);
       this.drawHpBar(e);
       if (e.hp.lte(0)) this.kill(e, e.poisonBy ?? null);
@@ -1814,6 +1847,9 @@ export class BattleScene extends Phaser.Scene {
       if (this.immune(e, e.burnBy ?? null)) continue;
       this.sparks(e.x, e.y - 6, 0xff8a3a, 2);
       this.floatText(e.x + Phaser.Math.Between(-6, 6), e.y - 22, fmt(dmg), '#ffa55a', 9);
+      const burnt = Decimal.min(e.markUntil > this.clock ? dmg.times(e.markMult) : dmg, e.hp);
+      this.meter(e.burnBy, 'dealt', burnt);
+      this.meter(e, 'taken', burnt);
       if (e.markUntil > this.clock) e.hp = e.hp.minus(dmg.times(e.markMult - 1));
       e.hp = e.hp.minus(dmg);
       this.drawHpBar(e);
@@ -1827,7 +1863,9 @@ export class BattleScene extends Phaser.Scene {
       if (!h.alive) continue;
       const rate = this.sum('regen', h);
       if (rate <= 0 || h.hp.gte(h.maxHp)) continue;
-      h.hp = Decimal.min(h.maxHp, h.hp.plus(h.maxHp.times(rate * dt)));
+      const regen = Decimal.min(h.maxHp.minus(h.hp), h.maxHp.times(rate * dt));
+      this.meter(h, 'healed', regen);
+      h.hp = h.hp.plus(regen);
       this.drawHpBar(h);
     }
   }
@@ -1855,6 +1893,9 @@ export class BattleScene extends Phaser.Scene {
       target.shield = target.shield.minus(soaked);
       toHp = amount.minus(soaked);
     }
+    const landed = Decimal.min(amount, target.hp.plus(amount.minus(toHp)));
+    this.meter(source, 'dealt', landed);
+    this.meter(target, 'taken', landed);
     target.hp = target.hp.minus(toHp);
     this.drawHpBar(target);
     this.hitFeedback(target, amount, source, crit);
@@ -1904,6 +1945,8 @@ export class BattleScene extends Phaser.Scene {
     const split = splitHeal(healer?.def?.signature, amount, target.maxHp.minus(target.hp), target.shield, target.maxHp, this.sigPlus(healer));
     // Support Mastery: healing clears stuns.
     if (healer && this.mastery(healer, 'Support')) target.rootedUntil = Math.min(target.rootedUntil, this.clock);
+    // Healing counts what it restores, shields included.
+    this.meter(healer ?? target, 'healed', Decimal.min(split.hp, target.maxHp.minus(target.hp)).plus(Decimal.max(0, split.shield.minus(target.shield))));
     target.hp = Decimal.min(target.maxHp, target.hp.plus(split.hp));
     target.shield = split.shield;
     const beacon = healer ? this.mul('beacon', healer) : 1;
@@ -1999,8 +2042,9 @@ export class BattleScene extends Phaser.Scene {
     text.setText(`${Math.ceil(reviveIn(h, this.clock))}`);
   }
 
-  private damageCrystal(amount: Decimal) {
+  private damageCrystal(amount: Decimal, by?: Unit) {
     if (this.pvp) {
+      this.meter(by, 'dealt', Decimal.min(amount, this.pvp.theirs.hp));
       this.pvp.theirs.hp = Decimal.max(0, this.pvp.theirs.hp.minus(amount));
       this.sparks(ENEMY_CRYSTAL_X - 8, LANE_TOP + 26, 0xff8fc0, 3);
       play('hit');
@@ -2112,7 +2156,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     for (const e of hit) this.damageUnit(e, dmg.times(this.elem(this.dealsAs(h), e)), h);
-    if (!this.bossAlive() && ENEMY_CRYSTAL_X - h.x <= radius + 60) this.damageCrystal(dmg);
+    if (!this.bossAlive() && ENEMY_CRYSTAL_X - h.x <= radius + 60) this.damageCrystal(dmg, h);
     if (ult) this.ultExtras(h, ult, hit, plus, x0, x1, dmg);
     return true;
   }

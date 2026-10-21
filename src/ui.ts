@@ -14,7 +14,7 @@ import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, BOOTCAMP, MILESTONE_STEP
 import { rarityOdds, SHOP_HEROES } from './state';
 import type { BattleScene } from './BattleScene';
 import type { ColosseumLink } from './colosseumLink';
-import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_BANDS, RANK_DAILY, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies } from './colosseum';
+import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_BANDS, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, RANK_DAILY, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies } from './colosseum';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** Set innerHTML only when it changed, so 5x-a-second renders don't rebuild nodes under the player's finger. */
@@ -444,6 +444,17 @@ export class UI {
       btn.addEventListener('click', () => {
         for (const pane of document.querySelectorAll<HTMLElement>('[data-relic-pane]')) pane.hidden = pane.dataset.relicPane !== btn.dataset.relicGo;
         this.render();
+      });
+    }
+    // The Battle tab is a hub of mode cards; each opens its own page with a Back button.
+    // Absolute URLs: a url() inside a CSS variable resolves against the stylesheet, not the page.
+    const bg = (f: string) => `url("${new URL(`bg/${f}`, document.baseURI).href}")`;
+    document.querySelector<HTMLElement>('.mode-card.arena')!.style.setProperty('--art', `${bg('colosseum_far.png')} center 40% / cover, ${bg('colosseum_sky.png')} center / cover`);
+    for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-battle-go]')) {
+      btn.addEventListener('click', () => {
+        for (const pane of document.querySelectorAll<HTMLElement>('[data-battle-pane]')) pane.hidden = pane.dataset.battlePane !== btn.dataset.battleGo;
+        $('panels').scrollTop = 0;
+        this.renderBattle();
       });
     }
     $('relic-shop').addEventListener('click', (e) => {
@@ -1573,13 +1584,15 @@ export class UI {
       this.pvpForecastValue = s.pvpForecast(slot);
     }
     const fc = this.pvpForecastValue;
-    const forecast = !fc ? '' : fc.won && fc.left[0].reduce((a, b) => a + b, 0) / fc.left[0].length > 0.4 ? ['win', 'Looks winnable.'] : fc.won ? ['close', 'A close fight.'] : ['lose', 'Looks tough. Try other elements or a stronger team.'];
+    // Only a rough read: the live battle (respawns, crystals, Ultimates) can go either way unless one side is far ahead.
+    const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
+    const forecast = !fc ? '' : fc.won && avg(fc.left[0]) > 0.6 ? ['win', 'Looks winnable.'] : !fc.won && avg(fc.left[1]) > 0.6 ? ['lose', 'Looks tough. Try other elements or a stronger team.'] : ['close', 'Could go either way.'];
     const can = s.canStartPvp(slot);
     return `<div class="pvp-row"><button class="wood-btn small" data-pvp="back">‹ Back</button><span class="pvp-band b${foe.band}">${band.name}</span></div>
       <div class="pvp-team"><b>${escHtml(foe.name)}${foe.ghost ? '<span class="pvp-tag">GHOST</span>' : '<span class="pvp-tag real">PLAYER</span>'} <small>CP ${fmt(new Decimal(foe.cp))}</small></b><span class="faces">${this.pvpFoeFaces(foe)}</span></div>
       <div class="pvp-team"><div class="pvp-row"><b>Your attack team <small>CP ${fmt(mine)}</small></b><button class="wood-btn small" data-pvp="team" data-kind="attack">Change</button></div><span class="faces">${team.map((h) => this.pvpFace(h)).join('')}</span></div>
       ${forecast ? `<small class="pvp-forecast ${forecast[0]}">${forecast[1]}</small>` : ''}
-      <small>Your team starts at the blue crystal and theirs at the red one. Fallen fighters come back after a few seconds. The first crystal destroyed loses. Win: +${band.win} trophies and ${band.motes} Starmotes. Loss: -6 trophies, 1 Starmote.</small>
+      <small>Your team starts at the blue crystal and theirs at the red one. Fallen fighters come back after a few seconds. The first crystal destroyed loses. Win: +${band.win} trophies and ${band.motes} Starmotes. Loss: -${PVP_LOSS_TROPHIES} trophies, ${PVP_LOSS_MOTES} Starmote.</small>
       <button class="wood-btn levelall" data-pvp="fight" ${can ? '' : 'disabled'}>${s.pvp.tickets > 0 ? 'Battle! (1 ticket)' : 'No tickets left'}</button>`;
   }
 
@@ -1680,6 +1693,34 @@ export class UI {
     });
   }
 
+  /** The battle meter under the Colosseum lane: damage dealt, taken and healed by each fighter so far. */
+  private renderPvpMeter() {
+    const box = $('pvp-meter');
+    const m = this.scene()?.pvpMeter() ?? null;
+    box.hidden = !m;
+    if (!m) return;
+    const kinds = [
+      ['dealt', 'Dealt'],
+      ['taken', 'Taken'],
+      ['healed', 'Healed'],
+    ] as const;
+    const top = Object.fromEntries(kinds.map(([k]) => [k, m.mine.reduce((x, r) => Decimal.max(x, r[k]), new Decimal(0))])) as Record<(typeof kinds)[number][0], Decimal>;
+    const share = (v: Decimal, max: Decimal) => (max.gt(0) ? Math.round(v.div(max).toNumber() * 100) : 0);
+    const rows = m.mine
+      .map((r) => {
+        const def = HEROES.find((h) => h.id === r.id);
+        if (!def) return '';
+        const bars = kinds.map(([k]) => `<div class="pm-bar ${k}"><i style="width:${share(r[k], top[k])}%"></i><span>${fmt(r[k])}</span></div>`).join('');
+        return `<div class="pm-row"><span class="face art" style="${faceStyle(def)}">${HERO_ANIMS[def.id] ? '' : def.name[0]}</span><b>${def.name}</b>${bars}</div>`;
+      })
+      .join('');
+    const sum = (k: (typeof kinds)[number][0]) => m.mine.reduce((x, r) => x.plus(r[k]), new Decimal(0));
+    const html = `<div class="pm-head"><span></span><span></span>${kinds.map(([, n]) => `<span>${n}</span>`).join('')}</div>${rows}
+      <div class="pm-total"><span>Your team</span>${kinds.map(([k]) => `<span class="${k}">${fmt(sum(k))}</span>`).join('')}</div>
+      <div class="pm-total foes"><span>Their team</span>${kinds.map(([k]) => `<span class="${k}">${fmt(m.foes[k])}</span>`).join('')}</div>`;
+    if (box.innerHTML !== html) box.innerHTML = html;
+  }
+
   /** Leave the battle screen and go back to the run. */
   private endPvpScreen() {
     const scene = this.scene();
@@ -1694,6 +1735,15 @@ export class UI {
     this.renderTrials();
     this.renderPvp();
     const s = this.state;
+    const open = s.openTrials();
+    const trialsOn = s.trialsUnlocked();
+    $('hub-tr-tickets').textContent = `${s.tickets}/${TICKET_CAP}`;
+    $('hub-tr-note').textContent = trialsOn ? (open.length ? `Open today: ${open.map(cap).join(', ')}` : 'None open today') : 'Opens after the stage 50 boss';
+    $('hub-tr-alert').hidden = !(trialsOn && open.length && s.tickets > 0);
+    const pvpOn = s.pvpOpen();
+    $('hub-pvp-tickets').textContent = pvpOn ? `${s.pvp.tickets}/${PVP_TICKET_CAP}` : '-';
+    $('hub-pvp-note').textContent = pvpOn ? `${rankName(rankIndex(s.pvp.trophies))} · ${s.pvp.trophies} trophies` : `Opens at player level ${s.pvpUnlockLevel()}`;
+    $('hub-pvp-alert').hidden = !(pvpOn && s.pvp.tickets > 0);
     const nextBoss = Math.ceil((s.stage + (isBossStage(s.stage) ? 0 : 1)) / BOSS_EVERY) * BOSS_EVERY;
     $('bt-stage').textContent = s.stage.toLocaleString();
     $('bt-boss').textContent = `Stage ${nextBoss.toLocaleString()}`;
@@ -2087,6 +2137,7 @@ export class UI {
   }
 
   render() {
+    this.renderPvpMeter();
     // The Rekindle page stays live: the run keeps going behind it.
     if (!$('rk').hidden) this.renderRekindle();
     if (!$('coll').hidden) this.renderCollection();

@@ -49,6 +49,14 @@ describe('Colosseum ranks', () => {
 });
 
 describe('Colosseum rewards', () => {
+  it('make every choice cost trophies unless it is won at least a third of the time', () => {
+    // Expected trophies per win rate p: win * p - loss * (1 - p). Even Stronger must be won a third of the time to gain.
+    for (const b of PVP_BANDS) {
+      const breakEven = PVP_LOSS_TROPHIES / (b.win + PVP_LOSS_TROPHIES);
+      expect(breakEven).toBeGreaterThanOrEqual(1 / 3);
+    }
+  });
+
   it('pay the daily reward for the rank held, and the weekly one plus the drop on Monday', () => {
     const s = opened();
     expect(s.pvpTick(WED)).toEqual([]); // first open only starts the clocks

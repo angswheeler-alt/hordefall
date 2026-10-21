@@ -840,3 +840,41 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .pvp-tag.real { background: #2f6e9a; color: #e6f6ff; }
 .pvp-list { margin: 4px 0 10px; padding-left: 20px; text-align: left; font-size: 13px; max-height: 30vh; overflow: auto; }
 .pvp-list li.me { color: #ffd84a; font-weight: 800; }
+
+/* Colosseum battle meter: under the lane during a fight */
+#app > #pvp-meter { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+#pvp-meter { padding: 8px 10px 12px; background: #1d1424; background-image: repeating-linear-gradient(0deg, rgba(0,0,0,.12) 0 2px, transparent 2px 28px); color: #fff4dd; font-size: 12px; }
+#pvp-meter[hidden] { display: none; }
+.pm-head, .pm-row, .pm-total { display: grid; grid-template-columns: 30px minmax(0, 0.9fr) repeat(3, minmax(0, 1fr)); gap: 6px; align-items: center; }
+.pm-head { color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; font-size: 10px; margin-bottom: 4px; }
+.pm-row { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+.pm-row .face { width: 30px; height: 30px; border-radius: 6px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; }
+.pm-row b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pm-bar { position: relative; height: 18px; border-radius: 4px; background: #0008; overflow: hidden; }
+.pm-bar i { position: absolute; left: 0; top: 0; bottom: 0; transition: width .2s; }
+.pm-bar.dealt i { background: #d9473a; }
+.pm-bar.taken i { background: #c98a2a; }
+.pm-bar.healed i { background: #3fae5c; }
+.pm-bar span { position: relative; display: block; padding: 0 4px; line-height: 18px; font-weight: 800; text-shadow: 0 1px 2px #000; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pm-total > span:first-child { grid-column: span 2; }
+.pm-total { padding-top: 6px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.pm-total.foes { color: #ff9a8a; padding-top: 2px; }
+@media (prefers-reduced-motion: reduce) { .pm-bar i { transition: none; } }
+
+/* Battle tab hub: one big card per mode, each opening its own page */
+.mode-card { position: relative; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 2px; width: 100%; min-height: 112px; margin: 0 0 10px; padding: 10px 14px; border: 4px solid var(--wood-deep); border-radius: 10px; box-shadow: inset 0 0 0 2px rgba(255,255,255,.12), 0 3px 0 #1c0f06; overflow: hidden; text-align: left; color: #fff; cursor: pointer; font: inherit; }
+.mode-card:active { transform: translateY(1px); }
+.mode-card.trials { background: radial-gradient(ellipse at 22% 30%, rgba(160,30,60,.35), transparent 45%), linear-gradient(180deg, #2a1a4a, #140d28); }
+.mode-card.arena { background: linear-gradient(90deg, rgba(40,90,200,.55), rgba(0,0,0,.05) 45%, rgba(0,0,0,.05) 55%, rgba(200,40,40,.55)), var(--art, none), #6b4a2a; image-rendering: pixelated; }
+.mode-title { position: relative; z-index: 1; font-size: 26px; font-weight: 900; line-height: 1.1; text-shadow: 0 2px 0 #2b190c, 0 0 3px #2b190c, 2px 0 0 #2b190c, -2px 0 0 #2b190c; }
+.mode-note { position: relative; z-index: 1; font-size: 13px; font-weight: 800; color: #fff4dd; text-shadow: 0 1px 2px #000, 0 0 2px #000; }
+.mode-count { position: absolute; top: 8px; left: 12px; z-index: 1; display: inline-flex; align-items: center; gap: 6px; font-size: 17px; text-shadow: 0 1px 2px #000, 0 0 2px #000; }
+.mode-count .pvp-ticket { background: linear-gradient(180deg, #ff7b6b, #b3261c); border-color: #4a0a05; }
+.mode-orbs { position: absolute; top: 0; right: 10px; bottom: 0; display: flex; align-items: center; gap: 10px; }
+.mode-orb { width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(0,0,0,.5); background: radial-gradient(circle at 35% 30%, #fff 0 12%, var(--c) 45%, color-mix(in srgb, var(--c) 55%, #000)); box-shadow: 0 0 10px 3px var(--c), 0 0 26px 6px color-mix(in srgb, var(--c) 45%, transparent); }
+.mode-orb.fire { --c: #ff5a3a; } .mode-orb.earth { --c: #5fd04a; } .mode-orb.water { --c: #3fa8ff; } .mode-orb.light { --c: #ffd84a; } .mode-orb.dark { --c: #a24aff; }
+.mode-trophy { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; transform: translate(-50%, -55%); filter: drop-shadow(0 0 10px rgba(255,220,100,.8)) drop-shadow(0 2px 0 #2b190c); }
+.mode-alert { position: absolute; right: 10px; bottom: 10px; z-index: 1; width: 24px; height: 24px; border-radius: 50%; background: #e3261c; border: 2px solid #fff; color: #fff; font-style: normal; font-weight: 900; font-size: 15px; display: grid; place-items: center; }
+.mode-alert[hidden] { display: none; }
+[data-battle-pane] > .trial-back { margin: 0 4px 8px; }
+@media (max-width: 380px) { .mode-orbs { gap: 6px; } .mode-orb { width: 16px; height: 16px; } .mode-title { font-size: 22px; } }
