@@ -36,8 +36,8 @@ describe('revive cooldown', () => {
 });
 
 describe('Colosseum respawn', () => {
-  it('brings fighters back in half the lane time (3 s instead of 6 s)', () => {
-    expect(respawnTime(10, PVP_RESPAWN_MULT) - 10).toBe(RESPAWN_SECONDS / 2);
-    expect(RESPAWN_SECONDS * PVP_RESPAWN_MULT).toBe(3);
+  it('brings fighters back slower than on the lane (10 s instead of 6 s)', () => {
+    expect(respawnTime(10, PVP_RESPAWN_MULT) - 10).toBeCloseTo(10);
+    expect(RESPAWN_SECONDS * PVP_RESPAWN_MULT).toBeGreaterThan(RESPAWN_SECONDS);
   });
 });

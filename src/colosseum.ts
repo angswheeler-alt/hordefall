@@ -47,8 +47,8 @@ export const PVP_LOSS_MOTES = 1;
 export const PVP_FIRST_WIN_MOTES = 10;
 /** Ghosts get this much more CP for each sub-rank above Bronze I, so higher ranks need a stronger team. */
 export const RANK_PRESSURE = 0.04;
-/** Fallen fighters on both sides get back up this much faster in the Colosseum (lane: 6 s, Colosseum: 3 s). */
-export const PVP_RESPAWN_MULT = 0.5;
+/** Fallen fighters on both sides take longer to get back up in the Colosseum (lane: 6 s, Colosseum: 10 s). */
+export const PVP_RESPAWN_MULT = 10 / 6;
 /** Each win in a row gives this much more damage on the next attack, up to PVP_STREAK_MAX wins. */
 export const PVP_STREAK_DMG = 0.1;
 export const PVP_STREAK_MAX = 3;
