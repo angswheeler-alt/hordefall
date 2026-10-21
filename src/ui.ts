@@ -14,7 +14,7 @@ import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, BOOTCAMP, MILESTONE_STEP
 import { rarityOdds, SHOP_HEROES, medalPackCost } from './state';
 import type { BattleScene } from './BattleScene';
 import type { ColosseumLink } from './colosseumLink';
-import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_BANDS, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, RANK_DAILY, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies } from './colosseum';
+import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, RANK_DAILY, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies } from './colosseum';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** Set innerHTML only when it changed, so 5x-a-second renders don't rebuild nodes under the player's finger. */
@@ -1482,7 +1482,7 @@ export class UI {
     this.pvpServer = link;
   }
 
-  /** New opponents: real players from the server where they fit, Ghosts for the rest. */
+  /** New opponents: real players from the server where there are some, bots for the rest. */
   private async pvpFindOpponents() {
     if (this.pvpFinding) return;
     this.pvpFinding = true;
@@ -1548,13 +1548,12 @@ export class UI {
     const refreshIn = Math.max(0, Math.ceil((p.refreshAt - Date.now()) / 1000));
     const notes = p.notes.length ? `<div class="pvp-notes">${p.notes.map((n) => `<span>${n}</span>`).join('')}<button class="wood-btn small" data-pvp="notes-ok">Got it</button></div>` : '';
     const foes = p.picks
-      .map((foe, i) => {
-        const band = PVP_BANDS[foe.band] ?? PVP_BANDS[1];
-        return `<button class="pvp-foe" data-pvp="foe" data-slot="${i}">
-          <div class="who"><b>${escHtml(foe.name)}${foe.ghost ? '<span class="pvp-tag">GHOST</span>' : '<span class="pvp-tag real">PLAYER</span>'}</b><span><span class="pvp-band b${foe.band}">${band.name}</span> <small>CP ${fmt(new Decimal(foe.cp))}</small></span><span class="faces">${this.pvpFoeFaces(foe)}</span></div>
-          <div class="pvp-pay">Win: +${band.win} trophies<br>+${band.motes} Starmotes</div>
-        </button>`;
-      })
+      .map(
+        (foe, i) => `<button class="pvp-foe" data-pvp="foe" data-slot="${i}">
+          <div class="who"><b>${escHtml(foe.name)}</b><span><small>CP ${fmt(new Decimal(foe.cp))}</small></span><span class="faces">${this.pvpFoeFaces(foe)}</span></div>
+          <div class="pvp-pay">Win: +${PVP_WIN_TROPHIES} trophies<br>+${PVP_WIN_MOTES} Starmotes</div>
+        </button>`,
+      )
       .join('');
     const buys = s.pvpBuysLeft();
     const ticketBtn = p.tickets <= 0 && buys > 0 ? `<button class="wood-btn small gem-btn" data-pvp="buy" ${s.gems < PVP_TICKET_GEMS ? 'disabled' : ''}>+1 ticket (${PVP_TICKET_GEMS} Gems, ${buys} left today)</button>` : '';
@@ -1565,7 +1564,6 @@ export class UI {
         <div class="pvp-pay">${s.starmotes} Starmotes<br><small>${p.wins}W ${p.losses}L${p.streak ? ` · streak ${p.streak} (+${Math.round(s.pvpStreakBonus() * 100)}% dmg)` : ''}</small></div></div>
       <small>Daily ${RANK_DAILY[r]} · Weekly ${RANK_WEEKLY[r]} Starmotes at this rank. On Monday the weekly reward pays, then you drop to ${rankName(rankIndex(droppedTrophies(p.trophies)))}.</small>
       ${foes}
-      ${this.pvpServer?.online ? '' : '<small>Sign in to also face other players\' defense teams. Until then every opponent is a Ghost.</small>'}
       <div class="pvp-row"><button class="wood-btn small" data-pvp="board">Leaderboard &amp; log</button><button class="wood-btn small" data-pvp="refresh" ${refreshIn ? 'disabled' : ''}>${refreshIn ? `New opponents in ${Math.floor(refreshIn / 60)}:${String(refreshIn % 60).padStart(2, '0')}` : 'New opponents'}</button>${ticketBtn}</div>
       <div class="pvp-team"><div class="pvp-row"><b>Defense team</b><button class="wood-btn small" data-pvp="team" data-kind="defense">Edit</button></div><span class="faces">${s.pvpDefenseTeam().map((h) => this.pvpFace(h)).join('')}</span><small>Other players fight this team. Losing on defense never costs trophies.</small></div>`,
     );
@@ -1574,7 +1572,6 @@ export class UI {
   private pvpFoeHtml(slot: number) {
     const s = this.state;
     const foe = s.pvp.picks[slot];
-    const band = PVP_BANDS[foe.band] ?? PVP_BANDS[1];
     const team = s.pvpAttackTeam();
     const mine = s.teamCpOf(team);
     // The forecast runs a whole fight, so it is worked out once per opponent, team and streak.
@@ -1588,11 +1585,11 @@ export class UI {
     const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
     const forecast = !fc ? '' : fc.won && avg(fc.left[0]) > 0.6 ? ['win', 'Looks winnable.'] : !fc.won && avg(fc.left[1]) > 0.6 ? ['lose', 'Looks tough. Try other elements or a stronger team.'] : ['close', 'Could go either way.'];
     const can = s.canStartPvp(slot);
-    return `<div class="pvp-row"><button class="wood-btn small" data-pvp="back">‹ Back</button><span class="pvp-band b${foe.band}">${band.name}</span></div>
-      <div class="pvp-team"><b>${escHtml(foe.name)}${foe.ghost ? '<span class="pvp-tag">GHOST</span>' : '<span class="pvp-tag real">PLAYER</span>'} <small>CP ${fmt(new Decimal(foe.cp))}</small></b><span class="faces">${this.pvpFoeFaces(foe)}</span></div>
+    return `<div class="pvp-row"><button class="wood-btn small" data-pvp="back">‹ Back</button></div>
+      <div class="pvp-team"><b>${escHtml(foe.name)} <small>CP ${fmt(new Decimal(foe.cp))}</small></b><span class="faces">${this.pvpFoeFaces(foe)}</span></div>
       <div class="pvp-team"><div class="pvp-row"><b>Your attack team <small>CP ${fmt(mine)}</small></b><button class="wood-btn small" data-pvp="team" data-kind="attack">Change</button></div><span class="faces">${team.map((h) => this.pvpFace(h)).join('')}</span></div>
       ${forecast ? `<small class="pvp-forecast ${forecast[0]}">${forecast[1]}</small>` : ''}
-      <small>Your team starts at the blue crystal and theirs at the red one. Fallen fighters come back after a few seconds. The first crystal destroyed loses. Win: +${band.win} trophies and ${band.motes} Starmotes. Loss: -${PVP_LOSS_TROPHIES} trophies, ${PVP_LOSS_MOTES} Starmote.</small>
+      <small>Your team starts at the blue crystal and theirs at the red one. Fallen fighters come back after a few seconds. The first crystal destroyed loses. Win: +${PVP_WIN_TROPHIES} trophies and ${PVP_WIN_MOTES} Starmotes. Loss: -${PVP_LOSS_TROPHIES} trophies, ${PVP_LOSS_MOTES} Starmote.</small>
       <button class="wood-btn levelall" data-pvp="fight" ${can ? '' : 'disabled'}>${s.pvp.tickets > 0 ? 'Battle! (1 ticket)' : 'No tickets left'}</button>`;
   }
 

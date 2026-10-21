@@ -7,7 +7,7 @@ import { RENAMED_HEROES, PLAYABLE_HEROES } from './data';
 import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills';
 import { isKnight, combatPower, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
-import { PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_TICKET_GEMS, PVP_TICKET_BUYS, PVP_REFRESH_MINUTES, PVP_BANDS, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_FIRST_WIN_MOTES, PVP_STREAK_DMG, PVP_STREAK_MAX, RANK_PRESSURE, RANK_DAILY, RANK_WEEKLY, rankIndex, rankName, droppedTrophies, seededRandom, ghostName, simulatePvp, type PvpUnit, type PvpResult } from './colosseum';
+import { PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_TICKET_GEMS, PVP_TICKET_BUYS, PVP_REFRESH_MINUTES, PVP_CP_MIN, PVP_CP_MAX, PVP_REAL_MIN, PVP_REAL_MAX, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_FIRST_WIN_MOTES, PVP_STREAK_DMG, PVP_STREAK_MAX, RANK_PRESSURE, RANK_DAILY, RANK_WEEKLY, rankIndex, rankName, droppedTrophies, seededRandom, ghostName, simulatePvp, type PvpUnit, type PvpResult } from './colosseum';
 
 const SAVE_KEY = 'hordefall-save-v1';
 
@@ -40,9 +40,8 @@ export interface RekindleResult {
 
 export type SaveData = Record<string, any>;
 
-/** A Colosseum opponent: a Ghost (bot) team built from a seed to a target CP. Real players come later. */
+/** A Colosseum opponent: another player's saved team, or a Ghost (bot) team built from a seed to a target CP. The game never shows which. */
 export interface PvpOpponent {
-  band: number;
   name: string;
   ghost: boolean;
   heroes: Array<{ id: string; stars: number }>;
@@ -69,20 +68,13 @@ export interface PvpSnapHero {
   move: number;
 }
 
-/** Another player's defense team offered by the server, before it is placed in a band. */
+/** Another player's defense team offered by the server. */
 export interface PvpCandidate {
   userId: string;
   name: string;
   cp: string;
   team: PvpSnapHero[];
 }
-
-/** Which share of the attack team's CP (before rank pressure) a real player must have to fill each band. */
-const PVP_BAND_WINDOWS: Array<[number, number]> = [
-  [0.6, 0.95],
-  [0.95, 1.08],
-  [1.08, 1.6],
-];
 
 /** A saved hero from the server, checked: numbers finite and in range, and a hero that exists. */
 export function cleanSnapHero(v: unknown): PvpSnapHero | null {
@@ -966,7 +958,7 @@ export class GameState {
   }
 
   /** A Ghost team: heroes, stars and one Ember level for all, chosen so its CP lands near `target`. */
-  buildGhost(seed: string, target: Decimal, band: number): PvpOpponent {
+  buildGhost(seed: string, target: Decimal): PvpOpponent {
     const rand = seededRandom(seed);
     const name = ghostName(rand);
     const team = this.pvpAttackTeam();
@@ -979,7 +971,7 @@ export class GameState {
       if (heroes.some((x) => x.id === h.id)) continue;
       heroes.push({ id: h.id, stars: Math.min(MAX_STARS, Math.max(0, avgStars + Math.floor(rand() * 3) - 1)) });
     }
-    const opp: PvpOpponent = { band, name, ghost: true, heroes, ember: 1, cp: '0' };
+    const opp: PvpOpponent = { name, ghost: true, heroes, ember: 1, cp: '0' };
     const cpAt = (ember: number) => GameState.ghostState({ ...opp, ember }).teamCombatPower();
     // Grow the Ember level until the team passes the target, then narrow down.
     let lo = 1;
@@ -1032,26 +1024,37 @@ export class GameState {
   }
 
   /**
-   * New opponents: Weaker, Even and Stronger than the player's attack team. Real players from the
-   * server (`real`, already in the player's rank) fill a band when their CP fits it; Ghosts, a bit
-   * stronger in higher ranks, fill the rest.
+   * Three new opponents from the player's rank, in random order. Real players from the server (`real`,
+   * already in the player's rank) are picked at random among those near the player's power; Ghosts with
+   * random teams at a random share of that power (a bit stronger in higher ranks) fill the rest.
    */
   rollPvpOpponents(now = Date.now(), real: PvpCandidate[] = []) {
     const p = this.pvp;
+    const rand = seededRandom(`pvp:${p.refreshes}:${p.trophies}`);
     const mine = this.teamCpOf(this.pvpAttackTeam());
     const pressure = 1 + RANK_PRESSURE * rankIndex(p.trophies);
-    const used = new Set<string>();
-    p.picks = PVP_BANDS.map((b, i) => {
-      const [lo, hi] = PVP_BAND_WINDOWS[i];
-      const fits = real
-        .filter((c) => !used.has(c.userId) && c.team.length > 0)
-        .map((c) => ({ c, ratio: mine.gt(0) ? new Decimal(c.cp).div(mine).toNumber() : 1 }))
-        .filter((x) => x.ratio >= lo && x.ratio < hi)
-        .sort((x, y) => Math.abs(x.ratio - b.cp) - Math.abs(y.ratio - b.cp) || x.c.userId.localeCompare(y.c.userId))[0];
-      if (!fits) return this.buildGhost(`${p.refreshes}:${i}`, mine.times(b.cp * pressure), i);
-      used.add(fits.c.userId);
-      return { band: i, name: fits.c.name, ghost: false, heroes: fits.c.team.map((x) => ({ id: x.id, stars: x.stars })), ember: 1, cp: fits.c.cp, userId: fits.c.userId, snap: fits.c.team };
+    const shuffle = <T>(xs: T[]) => {
+      for (let i = xs.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        [xs[i], xs[j]] = [xs[j], xs[i]];
+      }
+      return xs;
+    };
+    const seen = new Set<string>();
+    const near = real.filter((c) => {
+      if (seen.has(c.userId) || !c.team.length) return false;
+      seen.add(c.userId);
+      const ratio = mine.gt(0) ? new Decimal(c.cp).div(mine).toNumber() : 1;
+      return ratio >= PVP_REAL_MIN && ratio <= PVP_REAL_MAX;
     });
+    const picks: PvpOpponent[] = shuffle([...near].sort((x, y) => x.userId.localeCompare(y.userId)))
+      .slice(0, 3)
+      .map((c) => ({ name: c.name, ghost: false, heroes: c.team.map((x) => ({ id: x.id, stars: x.stars })), ember: 1, cp: c.cp, userId: c.userId, snap: c.team }));
+    while (picks.length < 3) {
+      const share = PVP_CP_MIN + rand() * (PVP_CP_MAX - PVP_CP_MIN);
+      picks.push(this.buildGhost(`${p.refreshes}:${picks.length}`, mine.times(share * pressure)));
+    }
+    p.picks = shuffle(picks);
     p.refreshes++;
     p.refreshAt = now + PVP_REFRESH_MINUTES * 60000;
   }
@@ -1172,14 +1175,13 @@ export class GameState {
     p.active = -1;
     this.skillTeam = null;
     if (!foe) return null;
-    const band = PVP_BANDS[foe.band] ?? PVP_BANDS[1];
     const rankBefore = rankIndex(p.trophies);
     let trophies: number;
     let starmotes: number;
     let firstWin = false;
     if (won) {
-      trophies = band.win;
-      starmotes = band.motes;
+      trophies = PVP_WIN_TROPHIES;
+      starmotes = PVP_WIN_MOTES;
       if (p.firstWin !== dayKey(now)) {
         firstWin = true;
         p.firstWin = dayKey(now);

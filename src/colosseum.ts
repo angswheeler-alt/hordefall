@@ -30,13 +30,19 @@ export const RANK_WEEKLY = [30, 40, 50, 60, 70, 80, 100, 200, 300, 400, 500, 600
 /** Each Monday, after the weekly pay, everyone drops this many sub-ranks (one full rank), never below Bronze I. */
 export const WEEKLY_DROP = 3;
 
-/** The three choices: how strong the opponent is next to the player's team, and what a win pays. */
-export const PVP_BANDS = [
-  { id: 'weaker', name: 'Weaker', cp: 0.85, win: 8, motes: 3 },
-  { id: 'even', name: 'Even', cp: 1, win: 12, motes: 5 },
-  { id: 'stronger', name: 'Stronger', cp: 1.15, win: 18, motes: 8 },
-] as const;
-export const PVP_LOSS_TROPHIES = 10;
+/**
+ * Three opponents from the player's rank, nothing saying which is a real player and which a bot.
+ * Bot teams land at a random share of the player's CP in [PVP_CP_MIN, PVP_CP_MAX] (times rank pressure);
+ * real players qualify inside [PVP_REAL_MIN, PVP_REAL_MAX].
+ */
+export const PVP_CP_MIN = 0.85;
+export const PVP_CP_MAX = 1.15;
+export const PVP_REAL_MIN = 0.7;
+export const PVP_REAL_MAX = 1.4;
+/** What a win pays (any opponent), and what a loss costs. */
+export const PVP_WIN_TROPHIES = 12;
+export const PVP_WIN_MOTES = 5;
+export const PVP_LOSS_TROPHIES = 8;
 export const PVP_LOSS_MOTES = 1;
 export const PVP_FIRST_WIN_MOTES = 10;
 /** Ghosts get this much more CP for each sub-rank above Bronze I, so higher ranks need a stronger team. */
@@ -80,12 +86,22 @@ export function seededRandom(seed: string): () => number {
   };
 }
 
-const GHOST_FIRST = ['Ashen', 'Hollow', 'Pale', 'Silent', 'Grim', 'Faded', 'Misty', 'Lost', 'Restless', 'Gloom', 'Wailing', 'Dusk'];
-const GHOST_LAST = ['Duke', 'Wren', 'Squire', 'Baron', 'Piper', 'Warden', 'Maiden', 'Rook', 'Drifter', 'Knave', 'Hermit', 'Sentry'];
+// Bot names read like real usernames, so players can't tell bots from people.
+const NAME_WORDS = ['Shadow', 'Blaze', 'Frost', 'Storm', 'Ember', 'Tide', 'Moss', 'Iron', 'Lunar', 'Solar', 'Rogue', 'Wolf', 'Raven', 'Viper', 'Fox', 'Drake', 'Nova', 'Ash', 'Zen', 'Rune', 'Pixel', 'Thorn', 'Bolt', 'Echo', 'Onyx', 'Kitsu', 'Mango', 'Pepper', 'Bramble'];
+const NAME_TAILS = ['fang', 'heart', 'blade', 'born', 'claw', 'wing', 'strike', 'byte', 'king', 'queen', 'smith', 'rider', 'lord', 'kid', 'main', 'tamer'];
+const NAME_FIRST = ['kai', 'mira', 'leo', 'nina', 'jay', 'sora', 'theo', 'luna', 'max', 'ivy', 'ren', 'zoe', 'finn', 'aria', 'milo', 'yuki', 'sam', 'nate', 'emi', 'ollie'];
 
-/** A Ghost's name from its seed. */
+/** A made-up username from a seeded generator, in a few everyday styles ("FrostFang92", "mira_x", "xXBlazeXx"). */
 export function ghostName(rand: () => number): string {
-  return `${GHOST_FIRST[Math.floor(rand() * GHOST_FIRST.length)]} ${GHOST_LAST[Math.floor(rand() * GHOST_LAST.length)]}`;
+  const pick = <T>(xs: T[]) => xs[Math.floor(rand() * xs.length)];
+  const num = () => String(Math.floor(rand() * (rand() < 0.5 ? 100 : 10000)));
+  const style = Math.floor(rand() * 6);
+  if (style === 0) return `${pick(NAME_WORDS)}${pick(NAME_TAILS)}${num()}`;
+  if (style === 1) return `${pick(NAME_FIRST)}_${pick(NAME_TAILS)}`;
+  if (style === 2) return `${pick(NAME_FIRST)}${num()}`;
+  if (style === 3) return `xX${pick(NAME_WORDS)}Xx`;
+  if (style === 4) return `${pick(NAME_WORDS)}${pick(NAME_TAILS)}`;
+  return `The${pick(NAME_WORDS)}${pick(['', 'TTV', 'YT', 'GG'])}`;
 }
 
 /** One fighter as the Colosseum sees it: permanent stats only (no gold levels). */
