@@ -1261,6 +1261,8 @@ export class UI {
 
   /** Open a tab's section in place of the home panel ('home' closes it). */
   private setTab(tab: Tab) {
+    // Coming back to a tab always starts on its main page, not a sub-page left open earlier.
+    if (tab !== this.tab) this.resetSubPages();
     this.tab = tab;
     for (const panel of $('panels').querySelectorAll<HTMLElement>('.panel')) panel.hidden = panel.dataset.tab !== tab;
     $('panels').scrollTop = 0;
@@ -1276,6 +1278,13 @@ export class UI {
     }
     if (tab === 'shop') this.renderRewards();
     if (tab === 'battle') this.renderBattle();
+  }
+
+  /** Relics back to the owned list, Battle back to its hub of mode cards (a live fight has its own screen, so it's untouched). */
+  private resetSubPages() {
+    for (const pane of document.querySelectorAll<HTMLElement>('[data-relic-pane]')) pane.hidden = pane.dataset.relicPane !== 'mine';
+    for (const pane of document.querySelectorAll<HTMLElement>('[data-battle-pane]')) pane.hidden = pane.dataset.battlePane !== 'hub';
+    this.trialEntered = false;
   }
 
   private badge(tab: Tab, on: boolean) {
@@ -1741,14 +1750,6 @@ export class UI {
     $('hub-pvp-tickets').textContent = pvpOn ? `${s.pvp.tickets}/${PVP_TICKET_CAP}` : '-';
     $('hub-pvp-note').textContent = pvpOn ? `${rankName(rankIndex(s.pvp.trophies))} · ${s.pvp.trophies} trophies` : `Opens at player level ${s.pvpUnlockLevel()}`;
     $('hub-pvp-alert').hidden = !(pvpOn && s.pvp.tickets > 0);
-    const nextBoss = Math.ceil((s.stage + (isBossStage(s.stage) ? 0 : 1)) / BOSS_EVERY) * BOSS_EVERY;
-    $('bt-stage').textContent = s.stage.toLocaleString();
-    $('bt-boss').textContent = `Stage ${nextBoss.toLocaleString()}`;
-    $('bt-best').textContent = s.bestStage.toLocaleString();
-    $('bt-run').textContent = s.runBestStage.toLocaleString();
-    $('bt-gps').textContent = fmt(new Decimal(s.goldPerSec));
-    $('bt-pace').textContent = `${Math.round(s.secondsPerStage)}s`;
-    $('bt-rk').textContent = String(s.rekindles);
   }
 
   /** The Rekindle rewards page: what this Rekindle pays and what it moves forward. */
@@ -2015,6 +2016,16 @@ export class UI {
       $('home-offline').textContent = s.maxOfflineStage().toLocaleString();
       $('home-offline-note').textContent = s.autoAdvance ? `In ${OFFLINE_CAP_HOURS} h away, from stage ${s.stage.toLocaleString()}` : 'Auto-advance is off';
     }
+
+    // Run stats sit at the bottom of the home panel.
+    const nextBoss = Math.ceil((s.stage + (isBossStage(s.stage) ? 0 : 1)) / BOSS_EVERY) * BOSS_EVERY;
+    $('bt-stage').textContent = s.stage.toLocaleString();
+    $('bt-boss').textContent = `Stage ${nextBoss.toLocaleString()}`;
+    $('bt-best').textContent = s.bestStage.toLocaleString();
+    $('bt-run').textContent = s.runBestStage.toLocaleString();
+    $('bt-gps').textContent = fmt(new Decimal(s.goldPerSec));
+    $('bt-pace').textContent = `${Math.round(s.secondsPerStage)}s`;
+    $('bt-rk').textContent = String(s.rekindles);
 
     const login = s.loginState(now);
     // Claimed today with the cycle just finished: show every day as collected.
