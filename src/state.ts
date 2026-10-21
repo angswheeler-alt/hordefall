@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, MILESTONE_STEP, milestoneReward, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_DEALS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_GEMS, TICKETS_PER_DAY, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, AWAKEN_STARMOTES, MAX_AWAKEN, AWAKEN_STAT_MULT, AWAKEN_UNLOCK_LEVEL, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_KILL_EMBERS, GUILD_BOSS_KILL_MIN_EMBERS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_DEALS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_GEMS, TICKETS_PER_DAY, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, AWAKEN_STARMOTES, MAX_AWAKEN, AWAKEN_STAT_MULT, AWAKEN_UNLOCK_LEVEL, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_KILL_EMBERS, GUILD_BOSS_KILL_MIN_EMBERS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
 import { relicCost, bossHp, bossAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES, PLAYABLE_HEROES } from './data';
@@ -187,6 +187,9 @@ export function weekIndex(now = Date.now()): number {
 }
 
 /** Heroes the Gem Hero Shop sells medals for: released and not Legendary. */
+/** Legendary heroes unlock and gain stars from the shared Legendary medal pool, never from their own medals. */
+const isLegendary = (id: string) => HEROES.find((h) => h.id === id)?.rarity === 'legendary';
+
 export const SHOP_HEROES: HeroDef[] = PLAYABLE_HEROES.filter((h) => h.rarity !== 'legendary');
 /** Featured hero order: every shop hero once per round, mixed by a fixed hash so neighbours differ. */
 const FEATURED_ORDER: HeroDef[] = [...SHOP_HEROES].sort((a, b) => idHash(a.id) - idHash(b.id) || a.id.localeCompare(b.id));
@@ -307,7 +310,7 @@ export class GameState {
   guildQuestPending = { kills: 0, stages: 0, trials: 0 };
   /** Guild Research ranks of the player's guild, cached from the server (empty outside a guild). */
   guildResearch: Partial<Record<ResearchBranch, number>> = {};
-  /** Legendary medals, made by 8★ heroes from extra medals; Legendary heroes will use them. */
+  /** Legendary medals, made by 8★ heroes from extra medals; any Legendary hero spends them to unlock and gain stars. */
   legendaryMedals = 0;
   /** Market Row's own buy amount, separate from the heroes'. */
   stallBuyAmount: 1 | 10 | 'max' = 1;
@@ -742,22 +745,34 @@ export class GameState {
     this.crests[id] -= made * LEGENDARY_MEDAL_RATE;
   }
 
-  /** Crests a locked hero needs to unlock (0 for the free starter), or null for Legendary heroes, which only come through special means. */
-  unlockCrests(def: HeroDef): number | null {
+  /**
+   * Medals a hero can spend on unlocking and stars. Legendary heroes have none of their own:
+   * they all draw on the shared Legendary medal pool, so the player picks which one to grow.
+   */
+  medalsFor(id: string): number {
+    return isLegendary(id) ? this.legendaryMedals : (this.crests[id] ?? 0);
+  }
+
+  private spendMedals(id: string, n: number) {
+    if (isLegendary(id)) this.legendaryMedals -= n;
+    else this.crests[id] -= n;
+  }
+
+  /** Medals a locked hero needs to unlock (0 for the free starter); Legendary heroes take Legendary medals. */
+  unlockCrests(def: HeroDef): number {
     if (def.unlockCost === 0) return 0;
-    return def.rarity === 'legendary' ? null : UNLOCK_CRESTS[def.rarity];
+    return def.rarity === 'legendary' ? LEGENDARY_UNLOCK_MEDALS : UNLOCK_CRESTS[def.rarity];
   }
 
   canUnlock(def: HeroDef): boolean {
-    const need = this.unlockCrests(def);
-    return need !== null && (this.levels[def.id] ?? 0) === 0 && (this.crests[def.id] ?? 0) >= need;
+    return (this.levels[def.id] ?? 0) === 0 && this.medalsFor(def.id) >= this.unlockCrests(def);
   }
 
-  /** Spend a locked hero's Crests to unlock them at level 1; benched if the team is full. */
+  /** Spend a locked hero's medals to unlock them at level 1; benched if the team is full. */
   unlockHero(id: string): boolean {
     const def = HEROES.find((h) => h.id === id)!;
     if (!this.canUnlock(def)) return false;
-    this.crests[id] -= this.unlockCrests(def)!;
+    this.spendMedals(id, this.unlockCrests(def));
     this.levels[id] = 1;
     if (this.lineupCount() > this.teamSlots) this.benched[id] = true;
     this.save();
@@ -786,7 +801,7 @@ export class GameState {
       this.addCrests(hero.id, crests);
       // "New" marks the drop that brings a locked hero to their unlock count.
       const need = this.unlockCrests(hero);
-      const isNew = locked && need !== null && before < need && before + crests >= need;
+      const isNew = locked && before < need && before + crests >= need;
       drops.push({ heroId: hero.id, crests, isNew });
     }
     return drops;
@@ -794,13 +809,14 @@ export class GameState {
 
   evolveCost(id: string): number | null {
     const stars = this.stars[id] ?? 0;
-    return stars >= MAX_STARS ? null : STAR_CRESTS[stars];
+    if (stars >= MAX_STARS) return null;
+    return isLegendary(id) ? LEGENDARY_STAR_MEDALS[stars] : STAR_CRESTS[stars];
   }
 
   evolve(id: string): boolean {
     const cost = this.evolveCost(id);
-    if (cost === null || (this.levels[id] ?? 0) <= 0 || (this.crests[id] ?? 0) < cost) return false;
-    this.crests[id] -= cost;
+    if (cost === null || (this.levels[id] ?? 0) <= 0 || this.medalsFor(id) < cost) return false;
+    this.spendMedals(id, cost);
     this.stars[id] = (this.stars[id] ?? 0) + 1;
     this.addCrests(id, 0); // at 8★, leftover medals turn into Legendary medals
     this.save();
@@ -811,7 +827,7 @@ export class GameState {
   evolvable(): HeroDef[] {
     return HEROES.filter((h) => {
       const cost = this.evolveCost(h.id);
-      return cost !== null && (this.levels[h.id] ?? 0) > 0 && (this.crests[h.id] ?? 0) >= cost;
+      return cost !== null && (this.levels[h.id] ?? 0) > 0 && this.medalsFor(h.id) >= cost;
     });
   }
 
@@ -1760,7 +1776,7 @@ export class GameState {
       const before = this.crests[heroId] ?? 0;
       const need = this.unlockCrests(hero);
       this.addCrests(heroId, crests);
-      drops.push({ heroId, crests, isNew: (this.levels[heroId] ?? 0) === 0 && need !== null && before < need && before + crests >= need });
+      drops.push({ heroId, crests, isNew: (this.levels[heroId] ?? 0) === 0 && before < need && before + crests >= need });
     }
     if (drops.length) this.save();
     return drops;
@@ -2087,7 +2103,7 @@ export class GameState {
       const before = this.crests[heroId] ?? 0;
       const need = this.unlockCrests(hero);
       this.addCrests(heroId, crests);
-      return { heroId, crests, isNew: (this.levels[heroId] ?? 0) === 0 && need !== null && before < need && before + crests >= need };
+      return { heroId, crests, isNew: (this.levels[heroId] ?? 0) === 0 && before < need && before + crests >= need };
     });
     this.save();
     return drops;
