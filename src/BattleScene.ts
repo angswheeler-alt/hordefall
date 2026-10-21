@@ -1034,6 +1034,11 @@ export class BattleScene extends Phaser.Scene {
     return !!this.trial;
   }
 
+  /** Boss music for a boss fight, a Trial or the Colosseum; field music otherwise. */
+  musicMood(): 'field' | 'boss' {
+    return this.trial || this.pvp || this.bossAlive() ? 'boss' : 'field';
+  }
+
   /** Whether a live Colosseum battle is on. */
   inPvp() {
     return !!this.pvp;

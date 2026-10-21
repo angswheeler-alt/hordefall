@@ -3,7 +3,8 @@ import './style.css';
 import { BattleScene, WIDTH, HEIGHT } from './BattleScene';
 import { GameState } from './state';
 import { UI } from './ui';
-import { initAudio, setMuted } from './sfx';
+import { initAudio, setMuted, setVolumes } from './sfx';
+import { Music } from './music';
 import { Account } from './account';
 import { Guild } from './guild';
 import { Social } from './social';
@@ -17,6 +18,7 @@ const state = new GameState();
 const hadSave = state.load();
 initAudio();
 setMuted(state.muted);
+setVolumes(state.sfxVolume, state.musicVolume);
 const offline = hadSave ? state.applyOffline((Date.now() - state.lastSeen) / 1000) : null;
 // That time is paid; move the mark now so a quick hide/show can't pay it twice.
 state.lastSeen = Math.max(state.lastSeen, Date.now());
@@ -33,6 +35,7 @@ const game = new Phaser.Game({
 game.scene.add('battle', BattleScene, true, { state });
 
 const scene = () => game.scene.getScene('battle') as BattleScene | undefined;
+new Music(() => scene()?.musicMood() ?? 'field');
 
 const ui = new UI(state, scene, {
   simulateAway: () => {

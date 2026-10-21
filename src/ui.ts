@@ -6,7 +6,7 @@ import { HEROES, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, PLAYABLE
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
-import { setMuted } from './sfx';
+import { setMuted, setVolumes } from './sfx';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES } from './bossAnims';
 import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberRefund, emberBulk, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
 import type { GameState, OfflineReport, SummonDrop, RekindleResult, TrialResult, PvpOpponent } from './state';
@@ -722,6 +722,19 @@ export class UI {
       setMuted(this.state.muted);
       this.render();
     });
+    for (const id of ['vol-sfx', 'vol-music'] as const) {
+      const input = $<HTMLInputElement>(id);
+      input.value = String(Math.round((id === 'vol-sfx' ? this.state.sfxVolume : this.state.musicVolume) * 100));
+      input.addEventListener('input', () => {
+        const v = Number(input.value) / 100;
+        if (id === 'vol-sfx') this.state.sfxVolume = v;
+        else this.state.musicVolume = v;
+        setVolumes(this.state.sfxVolume, this.state.musicVolume);
+        this.render();
+      });
+      // A sample of the new effects level.
+      if (id === 'vol-sfx') input.addEventListener('change', () => play('coin'));
+    }
     $('autoult').addEventListener('click', () => {
       this.state.autoUlt = !this.state.autoUlt;
       this.render();
@@ -948,7 +961,10 @@ export class UI {
     });
     for (const btn of $('tabbar').querySelectorAll<HTMLButtonElement>('button')) {
       // Tapping the open tab again closes it, same as the down arrow.
-      btn.addEventListener('click', () => this.setTab(this.tab === btn.dataset.tab ? 'home' : (btn.dataset.tab as Tab)));
+      btn.addEventListener('click', () => {
+        play('tap');
+        this.setTab(this.tab === btn.dataset.tab ? 'home' : (btn.dataset.tab as Tab));
+      });
     }
     $('home-btn').addEventListener('click', () => this.setTab('home'));
     $('home-wheel').addEventListener('click', () => this.showModal('Element wheel', `${elementWheelSvg()}<p class="ew-note">${ELEMENT_WHEEL_NOTE}</p>`, 'Got it'));
@@ -2149,6 +2165,7 @@ export class UI {
     if (levels === 0 || cost.gt(this.state.gold)) return;
     this.state.gold = this.state.gold.minus(cost);
     this.state.levels[def.id] = level + levels;
+    play('levelup');
     this.state.track('levels', levels);
     this.scene()?.syncHeroes();
     this.render();
@@ -2186,6 +2203,9 @@ export class UI {
     speed.classList.toggle('on', speedUnlocked && s.speed2x);
     $('mute').classList.toggle('on', !s.muted);
     $('mute').textContent = s.muted ? 'Sound off' : 'Sound on';
+    $('vol-sfx-n').textContent = `${Math.round(s.sfxVolume * 100)}%`;
+    $('vol-music-n').textContent = `${Math.round(s.musicVolume * 100)}%`;
+    for (const row of document.querySelectorAll<HTMLElement>('.vol-row')) row.classList.toggle('off', s.muted);
     $('autoult').classList.toggle('on', s.autoUlt);
     const evolvable = s.evolvable().length;
     $<HTMLButtonElement>('evolve-all').disabled = evolvable === 0;
