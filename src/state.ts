@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, MILESTONE_STEP, milestoneReward, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_DEALS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_GEMS, TICKETS_PER_DAY, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_DEALS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_GEMS, TICKETS_PER_DAY, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, AWAKEN_STARMOTES, MAX_AWAKEN, AWAKEN_STAT_MULT, AWAKEN_UNLOCK_LEVEL, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
 import { relicCost, bossHp, bossAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES, PLAYABLE_HEROES } from './data';
@@ -148,6 +148,10 @@ export class GameState {
   crests: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, 0]));
   /** Evolution stars per hero (0-7). Permanent. */
   stars: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, 0]));
+  /** Pink awakening stars per hero (0-8), never more than the hero's yellow stars. Permanent. */
+  awaken: Record<string, number> = {};
+  /** Awakening currency, earned in the Colosseum. */
+  starmotes = 0;
   gems = START_GEMS;
   levels: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, h.unlockCost === 0 ? 1 : 0]));
   /** False after losing to a boss: clears repeat the current stage until the player challenges again. */
@@ -226,9 +230,14 @@ export class GameState {
     return activeEffects((id, star) => this.hasStar(id, star));
   }
 
+  /** All-stat multiplier from a hero's yellow stars (x STAR_STAT_MULT each) and pink awakening stars (x AWAKEN_STAT_MULT each). */
+  starMultiplier(id: string): number {
+    return Math.pow(STAR_STAT_MULT, this.stars[id] ?? 0) * Math.pow(AWAKEN_STAT_MULT, this.awaken[id] ?? 0);
+  }
+
   /** ATK and HP after levels, stars (x STAR_STAT_MULT each), ATK/HP star skills and relics. `level` overrides the hero's current level. */
   heroPower(def: HeroDef, level = this.heroLevel(def.id)): { atk: Decimal; hp: Decimal; defense: Decimal } {
-    const starMult = Math.pow(STAR_STAT_MULT, this.stars[def.id] ?? 0);
+    const starMult = this.starMultiplier(def.id);
     const atkRelics = (1 + this.relicBonus('atk') + this.relicBonus(def.element)) * (1 + this.researchBonus('combat'));
     const hpRelics = 1 + this.relicBonus('hp') + this.relicBonus(`${def.element}Hp`);
     const fx = this.effects();
@@ -269,7 +278,7 @@ export class GameState {
     const fx = this.effects();
     const sum = (kind: Parameters<typeof sumEffect>[1]) => sumEffect(fx, kind, def.id);
     const mul = (kind: Parameters<typeof mulEffect>[1]) => mulEffect(fx, kind, def.id);
-    const starMult = Math.pow(STAR_STAT_MULT, this.stars[def.id] ?? 0);
+    const starMult = this.starMultiplier(def.id);
     const power = this.heroPower(def, level);
     const sig = def.signature;
     const cooldown = (def.attackCooldown * mul('attackSpeed')) / (1 + this.relicBonus('speed'));
@@ -700,6 +709,43 @@ export class GameState {
       done.push({ id: h.id, from, to: this.stars[h.id] ?? 0 });
     }
     return done;
+  }
+
+  /** Awakening opens at player level AWAKEN_UNLOCK_LEVEL. */
+  awakenOpen(): boolean {
+    return this.keeperLevel() >= AWAKEN_UNLOCK_LEVEL;
+  }
+
+  /** Most pink stars a hero can hold now: its yellow stars (1★ = 1), up to MAX_AWAKEN. */
+  awakenCap(id: string): number {
+    return Math.min(MAX_AWAKEN, (this.stars[id] ?? 0) + 1);
+  }
+
+  /** Starmotes for the hero's next pink star, or null at the most pink stars there are. */
+  awakenCost(id: string): number | null {
+    const pink = this.awaken[id] ?? 0;
+    return pink >= MAX_AWAKEN ? null : AWAKEN_STARMOTES[pink];
+  }
+
+  /** Why the hero can't take a pink star right now, or null if it can. */
+  awakenBlock(id: string): string | null {
+    const cost = this.awakenCost(id);
+    if (cost === null) return 'Max pink stars';
+    if (!this.awakenOpen()) return `Opens at player level ${AWAKEN_UNLOCK_LEVEL}`;
+    if ((this.levels[id] ?? 0) <= 0) return 'Recruit this hero first';
+    if ((this.awaken[id] ?? 0) >= this.awakenCap(id)) return `Evolve to ${(this.stars[id] ?? 0) + 2}★ first`;
+    if (this.starmotes < cost) return `Need ${cost} Starmotes`;
+    return null;
+  }
+
+  /** Spend Starmotes on the hero's next pink star. */
+  awakenHero(id: string): boolean {
+    const cost = this.awakenCost(id);
+    if (cost === null || this.awakenBlock(id) !== null) return false;
+    this.starmotes -= cost;
+    this.awaken[id] = (this.awaken[id] ?? 0) + 1;
+    this.save();
+    return true;
   }
 
   /** The first stage this run that opens Rekindle: past REKINDLE_STAGE, and HEAD_START_MIN_PUSH past a head start. */
@@ -1756,6 +1802,8 @@ export class GameState {
       essences: this.essences,
       crests: this.crests,
       stars: this.stars,
+      awaken: this.awaken,
+      starmotes: this.starmotes,
       gems: this.gems,
       levels: this.levels,
       autoAdvance: this.autoAdvance,
@@ -1810,7 +1858,7 @@ export class GameState {
    * hero who replaced them (Marin -> Brine and so on), keeping the higher value if both exist.
    */
   static migrateHeroIds(d: SaveData) {
-    for (const key of ['levels', 'emberLevels', 'crests', 'stars', 'benched']) {
+    for (const key of ['levels', 'emberLevels', 'crests', 'stars', 'awaken', 'benched']) {
       const map = d[key];
       if (!map || typeof map !== 'object') continue;
       for (const [oldId, newId] of Object.entries(RENAMED_HEROES)) {
@@ -1888,6 +1936,8 @@ export class GameState {
       }
       this.crests = { ...this.crests, ...(d.crests ?? {}) };
       this.stars = { ...this.stars, ...(d.stars ?? {}) };
+      this.awaken = { ...(d.awaken ?? {}) };
+      this.starmotes = d.starmotes ?? 0;
       this.gems = d.gems ?? START_GEMS;
       this.levels = { ...this.levels, ...(d.levels ?? {}) };
       this.autoAdvance = d.autoAdvance ?? true;
@@ -1951,6 +2001,7 @@ export class GameState {
     this.runStartStage = Math.min(this.runBestStage, Math.max(1, Math.floor(num(this.runStartStage, 1))));
     this.headStart = this.headStart !== false;
     this.gems = Math.max(0, Math.floor(num(this.gems, START_GEMS)));
+    this.starmotes = Math.max(0, Math.floor(num(this.starmotes, 0)));
     this.ultSlots = Math.min(ULT_SLOTS_MAX, Math.max(ULT_SLOTS_START, Math.floor(num(this.ultSlots, ULT_SLOTS_START))));
     this.teamSlots = Math.min(TEAM_SLOTS_MAX, Math.max(TEAM_SLOTS_START, Math.floor(num(this.teamSlots, TEAM_SLOTS_START))));
     this.embers = Math.max(0, num(this.embers, 0));
@@ -1965,6 +2016,9 @@ export class GameState {
       this.emberLevels[h.id] = Math.max(0, Math.floor(num(this.emberLevels[h.id], 0)));
       this.crests[h.id] = Math.max(0, Math.floor(num(this.crests[h.id], 0)));
       this.stars[h.id] = Math.min(MAX_STARS, Math.max(0, Math.floor(num(this.stars[h.id], 0))));
+      const pink = Math.min(this.awakenCap(h.id), Math.max(0, Math.floor(num(this.awaken[h.id], 0))));
+      if (pink > 0) this.awaken[h.id] = pink;
+      else delete this.awaken[h.id];
     }
     // The free starter is always recruited.
     for (const h of HEROES) if (h.unlockCost === 0 && this.levels[h.id] === 0) this.levels[h.id] = 1;

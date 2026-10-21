@@ -2,7 +2,7 @@ import { DEV_TOOLS } from './config';
 import Decimal from 'break_infinity.js';
 import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
@@ -941,11 +941,22 @@ export class UI {
       this.state.gems += 100;
       this.render();
     });
+    $('freemotes').addEventListener('click', () => {
+      if (!DEV_TOOLS) return;
+      this.state.starmotes += 500;
+      this.render();
+    });
     this.bindRewards();
     $('sheet-evolve').addEventListener('click', () => {
       if (this.sheetHero && this.state.evolve(this.sheetHero)) {
         play('unlock');
         this.scene()?.syncHeroes();
+        this.render();
+      }
+    });
+    $('sheet-awaken').addEventListener('click', () => {
+      if (this.sheetHero && this.state.awakenHero(this.sheetHero)) {
+        play('unlock');
         this.render();
       }
     });
@@ -1093,6 +1104,10 @@ export class UI {
 
     // A hero is 1★ when unlocked; each evolution adds a star, up to 8★.
     setHtml($('sheet-stars'), [0, ...STAR_CRESTS].map((_, i) => `<span class="${gold > 0 && i <= stars ? 'on' : ''}">★</span>`).join(''));
+    // Pink awakening stars sit under the yellow ones once awakening opens (or the hero has some).
+    const pink = s.awaken[id] ?? 0;
+    $('sheet-pink').hidden = !s.awakenOpen() && pink === 0;
+    setHtml($('sheet-pink'), AWAKEN_STARMOTES.map((_, i) => `<span class="${i < pink ? 'on' : ''}">★</span>`).join(''));
     const shownLevel = gold > 0 ? eff : 1 + ember;
     const prof = heroProfile(def);
     const counts = s.buildCounts();
@@ -1155,6 +1170,14 @@ export class UI {
     const evolve = $<HTMLButtonElement>('sheet-evolve');
     evolve.hidden = next === null || crests < next || gold === 0;
     evolve.textContent = `Evolve to ${stars + 2}★ (${next} Crests)`;
+    const moteCost = s.awakenCost(id);
+    const block = s.awakenBlock(id);
+    $('sheet-starmotes').textContent = moteCost === null ? `${s.starmotes} · Max pink stars` : `${s.starmotes} / ${moteCost} for pink ${pink + 1}★`;
+    $('sheet-mote-fill').style.width = moteCost === null ? '100%' : `${Math.min(100, (s.starmotes / moteCost) * 100)}%`;
+    const awaken = $<HTMLButtonElement>('sheet-awaken');
+    awaken.hidden = block !== null;
+    awaken.textContent = `Awaken to pink ${pink + 1}★ (${moteCost} Starmotes)`;
+    $('sheet-awaken-note').textContent = `${block && block !== `Need ${moteCost} Starmotes` ? `${block}. ` : ''}Each pink star multiplies all stats by ${AWAKEN_STAT_MULT}. A hero can hold as many pink stars as yellow stars. Starmotes come from the Colosseum.`;
     const unlocks: Array<[number, string, string]> = [
       [1, `${def.sp1.name}`, def.sp1.text],
       [2, `${def.sp2.name}`, def.sp2.text],
@@ -1870,7 +1893,8 @@ export class UI {
       r.emberBadge.textContent = emberLevel ? `+${emberLevel}` : '';
       r.emberBadge.title = emberLevel ? `${emberLevel} Ember levels` : '';
       const starCount = s.stars[r.def.id] ?? 0;
-      r.stars.textContent = locked ? '' : '★'.repeat(starCount + 1);
+      const pinkCount = s.awaken[r.def.id] ?? 0;
+      setHtml(r.stars, locked ? '' : `${'★'.repeat(starCount + 1)}${pinkCount ? `<span class="pink-mini">★${pinkCount}</span>` : ''}`);
       const evolveCost = s.evolveCost(r.def.id);
       const canEvolve = !locked && evolveCost !== null && (s.crests[r.def.id] ?? 0) >= evolveCost;
       const benched = !locked && !s.inLineup(r.def.id);

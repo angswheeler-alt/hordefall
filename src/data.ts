@@ -644,6 +644,18 @@ export const ULT_STAR_BONUS = 1.5;
  * Samuel picked x1.5 (2026-10-14) so the late stars unlock mechanics instead (design/star-progression-draft.md).
  */
 export const STAR_STAT_MULT = 1.5;
+/**
+ * Pink awakening stars, a second star row bought with Starmotes (PvP currency, from the Colosseum).
+ * Samuel (2026-10-21): x1.5 all stats per pink star like yellow stars, paced so the first stars take days of
+ * focused play, the middle ones weeks and the last ones months. At ~600 Starmotes a week: 1st ~1 day, 2nd ~3 more
+ * days, 3rd ~6 days, 4th ~1.5 weeks, 5th ~2.5 weeks, 6th ~4 weeks, 7th ~7 weeks, 8th ~10 weeks (about 6 months per hero).
+ * A hero's pink stars never pass its yellow stars, as in the original.
+ */
+export const AWAKEN_STARMOTES = [100, 200, 500, 900, 1500, 2500, 4000, 6000];
+export const MAX_AWAKEN = AWAKEN_STARMOTES.length;
+export const AWAKEN_STAT_MULT = 1.5;
+/** Player (Keeper) level that opens awakening, like the original. */
+export const AWAKEN_UNLOCK_LEVEL = 15;
 /** 6★: the hero's Signature gets its Signature+ twist (heroes built to the standard). */
 export const SIG_PLUS_EVOLUTIONS = 5;
 /** 7★: the hero's Type Mastery. */

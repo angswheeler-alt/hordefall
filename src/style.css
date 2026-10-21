@@ -113,6 +113,13 @@ button.icon { padding: 6px 10px; font-size: 18px; line-height: 1; }
 .crest-row { display: flex; justify-content: space-between; font-size: 13px; }
 .crest-bar { height: 8px; background: #463a73; border-radius: 99px; overflow: hidden; margin: 6px 0; }
 #sheet-crest-fill { height: 100%; background: var(--gold); width: 0; }
+/* Pink awakening stars and Starmotes */
+.stars.pink { margin-top: 0; }
+.stars.pink .on { color: #ff6fcf; text-shadow: 0 0 4px rgba(255,111,207,.6); }
+.crest-row.mote-row > span.mote-label::before { content: '✦'; background: none; width: auto; height: auto; color: #ff6fcf; margin-right: 4px; }
+#sheet-mote-fill { height: 100%; background: #ff6fcf; width: 0; }
+button.awaken { background: linear-gradient(180deg, #ff6fcf, #a3307f); border-color: #ffb3e6; }
+.hero .stars-mini .pink-mini { color: #ff6fcf; }
 
 .sheet-card .meta { font-size: 13px; color: var(--muted); line-height: 1.45; }
 .sheet-card p.meta { margin: 6px 0 10px; }
