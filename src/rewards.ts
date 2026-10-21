@@ -1,4 +1,4 @@
-// Free Gem sources, following the original game: daily challenges, a login
+// Free Gem sources: daily challenges, a login
 // calendar, a daily Lucky Spin, achievements and Bootcamp. (Gold chests in
 // battle also give a few Gems; guild events come with guilds.)
 

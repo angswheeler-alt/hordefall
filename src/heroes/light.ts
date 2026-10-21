@@ -2,10 +2,9 @@ import type { HeroDef } from '../data';
 import type { HeroProfile } from '../profiles';
 import { VS, ULT, HEAL_BASIC } from '../heroText';
 
-/** Light heroes from the full Crush roster (design/crush-full-roster.md). */
+/** Light heroes beyond the first five. */
 export const LIGHT_HEROES: HeroDef[] = [
   // ---- Rares ----
-  // Krünk (Klonk)
   { id: 'klonk', rarity: 'rare', name: 'Klonk', element: 'light', type: 'Gunner', baseAtk: 5.5, baseHp: 50, range: 175, attackCooldown: 1.2, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
     bio: 'A golden beetle in a polished shell, with a light cannon bolted to his back.',
     basic: { name: 'Shell Cannon', text: 'Long-range laser shots at the nearest enemy.' },
@@ -14,7 +13,6 @@ export const LIGHT_HEROES: HeroDef[] = [
     sp1: { name: 'Polished Blast', text: 'Every 5th shot is a charged laser for 3x damage.', effect: { kind: 'everyNth', value: 3, every: 5 } },
     sp2: { name: 'Piercing Beam', text: 'Lasers also hit the next 2 enemies just behind the target.', effect: { kind: 'pierce', value: 2 } },
     aura: { name: 'Golden Shell', text: 'Light heroes get +20% Defense.', effect: { kind: 'def', value: 1.2, team: true, element: 'light' } } },
-  // One Eye (Cyclo)
   { id: 'cyclo', rarity: 'rare', name: 'Cyclo', element: 'light', type: 'Rogue', baseAtk: 6, baseHp: 50, range: 24, attackCooldown: 0.6, moveSpeed: 170, unlockCost: 50, upgradeBaseCost: 15, goldMult: 2,
     bio: 'A one-eyed meerkat rogue in a sand-colored hood, with a curved blade and an eye that misses nothing.',
     basic: { name: 'Sandstep Slash', text: 'Very fast slashes at the closest enemy.' },
@@ -23,7 +21,6 @@ export const LIGHT_HEROES: HeroDef[] = [
     sp1: { name: 'Lookout Flurry', text: 'Every 3rd attack is a flurry of slashes (2.5x damage).', effect: { kind: 'everyNth', value: 2.5, every: 3 } },
     sp2: { name: 'Keen Eye', text: '+30% critical damage.', effect: { kind: 'critDmg', value: 0.3 } },
     aura: { name: 'Desert Feet', text: 'Light heroes dodge 5% more attacks.', effect: { kind: 'dodge', value: 0.05, team: true, element: 'light' } } },
-  // Ra (Aurel)
   { id: 'aurel', rarity: 'rare', name: 'Aurel', element: 'light', type: 'Magician', baseAtk: 9, baseHp: 38, range: 150, attackCooldown: 1.6, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 36,
     signature: { kind: 'knockback', push: 25 },
     bio: 'A falcon-headed sun priest in gold and linen, holding a staff topped with a sun disc.',
@@ -33,7 +30,6 @@ export const LIGHT_HEROES: HeroDef[] = [
     sp1: { name: 'Sand Storm', text: 'Every 4th spell is a small sandstorm: 2x damage to every enemy near the target, pushing them back.', effect: { kind: 'slam', value: 2, every: 4 } },
     sp2: { name: 'Wide Sun', text: 'Splash radius +25%.', effect: { kind: 'splash', value: 1.25 } },
     aura: { name: 'Sun Temple', text: 'Light heroes +20% HP.', effect: { kind: 'hp', value: 1.2, team: true, element: 'light' } } },
-  // Ser Shu (Gale)
   { id: 'gale', rarity: 'rare', name: 'Gale', element: 'light', type: 'Lancer', baseAtk: 5.5, baseHp: 62, range: 36, attackCooldown: 1.1, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
     bio: 'A white crane lancer in lacquered armor who stands on one leg and strikes from a step away.',
     basic: { name: 'Crane Thrust', text: 'Spear thrusts at the nearest enemy ahead.' },
@@ -42,7 +38,6 @@ export const LIGHT_HEROES: HeroDef[] = [
     sp1: { name: 'One-Leg Lunge', text: 'Every 4th attack is a charge: 1.8x damage to every enemy near the target.', effect: { kind: 'slam', value: 1.8, every: 4 } },
     sp2: { name: 'Lacquer Plate', text: '+30% Defense.', effect: { kind: 'def', value: 1.3 } },
     aura: { name: 'Long Reach', text: 'Light heroes +5% critical hit chance.', effect: { kind: 'crit', value: 0.05, team: true, element: 'light' } } },
-  // Seraph (Halo)
   { id: 'halo', rarity: 'rare', name: 'Halo', element: 'light', type: 'Ranger', flying: true, baseAtk: 7, baseHp: 42, range: 190, attackCooldown: 1.0, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     ult: { kind: 'mark', mult: 1.2, seconds: 10, plusMult: 1.35, plusSeconds: 12 },
     ultPlus: 'The blessing lasts 12 seconds and adds 35% instead of 20%.',
@@ -53,7 +48,6 @@ export const LIGHT_HEROES: HeroDef[] = [
     sp1: { name: 'Halo Spread', text: 'Every 3rd shot is a spread of arrows: 1.5x damage to every enemy near the target.', effect: { kind: 'slam', value: 1.5, every: 3 } },
     sp2: { name: 'Golden Aim', text: '+10% critical hit chance.', effect: { kind: 'crit', value: 0.1 } },
     aura: { name: 'Heavenly Aim', text: 'Light heroes +20% ATK.', effect: { kind: 'atk', value: 1.2, team: true, element: 'light' } } },
-  // Siegfried (Brightmane)
   { id: 'brightmane', rarity: 'rare', name: 'Brightmane', element: 'light', type: 'Barbarian', baseAtk: 6, baseHp: 75, range: 30, attackCooldown: 1.3, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
     ult: { kind: 'strike', mult: 2.5, plusMult: 3.5 },
     ultPlus: 'The strike hits for 140x ATK.',
@@ -64,7 +58,6 @@ export const LIGHT_HEROES: HeroDef[] = [
     sp1: { name: 'Hoof Quake', text: 'Every 3rd attack stomps the ground for 1.6x damage to every enemy near the target.', effect: { kind: 'slam', value: 1.6, every: 3 } },
     sp2: { name: 'Thick Coat', text: '+30% Defense.', effect: { kind: 'def', value: 1.3 } },
     aura: { name: 'Mountain Bulk', text: 'Brightmane gets +20% HP.', effect: { kind: 'hp', value: 1.2 } } },
-  // Thor (Thundrum)
   { id: 'thundrum', rarity: 'rare', name: 'Thundrum', element: 'light', type: 'Barbarian', baseAtk: 8, baseHp: 60, range: 30, attackCooldown: 1.8, moveSpeed: 95, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
     bio: 'A hulking elephant in a horned helmet whose thunder hammer crackles every time he swings it.',
     basic: { name: 'Hammer Hit', text: 'Slow, crushing hammer blows at the nearest enemy ahead.' },
@@ -75,7 +68,6 @@ export const LIGHT_HEROES: HeroDef[] = [
     aura: { name: 'Thunder Might', text: 'Light heroes +40% ATK.', effect: { kind: 'atk', value: 1.4, team: true, element: 'light' } } },
 
   // ---- Epics ----
-  // Hikari (Valorian)
   { id: 'valorian', rarity: 'epic', name: 'Valorian', element: 'light', type: 'Samurai', baseAtk: 6.5, baseHp: 62, range: 28, attackCooldown: 0.8, moveSpeed: 125, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     signature: { kind: 'sureCrit' },
     bio: 'A white tiger samurai in gold-trimmed armor whose katana leaves a streak of light.',
@@ -85,7 +77,6 @@ export const LIGHT_HEROES: HeroDef[] = [
     sp1: { name: 'Clean Through', text: 'Each cut also hits the next 2 enemies just behind the target.', effect: { kind: 'pierce', value: 2 } },
     sp2: { name: 'Tiger Focus', text: '+30% critical damage.', effect: { kind: 'critDmg', value: 0.3 } },
     aura: { name: 'Swift Stride', text: 'Whole team moves 20% faster.', effect: { kind: 'moveSpeed', value: 1.2, team: true } } },
-  // Monki Roboti (Gizmo)
   { id: 'gizmo', rarity: 'epic', name: 'Gizmo', element: 'light', type: 'Brawler', baseAtk: 6, baseHp: 85, range: 26, attackCooldown: 1.1, moveSpeed: 120, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
     signature: { kind: 'combo', perHit: 0.08, max: 0.4 },
     bio: 'A clockwork kangaroo of golden gears and brass plates, wound up and always ready to punch.',
@@ -95,7 +86,6 @@ export const LIGHT_HEROES: HeroDef[] = [
     sp1: { name: 'Spring Slam', text: 'Every 4th attack slams the ground for 2.2x damage to every enemy near the target.', effect: { kind: 'slam', value: 2.2, every: 4 } },
     sp2: { name: 'Spare Parts', text: '+20% HP.', effect: { kind: 'hp', value: 1.2 } },
     aura: { name: 'Overclock', text: 'Whole team +20% ATK.', effect: { kind: 'atk', value: 1.2, team: true } } },
-  // Paladin (Halden)
   { id: 'halden', rarity: 'epic', name: 'Halden', element: 'light', type: 'Knight', baseAtk: 3.8, baseHp: 165, range: 28, attackCooldown: 1.0, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     ult: { kind: 'weaken', mult: 0.7, seconds: 8, plusSeconds: 15 },
     ultPlus: 'Enemies stay weakened for 15 s.',
@@ -106,7 +96,6 @@ export const LIGHT_HEROES: HeroDef[] = [
     sp1: { name: 'Fleece Guard', text: 'Every 4th attack also shields a random ally for 30% of his max HP.', effect: { kind: 'ward', value: 0.3, every: 4 } },
     sp2: { name: 'Blessed Plate', text: 'Regenerates 2% of max HP every second.', effect: { kind: 'regen', value: 0.02 } },
     aura: { name: 'Steady Faith', text: 'Whole team +15% Effect Resistance.', effect: { kind: 'effectRes', value: 0.15, team: true } } },
-  // Tesla (Volta)
   { id: 'volta', rarity: 'epic', name: 'Volta', element: 'light', type: 'Magician', baseAtk: 9, baseHp: 45, range: 165, attackCooldown: 1.2, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 38,
     signature: { kind: 'slow', chance: 0.25, mult: 0.5, seconds: 1.5 },
     bio: 'A storm-cloud golem crackling with sparks, which rumbles before every spell.',
@@ -118,7 +107,6 @@ export const LIGHT_HEROES: HeroDef[] = [
     aura: { name: 'Supercharge', text: 'Volta gets +50% ATK.', effect: { kind: 'atk', value: 1.5 } } },
 
   // ---- Legendary ----
-  // Angelica (The Lantern Queen)
   { id: 'lanternqueen', rarity: 'legendary', name: 'The Lantern Queen', element: 'light', type: 'Support', flying: true, baseAtk: 3.5, baseHp: 60, range: 170, attackCooldown: 1.3, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true, steadfast: true,
     signature: { kind: 'overheal', cap: 0.3 },
     ult: { kind: 'teamShield', share: 1.2, plusShare: 2 },
@@ -132,7 +120,6 @@ export const LIGHT_HEROES: HeroDef[] = [
     aura: { name: 'Lantern Glow', text: 'Whole team +20% HP.', effect: { kind: 'hp', value: 1.2, team: true } } },
 
   // ---- Commons ----
-  // Big Eye (Glint)
   { id: 'glint', rarity: 'common', name: 'Glint', element: 'light', type: 'Magician', flying: true, baseAtk: 7.2, baseHp: 55, range: 150, attackCooldown: 1.4, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 30,
     bio: 'A floating eyeball orb with a golden iris that fires light from wherever it looks.',
     basic: { name: 'Iris Bolt', text: 'Ranged bolts of light that splash every enemy near the target.' },
@@ -141,7 +128,6 @@ export const LIGHT_HEROES: HeroDef[] = [
     sp1: { name: 'Double Blink', text: '20% chance for each attack to cast twice.', effect: { kind: 'doubleStrike', value: 0.2 } },
     sp2: { name: 'Thick Lens', text: '+15% HP.', effect: { kind: 'hp', value: 1.15 } },
     aura: { name: 'Watchful Gaze', text: 'Light heroes +5% critical hit chance.', effect: { kind: 'crit', value: 0.05, team: true, element: 'light' } } },
-  // Healer Bot (Mendbot)
   { id: 'mendbot', rarity: 'common', name: 'Mendbot', element: 'light', type: 'Support', flying: true, baseAtk: 2.6, baseHp: 52, range: 150, attackCooldown: 1.0, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
     bio: 'A little brass drone with a whirring rotor and a healing beam it points at anyone who looks hurt.',
     basic: { name: 'Repair Beam', text: HEAL_BASIC },
@@ -150,7 +136,6 @@ export const LIGHT_HEROES: HeroDef[] = [
     sp1: { name: 'Tuned Rotor', text: 'Heals are 40% stronger.', effect: { kind: 'healPower', value: 1.4 } },
     sp2: { name: 'Brass Casing', text: 'Takes 15% less damage.', effect: { kind: 'damageTaken', value: 0.85 } },
     aura: { name: 'Repair Field', text: 'Light heroes regenerate 1% of max HP every second.', effect: { kind: 'regen', value: 0.01, team: true, element: 'light' } } },
-  // Light Knight (Glimmer)
   { id: 'glimmer', rarity: 'common', name: 'Glimmer', element: 'light', type: 'Rogue', baseAtk: 5, baseHp: 48, range: 24, attackCooldown: 0.6, moveSpeed: 170, unlockCost: 50, upgradeBaseCost: 15, goldMult: 2,
     bio: 'A tiny firefly rogue with a glowing tail and a needle-thin sword.',
     basic: { name: 'Needle Stab', text: 'Very fast stabs at the closest enemy.' },
@@ -159,7 +144,6 @@ export const LIGHT_HEROES: HeroDef[] = [
     sp1: { name: 'Glow Flurry', text: 'Every 4th attack is a burst of quick stabs (2.5x damage).', effect: { kind: 'everyNth', value: 2.5, every: 4 } },
     sp2: { name: 'Quick Wings', text: 'Attacks 10% faster.', effect: { kind: 'attackSpeed', value: 0.9 } },
     aura: { name: 'Glow Trail', text: 'Team earns 10% more gold.', effect: { kind: 'gold', value: 1.1, team: true } } },
-  // Spike (Quill)
   { id: 'quill', rarity: 'common', name: 'Quill', element: 'light', type: 'Barbarian', baseAtk: 5, baseHp: 70, range: 30, attackCooldown: 1.3, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
     bio: 'A stocky hedgehog brute bristling with golden spines, swinging a spiked mace.',
     basic: { name: 'Spiked Mace', text: 'Heavy mace swings at the nearest enemy ahead.' },
@@ -168,7 +152,6 @@ export const LIGHT_HEROES: HeroDef[] = [
     sp1: { name: 'Spine Slam', text: 'Every 4th attack smashes the ground for 1.5x damage to every enemy near the target.', effect: { kind: 'slam', value: 1.5, every: 4 } },
     sp2: { name: 'Spines', text: 'Reflects 10% of the damage he takes.', effect: { kind: 'reflect', value: 0.1 } },
     aura: { name: 'Prickly Guard', text: 'Light heroes reflect 5% of the damage they take.', effect: { kind: 'reflect', value: 0.05, team: true, element: 'light' } } },
-  // Swift (Swiftwing)
   { id: 'swiftwing', rarity: 'common', name: 'Swiftwing', element: 'light', type: 'Ranger', baseAtk: 5, baseHp: 40, range: 170, attackCooldown: 0.8, moveSpeed: 125, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     signature: { kind: 'skyCrit' },
     bio: 'A flying squirrel archer who glides between shots with a bow almost as long as her tail.',

@@ -1,6 +1,6 @@
 import type { Element } from './data';
 
-/** Shared hero-page phrases, used by data.ts and the Crush roster files in src/heroes/. */
+/** Shared hero-page phrases, used by data.ts and the roster files in src/heroes/. */
 export const VS: Record<Element, string> = {
   fire: 'Fire deals 4x to Earth and 0.5x to Water.',
   earth: 'Earth deals 4x to Water and 0.5x to Fire.',

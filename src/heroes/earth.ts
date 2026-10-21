@@ -2,10 +2,9 @@ import type { HeroDef } from '../data';
 import type { HeroProfile } from '../profiles';
 import { VS, ULT } from '../heroText';
 
-/** Earth heroes from the full Crush roster (design/crush-full-roster.md). */
+/** Earth heroes beyond the first five. */
 export const EARTH_HEROES: HeroDef[] = [
   // ---- Rares ----
-  // Thistle (Krouki)
   { id: 'thistle', rarity: 'rare', name: 'Thistle', element: 'earth', type: 'Gunner', baseAtk: 6.5, baseHp: 44, range: 185, attackCooldown: 1.2, moveSpeed: 120, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A tall cactus gunslinger in a wide hat, with a long-barrelled rifle and needles for a beard.',
     basic: { name: 'Straight Shot', text: 'Long-range shots at the nearest enemy.' },
@@ -14,7 +13,6 @@ export const EARTH_HEROES: HeroDef[] = [
     sp1: { name: 'Big Bullet', text: 'Every 4th shot is a big bullet for 2.5x damage.', effect: { kind: 'everyNth', value: 2.5, every: 4 } },
     sp2: { name: 'Spine Rounds', text: 'Shots pierce 1 more enemy.', effect: { kind: 'pierce', value: 1 } },
     aura: { name: 'Desert Sun', text: 'Earth heroes deal +20% critical damage.', effect: { kind: 'critDmg', value: 0.2, team: true, element: 'earth' } } },
-  // Buzz (Misty)
   { id: 'buzz', rarity: 'rare', name: 'Buzz', element: 'earth', type: 'Gunner', baseAtk: 5.2, baseHp: 45, range: 165, attackCooldown: 1.2, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 28,
     bio: 'A striped bumblebee in flight goggles, carrying a rifle that fires her own stingers.',
     basic: { name: 'Stinger Shot', text: 'Long-range stingers that splash enemies near the target.' },
@@ -23,7 +21,6 @@ export const EARTH_HEROES: HeroDef[] = [
     sp1: { name: 'Poison Ball', text: 'Every 4th shot is an exploding ball for 1.8x damage to every enemy near the target.', effect: { kind: 'slam', value: 1.8, every: 4 } },
     sp2: { name: 'Hive Rounds', text: 'Shots pierce 1 more enemy.', effect: { kind: 'pierce', value: 1 } },
     aura: { name: 'Hive Fury', text: 'Earth heroes +40% ATK.', effect: { kind: 'atk', value: 1.4, team: true, element: 'earth' } } },
-  // Bamboo (Musashi)
   { id: 'bamboo', rarity: 'rare', name: 'Bamboo', element: 'earth', type: 'Samurai', baseAtk: 6.3, baseHp: 55, range: 28, attackCooldown: 1.0, moveSpeed: 140, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     ult: { kind: 'strike', mult: 2.5, plusMult: 3.25 },
     ultPlus: 'The strike hits for 130x ATK.',
@@ -34,7 +31,6 @@ export const EARTH_HEROES: HeroDef[] = [
     sp1: { name: 'Piercing Cut', text: 'Every 4th attack is a piercing thrust for 2.5x damage.', effect: { kind: 'everyNth', value: 2.5, every: 4 } },
     sp2: { name: 'Calm Focus', text: '+10% critical hit chance.', effect: { kind: 'crit', value: 0.1 } },
     aura: { name: 'Bamboo Breeze', text: 'Earth heroes move 25% faster.', effect: { kind: 'moveSpeed', value: 1.25, team: true, element: 'earth' } } },
-  // Verdana (Natura)
   { id: 'verdana', rarity: 'rare', name: 'Verdana', element: 'earth', type: 'Lancer', baseAtk: 5, baseHp: 68, range: 36, attackCooldown: 1.3, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A green praying mantis who holds her lance in her forelegs and waits, very still, for the right moment.',
     basic: { name: 'Mantis Lance', text: 'Slow, heavy spear thrusts at the nearest enemy ahead.' },
@@ -43,7 +39,6 @@ export const EARTH_HEROES: HeroDef[] = [
     sp1: { name: 'Mantis Reach', text: 'Each thrust also hits the next 4 enemies just behind the target.', effect: { kind: 'pierce', value: 4 } },
     sp2: { name: 'Patient Strike', text: 'Deals 25% more damage to bosses.', effect: { kind: 'bossDamage', value: 1.25 } },
     aura: { name: 'Green Carapace', text: 'Earth heroes get +40% Defense.', effect: { kind: 'def', value: 1.4, team: true, element: 'earth' } } },
-  // Burrow (Pinky)
   { id: 'burrow', rarity: 'rare', name: 'Burrow', element: 'earth', type: 'Rogue', baseAtk: 6, baseHp: 46, range: 24, attackCooldown: 0.6, moveSpeed: 170, unlockCost: 50, upgradeBaseCost: 15, goldMult: 2,
     bio: 'A pink-nosed mole in a miner\'s helmet with iron claw gloves, who pops up wherever the gold is.',
     basic: { name: 'Claw Swipe', text: 'Very fast claw swipes at the closest enemy.' },
@@ -52,7 +47,6 @@ export const EARTH_HEROES: HeroDef[] = [
     sp1: { name: 'Dig Frenzy', text: 'Every 4th attack is three quick claw swipes (3x damage).', effect: { kind: 'everyNth', value: 3, every: 4 } },
     sp2: { name: 'Grub Snack', text: 'Heals for 15% of the damage he deals.', effect: { kind: 'lifesteal', value: 0.15 } },
     aura: { name: 'Dig Deep', text: 'Earth heroes +20% HP.', effect: { kind: 'hp', value: 1.2, team: true, element: 'earth' } } },
-  // Gourdon (PumpKing)
   { id: 'gourdon', rarity: 'rare', name: 'Gourdon', element: 'earth', type: 'Barbarian', baseAtk: 5.5, baseHp: 74, range: 30, attackCooldown: 1.2, moveSpeed: 95, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
     bio: 'A hulking brute with a grinning jack-o\'-lantern for a head and vines for arms. Its bite is worse than it looks.',
     basic: { name: 'Pumpkin Bite', text: 'Heavy bites at the nearest enemy ahead.' },
@@ -61,7 +55,6 @@ export const EARTH_HEROES: HeroDef[] = [
     sp1: { name: 'Poison Spurt', text: 'Every 4th attack spits pumpkin goo for 1.6x damage to every enemy near the target.', effect: { kind: 'slam', value: 1.6, every: 4 } },
     sp2: { name: 'Thick Rind', text: '+15% HP.', effect: { kind: 'hp', value: 1.15 } },
     aura: { name: 'Rot Patch', text: 'Earth heroes +5% chance to poison.', effect: { kind: 'poisonChance', value: 0.05, team: true, element: 'earth' } } },
-  // Boulder (Tellus)
   { id: 'boulder', rarity: 'rare', name: 'Boulder', element: 'earth', type: 'Brawler', baseAtk: 5.5, baseHp: 120, range: 26, attackCooldown: 1.3, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
     signature: { kind: 'combo', perHit: 0.08, max: 0.4 },
     bio: 'A mossy stone troll with fists like boulders. It is slow to start and very hard to stop.',
@@ -71,7 +64,6 @@ export const EARTH_HEROES: HeroDef[] = [
     sp1: { name: 'Rockslide Fists', text: 'Every 5th attack is a rapid stone combo (3x damage).', effect: { kind: 'everyNth', value: 3, every: 5 } },
     sp2: { name: 'Stone Block', text: 'Reflects 15% of the damage it takes.', effect: { kind: 'reflect', value: 0.15 } },
     aura: { name: 'Bedrock', text: 'Earth heroes get +40% Defense.', effect: { kind: 'def', value: 1.4, team: true, element: 'earth' } } },
-  // Grit (Wolfie)
   { id: 'grit', rarity: 'rare', name: 'Grit', element: 'earth', type: 'Barbarian', baseAtk: 5.2, baseHp: 75, range: 30, attackCooldown: 1.2, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
     bio: 'A stocky badger in a fur cloak with a stone axe, too stubborn to ever fall back.',
     basic: { name: 'Stone Axe', text: 'Heavy axe swings at the nearest enemy ahead.' },
@@ -82,7 +74,6 @@ export const EARTH_HEROES: HeroDef[] = [
     aura: { name: 'Badger Rage', text: 'Earth heroes +40% ATK.', effect: { kind: 'atk', value: 1.4, team: true, element: 'earth' } } },
 
   // ---- Epics ----
-  // Scorpia (Clawdette)
   { id: 'scorpia', rarity: 'epic', name: 'Scorpia', element: 'earth', type: 'Brawler', baseAtk: 5.8, baseHp: 100, range: 26, attackCooldown: 1.0, moveSpeed: 120, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     signature: { kind: 'combo', perHit: 0.06, max: 0.36 },
     ult: { kind: 'strike', mult: 2.5, plusMult: 3.5 },
@@ -94,7 +85,6 @@ export const EARTH_HEROES: HeroDef[] = [
     sp1: { name: 'Pincer Flurry', text: 'Every 3rd attack is a flurry of claws (2.5x damage).', effect: { kind: 'everyNth', value: 2.5, every: 3 } },
     sp2: { name: 'Sharp Pincers', text: '+10% critical hit chance.', effect: { kind: 'crit', value: 0.1 } },
     aura: { name: 'Venom Glands', text: 'Whole team +5% chance to poison.', effect: { kind: 'poisonChance', value: 0.05, team: true } } },
-  // Croaker (Hooky)
   { id: 'croaker', rarity: 'epic', name: 'Croaker', element: 'earth', type: 'Gunner', baseAtk: 6.5, baseHp: 50, range: 180, attackCooldown: 1.2, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
     ult: { kind: 'mark', mult: 1.15, seconds: 6, plusMult: 1.25, plusSeconds: 10 },
     ultPlus: 'The scorch lasts 10 seconds and adds 25% instead of 15%.',
@@ -105,7 +95,6 @@ export const EARTH_HEROES: HeroDef[] = [
     sp1: { name: 'Grapple Shot', text: 'Every 5th shot is a hook shot for 3x damage.', effect: { kind: 'everyNth', value: 3, every: 5 } },
     sp2: { name: 'Long Tongue', text: 'Shots pierce 1 more enemy.', effect: { kind: 'pierce', value: 1 } },
     aura: { name: 'Steady Aim', text: 'Whole team +3% critical hit chance.', effect: { kind: 'crit', value: 0.03, team: true } } },
-  // Grumm (Lycan)
   { id: 'grumm', rarity: 'epic', name: 'Grumm', element: 'earth', type: 'Brawler', baseAtk: 6, baseHp: 115, range: 28, attackCooldown: 1.0, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     signature: { kind: 'combo', perHit: 0.05, max: 0.4 },
     ult: { kind: 'mark', mult: 1.3, seconds: 4, plusMult: 1.4, plusSeconds: 6 },
@@ -117,7 +106,6 @@ export const EARTH_HEROES: HeroDef[] = [
     sp1: { name: 'Hoof Flurry', text: 'Every 4th attack is a rapid string of punches (2.5x damage).', effect: { kind: 'everyNth', value: 2.5, every: 4 } },
     sp2: { name: 'Forest Appetite', text: 'Heals for 15% of the damage he deals.', effect: { kind: 'lifesteal', value: 0.15 } },
     aura: { name: 'Pack Pace', text: 'Earth heroes attack 10% faster.', effect: { kind: 'attackSpeed', value: 0.9, team: true, element: 'earth' } } },
-  // Sylvara (Petunia)
   { id: 'sylvara', rarity: 'epic', name: 'Sylvara', element: 'earth', type: 'Magician', baseAtk: 9.3, baseHp: 52, range: 160, attackCooldown: 1.9, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 36,
     ult: { kind: 'weaken', mult: 0.65, seconds: 5, plusSeconds: 8 },
     ultPlus: 'Enemies stay weakened for 8 s.',
@@ -128,7 +116,6 @@ export const EARTH_HEROES: HeroDef[] = [
     sp1: { name: 'Pollen Daze', text: 'Every 5th spell bewitches the enemies it hits: they miss 80% of their attacks for 3 s.', effect: { kind: 'blind', value: 0.8, every: 5 } },
     sp2: { name: 'Full Bloom', text: '+15% splash damage.', effect: { kind: 'aoeDmg', value: 0.15 } },
     aura: { name: 'Bark Shield', text: 'Whole team +25% Defense.', effect: { kind: 'def', value: 1.25, team: true } } },
-  // Nettle (Thorn)
   { id: 'nettle', rarity: 'epic', name: 'Nettle', element: 'earth', type: 'Magician', baseAtk: 8.8, baseHp: 55, range: 175, attackCooldown: 1.0, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 30,
     ult: { kind: 'root', seconds: 2.5, bossSeconds: 1, shield: 0.15 },
     ultPlus: 'The vines also shield every hero for 15% of their max HP.',
@@ -141,7 +128,6 @@ export const EARTH_HEROES: HeroDef[] = [
     aura: { name: 'Sickly Air', text: 'Whole team takes 10% less damage.', effect: { kind: 'damageTaken', value: 0.9, team: true } } },
 
   // ---- Commons ----
-  // Seedling (Sprout)
   { id: 'seedling', rarity: 'common', name: 'Seedling', element: 'earth', type: 'Magician', flying: true, baseAtk: 7.2, baseHp: 38, range: 150, attackCooldown: 1.0, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 30,
     bio: 'A little dandelion puff that drifts on the wind and flings seeds at anything below it.',
     basic: { name: 'Seed Puff', text: 'Ranged seed bursts that splash every enemy near the target.' },

@@ -3,9 +3,8 @@ import type { HeroProfile } from '../profiles';
 import { VS, ULT } from '../heroText';
 
 /**
- * Crush's troop Commons (design/crush-full-roster.md): Bugonaut, Vulcan, Voodoo and Skeleton troops become our
- * Crabkin, Magmites, Mudmasks and Bonekin. Archers, fighters and spears are squads of 3 small fighters in one slot
- * (HeroDef.squad); each faction's giant is one big hero. Crush lists no SP4 for these, so the auras are our own.
+ * Squad Commons of four factions: Crabkin, Magmites, Mudmasks and Bonekin. Archers, fighters and spears are squads
+ * of 3 small fighters in one slot (HeroDef.squad); each faction's giant is one big hero.
  */
 const SQUAD = 3;
 const base = { rarity: 'common' as const, unlockCost: 50, upgradeBaseCost: 15 };
@@ -77,7 +76,6 @@ function giant(f: Faction, id: string, o: { name: string; atk: number; hp: numbe
 }
 
 export const SQUAD_HEROES: HeroDef[] = [
-  // Crabkin (Bugonaut)
   { ...archers(CRAB, 'crabarchers', { atk: 5, hp: 42, range: 175,
     sp2: { name: 'Tide Aim', text: '+10% critical hit chance.', effect: { kind: 'crit', value: 0.1 } },
     aura: { name: 'Shell Line', text: 'Water heroes get +20% Defense.', effect: { kind: 'def', value: 1.2, team: true, element: 'water' } } }), name: 'Shrimp Archers', bio: 'A squad of three little mantis shrimp with eyes on stalks, with bows. They fight as one hero.' },
@@ -93,7 +91,6 @@ export const SQUAD_HEROES: HeroDef[] = [
     sp2: { name: 'Barrel Shell', text: '+40% Defense.', effect: { kind: 'def', value: 1.4 } },
     aura: { name: 'Big Brother', text: 'Water heroes +10% ATK.', effect: { kind: 'atk', value: 1.1, team: true, element: 'water' } } }), name: 'Hermit Brute', bio: 'One big hermit crab in a borrowed barrel shell, swinging a driftwood club.' },
 
-  // Magmites (Vulcan)
   { ...archers(MAGMA, 'magmaarchers', { atk: 5.2, hp: 40, range: 170,
     sp2: { name: 'Hot Tips', text: '+20% damage to Burning enemies.', effect: { kind: 'vsBurning', value: 1.2 } },
     aura: { name: 'Ember Sight', text: 'Fire heroes +5% critical hit chance.', effect: { kind: 'crit', value: 0.05, team: true, element: 'fire' } } }), name: 'Imp Archers', bio: 'A squad of three little fire imps with glowing lava cracks, with bows. They fight as one hero.' },
@@ -106,7 +103,6 @@ export const SQUAD_HEROES: HeroDef[] = [
     sp2: { name: 'Molten Hide', text: 'Reflects 10% of the damage it takes.', effect: { kind: 'reflect', value: 0.1 } },
     aura: { name: 'Forge Heat', text: 'Fire heroes +10% ATK.', effect: { kind: 'atk', value: 1.1, team: true, element: 'fire' } } }), name: 'Lava Ogre', bio: 'One big ogre with a belly glowing like a furnace and a stone hammer.' },
 
-  // Mudmasks (Voodoo)
   archers(MUD, 'mudarchers', { atk: 5, hp: 46, range: 180,
     sp2: { name: 'Swamp Darts', text: 'Attacks 10% faster.', effect: { kind: 'attackSpeed', value: 0.9 } },
     aura: { name: 'Mask Ward', text: 'Earth heroes +10% Effect Resistance.', effect: { kind: 'effectRes', value: 0.1, team: true, element: 'earth' } } }),
@@ -117,7 +113,6 @@ export const SQUAD_HEROES: HeroDef[] = [
     sp2: { name: 'Bog Grip', text: '+20% damage to bosses.', effect: { kind: 'bossDamage', value: 1.2 } },
     aura: { name: 'War Drums', text: 'Earth heroes +10% ATK.', effect: { kind: 'atk', value: 1.1, team: true, element: 'earth' } } }), name: 'Rootling Spears', bio: 'A squad of three little walking saplings, with sharpened stick spears. They fight as one hero.' },
 
-  // Bonekin (Skeleton)
   archers(BONE, 'bonearchers', { atk: 5.4, hp: 40, range: 185,
     sp2: { name: 'Hollow Eyes', text: '+30% critical damage.', effect: { kind: 'critDmg', value: 0.3 } },
     aura: { name: 'Grave Volley', text: 'Dark heroes +5% critical hit chance.', effect: { kind: 'crit', value: 0.05, team: true, element: 'dark' } } }),

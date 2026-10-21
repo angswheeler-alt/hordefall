@@ -2,10 +2,9 @@ import type { HeroDef } from '../data';
 import type { HeroProfile } from '../profiles';
 import { VS, ULT } from '../heroText';
 
-/** Dark heroes from the full Crush roster (design/crush-full-roster.md). */
+/** Dark heroes beyond the first five. */
 export const DARK_HEROES: HeroDef[] = [
   // ---- Rares ----
-  // Dark Wolf (Dark Wolf)
   { id: 'howl', rarity: 'rare', name: 'Howl', element: 'dark', type: 'Magician', baseAtk: 7.8, baseHp: 56, range: 150, attackCooldown: 1.7, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 36,
     bio: 'A dark unicorn shaman with a glowing violet horn, who calls dark fire out of the moon.',
     basic: { name: 'Moonfire Orb', text: 'Ranged balls of dark energy that splash every enemy near the target.' },
@@ -14,7 +13,6 @@ export const DARK_HEROES: HeroDef[] = [
     sp1: { name: 'Twin Hex', text: '25% chance for each attack to cast twice.', effect: { kind: 'doubleStrike', value: 0.25 } },
     sp2: { name: 'Pack Call', text: '+5% chance to stun.', effect: { kind: 'stunChance', value: 0.05 } },
     aura: { name: 'Night Chill', text: 'Enemies attack 12% slower.', effect: { kind: 'enemyHaste', value: 0.88, team: true } } },
-  // Kage (Kage)
   { id: 'corvin', rarity: 'rare', name: 'Corvin', element: 'dark', type: 'Samurai', baseAtk: 6.2, baseHp: 50, range: 28, attackCooldown: 0.8, moveSpeed: 140, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     signature: { kind: 'knockback', push: 25 },
     bio: 'A crow samurai in black lacquered armor, with a katana as sharp as his beak.',
@@ -24,7 +22,6 @@ export const DARK_HEROES: HeroDef[] = [
     sp1: { name: 'Piercing Cut', text: 'Each cut also hits the next 2 enemies just behind the target.', effect: { kind: 'pierce', value: 2 } },
     sp2: { name: 'Crow Focus', text: '+15% critical hit chance.', effect: { kind: 'crit', value: 0.15 } },
     aura: { name: 'Ill Omen', text: 'Enemies take 12% more damage.', effect: { kind: 'enemyVuln', value: 1.12, team: true } } },
-  // Monki Mortar (Monki Mortar)
   { id: 'vesper', rarity: 'rare', name: 'Vesper', element: 'dark', type: 'Gunner', baseAtk: 5.5, baseHp: 42, range: 165, attackCooldown: 1.2, moveSpeed: 150, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 30,
     bio: 'A masked raccoon hauling a dented mortar, who lobs bombs and keeps whatever falls out of the wreckage.',
     basic: { name: 'Bomb Lob', text: 'Long-range bombs that splash enemies near the target.' },
@@ -33,7 +30,6 @@ export const DARK_HEROES: HeroDef[] = [
     sp1: { name: 'Big Bomb', text: 'Every 4th shot is a big bomb: 2x damage to every enemy near the target.', effect: { kind: 'slam', value: 2, every: 4 } },
     sp2: { name: 'Extra Powder', text: 'Splash radius +30%.', effect: { kind: 'splash', value: 1.3 } },
     aura: { name: 'Night Raid', text: 'Dark heroes +40% ATK.', effect: { kind: 'atk', value: 1.4, team: true, element: 'dark' } } },
-  // Neko (Neko)
   { id: 'gloom', rarity: 'rare', name: 'Gloom', element: 'dark', type: 'Brawler', baseAtk: 5.5, baseHp: 85, range: 28, attackCooldown: 0.9, moveSpeed: 140, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     signature: { kind: 'combo', perHit: 0.08, max: 0.4 },
     ult: { kind: 'strike', mult: 2.5, plusMult: 3.5 },
@@ -45,7 +41,6 @@ export const DARK_HEROES: HeroDef[] = [
     sp1: { name: 'Gorilla Combo', text: '25% chance for each attack to strike twice.', effect: { kind: 'doubleStrike', value: 0.25 } },
     sp2: { name: 'Thick Hide', text: '+20% HP.', effect: { kind: 'hp', value: 1.2 } },
     aura: { name: 'Shadow Stride', text: 'Dark heroes move 25% faster.', effect: { kind: 'moveSpeed', value: 1.25, team: true, element: 'dark' } } },
-  // Sorrow (Sorrow)
   { id: 'mourn', rarity: 'rare', name: 'Mourn', element: 'dark', type: 'Gunner', flying: true, baseAtk: 6.5, baseHp: 48, range: 190, attackCooldown: 1.6, moveSpeed: 120, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     ult: { kind: 'strike', mult: 3, plusMult: 4 },
     ultPlus: 'The shot hits for 160x ATK.',
@@ -54,11 +49,10 @@ export const DARK_HEROES: HeroDef[] = [
     ultimate: { name: 'Last Rites Round', text: 'One fatal shot at the toughest enemy in reach for 120x ATK, with element bonuses.' },
     trait: { name: 'Tears of Lead', text: `Her shots can stun (15%). ${VS.dark}` },
     sp1: { name: 'Grave Slug', text: 'Shots pierce 2 more enemies.', effect: { kind: 'pierce', value: 2 } },
-    sp2: { name: 'Crusher', text: 'Deals 30% more damage to bosses.', effect: { kind: 'bossDamage', value: 1.3 } },
+    sp2: { name: 'Boss Breaker', text: 'Deals 30% more damage to bosses.', effect: { kind: 'bossDamage', value: 1.3 } },
     aura: { name: 'Lament', text: 'Whole team +15% ATK.', effect: { kind: 'atk', value: 1.15, team: true } } },
 
   // ---- Epics ----
-  // Necromancer (Necromancer)
   { id: 'grimsby', rarity: 'epic', name: 'Grimsby', element: 'dark', type: 'Magician', baseAtk: 9.2, baseHp: 52, range: 160, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 40,
     ult: { kind: 'meteor', seconds: 6, groundDps: 1.5, second: 0.5 },
     ultPlus: 'A second gout of dark fire lands a moment later for half damage.',
@@ -69,7 +63,6 @@ export const DARK_HEROES: HeroDef[] = [
     sp1: { name: 'Raise the Dead', text: 'Every 5th spell takes over a regular enemy for 5 s: it fights the other enemies.', effect: { kind: 'charm', value: 5, every: 5 } },
     sp2: { name: 'Grave Reach', text: '+15% splash damage.', effect: { kind: 'aoeDmg', value: 0.15 } },
     aura: { name: 'Bone Legion', text: 'Dark heroes +20% HP.', effect: { kind: 'hp', value: 1.2, team: true, element: 'dark' } } },
-  // Onyx (Onyx)
   { id: 'weaver', rarity: 'epic', name: 'Weaver', element: 'dark', type: 'Lancer', baseAtk: 6.4, baseHp: 66, range: 38, attackCooldown: 1.1, moveSpeed: 120, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     ult: { kind: 'root', seconds: 3, bossSeconds: 1, shield: 0.15 },
     ultPlus: 'The web also shields every hero for 15% of their max HP.',
@@ -80,7 +73,6 @@ export const DARK_HEROES: HeroDef[] = [
     sp1: { name: 'Eight-Leg Pounce', text: 'Every 3rd attack smashes the ground for 1.8x damage to every enemy near the target.', effect: { kind: 'slam', value: 1.8, every: 3 } },
     sp2: { name: 'Chitin', text: '+40% Defense.', effect: { kind: 'def', value: 1.4 } },
     aura: { name: 'Black Widow', text: 'Whole team +20% ATK.', effect: { kind: 'atk', value: 1.2, team: true } } },
-  // Trickster (Trickster)
   { id: 'hex', rarity: 'epic', name: 'Hex', element: 'dark', type: 'Magician', baseAtk: 9, baseHp: 55, range: 150, attackCooldown: 1.1, moveSpeed: 130, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 32,
     signature: { kind: 'slow', chance: 0.25, mult: 0.5, seconds: 3 },
     ult: { kind: 'mark', mult: 1.3, seconds: 5, plusMult: 1.5, plusSeconds: 8 },
@@ -94,7 +86,6 @@ export const DARK_HEROES: HeroDef[] = [
     aura: { name: "Jester's Curse", text: 'Enemies take 6% more damage.', effect: { kind: 'enemyVuln', value: 1.06, team: true } } },
 
   // ---- Legendary ----
-  // Ornok (Ornok)
   { id: 'malgrave', rarity: 'legendary', name: 'Malgrave', element: 'dark', type: 'Knight', baseAtk: 4, baseHp: 170, range: 30, attackCooldown: 1.0, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
     signature: { kind: 'knockback', push: 30 },
     ult: { kind: 'weaken', mult: 0.4, seconds: 6, plusSeconds: 10 },
@@ -108,7 +99,6 @@ export const DARK_HEROES: HeroDef[] = [
     aura: { name: 'Royal Guard', text: 'Whole team +25% HP.', effect: { kind: 'hp', value: 1.25, team: true } } },
 
   // ---- Commons ----
-  // Bat (Bat)
   { id: 'flit', rarity: 'common', name: 'Flit', element: 'dark', type: 'Magician', flying: true, baseAtk: 7.2, baseHp: 38, range: 140, attackCooldown: 1.1, moveSpeed: 160, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 30,
     bio: 'A small haunted teapot with bat wings that spits balls of darkness and never stays in one place.',
     basic: { name: 'Dark Spit', text: 'Ranged balls of dark energy that splash every enemy near the target.' },
@@ -117,7 +107,6 @@ export const DARK_HEROES: HeroDef[] = [
     sp1: { name: 'Double Brew', text: '30% chance for each attack to cast twice.', effect: { kind: 'doubleStrike', value: 0.3 } },
     sp2: { name: 'Quick Wings', text: 'Attacks 15% faster.', effect: { kind: 'attackSpeed', value: 0.85 } },
     aura: { name: 'Echo Sense', text: 'Dark heroes dodge 5% more attacks.', effect: { kind: 'dodge', value: 0.05, team: true, element: 'dark' } } },
-  // Dragon Bot (Dragon Bot)
   { id: 'drakebot', rarity: 'common', name: 'Drakebot', element: 'dark', type: 'Gunner', flying: true, baseAtk: 5.2, baseHp: 42, range: 165, attackCooldown: 1.0, moveSpeed: 130, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A clockwork shark of black brass that swims through the air, ticking loudly and spitting dark orbs.',
     basic: { name: 'Dark Shot', text: 'Long-range dark orbs at the nearest enemy.' },

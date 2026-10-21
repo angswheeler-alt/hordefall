@@ -9,7 +9,7 @@ function fresh() {
 }
 
 describe('rarity mix', () => {
-  it('follows Crush: every element has more Rares than Commons or Epics', () => {
+  it('every element has more Rares than Commons or Epics', () => {
     for (const el of ['water', 'fire', 'earth', 'light', 'dark'] as Element[]) {
       const n = (r: string) => HEROES.filter((h) => h.element === el && h.rarity === r).length;
       expect(n('common')).toBeLessThanOrEqual(6);

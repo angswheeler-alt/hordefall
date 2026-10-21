@@ -3,7 +3,7 @@ import Decimal from 'break_infinity.js';
 import { HEROES, HERO_TYPES, TYPE_MASTERY, type HeroType } from '../src/data';
 import { comboMult, executeMult, signatureReflect, splitHeal, controlEnd, BOSS_CC, SIG_PLUS } from '../src/kits';
 
-// The five heroes built to our own hero standard; the rest take Crush Them All kits (design/crush-hero-remap.md).
+// The five heroes built to the hero standard (design/base-heroes.md).
 const standard = HEROES.filter((h) => ['brine', 'ember', 'thorn', 'lumen', 'rook'].includes(h.id));
 const byId = (id: string) => HEROES.find((h) => h.id === id)!;
 
@@ -124,7 +124,7 @@ describe('boss crowd-control resistance', () => {
   });
 });
 
-describe('full Crush roster', () => {
+describe('full roster', () => {
   it('gives every hero a unique id and a profile of its own', async () => {
     const { HERO_PROFILES } = await import('../src/profiles');
     const ids = HEROES.map((h) => h.id);

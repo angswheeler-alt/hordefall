@@ -175,7 +175,7 @@ export class UI {
     }
   }
 
-  /** Collection page (like the original's): every hero in element-coloured tiles, grouped by element. */
+  /** Collection page: every hero in element-coloured tiles, grouped by element. */
   private openCollection() {
     $('coll').hidden = false;
     this.renderCollection();
@@ -2381,7 +2381,7 @@ function fmtSecs(sec: number): string {
   return sec >= 10 ? `${Math.round(sec)}s` : `${Math.round(sec * 10) / 10}s`;
 }
 
-/** The hero page's three stat pages, laid out like the original: value, (base) and the bonus in green. Stats that do nothing for this hero are greyed. */
+/** The hero page's three stat pages: value, (base) and the bonus in green. Stats that do nothing for this hero are greyed. */
 function statPages(st: HeroStats, level: string, page: number, top: string, cp = ''): string {
   const pct = (n: number, sign = false) => {
     const v = Math.round(n * 1000) / 10;

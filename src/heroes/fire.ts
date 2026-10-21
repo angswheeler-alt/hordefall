@@ -2,10 +2,9 @@ import type { HeroDef } from '../data';
 import type { HeroProfile } from '../profiles';
 import { VS, ULT, HEAL_BASIC } from '../heroText';
 
-/** Fire heroes from the full Crush roster (design/crush-full-roster.md). */
+/** Fire heroes beyond the first five. */
 export const FIRE_HEROES: HeroDef[] = [
   // ---- Rares ----
-  // Kasai (Hibachi)
   { id: 'hibachi', rarity: 'rare', name: 'Hibachi', element: 'fire', type: 'Samurai', baseAtk: 6, baseHp: 52, range: 30, attackCooldown: 0.85, moveSpeed: 130, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     signature: { kind: 'knockback', push: 20 },
     bio: 'A red panda samurai in lacquered armor, with a katana that glows like a coal.',
@@ -15,7 +14,6 @@ export const FIRE_HEROES: HeroDef[] = [
     sp1: { name: 'Piercing Cut', text: 'Each cut also hits the next 2 enemies just behind the target.', effect: { kind: 'pierce', value: 2 } },
     sp2: { name: 'Keen Edge', text: '+10% critical hit chance.', effect: { kind: 'crit', value: 0.1 } },
     aura: { name: 'Blazing Spirit', text: 'Fire heroes +40% ATK.', effect: { kind: 'atk', value: 1.4, team: true, element: 'fire' } } },
-  // Monki King (Sunjo)
   { id: 'sunjo', rarity: 'rare', name: 'Sunjo', element: 'fire', type: 'Lancer', flying: true, baseAtk: 5, baseHp: 55, range: 36, attackCooldown: 0.9, moveSpeed: 135, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A cocky monkey lancer riding a little flame cloud, twirling a staff-spear tipped with fire.',
     basic: { name: 'Staff Thrust', text: 'Quick spear thrusts at the nearest enemy ahead.' },
@@ -24,7 +22,6 @@ export const FIRE_HEROES: HeroDef[] = [
     sp1: { name: 'Cloud Flurry', text: 'Every 3rd attack is a rapid flurry of thrusts (2.5x damage).', effect: { kind: 'everyNth', value: 2.5, every: 3 } },
     sp2: { name: 'Cloud Speed', text: 'Attacks 15% faster.', effect: { kind: 'attackSpeed', value: 0.85 } },
     aura: { name: 'Fire Rhythm', text: 'Fire heroes attack 10% faster.', effect: { kind: 'attackSpeed', value: 0.9, team: true, element: 'fire' } } },
-  // Monki Merry (Juggles)
   { id: 'juggles', rarity: 'rare', name: 'Juggles', element: 'fire', type: 'Magician', baseAtk: 7.5, baseHp: 58, range: 165, attackCooldown: 1.6, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 34,
     bio: 'A ring-tailed lemur jester in a belled cap who juggles fireballs and throws whichever one is hottest.',
     basic: { name: 'Fireball Toss', text: 'Ranged fireballs that splash every enemy near the target.' },
@@ -33,7 +30,6 @@ export const FIRE_HEROES: HeroDef[] = [
     sp1: { name: 'Lucky Catch', text: 'Every 4th fireball also tosses a gift box to a random ally: a shield worth 30% of his max HP.', effect: { kind: 'ward', value: 0.3, every: 4 } },
     sp2: { name: 'Extra Balls', text: 'Splash radius +20%.', effect: { kind: 'splash', value: 1.2 } },
     aura: { name: 'Steady Hands', text: 'Whole team +6% Effect Resistance.', effect: { kind: 'effectRes', value: 0.06, team: true } } },
-  // Red (Scorch)
   { id: 'scorch', rarity: 'rare', name: 'Scorch', element: 'fire', type: 'Gunner', flying: true, baseAtk: 6, baseHp: 48, range: 175, attackCooldown: 1.2, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     signature: { kind: 'burn', share: 0.15, seconds: 3 },
     bio: 'A grinning goblin gunner leaning out of a patched hot-air balloon with a napalm rifle.',
@@ -43,7 +39,6 @@ export const FIRE_HEROES: HeroDef[] = [
     sp1: { name: 'Phased Ray', text: 'Every 4th shot is a charged ray for 2.5x damage.', effect: { kind: 'everyNth', value: 2.5, every: 4 } },
     sp2: { name: 'Hot Sights', text: '+30% damage to Burning enemies.', effect: { kind: 'vsBurning', value: 1.3 } },
     aura: { name: 'Pyro Pride', text: '+20% ATK (his own).', effect: { kind: 'atk', value: 1.2 } } },
-  // Spark (Flicker)
   { id: 'flicker', rarity: 'rare', name: 'Flicker', element: 'fire', type: 'Ranger', baseAtk: 5.5, baseHp: 44, range: 185, attackCooldown: 1.0, moveSpeed: 120, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     signature: { kind: 'skyCrit' },
     bio: 'A tiny fire sprite with a bow of twisted flame, flickering in and out of sight.',
@@ -53,7 +48,6 @@ export const FIRE_HEROES: HeroDef[] = [
     sp1: { name: 'Wisp Arrow', text: 'Arrows pierce 3 more enemies.', effect: { kind: 'pierce', value: 3 } },
     sp2: { name: 'Quick Spark', text: 'Attacks 15% faster.', effect: { kind: 'attackSpeed', value: 0.85 } },
     aura: { name: 'Smoke Screen', text: 'Whole team takes 12% less damage.', effect: { kind: 'damageTaken', value: 0.88, team: true } } },
-  // Spyro (Drakko)
   { id: 'drakko', rarity: 'rare', name: 'Drakko', element: 'fire', type: 'Lancer', baseAtk: 6, baseHp: 62, range: 36, attackCooldown: 1.3, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     signature: { kind: 'burn', share: 0.15, seconds: 4 },
     bio: 'A little red dragon-kin with stubby wings and a long spear he heats in his own breath.',
@@ -63,7 +57,6 @@ export const FIRE_HEROES: HeroDef[] = [
     sp1: { name: 'Spear Flurry', text: 'Every 4th attack is three quick thrusts (3x damage).', effect: { kind: 'everyNth', value: 3, every: 4 } },
     sp2: { name: 'Thick Scales', text: '+30% Defense.', effect: { kind: 'def', value: 1.3 } },
     aura: { name: 'Dragon Fury', text: 'Fire heroes +40% ATK.', effect: { kind: 'atk', value: 1.4, team: true, element: 'fire' } } },
-  // Xak (Kindra)
   { id: 'kindra', rarity: 'rare', name: 'Kindra', element: 'fire', type: 'Support', baseAtk: 2.8, baseHp: 52, range: 140, attackCooldown: 1.3, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
     ult: { kind: 'teamShield', share: 1, plusShare: 1.3 },
     ultPlus: 'Shields are worth 130% of her max HP.',
@@ -76,7 +69,6 @@ export const FIRE_HEROES: HeroDef[] = [
     aura: { name: 'Fire Dash', text: 'Fire heroes move 25% faster.', effect: { kind: 'moveSpeed', value: 1.25, team: true, element: 'fire' } } },
 
   // ---- Epics ----
-  // Alda (Kestra)
   { id: 'kestra', rarity: 'epic', name: 'Kestra', element: 'fire', type: 'Ranger', baseAtk: 6.8, baseHp: 46, range: 190, attackCooldown: 0.9, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     signature: { kind: 'skyCrit' },
     bio: 'A phoenix-bird archer with blazing tail feathers, whose arrows trail sparks across the sky.',
@@ -86,7 +78,6 @@ export const FIRE_HEROES: HeroDef[] = [
     sp1: { name: 'Twin Feather', text: '30% chance for each shot to loose a second arrow.', effect: { kind: 'doubleStrike', value: 0.3 } },
     sp2: { name: 'Hawk Focus', text: '+10% critical hit chance.', effect: { kind: 'crit', value: 0.1 } },
     aura: { name: 'Rising Flame', text: 'Whole team deals +20% critical damage.', effect: { kind: 'critDmg', value: 0.2, team: true } } },
-  // Scud (Boomer)
   { id: 'boomer', rarity: 'epic', name: 'Boomer', element: 'fire', type: 'Gunner', baseAtk: 6.8, baseHp: 45, range: 165, attackCooldown: 1.2, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 34,
     ult: { kind: 'meteor', seconds: 4, groundDps: 1.5, second: 0.5 },
     ultPlus: 'A second salvo lands a moment later for half damage.',
@@ -97,7 +88,6 @@ export const FIRE_HEROES: HeroDef[] = [
     sp1: { name: 'Hollow-Log Rocket', text: 'Every 4th shot is a heavy missile: 2x damage to every enemy near the target.', effect: { kind: 'slam', value: 2, every: 4 } },
     sp2: { name: 'Bigger Payload', text: 'Splash radius +25%.', effect: { kind: 'splash', value: 1.25 } },
     aura: { name: 'War Cry', text: 'Whole team +20% ATK.', effect: { kind: 'atk', value: 1.2, team: true } } },
-  // Shelly (Pyrrhus)
   { id: 'pyrrhus', rarity: 'epic', name: 'Pyrrhus', element: 'fire', type: 'Barbarian', baseAtk: 7.5, baseHp: 75, range: 30, attackCooldown: 1.5, moveSpeed: 95, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
     signature: { kind: 'curse', seconds: 3, mult: 1.5 },
     bio: 'A magma ankylosaur with glowing lava plates and a club tail of molten rock. It is slow, and it is not in a hurry.',
@@ -107,7 +97,6 @@ export const FIRE_HEROES: HeroDef[] = [
     sp1: { name: 'Lava Slam', text: 'Every 3rd attack smashes the ground for 2x damage to every enemy near the target.', effect: { kind: 'slam', value: 2, every: 3 } },
     sp2: { name: 'Lava Core', text: 'Regenerates 2% of max HP every second.', effect: { kind: 'regen', value: 0.02 } },
     aura: { name: 'Plated Hide', text: 'Whole team takes 10% less damage.', effect: { kind: 'damageTaken', value: 0.9, team: true } } },
-  // TNT (Fuse)
   { id: 'fuse', rarity: 'epic', name: 'Fuse', element: 'fire', type: 'Gunner', baseAtk: 7, baseHp: 46, range: 180, attackCooldown: 1.0, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 30,
     signature: { kind: 'burn', share: 0.2, seconds: 3 },
     bio: 'A cackling hyena demolition expert with singed fur and a barrel cannon strapped to her back.',
@@ -117,7 +106,6 @@ export const FIRE_HEROES: HeroDef[] = [
     sp1: { name: 'Barrel Bomb', text: 'Every 5th shot is a walking barrel bomb that blows up on the target: 2.5x damage to every enemy near it.', effect: { kind: 'slam', value: 2.5, every: 5 } },
     sp2: { name: 'Blast Wave', text: '+15% critical damage.', effect: { kind: 'critDmg', value: 0.15 } },
     aura: { name: 'Spread the Fire', text: 'Fire heroes get a 10% chance to set enemies Burning.', effect: { kind: 'burnChance', value: 0.1, team: true, element: 'fire' } } },
-  // Torch (Kiln)
   { id: 'kiln', rarity: 'epic', name: 'Kiln', element: 'fire', type: 'Gunner', baseAtk: 6.5, baseHp: 50, range: 130, attackCooldown: 1.25, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 36,
     signature: { kind: 'burn', share: 0.25, seconds: 4 },
     bio: 'An armadillo in a fire-proof apron, rolling into battle behind a roaring flamethrower.',
@@ -129,7 +117,6 @@ export const FIRE_HEROES: HeroDef[] = [
     aura: { name: 'Stoked Embers', text: 'Fire heroes deal +20% damage to Burning enemies.', effect: { kind: 'vsBurning', value: 1.2, team: true, element: 'fire' } } },
 
   // ---- Commons ----
-  // Tiny Dragon (Wyrmling)
   { id: 'wyrmling', rarity: 'common', name: 'Fizzle', element: 'fire', type: 'Magician', flying: true, baseAtk: 7, baseHp: 38, range: 140, attackCooldown: 1.2, moveSpeed: 120, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 28,
     signature: { kind: 'burn', share: 0.15, seconds: 2 },
     bio: 'A round little fire ladybug, barely bigger than a fist, who spits fireballs far bigger than itself.',

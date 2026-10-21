@@ -1,5 +1,5 @@
 import type { HeroDef, HeroType } from './data';
-import { CRUSH_PROFILES } from './heroes';
+import { ROSTER_PROFILES } from './heroes';
 
 /**
  * Stat profiles: what makes each hero play differently beyond ATK, HP and speed. A hero's Type sets its
@@ -84,7 +84,7 @@ export const HERO_PROFILES: Record<string, HeroProfile> = {
   seraph: { stunChance: 0.08, effectRes: 0.35, critDmg: 0.8, specialty: 'Holy word: 8% chance to stun and 35% Effect Resistance, softer crits (+80%)' },
   celeste: { critDmg: 2.2, dodge: 0.08, atkMult: 0.95, specialty: 'Owl sight: crits hit for +220% and dodges 8% of attacks, a little less ATK' },
   aegis: { defMult: 5, effectRes: 0.6, stunChance: 0.1, atkMult: 0.95, specialty: 'Lionheart: 5x Defense, 60% Effect Resistance and 10% chance to stun, a little less ATK' },
-  ...CRUSH_PROFILES,
+  ...ROSTER_PROFILES,
 };
 
 /**
