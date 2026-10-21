@@ -36,7 +36,7 @@ export const PVP_BANDS = [
   { id: 'even', name: 'Even', cp: 1, win: 12, motes: 5 },
   { id: 'stronger', name: 'Stronger', cp: 1.15, win: 18, motes: 8 },
 ] as const;
-export const PVP_LOSS_TROPHIES = 6;
+export const PVP_LOSS_TROPHIES = 10;
 export const PVP_LOSS_MOTES = 1;
 export const PVP_FIRST_WIN_MOTES = 10;
 /** Ghosts get this much more CP for each sub-rank above Bronze I, so higher ranks need a stronger team. */
