@@ -765,8 +765,16 @@ export const STALL_REKINDLE_REVENUE = 0.25;
 export const STALL_REKINDLE_LEVELS = 5;
 export const STALL_REKINDLE_LEVELS_CAP = 600;
 
-/** Heroes that can fight at once. Matches the roster for now; matters once more heroes arrive. */
-export const LINEUP_SIZE = 5;
+/**
+ * Team slots: how many heroes can fight at once. A new player starts with TEAM_SLOTS_START and buys the rest
+ * with Gems, up to TEAM_SLOTS_MAX (Samuel, 2026-10-21, like the original's premium hero slots). Saves from before
+ * slots existed had 5 heroes fighting, so they keep OLD_SAVE_TEAM_SLOTS.
+ */
+export const TEAM_SLOTS_START = 3;
+export const TEAM_SLOTS_MAX = 10;
+/** Gems for slots 4, 5, ... 10. */
+export const TEAM_SLOT_COSTS = [50, 100, 300, 600, 1000, 1500, 2500];
+export const OLD_SAVE_TEAM_SLOTS = 5;
 
 /** Elemental Trials (GDD 11.1): each element's dungeon opens on set days (Samuel's schedule). */
 export const TRIAL_ROTATION: Element[] = ['water', 'earth', 'fire', 'light', 'dark'];

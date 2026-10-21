@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, MILESTONE_STEP, milestoneReward, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, LINEUP_SIZE, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
 import { relicCost, bossHp, bossAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES, PLAYABLE_HEROES } from './data';
@@ -141,6 +141,8 @@ export class GameState {
   relicEnhance: Record<string, number> = {};
   equipped: string[] = [];
   relicSlots = RELIC_START_SLOTS;
+  /** Team slots owned: how many heroes can fight at once (bought with Gems up to TEAM_SLOTS_MAX). */
+  teamSlots = TEAM_SLOTS_START;
   /** The Relic Shop's offers (relic ids), when New relics can be used again, and whether it was ever stocked. */
   relicShop: { offers: string[]; refreshAt: number; rolled: boolean } = { offers: [], refreshAt: 0, rolled: false };
   enhanceStones = 0;
@@ -454,6 +456,20 @@ export class GameState {
     return RELIC_SLOT_STAGES[this.relicSlots - RELIC_START_SLOTS] ?? null;
   }
 
+  /** Gems for the next team slot, or null when all are bought. */
+  nextTeamSlotCost(): number | null {
+    return this.teamSlots >= TEAM_SLOTS_MAX ? null : (TEAM_SLOT_COSTS[this.teamSlots - TEAM_SLOTS_START] ?? null);
+  }
+
+  buyTeamSlot(): boolean {
+    const cost = this.nextTeamSlotCost();
+    if (cost === null || this.gems < cost) return false;
+    this.gems -= cost;
+    this.teamSlots += 1;
+    this.save();
+    return true;
+  }
+
   buyRelicSlot(): boolean {
     const cost = this.nextSlotCost();
     if (cost === null || this.gems < cost || this.bestStage < (this.nextSlotStage() ?? 0)) return false;
@@ -493,7 +509,7 @@ export class GameState {
   setInLineup(id: string, on: boolean): Decimal | null {
     if ((this.levels[id] ?? 0) === 0) return null;
     if (on) {
-      if (this.inLineup(id) || this.lineupCount() >= LINEUP_SIZE) return null;
+      if (this.inLineup(id) || this.lineupCount() >= this.teamSlots) return null;
       delete this.benched[id];
       return new Decimal(0);
     }
@@ -534,7 +550,7 @@ export class GameState {
     if (!this.canUnlock(def)) return false;
     this.crests[id] -= this.unlockCrests(def)!;
     this.levels[id] = 1;
-    if (this.lineupCount() > LINEUP_SIZE) this.benched[id] = true;
+    if (this.lineupCount() > this.teamSlots) this.benched[id] = true;
     this.save();
     return true;
   }
@@ -1537,6 +1553,7 @@ export class GameState {
       enhanceStones: this.enhanceStones,
       equipped: this.equipped,
       relicSlots: this.relicSlots,
+      teamSlots: this.teamSlots,
       relicShop: this.relicShop,
       legendaryMedals: this.legendaryMedals,
       goldPerSec: this.goldPerSec,
@@ -1669,6 +1686,8 @@ export class GameState {
         }
       }
       this.relicSlots = d.relicSlots ?? RELIC_START_SLOTS;
+      // Saves from before team slots fought with 5 heroes; they keep those slots.
+      this.teamSlots = d.teamSlots ?? OLD_SAVE_TEAM_SLOTS;
       this.legendaryMedals = d.legendaryMedals ?? 0;
       this.equipped = (d.equipped ?? []).filter((id: string) => this.relics[id]).slice(0, this.relicSlots);
       this.goldPerSec = d.goldPerSec ?? 0;
@@ -1697,6 +1716,7 @@ export class GameState {
     this.runStartStage = Math.min(this.runBestStage, Math.max(1, Math.floor(num(this.runStartStage, 1))));
     this.headStart = this.headStart !== false;
     this.gems = Math.max(0, Math.floor(num(this.gems, START_GEMS)));
+    this.teamSlots = Math.min(TEAM_SLOTS_MAX, Math.max(TEAM_SLOTS_START, Math.floor(num(this.teamSlots, TEAM_SLOTS_START))));
     this.embers = Math.max(0, num(this.embers, 0));
     this.tickets = Math.min(TICKET_CAP, Math.max(0, Math.floor(num(this.tickets, TICKET_CAP))));
     this.ticketClock = num(this.ticketClock, Date.now());
@@ -1712,11 +1732,11 @@ export class GameState {
     }
     // The free starter is always recruited.
     for (const h of HEROES) if (h.unlockCost === 0 && this.levels[h.id] === 0) this.levels[h.id] = 1;
-    // At most LINEUP_SIZE fighters (extras are benched, keeping their levels), and never none.
+    // At most teamSlots fighters (extras are benched, keeping their levels), and never none.
     let fighting = 0;
     for (const h of HEROES) {
       if (this.levels[h.id] === 0 || this.benched[h.id]) continue;
-      if (++fighting > LINEUP_SIZE) this.benched[h.id] = true;
+      if (++fighting > this.teamSlots) this.benched[h.id] = true;
     }
     if (fighting === 0) {
       const first = HEROES.find((h) => this.levels[h.id] > 0);

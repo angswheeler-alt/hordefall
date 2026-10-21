@@ -5,7 +5,7 @@ import { GameState, rarityOdds, weekKey } from '../src/state';
 import { emberBulk, emberCost, emberRefund } from '../src/formulas';
 import { mulEffect } from '../src/skills';
 import {
-  HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, AURA_EVOLUTIONS, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, LINEUP_SIZE,
+  HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, AURA_EVOLUTIONS, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS,
   TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_MIN_PUSH, ROAD_START, ROAD_STEP, RELICS, RELIC_SETS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, TRIAL_QUICK_TIME, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL, bossWeakness,
 } from '../src/data';
 
@@ -139,7 +139,7 @@ describe('offline earnings', () => {
 
   it('beats bosses the team can beat, and stops before the first one it cannot', () => {
     const s = fresh();
-    const team = HEROES.filter((h) => h.rarity === 'common').slice(0, LINEUP_SIZE);
+    const team = HEROES.filter((h) => h.rarity === 'common').slice(0, 5);
     for (const h of HEROES) s.levels[h.id] = team.includes(h) ? 100 : 0;
     s.secondsPerStage = 1;
     s.stage = 3;
@@ -153,7 +153,7 @@ describe('offline earnings', () => {
 
   it('does not beat a boss without enough time left, or with a team that is too weak', () => {
     const s = fresh();
-    const team = HEROES.filter((h) => h.rarity === 'common').slice(0, LINEUP_SIZE);
+    const team = HEROES.filter((h) => h.rarity === 'common').slice(0, 5);
     for (const h of HEROES) s.levels[h.id] = team.includes(h) ? 92 : 0;
     s.secondsPerStage = 1;
     s.stage = 50;
@@ -199,7 +199,7 @@ describe('lineup', () => {
     s.benched[starter.id] = false;
     delete s.benched[starter.id];
     for (const h of HEROES) s.setInLineup(h.id, true);
-    expect(s.lineupCount()).toBe(LINEUP_SIZE);
+    expect(s.lineupCount()).toBe(s.teamSlots);
   });
 });
 
@@ -847,7 +847,7 @@ describe('save repair', () => {
     localStorage.setItem('hordefall-save-v1', JSON.stringify({ gold: '0', levels, benched: {} }));
     const s = new GameState();
     s.load();
-    expect(s.lineupCount()).toBe(LINEUP_SIZE);
+    expect(s.lineupCount()).toBe(OLD_SAVE_TEAM_SLOTS);
     expect(HEROES.every((h) => s.levels[h.id] === 40)).toBe(true);
   });
 
@@ -1189,5 +1189,60 @@ describe('Evolve all', () => {
     const s = fresh();
     s.crests[other.id] = 10_000;
     expect(s.evolvable().some((h) => h.id === other.id)).toBe(false);
+  });
+});
+
+describe('team slots', () => {
+  it('a new game fights with 3 heroes, and each slot up to 10 is bought with Gems', () => {
+    const s = fresh();
+    expect(s.teamSlots).toBe(TEAM_SLOTS_START);
+    for (const h of HEROES) s.levels[h.id] = 1;
+    for (const h of HEROES) s.benched[h.id] = true;
+    delete s.benched[starter.id];
+    for (const h of HEROES) s.setInLineup(h.id, true);
+    expect(s.lineupCount()).toBe(3);
+    s.gems = 0;
+    expect(s.buyTeamSlot()).toBe(false);
+    s.gems = TEAM_SLOT_COSTS.reduce((a, b) => a + b, 0);
+    for (let i = TEAM_SLOTS_START; i < TEAM_SLOTS_MAX; i++) expect(s.buyTeamSlot()).toBe(true);
+    expect(s.gems).toBe(0);
+    expect(s.teamSlots).toBe(TEAM_SLOTS_MAX);
+    expect(s.nextTeamSlotCost()).toBeNull();
+    s.gems = 99999;
+    expect(s.buyTeamSlot()).toBe(false);
+    for (const h of HEROES) s.setInLineup(h.id, true);
+    expect(s.lineupCount()).toBe(TEAM_SLOTS_MAX);
+  });
+
+  it('has a price for every slot it sells', () => {
+    expect(TEAM_SLOT_COSTS.length).toBe(TEAM_SLOTS_MAX - TEAM_SLOTS_START);
+  });
+
+  it('saves bought slots, and saves from before slots keep their 5 fighters', () => {
+    const s = fresh();
+    s.gems = 1000;
+    s.buyTeamSlot();
+    s.save();
+    const back = new GameState();
+    back.load();
+    expect(back.teamSlots).toBe(TEAM_SLOTS_START + 1);
+    localStorage.setItem('hordefall-save-v1', JSON.stringify({ gold: '0' }));
+    const old = new GameState();
+    old.load();
+    expect(old.teamSlots).toBe(OLD_SAVE_TEAM_SLOTS);
+    localStorage.setItem('hordefall-save-v1', JSON.stringify({ gold: '0', teamSlots: 99 }));
+    const bad = new GameState();
+    bad.load();
+    expect(bad.teamSlots).toBe(TEAM_SLOTS_MAX);
+  });
+
+  it('a hero unlocked with a full team waits on the bench', () => {
+    const s = fresh();
+    const commons = HEROES.filter((h) => h.rarity === 'common' && h.id !== starter.id).slice(0, 3);
+    for (const h of commons.slice(0, 2)) s.levels[h.id] = 1;
+    expect(s.lineupCount()).toBe(3);
+    s.crests[commons[2].id] = 10;
+    expect(s.unlockHero(commons[2].id)).toBe(true);
+    expect(s.inLineup(commons[2].id)).toBe(false);
   });
 });
