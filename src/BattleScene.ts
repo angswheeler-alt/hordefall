@@ -27,6 +27,7 @@ import {
   TRIAL_LEVELS,
   TRIAL_TIME,
   TRIAL_BOSS_NAMES,
+  TRIAL_BOSS_ART,
   TRIAL_BOSS_COOLDOWN,
   TRIAL_SLAM_EVERY,
   TRIAL_SLAM_SHARE,
@@ -1246,7 +1247,7 @@ export class BattleScene extends Phaser.Scene {
     this.cameras.main.scrollX = 0;
     this.drawBackground();
     const level = TRIAL_LEVELS[tier - 1];
-    const art = BOSS_ANIMS[element] ? element : undefined;
+    const art = BOSS_ANIMS[TRIAL_BOSS_ART[element]] ? TRIAL_BOSS_ART[element] : BOSS_ANIMS[element] ? element : undefined;
     const boss = this.makeUnit({
       side: 'enemy',
       texture: art ? `boss-${art}-idle` : 'boss',

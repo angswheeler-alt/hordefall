@@ -890,6 +890,14 @@ export const TRIAL_BOSS_NAMES: Record<Element, string> = {
   light: 'Dawn Seraph',
   dark: 'Night Hollow',
 };
+/** Each Trial boss's own art (a BOSS_ANIMS key); the element's stage boss stands in for one without any. */
+export const TRIAL_BOSS_ART: Record<Element, string> = {
+  water: 'trial_water',
+  earth: 'trial_earth',
+  fire: 'trial_fire',
+  light: 'trial_light',
+  dark: 'trial_dark',
+};
 export const ESSENCE_NAMES: Record<Element, string> = {
   water: 'Tide Essence',
   earth: 'Stone Essence',
