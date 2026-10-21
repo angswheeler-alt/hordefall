@@ -8,6 +8,7 @@ import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills
 import { isKnight, combatPower, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
 import { PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_TICKET_GEMS, PVP_TICKET_BUYS, PVP_REFRESH_MINUTES, PVP_CP_MIN, PVP_CP_MAX, PVP_REAL_MIN, PVP_REAL_MAX, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_FIRST_WIN_MOTES, PVP_STREAK_DMG, PVP_STREAK_MAX, RANK_PRESSURE, RANK_DAILY, RANK_WEEKLY, rankIndex, rankName, droppedTrophies, seededRandom, ghostName, simulatePvp, type PvpUnit, type PvpResult } from './colosseum';
+import { TUTORIAL_DONE, TIP_IDS } from './tutorialSteps';
 
 const SAVE_KEY = 'hordefall-save-v1';
 
@@ -264,6 +265,9 @@ export class GameState {
   speed2x = false;
   autoUlt = false;
   muted = false;
+  /** First-time guide: the intro step the player is on (TUTORIAL_DONE once finished or skipped), and the one-off tips already shown. */
+  tutorialStep = 0;
+  tipsSeen: string[] = [];
   buyAmount: 1 | 10 | 'max' = 1;
   /** Relic levels (0 = not crafted), Enhances done per relic, equipped relic ids, owned slots and Enhance Stones. */
   relics: Record<string, number> = {};
@@ -2275,6 +2279,8 @@ export class GameState {
       speed2x: this.speed2x,
       autoUlt: this.autoUlt,
       muted: this.muted,
+      tutorialStep: this.tutorialStep,
+      tipsSeen: this.tipsSeen,
       buyAmount: this.buyAmount,
       stallBuyAmount: this.stallBuyAmount,
       relics: this.relics,
@@ -2410,6 +2416,9 @@ export class GameState {
       this.speed2x = !!d.speed2x;
       this.autoUlt = !!d.autoUlt;
       this.muted = !!d.muted;
+      // Saves from before the guide existed belong to players who already know the game: no intro, no tips.
+      this.tutorialStep = typeof d.tutorialStep === 'number' ? d.tutorialStep : TUTORIAL_DONE;
+      this.tipsSeen = Array.isArray(d.tipsSeen) ? d.tipsSeen.filter((t: unknown) => typeof t === 'string') : d.tutorialStep === undefined ? [...TIP_IDS] : [];
       this.buyAmount = d.buyAmount ?? 1;
       this.stallBuyAmount = d.stallBuyAmount ?? 1;
       // Relics no longer in the game (the list changed to follow the original) are dropped.

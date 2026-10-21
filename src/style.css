@@ -577,6 +577,7 @@ i.stone { display: inline-block; width: 12px; height: 12px; background: linear-g
 .ico-set-save { background-image: url('./assets/ui/set-save.png'); }
 .ico-set-account { background-image: url('./assets/ui/set-account.png'); }
 .ico-set-tools { background-image: url('./assets/ui/set-tools.png'); }
+.ico-set-tutorial { background-image: url('./assets/ui/set-tutorial.png'); }
 #tabbar button svg, #settings-btn svg, .rk-badge svg { display: none; }
 #tabbar button::before { content: ''; width: 28px; height: 28px; background: center / contain no-repeat; image-rendering: pixelated; filter: drop-shadow(0 1px 0 rgba(0,0,0,.6)); }
 #tabbar button[data-tab="heroes"]::before { background-image: url('./assets/ui/tab-heroes.png'); }
@@ -892,3 +893,18 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 #wallet .home-btn svg { width: 22px; height: 22px; fill: #fff4dd; }
 #wallet .home-btn .badge { position: absolute; top: -6px; right: -6px; width: 14px; height: 14px; border-radius: 50%; background: #e3261c; border: 2px solid #fff; }
 #wallet .home-btn .badge[hidden] { display: none; }
+
+/* First-time guide (src/tutorial.ts): a spotlight and a bubble that never block the game. */
+#coach { position: fixed; inset: 0; z-index: 12; pointer-events: none; }
+#coach[hidden], #coach .coach-hole[hidden] { display: none; }
+.coach-hole { position: fixed; border-radius: 12px; border: 3px solid var(--gold); box-shadow: 0 0 14px var(--gold); animation: coach-pulse 1.2s ease-in-out infinite; transition: left .2s, top .2s, width .2s, height .2s; }
+#coach.intro .coach-hole { box-shadow: 0 0 0 9999px rgba(8,4,20,.55), 0 0 14px var(--gold); }
+.coach-tip { position: fixed; pointer-events: auto; padding: 12px 14px; border-radius: 12px; background: linear-gradient(180deg, #fff4dd, #f0dcb4); color: #2b190c; border: 3px solid var(--wood-deep); box-shadow: 0 4px 0 rgba(0,0,0,.45), 0 8px 24px rgba(0,0,0,.4); }
+.coach-tip b { display: block; font-size: 17px; font-weight: 900; margin-bottom: 4px; }
+.coach-tip p { margin: 0 0 10px; font-size: 14px; line-height: 1.4; }
+.coach-row { display: flex; align-items: center; gap: 10px; }
+.coach-row small { color: #7a5a3a; font-weight: 700; margin-right: auto; }
+.coach-skip { background: none; border: 0; padding: 4px 0; color: #7a5a3a; font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; }
+.coach-go { margin-left: auto; padding: 8px 16px; }
+@keyframes coach-pulse { 50% { border-color: #fff; } }
+@media (prefers-reduced-motion: reduce) { .coach-hole { animation: none; transition: none; } }

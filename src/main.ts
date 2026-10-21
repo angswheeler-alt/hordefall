@@ -8,6 +8,7 @@ import { Account } from './account';
 import { Guild } from './guild';
 import { Social } from './social';
 import { ColosseumLink } from './colosseumLink';
+import { Tutorial } from './tutorial';
 
 // iOS Safari ignores user-scalable=no, so stop pinch zoom here (double-tap zoom is off via touch-action in the CSS).
 for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
@@ -84,6 +85,14 @@ const account = new Account(state, (data) => {
 new Guild(state, account, ui);
 new Social(state, account);
 ui.setPvpServer(new ColosseumLink(state, account));
+
+const tutorial = new Tutorial(state);
+document.getElementById('tut-replay')!.addEventListener('click', () => {
+  document.getElementById('settings')!.hidden = true;
+  const home = document.getElementById('home-btn')!;
+  if (!home.hidden) home.click();
+  tutorial.replay();
+});
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
