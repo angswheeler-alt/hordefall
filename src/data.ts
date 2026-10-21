@@ -3,6 +3,12 @@ import { ROSTER_HEROES } from './heroes';
 
 export type Element = 'water' | 'fire' | 'earth' | 'light' | 'dark';
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
+const RARITY_RANK: Record<Rarity, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
+
+/** Heroes ordered Common, Rare, Epic, Legendary; heroes of the same rarity keep their order. */
+export function byRarity<T extends { rarity: Rarity }>(heroes: readonly T[]): T[] {
+  return [...heroes].sort((a, b) => RARITY_RANK[a.rarity] - RARITY_RANK[b.rarity]);
+}
 /**
  * The hero standard (design/base-heroes.md): every hero has one of ten Types, the combat archetype
  * that sets how it attacks, where it stands and its stat shape (many heroes share a Type), plus a
