@@ -629,9 +629,9 @@ export const STAR_CRESTS = [10, 50, 250, 600, 1500, 2500, 5000];
 export const MAX_STARS = STAR_CRESTS.length;
 /**
  * Hero Crests (medals) a hero needs to unlock, by rarity (Samuel's table).
- * Unlocking spends them. Legendary heroes never unlock from Crests: Samuel
- * says they only come through special means (events and the like), and the
- * Hero Chest never drops them. The free starter (unlockCost 0) needs none.
+ * Unlocking spends them. Legendary heroes never unlock from their own Crests:
+ * they take Legendary medals (LEGENDARY_UNLOCK_MEDALS), and nothing drops or
+ * sells them. The free starter (unlockCost 0) needs none.
  */
 export const UNLOCK_CRESTS: Record<Exclude<Rarity, 'legendary'>, number> = { common: 10, rare: 30, epic: 80 };
 /** Evolutions needed for each star unlock (0 = 1★): the team Aura at 4★ like the original, the stronger Ultimate at 5★. */
@@ -679,8 +679,15 @@ export const TYPE_MASTERY: Record<HeroType, { name: string; text: string; effect
   Brawler: { name: 'Haymaker', text: 'Every 4th hit in a row on the same enemy stuns it for 0.5 s.' },
   Support: { name: 'Purify', text: 'Heals 20% more and clear stuns from the healed ally.', effect: { kind: 'healPower', value: 1.2 } },
 };
-/** An 8★ hero turns every this many new medals into one Legendary medal (for Legendary heroes later). */
+/**
+ * Legendary heroes come only from late-game progression (Samuel, 2026-10-21: no event, no chests, shops or Trials).
+ * An 8★ hero turns every LEGENDARY_MEDAL_RATE extra medals into one Legendary medal. All Legendary medals share
+ * one pool, and the player spends it on whichever Legendary hero they want: LEGENDARY_UNLOCK_MEDALS to unlock,
+ * then LEGENDARY_STAR_MEDALS[n] for each star (1★→2★ first).
+ */
 export const LEGENDARY_MEDAL_RATE = 10;
+export const LEGENDARY_UNLOCK_MEDALS = 50;
+export const LEGENDARY_STAR_MEDALS = [10, 25, 50, 100, 200, 350, 500];
 
 // Gems (premium currency) and the Hero Chest summon.
 export const START_GEMS = 60;

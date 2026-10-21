@@ -2,7 +2,7 @@ import { DEV_TOOLS } from './config';
 import Decimal from 'break_infinity.js';
 import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { HEROES, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
@@ -186,11 +186,12 @@ export class UI {
     const elements = [...new Set(shown.map((h) => h.element))];
     const owned = shown.filter((h) => (s.levels[h.id] ?? 0) > 0).length;
     $('coll-count').textContent = `${owned}/${shown.length}`;
+    $('coll-legend').textContent = `Legendary medals: ${s.legendaryMedals.toLocaleString()}. ${LEGENDARY_HOW}`;
     const groups = elements.map((el) => {
       const tiles = shown.filter((h) => h.element === el)
         .map((h) => {
           const recruited = (s.levels[h.id] ?? 0) > 0;
-          const crests = s.crests[h.id] ?? 0;
+          const crests = s.medalsFor(h.id);
           // Bar fills toward the next unlock or evolution; at max stars the hero is Maxed.
           const need = recruited ? s.evolveCost(h.id) : s.unlockCrests(h);
           const maxed = recruited && need === null;
@@ -1134,7 +1135,8 @@ export class UI {
     const ember = s.emberLevels[id] ?? 0;
     const eff = s.heroLevel(id);
     const stars = s.stars[id] ?? 0;
-    const crests = s.crests[id] ?? 0;
+    const legendary = def.rarity === 'legendary';
+    const crests = s.medalsFor(id);
 
     // A hero is 1★ when unlocked; each evolution adds a star, up to 8★.
     setHtml($('sheet-stars'), [0, ...STAR_CRESTS].map((_, i) => `<span class="${gold > 0 && i <= stars ? 'on' : ''}">★</span>`).join(''));
@@ -1163,7 +1165,7 @@ export class UI {
     if (gold === 0) {
       const need = s.unlockCrests(def);
       (goldBtn.querySelector('.label') as HTMLElement).textContent = 'Unlock';
-      (goldBtn.querySelector('.cost') as HTMLElement).textContent = need === null ? 'Special event' : `${Math.min(s.crests[def.id] ?? 0, need)}/${need} Crests`;
+      (goldBtn.querySelector('.cost') as HTMLElement).textContent = medalCount(def, Math.min(crests, need), need);
       goldBtn.disabled = !s.canUnlock(def);
     } else {
       (goldBtn.querySelector('.label') as HTMLElement).textContent = `Level +${shown.levels}`;
@@ -1199,11 +1201,15 @@ export class UI {
     }
 
     const next = s.evolveCost(id);
-    $('sheet-crests').textContent = next === null ? `Max stars · ${s.legendaryMedals} Legendary medals` : `${crests} / ${next} for ${stars + 2}★`;
+    $('sheet-crest-label').textContent = legendary ? 'Legendary medals' : 'Hero Crests';
+    $('sheet-crests').textContent = next === null ? (legendary ? 'Max stars' : `Max stars · ${s.legendaryMedals} Legendary medals`) : `${crests} / ${next} for ${stars + 2}★`;
+    $('sheet-crest-note').textContent = legendary ? LEGENDARY_HOW : next === null
+      ? `Every ${LEGENDARY_MEDAL_RATE} more medals this hero gets become 1 Legendary medal, spent on Legendary heroes in the Collection.`
+      : 'Hero Chests give copies of heroes as Hero Crests. Spend Crests to evolve: each star multiplies all stats by 1.5 and unlocks something new.';
     $('sheet-crest-fill').style.width = next === null ? '100%' : `${Math.min(100, (crests / next) * 100)}%`;
     const evolve = $<HTMLButtonElement>('sheet-evolve');
     evolve.hidden = next === null || crests < next || gold === 0;
-    evolve.textContent = `Evolve to ${stars + 2}★ (${next} Crests)`;
+    evolve.textContent = `Evolve to ${stars + 2}★ (${next} ${legendary ? 'Legendary medals' : 'Crests'})`;
     const moteCost = s.awakenCost(id);
     const block = s.awakenBlock(id);
     $('sheet-starmotes').textContent = moteCost === null ? `${s.starmotes} · Max pink stars` : `${s.starmotes} / ${moteCost} for pink ${pink + 1}★`;
@@ -2236,7 +2242,7 @@ export class UI {
       const pinkCount = s.awaken[r.def.id] ?? 0;
       setHtml(r.stars, locked ? '' : `${'★'.repeat(starCount + 1)}${pinkCount ? `<span class="pink-mini">★${pinkCount}</span>` : ''}`);
       const evolveCost = s.evolveCost(r.def.id);
-      const canEvolve = !locked && evolveCost !== null && (s.crests[r.def.id] ?? 0) >= evolveCost;
+      const canEvolve = !locked && evolveCost !== null && s.medalsFor(r.def.id) >= evolveCost;
       const benched = !locked && !s.inLineup(r.def.id);
       r.root.classList.toggle('benched', benched);
       r.ember.textContent = benched ? '· Benched' : canEvolve ? '· Ready to evolve!' : s.embers >= emberCost(emberLevel) ? '· Embers ready' : '';
@@ -2255,7 +2261,7 @@ export class UI {
       }
       if (locked) {
         const need = s.unlockCrests(r.def);
-        r.cost.textContent = need === null ? 'Special event' : `${Math.min(s.crests[r.def.id] ?? 0, need)}/${need} Crests`;
+        r.cost.textContent = medalCount(r.def, Math.min(s.medalsFor(r.def.id), need), need);
         r.button.disabled = !s.canUnlock(r.def);
         if (s.canUnlock(r.def)) heroesBadge = true;
       } else {
@@ -2334,6 +2340,14 @@ function cap(s: string) {
 }
 
 /** Bold, color-coded rarity label shown under a hero's name. */
+/** How Legendary heroes are earned, shown in the Collection and on their hero page. */
+const LEGENDARY_HOW = `Legendary heroes never drop. An 8★ hero turns every ${LEGENDARY_MEDAL_RATE} extra medals into 1 Legendary medal; spend them on any Legendary hero: ${LEGENDARY_UNLOCK_MEDALS} to unlock, then more for each star.`;
+
+/** "12/30 Crests", or Legendary medals for Legendary heroes. */
+function medalCount(def: HeroDef, have: number, need: number) {
+  return `${have}/${need} ${def.rarity === 'legendary' ? 'Legendary' : 'Crests'}`;
+}
+
 function rarityTag(def: HeroDef) {
   return `<b class="rarity r-${def.rarity}">${cap(def.rarity)}</b>`;
 }

@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Decimal from 'break_infinity.js';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS } from '../src/profiles';
-import { GameState, rarityOdds, weekKey } from '../src/state';
+import { GameState, rarityOdds, weekKey, SHOP_HEROES } from '../src/state';
 import { emberBulk, emberCost, emberRefund } from '../src/formulas';
 import { mulEffect } from '../src/skills';
 import {
-  HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, AURA_EVOLUTIONS, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOTS_MAX, ULT_SLOT_COSTS,
+  HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, AURA_EVOLUTIONS, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOTS_MAX, ULT_SLOT_COSTS,
   TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_MIN_PUSH, ROAD_START, ROAD_STEP, RELICS, RELIC_SETS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, TRIAL_QUICK_TIME, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL, bossWeakness,
 } from '../src/data';
 
@@ -238,6 +238,44 @@ describe('medals, unlocks and evolution', () => {
     // Leftover medals at max stars became Legendary medals.
     expect(s.legendaryMedals).toBe(Math.floor(25 / LEGENDARY_MEDAL_RATE));
     expect(s.crests[starter.id]).toBe(25 % LEGENDARY_MEDAL_RATE);
+  });
+
+  it('Legendary heroes unlock and gain stars only from the shared Legendary medal pool', () => {
+    const s = fresh();
+    const legends = HEROES.filter((h) => h.rarity === 'legendary');
+    expect(legends.length).toBeGreaterThan(1);
+    const [a, b] = legends;
+    expect(s.unlockCrests(a)).toBe(LEGENDARY_UNLOCK_MEDALS);
+    // Their own medals don't count, only Legendary medals do.
+    s.crests[a.id] = 1e6;
+    expect(s.canUnlock(a)).toBe(false);
+    s.crests[a.id] = 0;
+    // An 8★ hero's extra medals feed the pool.
+    s.stars[starter.id] = MAX_STARS;
+    s.addCrests(starter.id, (LEGENDARY_UNLOCK_MEDALS + LEGENDARY_STAR_MEDALS[0]) * LEGENDARY_MEDAL_RATE);
+    expect(s.legendaryMedals).toBe(LEGENDARY_UNLOCK_MEDALS + LEGENDARY_STAR_MEDALS[0]);
+    // The player picks which Legendary gets them; both draw on the same pool.
+    expect(s.canUnlock(a)).toBe(true);
+    expect(s.canUnlock(b)).toBe(true);
+    expect(s.unlockHero(a.id)).toBe(true);
+    expect(s.levels[a.id]).toBe(1);
+    expect(s.legendaryMedals).toBe(LEGENDARY_STAR_MEDALS[0]);
+    expect(s.canUnlock(b)).toBe(false);
+    expect(s.evolveCost(a.id)).toBe(LEGENDARY_STAR_MEDALS[0]);
+    expect(s.evolvable().map((h) => h.id)).toContain(a.id);
+    expect(s.evolve(a.id)).toBe(true);
+    expect(s.stars[a.id]).toBe(1);
+    expect(s.legendaryMedals).toBe(0);
+    expect(s.evolve(a.id)).toBe(false);
+  });
+
+  it('nothing hands out Legendary hero medals: chests, Trials or the Hero Shop', () => {
+    const s = fresh();
+    const legends = new Set(HEROES.filter((h) => h.rarity === 'legendary').map((h) => h.id));
+    s.gems = CHEST_COST * 200;
+    for (let i = 0; i < 200; i++) for (const d of s.summon()!) expect(legends.has(d.heroId)).toBe(false);
+    expect(SHOP_HEROES.some((h) => legends.has(h.id))).toBe(false);
+    for (const id of legends) expect(s.crests[id] ?? 0).toBe(0);
   });
 
   it('each star multiplies stats by 1.5, and 7★ adds the Type Mastery', () => {

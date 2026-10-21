@@ -245,10 +245,10 @@
         </section>
         <section class="sheet-section">
           <h3>Evolution</h3>
-          <div class="crest-row"><span>Hero Crests</span><span id="sheet-crests"></span></div>
+          <div class="crest-row"><span id="sheet-crest-label">Hero Crests</span><span id="sheet-crests"></span></div>
           <div class="crest-bar"><div id="sheet-crest-fill"></div></div>
           <button id="sheet-evolve" class="hot evolve" hidden>Evolve</button>
-          <p class="meta">Hero Chests give copies of heroes as Hero Crests. Spend Crests to evolve: each star multiplies all stats by 1.5 and unlocks something new.</p>
+          <p id="sheet-crest-note" class="meta"></p>
           <ul id="sheet-unlocks" class="abilities"></ul>
         </section>
         <section class="sheet-section">
@@ -263,6 +263,7 @@
     <div id="coll" hidden>
       <div class="coll-page" role="dialog" aria-modal="true" aria-labelledby="coll-title">
         <header class="coll-head"><button id="coll-back" class="wood-btn coll-back" aria-label="Back">&#x2190;</button><h2 id="coll-title">Collection</h2><span id="coll-count"></span></header>
+        <p id="coll-legend" class="coll-legend"></p>
         <div id="coll-body" class="coll-body"></div>
       </div>
     </div>
