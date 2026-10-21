@@ -9,6 +9,8 @@ import { isKnight, combatPower, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
 import { PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_TICKET_GEMS, PVP_TICKET_BUYS, PVP_REFRESH_MINUTES, PVP_CP_MIN, PVP_CP_MAX, PVP_REAL_MIN, PVP_REAL_MAX, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_FIRST_WIN_MOTES, PVP_STREAK_DMG, PVP_STREAK_MAX, RANK_PRESSURE, RANK_DAILY, RANK_WEEKLY, rankIndex, rankName, droppedTrophies, seededRandom, ghostName, simulatePvp, type PvpUnit, type PvpResult } from './colosseum';
 import { TUTORIAL_DONE, TIP_IDS } from './tutorialSteps';
+import { ascendBlocker, clampForm, type AscendBlocker } from './ascendant';
+import { ascendantDef } from './heroes/ascendant';
 
 const SAVE_KEY = 'hordefall-save-v1';
 
@@ -317,6 +319,13 @@ export class GameState {
   guildResearch: Partial<Record<ResearchBranch, number>> = {};
   /** Legendary medals, made by 8★ heroes from extra medals; any Legendary hero spends them to unlock and gain stars. */
   legendaryMedals = 0;
+  /** Ascendant heroes' forms (src/ascendant.ts): 0 = Common up to 3 = Legendary. Missing = Common; a form never goes down. */
+  forms: Record<string, number> = {};
+  /**
+   * Save fields this version of the game doesn't know (written by a newer version on another device). They are
+   * written back untouched, so an older copy of the game never drops progress it can't read.
+   */
+  private unknownFields: SaveData = {};
   /** Market Row's own buy amount, separate from the heroes'. */
   stallBuyAmount: 1 | 10 | 'max' = 1;
   /** Smoothed gold per second and seconds per stage, used for offline earnings. */
@@ -857,6 +866,38 @@ export class GameState {
       done.push({ id: h.id, from, to: this.stars[h.id] ?? 0 });
     }
     return done;
+  }
+
+  /** An Ascendant hero's form (0 = Common). */
+  formOf(id: string): number {
+    return clampForm(this.forms[id]);
+  }
+
+  /** Why an Ascendant hero can't take its next form yet, or null when it can. */
+  ascendBlocker(id: string): AscendBlocker | null {
+    const def = ascendantDef(id);
+    return ascendBlocker(def, {
+      form: this.formOf(id),
+      recruited: (this.levels[id] ?? 0) > 0,
+      evolutions: this.stars[id] ?? 0,
+      trialTier: def ? this.trialBest[def.base.element] ?? 0 : 0,
+      bestStage: this.bestStage,
+      essence: def ? this.essences[def.base.element] ?? 0 : 0,
+      stones: this.enhanceStones,
+    });
+  }
+
+  /** Take an Ascendant hero to its next form. Checks everything first, so a failed try spends nothing. Permanent. */
+  ascend(id: string): boolean {
+    const def = ascendantDef(id);
+    if (!def || this.ascendBlocker(id) !== null) return false;
+    const form = this.formOf(id);
+    const step = def.steps[form];
+    this.essences[def.base.element] -= step.essence;
+    this.enhanceStones -= step.stones;
+    this.forms[id] = form + 1;
+    this.save();
+    return true;
   }
 
   /** Awakening opens at player level AWAKEN_UNLOCK_LEVEL. */
@@ -2390,6 +2431,7 @@ export class GameState {
   /** Everything a save holds, as plain JSON (also what goes to the cloud). */
   toJSON(): SaveData {
     return {
+      ...this.unknownFields,
       gold: this.gold.toString(),
       stage: this.stage,
       bestStage: this.bestStage,
@@ -2457,6 +2499,7 @@ export class GameState {
       relicShop: this.relicShop,
       legendaryMedals: this.legendaryMedals,
       rarityMix: 1,
+      forms: { ...this.forms },
       goldPerSec: this.goldPerSec,
       secondsPerStage: this.secondsPerStage,
       lastSeen: this.lastSeen,
@@ -2617,12 +2660,17 @@ export class GameState {
       this.ultPicks = heroIds(d.ultPicks);
       this.ultSkip = heroIds(d.ultSkip);
       this.legendaryMedals = d.legendaryMedals ?? 0;
+      this.forms = d.forms && typeof d.forms === 'object' ? { ...d.forms } : {};
       if (!d.rarityMix) this.unlockRaisedRarity();
       this.equipped = (d.equipped ?? []).filter((id: string) => this.relics[id]).slice(0, this.relicSlots);
       this.goldPerSec = d.goldPerSec ?? 0;
       this.secondsPerStage = d.secondsPerStage ?? 20;
       this.lastSeen = d.lastSeen ?? Date.now();
       this.sanitize();
+      // Keep whatever this version doesn't know (rev belongs to the cloud copy, not the device save).
+      this.unknownFields = {};
+      const known = new Set(Object.keys(this.toJSON()));
+      this.unknownFields = Object.fromEntries(Object.entries(d).filter(([k]) => !known.has(k) && k !== 'rev'));
       return true;
     } catch {
       // Keep the unreadable save aside so it can be recovered, instead of being overwritten by a fresh game.
@@ -2639,6 +2687,10 @@ export class GameState {
   private sanitize() {
     const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
     if (!this.gold || Number.isNaN(this.gold.mantissa) || this.gold.lt(0)) this.gold = new Decimal(0);
+    for (const [id, v] of Object.entries(this.forms)) {
+      if (typeof v === 'number' && Number.isFinite(v)) this.forms[id] = clampForm(v);
+      else delete this.forms[id];
+    }
     this.stage = Math.max(1, Math.floor(num(this.stage, 1)));
     this.bestStage = Math.max(this.stage, Math.floor(num(this.bestStage, this.stage)));
     this.runBestStage = Math.max(this.stage, Math.floor(num(this.runBestStage, this.stage)));

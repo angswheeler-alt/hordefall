@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { HEROES, TYPE_MASTERY, RELICS, RELIC_SETS, STALLS } from '../src/data';
+import { ASCENDANT_HEROES } from '../src/heroes/ascendant';
 
 /**
  * Hero and skill names already used by another game, which ours must never reuse. They are stored as the first
@@ -67,6 +68,11 @@ const RESERVED = new Set([
   'f46305b60242', 'f478f91c92f4', 'f50342faa9f4', 'f680777a0ffd', 'f8d2edad920b', 'f994b56b430e',
   'fa3c0c487282', 'fb27427ec2fd', 'fb49b737c8c5', 'fc364ba43d7a', 'fdcaab0d757c', 'fe46ff8be472',
   'fed1bf7579c8',
+  // Characters and forms behind the Ascendant hero ideas (2026-10-21): their names and form names stay out of the game.
+  '4de30fcd7e7d', 'd42a45bece99', '9d1e122855ee', 'da00a7000e44', 'd7aa1fe2c3da', 'd56d84e81640', '204e9487da31',
+  '18bc64ef4ede', '81cc336187cc', '2b196bb0b2ec', 'c4fd527eda72', '622a3addca2a', '5d9e1c5828a7', '07e69676f1ba',
+  'bea420b2f43d', '7910af0325cd', '43c9d997f68e', 'eb2af329c8d9', '9041324a9605', '8e2ae3c00c14', '1a7bdf2074f2',
+  '8b694aa36e41', 'fbade77f5bf7',
 ]);
 async function key(name: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(name.trim().toLowerCase()));
@@ -79,6 +85,13 @@ describe('original names', () => {
     for (const h of HEROES) {
       names.push(h.name);
       for (const s of [h.basic, h.ultimate, h.trait, h.sp1, h.sp2, h.aura]) if (s) names.push(s.name);
+    }
+    for (const a of ASCENDANT_HEROES) {
+      for (const f of [a.base, ...a.forms]) {
+        if ('name' in f) names.push(f.name);
+        if ('formName' in f) names.push(f.formName);
+        for (const s of [f.basic, f.ultimate, f.trait, f.sp1, f.sp2, f.aura]) if (s) names.push(s.name);
+      }
     }
     for (const m of Object.values(TYPE_MASTERY)) names.push(m.name);
     for (const r of RELICS) names.push(r.name);
