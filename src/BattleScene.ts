@@ -275,6 +275,10 @@ interface TrialFight {
   hits: number;
   done: boolean;
   onEnd: (won: boolean, seconds: number) => void;
+  /** Damage dealt, taken and healed by each hero (by hero id), for the battle meter. */
+  meter: Map<string, PvpMeterRow>;
+  /** The same totals for the boss. */
+  foeMeter: PvpMeterRow;
 }
 
 /** One opponent hero in a Colosseum battle, with its stats worked out by GameState. */
@@ -1046,14 +1050,15 @@ export class BattleScene extends Phaser.Scene {
     return !!this.pvp;
   }
 
-  /** The battle meter of the current (or just finished) Colosseum battle: the player's fighters, then the foes' totals. */
-  pvpMeter(): { mine: PvpMeterRow[]; foes: PvpMeterRow } | null {
-    return this.pvp ? { mine: [...this.pvp.meter.values()], foes: this.pvp.foeMeter } : null;
+  /** The battle meter of the current (or just finished) Colosseum battle or Trial: the player's fighters, then the foes' totals. */
+  battleMeter(): { mine: PvpMeterRow[]; foes: PvpMeterRow; trial: boolean } | null {
+    const p = this.pvp ?? this.trial;
+    return p ? { mine: [...p.meter.values()], foes: p.foeMeter, trial: !!this.trial } : null;
   }
 
-  /** Count damage or healing on the Colosseum meter: `unit` is who did (or took) it. */
+  /** Count damage or healing on the Colosseum or Trial meter: `unit` is who did (or took) it. */
   private meter(unit: Unit | null | undefined, kind: 'dealt' | 'taken' | 'healed', amount: Decimal) {
-    const p = this.pvp;
+    const p = this.pvp ?? this.trial;
     if (!p || p.done || !unit || amount.lte(0)) return;
     const row = unit.side === 'hero' ? (unit.def ? p.meter.get(unit.def.id) : undefined) : p.foeMeter;
     if (row) row[kind] = row[kind].plus(amount);
@@ -1216,7 +1221,8 @@ export class BattleScene extends Phaser.Scene {
     if (this.trial) return;
     this.nextStageTimer?.remove();
     this.nextStageTimer = undefined;
-    this.trial = { element, tier, timeLeft: TRIAL_TIME, fought: 0, hits: 0, done: false, onEnd };
+    const trial: TrialFight = { element, tier, timeLeft: TRIAL_TIME, fought: 0, hits: 0, done: false, onEnd, meter: new Map(), foeMeter: meterRow('boss') };
+    this.trial = trial;
     for (const p of this.crystalParts) (p as unknown as Phaser.GameObjects.Components.Visible).setVisible(false);
     // Rebuild the heroes at their Trial levels; they keep their Ultimate cooldowns.
     const ults = new Map(this.heroes.map((h) => [h.def?.id, h.ultReadyAt]));
@@ -1224,6 +1230,7 @@ export class BattleScene extends Phaser.Scene {
     this.heroes = [];
     this.syncHeroes();
     for (const h of this.heroes) h.ultReadyAt = ults.get(h.def?.id) ?? 0;
+    for (const h of this.heroes) if (h.def) trial.meter.set(h.def.id, meterRow(h.def.id));
     for (const e of this.enemies) e.view.destroy();
     this.enemies = [];
     for (const z of this.zones) z.view.destroy();

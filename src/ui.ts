@@ -1734,10 +1734,10 @@ export class UI {
     });
   }
 
-  /** The battle meter under the Colosseum lane: damage dealt, taken and healed by each fighter so far. */
+  /** The battle meter under the Colosseum or Trial lane: damage dealt, taken and healed by each fighter so far. */
   private renderPvpMeter() {
     const box = $('pvp-meter');
-    const m = this.scene()?.pvpMeter() ?? null;
+    const m = this.scene()?.battleMeter() ?? null;
     box.hidden = !m;
     if (!m) return;
     const kinds = [
@@ -1758,7 +1758,7 @@ export class UI {
     const sum = (k: (typeof kinds)[number][0]) => m.mine.reduce((x, r) => x.plus(r[k]), new Decimal(0));
     const html = `<div class="pm-head"><span></span><span></span>${kinds.map(([, n]) => `<span>${n}</span>`).join('')}</div>${rows}
       <div class="pm-total"><span>Your team</span>${kinds.map(([k]) => `<span class="${k}">${fmt(sum(k))}</span>`).join('')}</div>
-      <div class="pm-total foes"><span>Their team</span>${kinds.map(([k]) => `<span class="${k}">${fmt(m.foes[k])}</span>`).join('')}</div>`;
+      <div class="pm-total foes"><span>${m.trial ? 'Boss' : 'Their team'}</span>${kinds.map(([k]) => `<span class="${k}">${fmt(m.foes[k])}</span>`).join('')}</div>`;
     if (box.innerHTML !== html) box.innerHTML = html;
   }
 
