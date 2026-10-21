@@ -2,7 +2,7 @@ import { DEV_TOOLS } from './config';
 import Decimal from 'break_infinity.js';
 import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
@@ -11,7 +11,7 @@ import { BOSS_ANIMS, BOSS_ANIM_FRAMES } from './bossAnims';
 import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberRefund, emberBulk, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
 import type { GameState, OfflineReport, SummonDrop, RekindleResult, TrialResult } from './state';
 import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, BOOTCAMP, MILESTONE_STEP, milestoneReward, milestoneText, rewardText, type Reward } from './rewards';
-import { rarityOdds } from './state';
+import { rarityOdds, SHOP_HEROES } from './state';
 import type { BattleScene } from './BattleScene';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -816,6 +816,30 @@ export class UI {
       play('coin');
       this.render();
     });
+    for (const n of [1, 5]) {
+      $(`gs-ticket${n}`).addEventListener('click', () => {
+        if (!this.state.buyTickets(n)) return;
+        play('coin');
+        this.render();
+      });
+    }
+    $('hs-refresh').addEventListener('click', () => {
+      if (!this.state.refreshHeroShopEarly()) return;
+      play('unlock');
+      this.render();
+    });
+    $('hs-pack').addEventListener('click', () => this.pickMedalPack());
+    $('rewards').addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-hs]');
+      if (!btn || btn.disabled) return;
+      const [kind, arg] = btn.dataset.hs!.split(':');
+      const drops = kind === 'offer' ? this.state.buyHeroShopOffer(Number(arg)) : this.state.buyFeatured(arg as 'small' | 'big');
+      if (!drops) return;
+      play('chest');
+      this.scene()?.syncHeroes();
+      this.showModal('Hero Shop', `${dropCards(drops)}Bought with Gems.`, 'Collect');
+      this.render();
+    });
     $('gs-boost').addEventListener('click', () => {
       if (!this.state.buyGoldBoost()) return;
       play('unlock');
@@ -1573,6 +1597,74 @@ export class UI {
     row.li.classList.toggle('done', state === 'done');
   }
 
+  /** Medal pack: pick any hero (not Legendary), then confirm. */
+  private pickMedalPack() {
+    const s = this.state;
+    const faces = SHOP_HEROES.map((h) => {
+      const owned = (s.levels[h.id] ?? 0) > 0;
+      return `<button type="button" class="g-pick" data-hero="${h.id}"><span class="face art" style="${faceStyle(h)}">${h.name[0]}</span><b>${h.name}</b><small>${owned ? cap(h.rarity) : `Locked · ${cap(h.rarity)}`}</small></button>`;
+    }).join('');
+    this.showModal(
+      'Medal pack',
+      `<p>${MEDAL_PACK.medals} medals for the hero you pick, ${MEDAL_PACK.gems} Gems. You have ${s.gems.toLocaleString()} Gems.</p><div class="g-picks">${faces}</div>`,
+      'Cancel',
+    );
+    $('modal-body').querySelectorAll<HTMLButtonElement>('.g-pick').forEach((btn) =>
+      btn.addEventListener('click', () => {
+        const h = HEROES.find((x) => x.id === btn.dataset.hero)!;
+        const afford = s.gems >= MEDAL_PACK.gems;
+        this.showModal(
+          `Medals for ${h.name}`,
+          `<p>${MEDAL_PACK.medals} ${h.name} medals for ${MEDAL_PACK.gems} Gems. You have ${s.gems.toLocaleString()}${afford ? '' : `, ${MEDAL_PACK.gems - s.gems} short`}.</p>`,
+          afford ? `Buy · ${MEDAL_PACK.gems} Gems` : 'Okay',
+          afford
+            ? () => {
+                const drops = s.buyMedalPack(h.id);
+                if (!drops) return;
+                play('chest');
+                this.scene()?.syncHeroes();
+                this.showModal('Medal pack', `${dropCards(drops)}Bought with Gems.`, 'Collect');
+                this.render();
+              }
+            : null,
+          afford,
+          'Cancel',
+        );
+      }),
+    );
+  }
+
+  /** The Hero Shop card: this week's featured hero, the rotating offers and the medal pack button. */
+  private renderHeroShop(now: number) {
+    const s = this.state;
+    const gems = s.gems;
+    const face = (h: HeroDef) => `<span class="face art" style="${faceStyle(h)}">${h.name[0]}</span>`;
+    const f = s.featuredState(now);
+    const bundle = (kind: 'small' | 'big', b: { medals: number; gems: number }, label: string) =>
+      `<button type="button" class="gem-btn" data-hs="featured:${kind}" ${f[kind] || gems < b.gems ? 'disabled' : ''}>${f[kind] ? 'Bought' : `${label} · ${b.medals} medals<small>${b.gems} Gems</small>`}</button>`;
+    setHtml(
+      $('hs-featured'),
+      `${face(f.hero)}<div class="hs-feat-text"><b>Featured: ${f.hero.name}</b><small>${cap(f.hero.rarity)} · ${cap(f.hero.element)}. A new hero every Monday; every hero comes back in turn.</small></div>
+      <div class="hs-feat-buy">${bundle('small', FEATURED_BUNDLE, 'Bundle')}${f.bigWeek ? bundle('big', FEATURED_BIG_BUNDLE, 'Big bundle') : ''}</div>`,
+    );
+    const shop = s.heroShopState(now);
+    setHtml(
+      $('hs-offers'),
+      shop.offers
+        .map((o, i) => {
+          const h = HEROES.find((x) => x.id === o.heroId)!;
+          return `<div class="g-offer${o.bought ? ' done' : ''}">${face(h)}<b>${h.name}</b><small>${o.medals} medals</small><button type="button" class="gem-btn" data-hs="offer:${i}" ${o.bought || gems < o.gems ? 'disabled' : ''}>${o.bought ? 'Bought' : `${o.gems} <span class="gem"></span>`}</button></div>`;
+        })
+        .join(''),
+    );
+    const mins = Math.max(1, Math.ceil(shop.refreshIn / 60_000));
+    $('hs-note').textContent = `new heroes in ${mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`}`;
+    const rf = $<HTMLButtonElement>('hs-refresh');
+    rf.disabled = gems < HERO_SHOP_REFRESH_GEMS;
+    setHtml(rf, `Refresh now · ${HERO_SHOP_REFRESH_GEMS} <span class="gem"></span>`);
+    setHtml($('hs-pack'), `Pick a hero · ${MEDAL_PACK.medals} medals for ${MEDAL_PACK.gems} <span class="gem"></span>`);
+  }
+
   /** The Gem Shop rows: what each costs, what it gives and whether it can be bought now. */
   private renderGemShop(now: number) {
     const s = this.state;
@@ -1586,12 +1678,20 @@ export class UI {
     const gb = $<HTMLButtonElement>('gs-boost');
     gb.disabled = !s.goldBoostReady(now);
     setHtml(gb, `${GOLD_BOOST_GEMS} <span class="gem"></span>`);
+    const can = s.ticketsBuyable(now);
+    $('gs-tickets-note').textContent = `${TICKET_GEMS} Gems each, up to the ${TICKET_CAP} cap. ${s.ticketBuysLeft(now)}/${TICKETS_PER_DAY} left today. You have ${s.tickets}.`;
+    for (const n of [1, 5]) {
+      const b = $<HTMLButtonElement>(`gs-ticket${n}`);
+      b.disabled = can < n;
+      setHtml(b, `x${n} · ${n * TICKET_GEMS} <span class="gem"></span>`);
+    }
   }
 
   private renderRewards() {
     const s = this.state;
     const now = Date.now();
     this.renderGemShop(now);
+    this.renderHeroShop(now);
     const short = (v: number) => (v >= 1e4 ? fmt(v) : v.toLocaleString());
 
     const login = s.loginState(now);

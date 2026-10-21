@@ -504,6 +504,14 @@ i.stone { display: inline-block; width: 12px; height: 12px; background: linear-g
 .rw-text small { font-size: 11px; color: #e8d3b0; }
 .rw-bar { height: 6px; background: rgba(0,0,0,.35); border-radius: 99px; overflow: hidden; }
 .rw-bar i { display: block; height: 100%; background: var(--gold); }
+.hs-featured { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; background: #0003; border-radius: 8px; padding: 8px; margin-bottom: 8px; }
+.hs-featured .face { width: 48px; height: 48px; border-radius: 10px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; flex: none; }
+.hs-feat-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hs-feat-text small { opacity: .8; }
+.hs-feat-buy { display: flex; gap: 6px; width: 100%; }
+.hs-feat-buy button { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 6px 4px; }
+.hs-actions { display: flex; gap: 6px; margin-top: 8px; }
+.hs-actions button { flex: 1; padding: 8px 4px; }
 .gem-shop li > div { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .gem-shop small { opacity: .8; }
 .rw-list button { flex: none; min-width: 72px; min-height: 36px; }
