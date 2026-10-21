@@ -827,9 +827,6 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .pvp-foe { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: rgba(0,0,0,.25); border: 2px solid var(--wood-deep); border-radius: 10px; padding: 6px 8px; color: #fff4dd; }
 .pvp-foe .who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .pvp-foe .faces, .pvp-team .faces { display: flex; gap: 3px; flex-wrap: wrap; }
-.pvp-tag { font-size: 10px; font-weight: 800; padding: 1px 5px; border-radius: 6px; background: #5b4f86; color: #e8e2ff; margin-left: 4px; }
-.pvp-band { font-size: 11px; font-weight: 800; padding: 1px 6px; border-radius: 6px; }
-.pvp-band.b0 { background: #2f7a3a; } .pvp-band.b1 { background: #8a6a1d; } .pvp-band.b2 { background: #8a2b2b; }
 .pvp-pay { font-size: 12px; text-align: right; white-space: nowrap; color: #ffe9c4; }
 .pvp-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .pvp-team { display: flex; flex-direction: column; gap: 4px; }
@@ -837,7 +834,6 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .pvp-pick button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px; background: rgba(0,0,0,.25); border: 2px solid var(--wood-deep); border-radius: 8px; color: #fff4dd; font-size: 11px; }
 .pvp-pick button.on { border-color: #ffd84a; background: rgba(255,216,74,.18); }
 .pvp-forecast.win { color: #9effa8; } .pvp-forecast.close { color: #ffe066; } .pvp-forecast.lose { color: #ff8a8a; }
-.pvp-tag.real { background: #2f6e9a; color: #e6f6ff; }
 .pvp-list { margin: 4px 0 10px; padding-left: 20px; text-align: left; font-size: 13px; max-height: 30vh; overflow: auto; }
 .pvp-list li.me { color: #ffd84a; font-weight: 800; }
 

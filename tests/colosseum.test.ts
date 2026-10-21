@@ -4,7 +4,7 @@ import { GameState, cleanSnapHero, type PvpCandidate } from '../src/state';
 import { HEROES, AWAKEN_UNLOCK_LEVEL } from '../src/data';
 import { keeperThreshold } from '../src/formulas';
 import {
-  RANK_TROPHIES, RANK_DAILY, RANK_WEEKLY, LEGEND, PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_BANDS, PVP_LOSS_TROPHIES, PVP_FIRST_WIN_MOTES,
+  RANK_TROPHIES, RANK_DAILY, RANK_WEEKLY, LEGEND, PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_CP_MIN, PVP_CP_MAX, PVP_LOSS_TROPHIES, PVP_FIRST_WIN_MOTES,
   rankIndex, rankName, droppedTrophies, seededRandom, simulatePvp, type PvpUnit,
 } from '../src/colosseum';
 
@@ -49,12 +49,9 @@ describe('Colosseum ranks', () => {
 });
 
 describe('Colosseum rewards', () => {
-  it('make every choice cost trophies unless it is won at least a third of the time', () => {
-    // Expected trophies per win rate p: win * p - loss * (1 - p). Even Stronger must be won a third of the time to gain.
-    for (const b of PVP_BANDS) {
-      const breakEven = PVP_LOSS_TROPHIES / (b.win + PVP_LOSS_TROPHIES);
-      expect(breakEven).toBeGreaterThanOrEqual(1 / 3);
-    }
+  it('only gain trophies by winning at least 40% of fights', () => {
+    // Expected trophies at win rate p: win * p - loss * (1 - p).
+    expect(PVP_LOSS_TROPHIES / (PVP_WIN_TROPHIES + PVP_LOSS_TROPHIES)).toBeGreaterThanOrEqual(0.4);
   });
 
   it('pay the daily reward for the rank held, and the weekly one plus the drop on Monday', () => {
@@ -90,7 +87,7 @@ describe('Colosseum tickets and fights', () => {
     expect(s.pvp.tickets).toBe(PVP_TICKET_CAP);
   });
 
-  it('build the same Ghosts from the same seed, near the target CP', () => {
+  it('build the same three opponents from the same seed, at a random share of the player\'s power', () => {
     const a = opened();
     const b = opened();
     a.rollPvpOpponents(WED);
@@ -98,26 +95,26 @@ describe('Colosseum tickets and fights', () => {
     expect(a.pvp.picks).toEqual(b.pvp.picks);
     expect(a.pvp.picks).toHaveLength(3);
     const mine = a.teamCpOf(a.pvpAttackTeam()).toNumber();
-    const cps = a.pvp.picks.map((p) => Number(p.cp));
-    // Weaker < Even < Stronger, each within reach of its band.
-    expect(cps[0]).toBeLessThan(cps[2]);
-    PVP_BANDS.forEach((band, i) => expect(Math.abs(cps[i] / (mine * band.cp) - 1)).toBeLessThan(0.02));
-    expect(cps[0]).toBeLessThan(cps[1]);
-    expect(cps[1]).toBeLessThan(cps[2]);
+    for (const p of a.pvp.picks) {
+      const ratio = Number(p.cp) / mine;
+      expect(ratio).toBeGreaterThan(PVP_CP_MIN * 0.98);
+      expect(ratio).toBeLessThan(PVP_CP_MAX * 1.02);
+    }
     expect(a.pvp.picks.every((p) => p.ghost && p.heroes.length === a.pvpAttackTeam().length)).toBe(true);
+    // Bot names look like usernames and never say "Ghost".
+    expect(a.pvp.picks.every((p) => p.name.length > 2 && !/ghost/i.test(p.name))).toBe(true);
   });
 
   it('pay trophies and Starmotes for a win, with the first-win bonus once a day', () => {
     const s = opened();
     s.rollPvpOpponents(WED);
-    const band = PVP_BANDS[s.pvp.picks[1].band];
     expect(s.startPvp(1, WED)).not.toBeNull();
     expect(s.pvp.tickets).toBe(PVP_TICKET_CAP - 1);
     expect(s.skillTeam?.has(starter.id)).toBe(true);
     const r = s.finishPvp(true, WED)!;
     expect(s.skillTeam).toBeNull();
-    expect(r.trophies).toBe(band.win);
-    expect(r.starmotes).toBe(band.motes + PVP_FIRST_WIN_MOTES);
+    expect(r.trophies).toBe(PVP_WIN_TROPHIES);
+    expect(r.starmotes).toBe(PVP_WIN_MOTES + PVP_FIRST_WIN_MOTES);
     expect(s.pvp.streak).toBe(1);
     expect(s.pvp.picks).toEqual([]); // new opponents are fetched next
     s.rollPvpOpponents(WED);
@@ -210,13 +207,13 @@ describe('Colosseum real opponents', () => {
     expect(snap.p_cp_log).toBeGreaterThan(0);
   });
 
-  it('fill a band with a real player whose CP fits, Ghosts elsewhere', () => {
+  it('mix in real players near the player\'s power, bots for the rest', () => {
     const s = opened();
     s.rollPvpOpponents(WED, [snapOf(s, 1.0), snapOf(s, 3)]);
-    expect(s.pvp.picks[1].ghost).toBe(false);
-    expect(s.pvp.picks[1].userId).toBe('u1');
-    expect(s.pvp.picks[0].ghost).toBe(true);
-    expect(s.pvp.picks[2].ghost).toBe(true); // 3x is too strong for any band
+    const real = s.pvp.picks.filter((p) => !p.ghost);
+    expect(real).toHaveLength(1); // 3x is too far above the player
+    expect(real[0].userId).toBe('u1');
+    expect(s.pvp.picks).toHaveLength(3);
   });
 
   it('fight a real team with the stats it was saved with', () => {
@@ -224,7 +221,7 @@ describe('Colosseum real opponents', () => {
     const c = snapOf(s, 1);
     c.team[0].atk = '12345';
     s.rollPvpOpponents(WED, [c]);
-    const foe = s.pvpFoeUnits(s.pvp.picks[1]);
+    const foe = s.pvpFoeUnits(s.pvp.picks.find((p) => !p.ghost)!);
     expect(foe[0].stats.atk.value.toString()).toBe('12345');
     expect(foe[0].unit.hp.toString()).toBe(c.team[0].hp);
   });
