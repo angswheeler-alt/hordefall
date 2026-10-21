@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, MILESTONE_STEP, milestoneReward, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
 import { relicCost, bossHp, bossAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES, PLAYABLE_HEROES } from './data';
@@ -157,6 +157,10 @@ export class GameState {
   guildShop: GuildShopState = { day: '', offers: [], pouches: 0, week: '', wild: 0 };
   /** When the guild shop's Gold Banner and War Horn run out (ms). */
   boosts: { banner: number; horn: number } = { banner: 0, horn: 0 };
+  /** When the Gem Shop's Gold Boost runs out (ms). */
+  goldBoostUntil = 0;
+  /** Hourglasses used today (the Gem Shop limits them per day). */
+  hourglasses: { day: string; used: number } = { day: '', used: 0 };
   /** Counts for Guild Quests not yet sent to the server. */
   guildQuestPending = { kills: 0, stages: 0, trials: 0 };
   /** Guild Research ranks of the player's guild, cached from the server (empty outside a guild). */
@@ -1340,6 +1344,42 @@ export class GameState {
     return { coins, drops };
   }
 
+  /** Every gold multiplier from boosts on enemy and floating-chest gold: the guild's Gold Banner and the Gem Shop's Gold Boost. */
+  goldBoostMult(now = Date.now()): number {
+    return this.boostMult('banner', now) * (this.goldBoostUntil > now ? GOLD_BOOST_MULT : 1);
+  }
+
+  /** Hourglasses left to use today. */
+  hourglassesLeft(now = Date.now()): number {
+    return this.hourglasses.day === dayKey(now) ? Math.max(0, HOURGLASS_PER_DAY - this.hourglasses.used) : HOURGLASS_PER_DAY;
+  }
+
+  /** Spend Gems on an Hourglass: HOURGLASS_MINUTES of gold at once. Returns the gold, or null when it can't be bought. */
+  useHourglass(now = Date.now()): Decimal | null {
+    if (this.gems < HOURGLASS_GEMS || this.hourglassesLeft(now) <= 0) return null;
+    const today = dayKey(now);
+    this.hourglasses = { day: today, used: (this.hourglasses.day === today ? this.hourglasses.used : 0) + 1 };
+    this.gems -= HOURGLASS_GEMS;
+    const gold = this.goldFor(HOURGLASS_MINUTES);
+    this.gold = this.gold.plus(gold);
+    this.save();
+    return gold;
+  }
+
+  /** Whether another Gold Boost fits under the cap. */
+  goldBoostReady(now = Date.now()): boolean {
+    return this.gems >= GOLD_BOOST_GEMS && this.goldBoostUntil - now <= (GOLD_BOOST_MAX_MINUTES - GOLD_BOOST_MINUTES) * 60_000 + 1000;
+  }
+
+  /** Spend Gems on GOLD_BOOST_MINUTES more of the Gold Boost (stacks up to GOLD_BOOST_MAX_MINUTES). */
+  buyGoldBoost(now = Date.now()): boolean {
+    if (!this.goldBoostReady(now)) return false;
+    this.gems -= GOLD_BOOST_GEMS;
+    this.goldBoostUntil = Math.min(now + GOLD_BOOST_MAX_MINUTES * 60_000, Math.max(now, this.goldBoostUntil) + GOLD_BOOST_MINUTES * 60_000);
+    this.save();
+    return true;
+  }
+
   /** A guild shop boost's multiplier right now (1 when it isn't running). */
   boostMult(id: 'banner' | 'horn', now = Date.now()): number {
     return this.boosts[id] > now ? 1 + GUILD_BOOSTS[id] : 1;
@@ -1579,6 +1619,8 @@ export class GameState {
       guildShop: this.guildShop,
       guildQuestPending: this.guildQuestPending,
       boosts: this.boosts,
+      goldBoostUntil: this.goldBoostUntil,
+      hourglasses: this.hourglasses,
       guildCredits: this.guildCredits,
       guildResearch: this.guildResearch,
       achieved: this.achieved,
@@ -1695,6 +1737,8 @@ export class GameState {
       const q = d.guildQuestPending;
       if (q && typeof q === 'object') this.guildQuestPending = { kills: Math.max(0, Number(q.kills) || 0), stages: Math.max(0, Number(q.stages) || 0), trials: Math.max(0, Number(q.trials) || 0) };
       if (d.boosts && typeof d.boosts === 'object') this.boosts = { banner: Number(d.boosts.banner) || 0, horn: Number(d.boosts.horn) || 0 };
+      this.goldBoostUntil = Number(d.goldBoostUntil) || 0;
+      if (d.hourglasses && typeof d.hourglasses === 'object') this.hourglasses = { day: String(d.hourglasses.day ?? ''), used: Math.max(0, Number(d.hourglasses.used) || 0) };
       if (d.medalBundle && Array.isArray(d.medalBundle.drops)) {
         const drops = d.medalBundle.drops.filter((x: { heroId?: unknown; crests?: unknown }) => HEROES.some((h) => h.id === x?.heroId) && Number(x.crests) > 0);
         this.medalBundle = { day: String(d.medalBundle.day ?? ''), drops: drops.map((x: { heroId: string; crests: number }) => ({ heroId: x.heroId, crests: Number(x.crests) })), claimed: !!d.medalBundle.claimed };

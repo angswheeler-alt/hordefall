@@ -1743,7 +1743,7 @@ export class BattleScene extends Phaser.Scene {
         .times(this.mul('gold', null))
         .times(1 + this.state.relicBonus('gold'))
         .times(1 + this.state.researchBonus('prosperity'))
-        .times(this.state.boostMult('banner'));
+        .times(this.state.goldBoostMult());
       this.gainGold(gold, u.x, u.y);
       if (u.bossArt) {
         // An animated boss plays its death, then fades.
@@ -1988,7 +1988,7 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: chest, x: -30, duration: 11000, onComplete: remove });
     this.tweens.add({ targets: chest, y: y - 8, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     chest.once('pointerdown', () => {
-      const gold = goldPerKill(this.state.stage).times(kind.killsWorth).times(1 + this.state.relicBonus('gold')).times(1 + this.state.researchBonus('prosperity')).times(this.state.boostMult('banner'));
+      const gold = goldPerKill(this.state.stage).times(kind.killsWorth).times(1 + this.state.relicBonus('gold')).times(1 + this.state.researchBonus('prosperity')).times(this.state.goldBoostMult());
       const wx = chest.x + this.cameras.main.scrollX;
       this.gainGold(gold, wx, chest.y + 10);
       this.shatter(wx, chest.y, 0xffe066);

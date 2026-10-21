@@ -2,7 +2,7 @@ import { DEV_TOOLS } from './config';
 import Decimal from 'break_infinity.js';
 import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
@@ -810,6 +810,17 @@ export class UI {
     });
 
     $('summon').addEventListener('click', () => this.confirmChest());
+    $('gs-hourglass').addEventListener('click', () => {
+      const gold = this.state.useHourglass();
+      if (!gold) return;
+      play('coin');
+      this.render();
+    });
+    $('gs-boost').addEventListener('click', () => {
+      if (!this.state.buyGoldBoost()) return;
+      play('unlock');
+      this.render();
+    });
     $('chest-btn').addEventListener('click', () => this.confirmChest());
     $('collection-btn').addEventListener('click', () => this.openCollection());
     const wheel = () => this.showModal('Element wheel', `${elementWheelSvg()}<p class="ew-note">${ELEMENT_WHEEL_NOTE}</p>`, 'Got it');
@@ -1562,9 +1573,25 @@ export class UI {
     row.li.classList.toggle('done', state === 'done');
   }
 
+  /** The Gem Shop rows: what each costs, what it gives and whether it can be bought now. */
+  private renderGemShop(now: number) {
+    const s = this.state;
+    const left = s.hourglassesLeft(now);
+    $('gs-hourglass-note').textContent = `${HOURGLASS_MINUTES / 60} hours of gold now (about ${fmt(s.goldFor(HOURGLASS_MINUTES))}). ${left}/${HOURGLASS_PER_DAY} left today.`;
+    const hg = $<HTMLButtonElement>('gs-hourglass');
+    hg.disabled = left <= 0 || s.gems < HOURGLASS_GEMS;
+    setHtml(hg, `${HOURGLASS_GEMS} <span class="gem"></span>`);
+    const running = s.goldBoostUntil - now;
+    $('gs-boost-note').textContent = `x${GOLD_BOOST_MULT} gold from enemies and chests for ${GOLD_BOOST_MINUTES} min, stacks up to ${GOLD_BOOST_MAX_MINUTES / 60} h.${running > 0 ? ` Running: ${Math.ceil(running / 60_000)} min left.` : ''}`;
+    const gb = $<HTMLButtonElement>('gs-boost');
+    gb.disabled = !s.goldBoostReady(now);
+    setHtml(gb, `${GOLD_BOOST_GEMS} <span class="gem"></span>`);
+  }
+
   private renderRewards() {
     const s = this.state;
     const now = Date.now();
+    this.renderGemShop(now);
     const short = (v: number) => (v >= 1e4 ? fmt(v) : v.toLocaleString());
 
     const login = s.loginState(now);
