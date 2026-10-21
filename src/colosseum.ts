@@ -1,6 +1,7 @@
 import Decimal from 'break_infinity.js';
 import { elementMultiplier, type Element } from './data';
 import { defended } from './formulas';
+import { canReach } from './reach';
 
 /**
  * Colosseum (PvP), design doc section 12.1 and the plan agreed with Samuel on 2026-10-21:
@@ -117,6 +118,8 @@ export interface PvpUnit {
   critRate: number;
   critDmg: number;
   melee: boolean;
+  /** Flying heroes can't be hit by melee units that don't fly (src/reach.ts). */
+  flying?: boolean;
 }
 
 /** One hit in a fight, for the replay. */
@@ -140,7 +143,7 @@ export interface PvpResult {
 
 /**
  * Fight two teams with no randomness: crits count at their average, every unit hits the
- * frontmost living enemy (melee stand in front), elements and Defense work as in battle.
+ * frontmost living enemy it can reach (melee stand in front; melee can't hit flyers), elements and Defense work as in battle.
  * `bonus` is the attacker's extra damage (the win streak). Side 0 attacks, side 1 defends.
  */
 export function simulatePvp(attackers: PvpUnit[], defenders: PvpUnit[], bonus = 0, step = 0.1): PvpResult {
@@ -169,7 +172,7 @@ export function simulatePvp(attackers: PvpUnit[], defenders: PvpUnit[], bonus = 
         if (me.hp <= 0) return;
         while (me.next <= t) {
           me.next += 1 / Math.max(0.05, me.u.attacksPerSec);
-          const to = foes.findIndex((f) => f.hp > 0);
+          const to = foes.findIndex((f) => f.hp > 0 && canReach({ range: me.u.melee ? 0 : Infinity, flying: me.u.flying }, { flying: f.u.flying, isHero: true }));
           if (to < 0) return;
           const foe = foes[to];
           const raw = me.atk * elementMultiplier(me.u.element, foe.u.element);

@@ -1151,7 +1151,7 @@ export class UI {
       const what = b.time > 0 ? ` (+${Math.round(b.time * 100)}% time${b.dmg > 0 ? (e === 'stun' ? ', +50% more' : ', +50% damage') : ''})` : '';
       return `${cap(e)} build: ${n} in team${what}`;
     });
-    const top = `<b>${def.type}</b> · ${HERO_TYPES[def.type]}<br>${prof.specialty}${builds.length ? `<br><small>${builds.join(' · ')}. 2 heroes with the same effect: +25% time; 3: +50% damage too.</small>` : ''}`;
+    const top = `<b>${def.type}</b> · ${HERO_TYPES[def.type]}<br>${prof.specialty}${def.flying ? '<br><small>Flies: melee enemies can\'t hit it.</small>' : ''}${builds.length ? `<br><small>${builds.join(' · ')}. 2 heroes with the same effect: +25% time; 3: +50% damage too.</small>` : ''}`;
     const sheetStats = s.heroStats(def, shownLevel);
     setHtml($('sheet-stats'), statPages(sheetStats, gold > 0 ? String(eff) : 'Locked', this.statPage, top, gold > 0 ? fmt(s.heroCombatPower(def)) : ''));
 

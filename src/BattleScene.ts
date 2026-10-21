@@ -68,6 +68,7 @@ import type { EffectKind } from './data';
 import { comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS } from './kits';
 import { STAT_BASE, FREEZE_BLAST_RADIUS, BOSS_STUN_CHANCE, BOSS_STUN_SECONDS, type HeroStats } from './stats';
 import { heroProfile } from './profiles';
+import { canReach, pickVictim } from './reach';
 
 /** Visible area. The lane itself is WORLD_WIDTH long and the camera follows the heroes. */
 export const WIDTH = 480;
@@ -1454,8 +1455,12 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
-    const target = this.nearest(h, this.foes(), 1);
-    const dist = target ? target.x - h.x : Infinity;
+    // Melee heroes can't reach flying foe heroes in the Colosseum (src/reach.ts).
+    const foes = this.foes().filter((e) => this.reaches(h, e));
+    let target = this.nearest(h, foes, 1);
+    // A foe that slipped behind (a mob waiting under a flying hero) still gets hit when it's in reach.
+    if (!target || target.x - h.x > h.range) target = this.behind(h, foes) ?? target;
+    const dist = target ? Math.abs(target.x - h.x) : Infinity;
     // Combat comes first: an enemy in range stops the hero, however fast it walks.
     if (target && dist <= h.range) {
       h.engaged = true;
@@ -1515,12 +1520,14 @@ export class BattleScene extends Phaser.Scene {
       }
       return;
     }
-    const target = this.nearest(e, this.heroes, -1);
-    const dist = target ? e.x - target.x : Infinity;
+    // Melee enemies can't reach flying heroes (src/reach.ts); with only flyers left they wait under one.
+    const pick = pickVictim(e, this.heroes.map((u) => ({ x: u.x, alive: u.alive, flying: u.flying, isHero: true, u })));
+    const target = pick.target?.u;
+    const dist = target ? Math.abs(e.x - target.x) : Infinity;
     if (target && dist <= e.range) {
       if (e.cooldownLeft <= 0) {
         e.cooldownLeft = e.cooldown;
-        this.lunge(e, -1);
+        this.lunge(e, target.x > e.x ? 1 : -1);
         this.bossAnim(e, 'attack');
         this.mobAnim(e, 'attack');
         // A caster throws its magic across the gap.
@@ -1547,7 +1554,11 @@ export class BattleScene extends Phaser.Scene {
     // Bosses guard the crystal; regular enemies march at the heroes.
     if (e.isBoss && e.x < ENEMY_CRYSTAL_X - 120) return;
     const x0 = e.x;
-    e.x = Math.max(e.x - e.speed * slow * dt, PLAYER_CRYSTAL_X + 30);
+    const step = e.speed * slow * dt;
+    // Out in the Colosseum a foe with nobody to hit heads for the crystal; on the lane it waits under a flyer.
+    const goal = target && target.x > e.x ? target.x - e.range * 0.8 : !this.pvp && pick.holdX !== undefined ? pick.holdX : -Infinity;
+    if (goal > e.x) e.x = Math.min(e.x + step, goal);
+    else e.x = Math.max(e.x - step, goal, PLAYER_CRYSTAL_X + 30);
     e.view.x = e.x;
     const walking = e.x !== x0;
     if (e.mob && e.mob.state !== 'attack') this.mobAnim(e, walking ? 'walk' : 'idle');
@@ -1560,6 +1571,16 @@ export class BattleScene extends Phaser.Scene {
     if (!e.mob || e.shadow) return;
     const frame = walking ? e.body.anims.currentFrame?.index ?? 0 : 0;
     e.body.y = FOOT_Y - (walking && frame % 2 === 0 ? MOB_BOB : 0);
+  }
+
+  /** Whether `a` can hit `t` with a single-target attack (melee can't hit flying heroes). */
+  private reaches(a: Unit, t: Unit) {
+    return canReach(a, { flying: t.flying, isHero: !!t.def });
+  }
+
+  /** Nearest living foe behind hero `h` (further than the usual slack) that is still in its reach. */
+  private behind(h: Unit, pool: Unit[]): Unit | undefined {
+    return pool.filter((o) => o.alive && h.x - o.x > 12 && h.x - o.x <= h.range).sort((a, b) => b.x - a.x)[0];
   }
 
   /** Nearest living opponent in front of `u` (dir 1 = right, -1 = left), with a little slack behind. */
@@ -1664,7 +1685,7 @@ export class BattleScene extends Phaser.Scene {
     if (procs(charm, h.attacks) && !target.isBoss && target.alive) {
       target.charmUntil = this.clock + charm!.value;
       this.floatText(target.x, target.y - 34, 'POSSESSED', '#c9b8ff', 10);
-      const next = this.nearest(h, this.foes(), 1);
+      const next = this.nearest(h, this.foes().filter((e) => this.reaches(h, e)), 1);
       if (!next) return;
       target = next;
     }
@@ -1673,7 +1694,7 @@ export class BattleScene extends Phaser.Scene {
     const element = this.dealsAs(h);
     // Assassination: every Nth attack blinks to the farthest enemy in reach, or to a boss in reach.
     if (procs(assassin, h.attacks)) {
-      const inReach = this.enemies.filter((e) => e.alive && e.x >= h.x && e.x - h.x <= ASSASSIN_REACH);
+      const inReach = this.enemies.filter((e) => e.alive && e.x >= h.x && e.x - h.x <= ASSASSIN_REACH && this.reaches(h, e));
       const far = inReach.find((e) => e.isBoss) ?? inReach.sort((a, b) => b.x - a.x)[0];
       if (far && far !== target) {
         this.puff(h.x, h.y, 0x9b59d0);
