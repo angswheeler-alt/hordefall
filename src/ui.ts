@@ -1589,7 +1589,7 @@ export class UI {
       <div class="pvp-team"><b>${escHtml(foe.name)} <small>CP ${fmt(new Decimal(foe.cp))}</small></b><span class="faces">${this.pvpFoeFaces(foe)}</span></div>
       <div class="pvp-team"><div class="pvp-row"><b>Your attack team <small>CP ${fmt(mine)}</small></b><button class="wood-btn small" data-pvp="team" data-kind="attack">Change</button></div><span class="faces">${team.map((h) => this.pvpFace(h)).join('')}</span></div>
       ${forecast ? `<small class="pvp-forecast ${forecast[0]}">${forecast[1]}</small>` : ''}
-      <small>Your team starts at the blue crystal and theirs at the red one. Fallen fighters come back after a few seconds. The first crystal destroyed loses. Win: +${PVP_WIN_TROPHIES} trophies and ${PVP_WIN_MOTES} Starmotes. Loss: -${PVP_LOSS_TROPHIES} trophies, ${PVP_LOSS_MOTES} Starmote.</small>
+      <small>Your team starts at the blue crystal and theirs at the red one. Fallen fighters come back after 3 seconds. The first crystal destroyed loses. Win: +${PVP_WIN_TROPHIES} trophies and ${PVP_WIN_MOTES} Starmotes. Loss: -${PVP_LOSS_TROPHIES} trophies, ${PVP_LOSS_MOTES} Starmote.</small>
       <button class="wood-btn levelall" data-pvp="fight" ${can ? '' : 'disabled'}>${s.pvp.tickets > 0 ? 'Battle! (1 ticket)' : 'No tickets left'}</button>`;
   }
 
@@ -1673,7 +1673,7 @@ export class UI {
     $('trial-hud').hidden = false;
     $('trial-hud-name').textContent = `Colosseum vs ${foe.name}`;
     const defender = foe.userId;
-    $('trial-hud-note').textContent = 'Fighters fight at their Ember levels and get back up after a few seconds. Destroy the red crystal before they destroy yours.';
+    $('trial-hud-note').textContent = 'Fighters fight at their Ember levels and get back up after 3 seconds. Destroy the red crystal before they destroy yours.';
     $('trial-leave').textContent = 'Leave';
     scene.startPvp(ids, s.pvpFoeUnits(foe).map((f) => ({ def: f.def, stats: f.stats })), bonus, (won) => {
       $('trial-leave').textContent = 'Back';

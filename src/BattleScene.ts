@@ -59,6 +59,7 @@ import chestGoldUrl from './assets/ui/chest-gold.png';
 import { sumEffect, mulEffect, everyNth, procEffect, procs } from './skills';
 import { marchCap, marchStep } from './movement';
 import { respawnTime, reviveIn, stageStartRevives } from './respawn';
+import { PVP_RESPAWN_MULT } from './colosseum';
 import { HERO_ANIMS } from './heroAnims';
 import { MOB_ANIMS } from './mobAnims';
 import { MOB_ELEMENTS, MOB_KINDS, pickMob, type MobId } from './mobs';
@@ -1975,7 +1976,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (u.side === 'enemy' && this.pvp) {
       // A Colosseum foe pays nothing; it fades and comes back at its crystal after the usual wait.
-      u.respawnAt = respawnTime(this.clock, 1);
+      u.respawnAt = respawnTime(this.clock, PVP_RESPAWN_MULT);
       u.hpBar.clear();
       this.tweens.add({ targets: u.view, alpha: 0, duration: 300, onComplete: () => u.view.setVisible(false) });
       this.shatter(u.x, u.y, ELEMENT_COLORS[u.element]);
@@ -2017,7 +2018,7 @@ export class BattleScene extends Phaser.Scene {
         this.freeze(0.25);
       }
     } else {
-      u.respawnAt = respawnTime(this.clock, this.mul('respawn', null));
+      u.respawnAt = respawnTime(this.clock, this.mul('respawn', null) * (this.pvp ? PVP_RESPAWN_MULT : 1));
       this.puff(u.x, u.y, 0xffffff);
       if (this.trial) u.view.setVisible(false);
       else this.ghostHero(u);
