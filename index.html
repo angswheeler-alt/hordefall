@@ -179,6 +179,7 @@
             <div id="sheet-rarity"></div>
             <div id="sheet-sub" class="meta"></div>
             <div id="sheet-stars" class="stars"></div>
+            <div id="sheet-pink" class="stars pink" hidden></div>
           </div>
           <button id="sheet-next" class="icon" aria-label="Next hero">›</button>
           <button id="sheet-close" class="icon close" aria-label="Close">✕</button>
@@ -205,8 +206,15 @@
           <div class="crest-row"><span>Hero Crests</span><span id="sheet-crests"></span></div>
           <div class="crest-bar"><div id="sheet-crest-fill"></div></div>
           <button id="sheet-evolve" class="hot evolve" hidden>Evolve</button>
-          <p class="meta">Hero Chests give copies of heroes as Hero Crests. Spend Crests to evolve: each star doubles all stats, and the first four unlock new skills.</p>
+          <p class="meta">Hero Chests give copies of heroes as Hero Crests. Spend Crests to evolve: each star multiplies all stats by 1.5 and unlocks something new.</p>
           <ul id="sheet-unlocks" class="abilities"></ul>
+        </section>
+        <section class="sheet-section">
+          <h3>Awakening</h3>
+          <div class="crest-row mote-row"><span class="mote-label">Starmotes</span><span id="sheet-starmotes"></span></div>
+          <div class="crest-bar"><div id="sheet-mote-fill"></div></div>
+          <button id="sheet-awaken" class="hot evolve awaken" hidden>Awaken</button>
+          <p id="sheet-awaken-note" class="meta"></p>
         </section>
       </div>
     </div>
@@ -289,6 +297,7 @@
           <div id="debug">
             <button id="sim" class="wood-btn small">Simulate 1h away</button>
             <button id="freegems" class="wood-btn small">+100 Gems</button>
+            <button id="freemotes" class="wood-btn small">+500 Starmotes</button>
           </div>
         </div>
       </div>
