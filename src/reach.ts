@@ -1,5 +1,5 @@
-// Who can reach whom. Flying heroes fly above the lane, out of reach of anyone who swings from the ground:
-// melee attackers (reach of MELEE_REACH px or less) can't hit them unless they fly too. Ranged and magic
+// Who can reach whom. Flyers (heroes and winged mobs) fly above the lane, out of reach of anyone who swings
+// from the ground: melee attackers (reach of MELEE_REACH px or less) can't hit them unless they fly too. Ranged and magic
 // attacks still can, and so do area effects (slams, ultimates) and bosses, which are big enough to swat
 // anything in the sky.
 
@@ -14,8 +14,6 @@ export interface Attacker {
 
 export interface Target {
   flying?: boolean;
-  /** Set for heroes (on either side in the Colosseum); regular mobs have none. */
-  isHero?: boolean;
 }
 
 export function isMelee(a: { range: number }) {
@@ -24,7 +22,7 @@ export function isMelee(a: { range: number }) {
 
 /** Whether `a` can hit `t` with a single-target attack. */
 export function canReach(a: Attacker, t: Target): boolean {
-  if (!t.flying || !t.isHero) return true;
+  if (!t.flying) return true;
   return !isMelee(a) || !!a.flying || !!a.isBoss;
 }
 

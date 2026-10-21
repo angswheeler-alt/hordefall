@@ -172,7 +172,7 @@ export function simulatePvp(attackers: PvpUnit[], defenders: PvpUnit[], bonus = 
         if (me.hp <= 0) return;
         while (me.next <= t) {
           me.next += 1 / Math.max(0.05, me.u.attacksPerSec);
-          const to = foes.findIndex((f) => f.hp > 0 && canReach({ range: me.u.melee ? 0 : Infinity, flying: me.u.flying }, { flying: f.u.flying, isHero: true }));
+          const to = foes.findIndex((f) => f.hp > 0 && canReach({ range: me.u.melee ? 0 : Infinity, flying: me.u.flying }, { flying: f.u.flying }));
           if (to < 0) return;
           const foe = foes[to];
           const raw = me.atk * elementMultiplier(me.u.element, foe.u.element);

@@ -1465,7 +1465,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
-    // Melee heroes can't reach flying foe heroes in the Colosseum (src/reach.ts).
+    // Melee heroes can't reach flying foes (src/reach.ts); with nothing else in reach they head for the crystal.
     const foes = this.foes().filter((e) => this.reaches(h, e));
     let target = this.nearest(h, foes, 1);
     // A foe that slipped behind (a mob waiting under a flying hero) still gets hit when it's in reach.
@@ -1531,7 +1531,7 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     // Melee enemies can't reach flying heroes (src/reach.ts); with only flyers left they wait under one.
-    const pick = pickVictim(e, this.heroes.map((u) => ({ x: u.x, alive: u.alive, flying: u.flying, isHero: true, u })));
+    const pick = pickVictim(e, this.heroes.map((u) => ({ x: u.x, alive: u.alive, flying: u.flying, u })));
     const target = pick.target?.u;
     const dist = target ? Math.abs(e.x - target.x) : Infinity;
     if (target && dist <= e.range) {
@@ -1583,9 +1583,9 @@ export class BattleScene extends Phaser.Scene {
     e.body.y = FOOT_Y - (walking && frame % 2 === 0 ? MOB_BOB : 0);
   }
 
-  /** Whether `a` can hit `t` with a single-target attack (melee can't hit flying heroes). */
+  /** Whether `a` can hit `t` with a single-target attack (ground melee can't hit flyers). */
   private reaches(a: Unit, t: Unit) {
-    return canReach(a, { flying: t.flying, isHero: !!t.def });
+    return canReach(a, t);
   }
 
   /** Nearest living foe behind hero `h` (further than the usual slack) that is still in its reach. */
