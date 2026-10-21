@@ -2175,14 +2175,20 @@ export class GameState {
     return { count, chests, stones, tickets, gold, drops };
   }
 
-  /** True when any free reward is waiting (drives the Shop tab badge). */
-  rewardsWaiting(now = Date.now()): boolean {
+  /** True when a daily reward on the home panel is waiting: login, spin, challenges, Medal Bundle or a milestone. */
+  homeWaiting(now = Date.now()): boolean {
     return (
       this.loginState(now).ready ||
       this.spinReady(now) ||
       this.milestonesReady() > 0 ||
       this.medalBundleState(now).ready ||
-      this.dailies(now).some((r) => !r.claimed && r.progress >= r.def.goal) ||
+      this.dailies(now).some((r) => !r.claimed && r.progress >= r.def.goal)
+    );
+  }
+
+  /** True when an achievement or Bootcamp goal is waiting (drives the Shop tab badge). */
+  rewardsWaiting(): boolean {
+    return (
       this.achievements().some((a) => a.ready) ||
       BOOTCAMP.some((b) => !this.bootcamp.includes(b.id) && this.bootcampDone(b))
     );
@@ -2538,6 +2544,40 @@ export class GameState {
   }
 
   /**
+   * How far offline play pushes from the current stage in `seconds`: stage by
+   * stage at the recent clear speed, and a boss only falls if the team could
+   * actually beat it (canBeatBoss). Changes nothing.
+   */
+  offlineReach(seconds: number): { stages: number; bosses: number } {
+    let bosses = 0;
+    let left = seconds;
+    const start = this.stage;
+    if (!this.autoAdvance || this.secondsPerStage <= 0) return { stages: 0, bosses: 0 };
+    let stage = this.stage;
+    for (;;) {
+      // Walk up to the stage before the next boss (or stay on the boss stage you're on).
+      const boss = Math.ceil(stage / BOSS_EVERY) * BOSS_EVERY;
+      const room = Math.max(0, boss - 1 - stage);
+      const run = Math.min(room, Math.floor(left / this.secondsPerStage));
+      stage += run;
+      left -= run * this.secondsPerStage;
+      if (run < room) break;
+      const fight = this.canBeatBoss(boss);
+      const cost = (stage < boss ? this.secondsPerStage : 0) + Math.max(this.secondsPerStage, fight.seconds);
+      if (!fight.won || left < cost) break;
+      left -= cost;
+      stage = boss + 1;
+      bosses++;
+    }
+    return { stages: stage - start, bosses };
+  }
+
+  /** The highest stage a full offline stretch (the 12 h cap) would reach from here. */
+  maxOfflineStage(): number {
+    return this.stage + this.offlineReach(OFFLINE_CAP_HOURS * 3600).stages;
+  }
+
+  /**
    * Offline earnings (GDD section 10): gold at the recent rate, and stage
    * progress at the recent clear speed. Offline play never beats a boss, so it
    * stops one stage short of the next boss. Capped at 12 hours.
@@ -2549,30 +2589,8 @@ export class GameState {
     const gold = new Decimal(this.goldPerSec).times(capped).plus(market);
     // Stalls waiting for a tap fill up while you're away.
     for (const def of STALLS) if (this.stalls[def.id].level > 0 && !this.stallAuto(def.id)) this.stalls[def.id].progress = this.stallCycle(def);
-    // Push stage by stage; a boss only falls if the team could actually beat it (canBeatBoss).
-    let stages = 0;
-    let bosses = 0;
-    let left = capped;
     const start = this.stage;
-    if (this.autoAdvance && this.secondsPerStage > 0) {
-      let stage = this.stage;
-      for (;;) {
-        // Walk up to the stage before the next boss (or stay on the boss stage you're on).
-        const boss = Math.ceil(stage / BOSS_EVERY) * BOSS_EVERY;
-        const room = Math.max(0, boss - 1 - stage);
-        const run = Math.min(room, Math.floor(left / this.secondsPerStage));
-        stage += run;
-        left -= run * this.secondsPerStage;
-        if (run < room) break;
-        const fight = this.canBeatBoss(boss);
-        const cost = (stage < boss ? this.secondsPerStage : 0) + Math.max(this.secondsPerStage, fight.seconds);
-        if (!fight.won || left < cost) break;
-        left -= cost;
-        stage = boss + 1;
-        bosses++;
-      }
-      stages = stage - start;
-    }
+    const { stages, bosses } = this.offlineReach(capped);
     this.gold = this.gold.plus(gold);
     this.reachStage(start + stages);
     return { seconds: capped, gold, stages, bosses, market };
