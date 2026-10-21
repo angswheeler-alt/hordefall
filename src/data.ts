@@ -865,11 +865,14 @@ export interface RelicDef {
   guessed?: boolean;
   blurb: string;
 }
-const T4 = 300_000;
-const T5 = 2_000_000;
-const T6 = 15_000_000;
-const T7 = 120_000_000;
-const T8 = 1_000_000_000;
+// 4★ and up cost 10x what they first did (Samuel, 2026-10-21): by the time 4★ relics open, Trials have
+// piled up millions of Essence, and at the old prices every 4★ set was bought within about a day.
+// 6★-8★ moved up with them so each star still costs more than the one below.
+const T4 = 3_000_000;
+const T5 = 20_000_000;
+const T6 = 150_000_000;
+const T7 = 1_200_000_000;
+const T8 = 10_000_000_000;
 export const RELICS: RelicDef[] = [
   // Normal relics
   { id: 'warbanner', name: 'Warbanner', stars: 1, fx: [['atk', 40]], essences: ['fire', 'dark'], craft: 10, blurb: 'A torn battle flag that still makes everyone swing harder.' },
@@ -885,11 +888,11 @@ export const RELICS: RelicDef[] = [
   { id: 'warhorn', name: 'Warhorn', stars: 3, fx: [['atk', 360], ['critDmg', 30]], essences: ['fire', 'water'], craft: 5_000, blurb: 'One blast and every hero hits harder.' },
   { id: 'emberlamp', name: 'Ember Lantern', stars: 3, fx: [['embers', 10]], essences: ['dark', 'light'], craft: 5_000, blurb: 'Catches stray Embers when you Rekindle.' },
   { id: 'shadowcloak', name: 'Shadow Cloak', stars: 3, fx: [['dodge', 5]], essences: ['dark', 'water'], craft: 5_000, blurb: 'Blows hit the shadow instead of the hero.' },
-  { id: 'starfall', name: 'Starfall Blade', stars: 4, fx: [['atk', 1080], ['hp', 1080]], essences: ['light', 'water'], craft: 40_000, blurb: 'Hammered from a fallen star.' },
+  { id: 'starfall', name: 'Starfall Blade', stars: 4, fx: [['atk', 1080], ['hp', 1080]], essences: ['light', 'water'], craft: 400_000, blurb: 'Hammered from a fallen star.' },
   // 4★ sets
-  { id: 'tide_trident', name: 'Tidelord Trident', stars: 4, set: 'tide', fx: [['water', 4320], ['def', 1620]], essences: ['water', 'dark'], craft: 100_000, stones: 2, blurb: 'Commands the sea.' },
-  { id: 'tide_crown', name: 'Tidelord Crown', stars: 4, set: 'tide', fx: [['waterDef', 2160], ['stall', 1280]], essences: ['water', 'light'], craft: 100_000, stones: 2, blurb: 'Pearls from every ocean.' },
-  { id: 'tide_armor', name: 'Tidelord Armor', stars: 4, set: 'tide', fx: [['waterHp', 4320], ['knightShield', 320]], essences: ['water', 'earth'], craft: 100_000, stones: 2, blurb: 'Scales of a sea giant.' },
+  { id: 'tide_trident', name: 'Tidelord Trident', stars: 4, set: 'tide', fx: [['water', 4320], ['def', 1620]], essences: ['water', 'dark'], craft: 1_000_000, stones: 2, blurb: 'Commands the sea.' },
+  { id: 'tide_crown', name: 'Tidelord Crown', stars: 4, set: 'tide', fx: [['waterDef', 2160], ['stall', 1280]], essences: ['water', 'light'], craft: 1_000_000, stones: 2, blurb: 'Pearls from every ocean.' },
+  { id: 'tide_armor', name: 'Tidelord Armor', stars: 4, set: 'tide', fx: [['waterHp', 4320], ['knightShield', 320]], essences: ['water', 'earth'], craft: 1_000_000, stones: 2, blurb: 'Scales of a sea giant.' },
   { id: 'gold_charm', name: 'Goldhand Charm', stars: 4, set: 'goldhand', fx: [['def', 1080], ['stallTime', 162]], essences: ['dark', 'fire'], craft: T4, stones: 2, blurb: 'Everything it touches works faster.' },
   { id: 'gold_scepter', name: 'Goldhand Scepter', stars: 4, set: 'goldhand', fx: [['atk', 2160], ['stallCost', 768]], essences: ['light', 'dark'], craft: T4, stones: 2, blurb: 'A rod of solid gold.' },
   { id: 'gold_crown', name: 'Goldhand Crown', stars: 4, set: 'goldhand', fx: [['hp', 2160], ['stallCost', 1280]], essences: ['earth', 'light'], craft: T4, stones: 2, blurb: 'Heavy is the head.' },
