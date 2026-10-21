@@ -809,17 +809,17 @@ export const GOLD_BOOST_MULT = 2;
 
 /**
  * Hero Shop (Gems). Test prices, tune freely.
- * Medal pack: MEDAL_PACK.medals for any non-Legendary hero the player picks.
+ * Medal pack: MEDAL_PACK.medals for any non-Legendary hero the player picks, priced by rarity.
  * Rotating offers: HERO_SHOP_OFFERS random heroes, each bought once, new ones free every
  * HERO_SHOP_REFRESH_MINUTES or early for HERO_SHOP_REFRESH_GEMS.
  * Featured hero: one hero a week (every hero comes round in turn) with a cheaper bundle once a
  * week, and a big bundle every FEATURED_BIG_EVERY weeks.
  * Trial tickets: TICKET_GEMS each, TICKETS_PER_DAY a day, only up to the ticket cap.
  */
-export const MEDAL_PACK = { medals: 100, gems: 500 } as const;
+export const MEDAL_PACK = { medals: 100, gems: { common: 300, rare: 500, epic: 1000 } } as const;
 export const HERO_SHOP_OFFERS = 4;
-export const HERO_SHOP_DEALS = { common: { medals: 20, gems: 60 }, rare: { medals: 15, gems: 45 }, epic: { medals: 10, gems: 30 } } as const;
-export const HERO_SHOP_REFRESH_MINUTES = 240;
+export const HERO_SHOP_DEALS = { common: { medals: 20, gems: 40 }, rare: { medals: 15, gems: 60 }, epic: { medals: 10, gems: 80 } } as const;
+export const HERO_SHOP_REFRESH_MINUTES = 480;
 export const HERO_SHOP_REFRESH_GEMS = 20;
 export const FEATURED_BUNDLE = { medals: 50, gems: 150 } as const;
 export const FEATURED_BIG_BUNDLE = { medals: 250, gems: 600 } as const;

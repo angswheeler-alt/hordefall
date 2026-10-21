@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { GameState, SHOP_HEROES, weekIndex } from '../src/state';
+import { GameState, SHOP_HEROES, weekIndex, medalPackCost } from '../src/state';
 import { MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_CAP, TICKET_GEMS, TICKETS_PER_DAY } from '../src/data';
 
 const DAY = 86_400_000;
@@ -24,15 +24,22 @@ describe('medal pack', () => {
     const before = s.crests[h.id] ?? 0;
     const drops = s.buyMedalPack(h.id);
     expect(drops?.[0]).toMatchObject({ heroId: h.id, crests: MEDAL_PACK.medals });
-    expect(s.gems).toBe(100_000 - MEDAL_PACK.gems);
+    expect(s.gems).toBe(100_000 - MEDAL_PACK.gems.epic);
     expect(s.crests[h.id]).toBe(before + MEDAL_PACK.medals);
+  });
+
+  it('prices packs by rarity', () => {
+    for (const r of ['common', 'rare', 'epic'] as const) expect(medalPackCost(SHOP_HEROES.find((h) => h.rarity === r)!.id)).toBe(MEDAL_PACK.gems[r]);
+    expect(MEDAL_PACK.gems.common).toBeLessThan(MEDAL_PACK.gems.rare);
+    expect(MEDAL_PACK.gems.rare).toBeLessThan(MEDAL_PACK.gems.epic);
   });
 
   it('refuses Legendary heroes and short wallets', () => {
     expect(SHOP_HEROES.some((h) => h.rarity === 'legendary')).toBe(false);
-    s.gems = MEDAL_PACK.gems - 1;
-    expect(s.buyMedalPack(SHOP_HEROES[0].id)).toBeNull();
-    expect(s.gems).toBe(MEDAL_PACK.gems - 1);
+    const id = SHOP_HEROES[0].id;
+    s.gems = medalPackCost(id)! - 1;
+    expect(s.buyMedalPack(id)).toBeNull();
+    expect(s.gems).toBe(medalPackCost(id)! - 1);
   });
 });
 
