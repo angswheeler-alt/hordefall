@@ -1070,14 +1070,14 @@ export class UI {
     const s = this.state;
     // Real odds: only rarities that have heroes can drop, so the weights are re-normalised.
     const odds = rarityOdds(PLAYABLE_HEROES, CHEST_RARITY_WEIGHTS)
-      .map(([r, pct]) => `<li><b>${cap(r)}</b><span>${+pct.toFixed(1)}% · ${CREST_ROLLS[r as keyof typeof CREST_ROLLS].map(([c]) => c).join('/')} medals</span></li>`)
+      .map(([r, pct]) => `<li><b>${cap(r)}</b><span>${+pct.toFixed(1)}% · ${CREST_ROLLS[r as keyof typeof CREST_ROLLS].map(([c]) => c).join('/')} crests</span></li>`)
       .join('');
     const faces = PLAYABLE_HEROES.map((h) => `<span class="face art" title="${h.name}" style="${faceStyle(h)}">${h.name[0]}</span>`).join('');
     const afford = s.gems >= CHEST_COST;
     this.showModal(
       'Hero Chest',
       `<div class="chest-pop"><div class="chest-art" aria-hidden="true"></div>
-        <p>${CHEST_DROPS} drops of Hero Crests (medals). Collect enough to unlock a hero, then keep collecting to evolve them. Legendary heroes never drop.</p>
+        <p>${CHEST_DROPS} drops of Hero Crests. Collect enough to unlock a hero, then keep collecting to evolve them. Legendary heroes never drop.</p>
         <div class="chest-heroes">${faces}</div>
         <ul class="chest-odds">${odds}</ul>
         <p class="chest-wallet">You have <b>${s.gems}</b> Gems${afford ? '' : `. You need ${CHEST_COST - s.gems} more.`}</p></div>`,
@@ -1211,15 +1211,15 @@ export class UI {
     }
 
     const next = s.evolveCost(id);
-    $('sheet-crest-label').textContent = legendary ? 'Legendary medals' : 'Hero Crests';
-    $('sheet-crests').textContent = next === null ? (legendary ? 'Max stars' : `Max stars · ${s.legendaryMedals} Legendary medals`) : `${crests} / ${next} for ${stars + 2}★`;
+    $('sheet-crest-label').textContent = legendary ? 'Legendary crests' : 'Hero Crests';
+    $('sheet-crests').textContent = next === null ? (legendary ? 'Max stars' : `Max stars · ${s.legendaryMedals} Legendary crests`) : `${crests} / ${next} for ${stars + 2}★`;
     $('sheet-crest-note').textContent = legendary ? LEGENDARY_HOW : next === null
-      ? `Every ${LEGENDARY_MEDAL_RATE} more medals this hero gets become 1 Legendary medal, spent on Legendary heroes in the Collection.`
+      ? `Every ${LEGENDARY_MEDAL_RATE} more crests this hero gets become 1 Legendary crest, spent on Legendary heroes in the Collection.`
       : 'Hero Chests give copies of heroes as Hero Crests. Spend Crests to evolve: each star multiplies all stats by 1.5 and unlocks something new.';
     $('sheet-crest-fill').style.width = next === null ? '100%' : `${Math.min(100, (crests / next) * 100)}%`;
     const evolve = $<HTMLButtonElement>('sheet-evolve');
     evolve.hidden = next === null || crests < next || gold === 0;
-    evolve.textContent = `Evolve to ${stars + 2}★ (${next} ${legendary ? 'Legendary medals' : 'Crests'})`;
+    evolve.textContent = `Evolve to ${stars + 2}★ (${next} ${legendary ? 'Legendary crests' : 'Crests'})`;
     const moteCost = s.awakenCost(id);
     const block = s.awakenBlock(id);
     $('sheet-starmotes').textContent = moteCost === null ? `${s.starmotes} · Max pink stars` : `${s.starmotes} / ${moteCost} for pink ${pink + 1}★`;
@@ -1235,7 +1235,7 @@ export class UI {
       [ULT_PLUS_EVOLUTIONS, `${def.ultimate.name}+`, def.ultPlus ?? `Ultimate hits for ${ULT_MULTIPLIER * ULT_STAR_BONUS}x instead of ${ULT_MULTIPLIER}x.`],
       ...(def.signature && def.sigPlus ? [[SIG_PLUS_EVOLUTIONS, `${def.trait.name}+`, def.sigPlus] as [number, string, string]] : []),
       [MASTERY_EVOLUTIONS, `${def.type} Mastery: ${TYPE_MASTERY[def.type].name}`, TYPE_MASTERY[def.type].text],
-      [ASCENDED_EVOLUTIONS, 'Ascended', `The Ultimate recharges in ${ASCENDED_ULT_COOLDOWN} seconds instead of ${ULT_COOLDOWN}. Every ${LEGENDARY_MEDAL_RATE} extra medals for this hero become a Legendary medal, used to get Legendary heroes.`],
+      [ASCENDED_EVOLUTIONS, 'Ascended', `The Ultimate recharges in ${ASCENDED_ULT_COOLDOWN} seconds instead of ${ULT_COOLDOWN}. Every ${LEGENDARY_MEDAL_RATE} extra crests for this hero become a Legendary crest, used to get Legendary heroes.`],
     ];
     if ($('sheet-unlocks').dataset.key !== `${id}:${stars}`) {
       $('sheet-unlocks').innerHTML = unlocks
@@ -1371,7 +1371,7 @@ export class UI {
         return `<div class="trial-entry${isOpen ? ' open' : ''}" style="--el:${hex(ELEMENT_COLORS[e])}">` +
           `<span class="trial-portrait" style="${face}" title="${cap(e)}"></span>` +
           `<div class="trial-entry-text"><b>${TRIAL_BOSS_NAMES[e]} <span>(${days})</span></b>` +
-          `<small>Rewards: <i class="ess-${e}" title="${ESSENCE_NAMES[e]}"></i> and <i class="medal" title="${TRIAL_MEDALS} medals for random ${cap(e)} heroes"></i> x${TRIAL_MEDALS}</small></div>` +
+          `<small>Rewards: <i class="ess-${e}" title="${ESSENCE_NAMES[e]}"></i> and <i class="crest" title="${TRIAL_MEDALS} crests for random ${cap(e)} heroes"></i> x${TRIAL_MEDALS}</small></div>` +
           `<button class="trial-enter${isOpen && unlocked ? ' lit' : ''}" data-el="${e}" ${isOpen && unlocked ? '' : 'disabled'} title="${isOpen ? (unlocked ? `Open today` : 'Opens after the stage 50 boss') : `Open ${days}`}">${btn}</button>` +
           `</div>`;
       }).join('');
@@ -1389,11 +1389,11 @@ export class UI {
       $('tr-name').textContent = `${TRIAL_BOSS_NAMES[el]} (${cap(el)})`;
     }
     const level = TRIAL_LEVELS[tier - 1];
-    $('tr-info').textContent = `Uses Ember levels and stars, not gold levels. Drops ${ESSENCE_NAMES[el]} and ${TRIAL_MEDALS} medals, each for a random ${cap(el)} hero.`;
+    $('tr-info').textContent = `Uses Ember levels and stars, not gold levels. Drops ${ESSENCE_NAMES[el]} and ${TRIAL_MEDALS} crests, each for a random ${cap(el)} hero.`;
     if ($('tr-medals').dataset.key !== el) {
       $('tr-medals').dataset.key = el;
       const odds = rarityOdds(s.trialPool(el), TRIAL_RARITY_WEIGHTS).map(([r, pct]) => `${cap(r)} ${+pct.toFixed(1)}%`).join(' · ');
-      setHtml($('tr-medals'), `Medal odds: ${odds}`);
+      setHtml($('tr-medals'), `Crest odds: ${odds}`);
     }
     $('tr-tier').textContent = `Level ${tier} / ${TRIAL_TIERS}`;
     $<HTMLButtonElement>('tr-down').disabled = tier <= 1;
@@ -1418,7 +1418,7 @@ export class UI {
         ? ((s.trialBest[el] ?? 0) >= TRIAL_TIERS ? '<span class="win">Top level cleared</span><br>' : 'This is the top level<br>')
         : `<b>Win this level to open level ${tier + 1}</b>${nextReq}<br>`;
     $('tr-up').title = tier < top ? `Level ${tier + 1}` : next ? `Win level ${tier} to open level ${tier + 1}` : 'Top level';
-    setHtml($('tr-odds'), `Difficulty <b>${level.difficulty.toLocaleString()}</b> · reward <b>${fmt(level.essence)}</b> Essence · ${TRIAL_MEDALS} medals<br>${req}<br>${nextLine}${bestLine}<br>Boss HP <b>${fmt(trialHp(level))}</b> · team damage in ${TRIAL_TIME}s <b>${fmt(sim.dps.times(TRIAL_TIME))}</b> · <span class="${sim.won ? 'win' : 'lose'}">${sim.won ? 'Should be winnable' : 'Too strong for now'}</span>`);
+    setHtml($('tr-odds'), `Difficulty <b>${level.difficulty.toLocaleString()}</b> · reward <b>${fmt(level.essence)}</b> Essence · ${TRIAL_MEDALS} crests<br>${req}<br>${nextLine}${bestLine}<br>Boss HP <b>${fmt(trialHp(level))}</b> · team damage in ${TRIAL_TIME}s <b>${fmt(sim.dps.times(TRIAL_TIME))}</b> · <span class="${sim.won ? 'win' : 'lose'}">${sim.won ? 'Should be winnable' : 'Too strong for now'}</span>`);
     const fight = $<HTMLButtonElement>('tr-fight');
     fight.disabled = !unlocked || s.tickets <= 0 || !reqMet;
     fight.textContent = !unlocked ? 'Beat the stage 50 boss' : !reqMet ? 'Locked' : s.tickets > 0 ? 'Fight · 1 ticket' : 'No tickets';
@@ -1503,17 +1503,17 @@ export class UI {
     this.render();
   }
 
-  /** The reward line (closes the caller's open <p>) and pictures of the heroes the medals went to. */
+  /** The reward line (closes the caller's open <p>) and pictures of the heroes the crests went to. */
   private trialWinText(el: Element, result: TrialResult) {
     // Group repeats: "Brine x3, Ripple x2".
     const medalCounts = new Map<string, number>();
     for (const id of result.medals) medalCounts.set(id, (medalCounts.get(id) ?? 0) + 1);
-    // Pictures of the heroes the medals went to, with how many each got.
+    // Pictures of the heroes the crests went to, with how many each got.
     const faces = [...medalCounts].map(([id, n]) => {
       const h = HEROES.find((x) => x.id === id)!;
       return `<span class="trial-medal"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span><b>${h.name}</b><small>x${n}</small></span>`;
     }).join('');
-    return `+${fmt(result.essence)} ${ESSENCE_NAMES[el]}${result.stones ? ` · +${result.stones} Enhance Stone${result.stones === 1 ? '' : 's'}` : ''} · ${result.medals.length} medal${result.medals.length === 1 ? '' : 's'}:</p><div class="trial-won">${faces}</div>`;
+    return `+${fmt(result.essence)} ${ESSENCE_NAMES[el]}${result.stones ? ` · +${result.stones} Enhance Stone${result.stones === 1 ? '' : 's'}` : ''} · ${result.medals.length} crest${result.medals.length === 1 ? '' : 's'}:</p><div class="trial-won">${faces}</div>`;
   }
 
   // ---------- Colosseum ----------
@@ -1859,7 +1859,7 @@ export class UI {
   private spinning = false;
 
   private bindRewards() {
-    // Lucky Spin wheel: equal slices, labels turned to face out.
+    // Fortune Wheel: equal slices, labels turned to face out.
     const n = SPIN_SLICES.length;
     const deg = 360 / n;
     const wheel = $('spin-wheel');
@@ -1890,7 +1890,7 @@ export class UI {
         this.spinning = false;
         play('chest');
         this.scene()?.syncHeroes();
-        this.showReward('Lucky Spin', SPIN_SLICES[got.index].reward, got);
+        this.showReward('Fortune Wheel', SPIN_SLICES[got.index].reward, got);
         this.render();
       }, 3200);
       this.render();
@@ -1900,7 +1900,7 @@ export class UI {
       if (!drops) return;
       play('chest');
       this.scene()?.syncHeroes();
-      this.showModal('Daily Medal Bundle', `${dropCards(drops)}Come back tomorrow for a new bundle.`, 'Collect');
+      this.showModal('Daily Crest Bundle', `${dropCards(drops)}Come back tomorrow for a new bundle.`, 'Collect');
       this.render();
     });
     $('ms-claim').addEventListener('click', () => {
@@ -1954,7 +1954,7 @@ export class UI {
     row.li.classList.toggle('done', state === 'done');
   }
 
-  /** Medal pack: pick any hero (not Legendary), then confirm. */
+  /** Crest pack: pick any hero (not Legendary), then confirm. */
   private pickMedalPack() {
     const s = this.state;
     const faces = SHOP_HEROES.map((h) => {
@@ -1962,8 +1962,8 @@ export class UI {
       return `<button type="button" class="g-pick" data-hero="${h.id}"><span class="face art" style="${faceStyle(h)}">${h.name[0]}</span><b>${h.name}</b><small>${owned ? '' : 'Locked · '}${medalPackCost(h.id)} Gems</small></button>`;
     }).join('');
     this.showModal(
-      'Medal pack',
-      `<p>${MEDAL_PACK.medals} medals for the hero you pick: Common ${MEDAL_PACK.gems.common}, Rare ${MEDAL_PACK.gems.rare}, Epic ${MEDAL_PACK.gems.epic} Gems. You have ${s.gems.toLocaleString()} Gems.</p><div class="g-picks">${faces}</div>`,
+      'Crest pack',
+      `<p>${MEDAL_PACK.medals} crests for the hero you pick: Common ${MEDAL_PACK.gems.common}, Rare ${MEDAL_PACK.gems.rare}, Epic ${MEDAL_PACK.gems.epic} Gems. You have ${s.gems.toLocaleString()} Gems.</p><div class="g-picks">${faces}</div>`,
       'Cancel',
     );
     $('modal-body').querySelectorAll<HTMLButtonElement>('.g-pick').forEach((btn) =>
@@ -1972,8 +1972,8 @@ export class UI {
         const cost = medalPackCost(h.id)!;
         const afford = s.gems >= cost;
         this.showModal(
-          `Medals for ${h.name}`,
-          `<p>${MEDAL_PACK.medals} ${h.name} medals for ${cost} Gems. You have ${s.gems.toLocaleString()}${afford ? '' : `, ${cost - s.gems} short`}.</p>`,
+          `Crests for ${h.name}`,
+          `<p>${MEDAL_PACK.medals} ${h.name} crests for ${cost} Gems. You have ${s.gems.toLocaleString()}${afford ? '' : `, ${cost - s.gems} short`}.</p>`,
           afford ? `Buy · ${cost} Gems` : 'Okay',
           afford
             ? () => {
@@ -1981,7 +1981,7 @@ export class UI {
                 if (!drops) return;
                 play('chest');
                 this.scene()?.syncHeroes();
-                this.showModal('Medal pack', `${dropCards(drops)}Bought with Gems.`, 'Collect');
+                this.showModal('Crest pack', `${dropCards(drops)}Bought with Gems.`, 'Collect');
                 this.render();
               }
             : null,
@@ -1992,14 +1992,14 @@ export class UI {
     );
   }
 
-  /** The Hero Shop card: this week's featured hero, the rotating offers and the medal pack button. */
+  /** The Hero Shop card: this week's featured hero, the rotating offers and the crest pack button. */
   private renderHeroShop(now: number) {
     const s = this.state;
     const gems = s.gems;
     const face = (h: HeroDef) => `<span class="face art" style="${faceStyle(h)}">${h.name[0]}</span>`;
     const f = s.featuredState(now);
     const bundle = (kind: 'small' | 'big', b: { medals: number; gems: number }, label: string) =>
-      `<button type="button" class="gem-btn" data-hs="featured:${kind}" ${f[kind] || gems < b.gems ? 'disabled' : ''}>${f[kind] ? 'Bought' : `${label} · ${b.medals} medals<small>${b.gems} Gems</small>`}</button>`;
+      `<button type="button" class="gem-btn" data-hs="featured:${kind}" ${f[kind] || gems < b.gems ? 'disabled' : ''}>${f[kind] ? 'Bought' : `${label} · ${b.medals} crests<small>${b.gems} Gems</small>`}</button>`;
     setHtml(
       $('hs-featured'),
       `${face(f.hero)}<div class="hs-feat-text"><b>Featured: ${f.hero.name}</b><small>${cap(f.hero.rarity)} · ${cap(f.hero.element)}. A new hero every Monday; every hero comes back in turn.</small></div>
@@ -2011,7 +2011,7 @@ export class UI {
       shop.offers
         .map((o, i) => {
           const h = HEROES.find((x) => x.id === o.heroId)!;
-          return `<div class="g-offer${o.bought ? ' done' : ''}">${face(h)}<b>${h.name}</b><small>${o.medals} medals</small><button type="button" class="gem-btn" data-hs="offer:${i}" ${o.bought || gems < o.gems ? 'disabled' : ''}>${o.bought ? 'Bought' : `${o.gems} <span class="gem"></span>`}</button></div>`;
+          return `<div class="g-offer${o.bought ? ' done' : ''}">${face(h)}<b>${h.name}</b><small>${o.medals} crests</small><button type="button" class="gem-btn" data-hs="offer:${i}" ${o.bought || gems < o.gems ? 'disabled' : ''}>${o.bought ? 'Bought' : `${o.gems} <span class="gem"></span>`}</button></div>`;
         })
         .join(''),
     );
@@ -2020,7 +2020,7 @@ export class UI {
     const rf = $<HTMLButtonElement>('hs-refresh');
     rf.disabled = gems < HERO_SHOP_REFRESH_GEMS;
     setHtml(rf, `Refresh now · ${HERO_SHOP_REFRESH_GEMS} <span class="gem"></span>`);
-    setHtml($('hs-pack'), `Pick a hero · ${MEDAL_PACK.medals} medals from ${MEDAL_PACK.gems.common} <span class="gem"></span>`);
+    setHtml($('hs-pack'), `Pick a hero · ${MEDAL_PACK.medals} crests from ${MEDAL_PACK.gems.common} <span class="gem"></span>`);
   }
 
   /** The Gem Shop rows: what each costs, what it gives and whether it can be bought now. */
@@ -2048,7 +2048,7 @@ export class UI {
   /** When the offline reach was last worked out (it runs the boss checks, so not every frame). */
   private offlineAt = 0;
 
-  /** The home panel: offline reach, Objective, daily challenges, login, Lucky Spin and Medal Bundle. */
+  /** The home panel: offline reach, Objective, daily challenges, login, Fortune Wheel and Crest Bundle. */
   private renderHome() {
     const s = this.state;
     const now = Date.now();
@@ -2339,7 +2339,7 @@ export function dropCards(drops: SummonDrop[]): string {
   return `<div class="summon-grid">${cards}</div>`;
 }
 
-/** Short label for a Lucky Spin slice. */
+/** Short label for a Fortune Wheel slice. */
 function sliceLabel(r: Reward): string {
   if (r.chests && r.gems) return `${r.chests === 1 ? 'Chest' : `${r.chests} Chests`} + ${r.gems} Gems`;
   if (r.chests && r.stones) return `${r.chests} Chests + ${r.stones} Stones`;
@@ -2360,9 +2360,9 @@ function cap(s: string) {
 
 /** Bold, color-coded rarity label shown under a hero's name. */
 /** How Legendary heroes are earned, shown in the Collection and on their hero page. */
-const LEGENDARY_HOW = `Legendary heroes never drop. An 8★ hero turns every ${LEGENDARY_MEDAL_RATE} extra medals into 1 Legendary medal; spend them on any Legendary hero: ${LEGENDARY_UNLOCK_MEDALS} to unlock, then more for each star.`;
+const LEGENDARY_HOW = `Legendary heroes never drop. An 8★ hero turns every ${LEGENDARY_MEDAL_RATE} extra crests into 1 Legendary crest; spend them on any Legendary hero: ${LEGENDARY_UNLOCK_MEDALS} to unlock, then more for each star.`;
 
-/** "12/30 Crests", or Legendary medals for Legendary heroes. */
+/** "12/30 Crests", or Legendary crests for Legendary heroes. */
 function medalCount(def: HeroDef, have: number, need: number) {
   return `${have}/${need} ${def.rarity === 'legendary' ? 'Legendary' : 'Crests'}`;
 }
