@@ -139,7 +139,7 @@ describe('offline earnings', () => {
 
   it('beats bosses the team can beat, and stops before the first one it cannot', () => {
     const s = fresh();
-    const team = HEROES.filter((h) => h.rarity === 'common').slice(0, 5);
+    const team = HEROES.filter((h) => ['blaze', 'ember', 'flint', 'cinder', 'briar'].includes(h.id));
     for (const h of HEROES) s.levels[h.id] = team.includes(h) ? 100 : 0;
     s.secondsPerStage = 1;
     s.stage = 3;
@@ -153,7 +153,7 @@ describe('offline earnings', () => {
 
   it('maxOfflineStage shows where a full offline stretch would stop, without moving', () => {
     const s = fresh();
-    const team = HEROES.filter((h) => h.rarity === 'common').slice(0, 5);
+    const team = HEROES.filter((h) => ['blaze', 'ember', 'flint', 'cinder', 'briar'].includes(h.id));
     for (const h of HEROES) s.levels[h.id] = team.includes(h) ? 100 : 0;
     s.secondsPerStage = 1;
     s.stage = 3;
@@ -165,7 +165,7 @@ describe('offline earnings', () => {
 
   it('does not beat a boss without enough time left, or with a team that is too weak', () => {
     const s = fresh();
-    const team = HEROES.filter((h) => h.rarity === 'common').slice(0, 5);
+    const team = HEROES.filter((h) => ['blaze', 'ember', 'flint', 'cinder', 'briar'].includes(h.id));
     for (const h of HEROES) s.levels[h.id] = team.includes(h) ? 92 : 0;
     s.secondsPerStage = 1;
     s.stage = 50;
@@ -1113,7 +1113,7 @@ describe('Guild shop', () => {
   it('Wild Medals go to a picked hero, up to the weekly cap', () => {
     const s = fresh();
     s.guildCredits = 10_000;
-    const common = HEROES.find((h) => h.id === 'brine')!;
+    const common = HEROES.find((h) => h.id === 'rook')!;
     const legend = HEROES.find((h) => h.rarity === 'legendary');
     if (legend) expect(s.buyWildMedals(legend.id, 1, day)).toBeNull();
     expect(s.buyWildMedals(common.id, 15, day)).not.toBeNull();
@@ -1340,7 +1340,7 @@ describe('Ultimate slots', () => {
   function teamOfFive() {
     const s = fresh();
     s.teamSlots = 5;
-    const team = [starter, ...HEROES.filter((h) => h.rarity === 'common' && h.id !== starter.id).slice(0, 4)];
+    const team = [starter, ...HEROES.filter((h) => ['blaze', 'ember', 'flint', 'cinder'].includes(h.id))];
     for (const h of team) s.levels[h.id] = 1;
     return { s, ids: team.map((h) => h.id) };
   }

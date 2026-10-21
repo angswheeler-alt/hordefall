@@ -180,7 +180,7 @@ export const ELEMENT_COLORS: Record<Element, number> = {
 // Ranger and Gunner long-range single target, Support healer, the other melee types quick and hard-hitting.
 export const HEROES: HeroDef[] = [
   // ---- Fire: passion and destruction ----
-  { id: 'blaze', rarity: 'common', name: 'Flare', element: 'fire', type: 'Barbarian', baseAtk: 7.5, baseHp: 70, range: 30, attackCooldown: 1.3, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
+  { id: 'blaze', rarity: 'rare', name: 'Flare', element: 'fire', type: 'Barbarian', baseAtk: 7.5, baseHp: 70, range: 30, attackCooldown: 1.3, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
     bio: 'A hulking red wolf-beast with a flaming war axe he swings like it weighs nothing. Nothing pushes him back.',
     basic: { name: 'Axe Chop', text: 'Slow, crushing swings at the nearest enemy ahead.' },
     ultimate: { name: 'Inferno Axe', text: ULT('A giant axe of fire crashes down on') },
@@ -188,7 +188,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Flurry of Blows', text: 'Every 4th attack is three quick blows (3x damage).', effect: { kind: 'everyNth', value: 3, every: 4 } },
     sp2: { name: 'Heavy Frame', text: '+20% HP.', effect: { kind: 'hp', value: 1.2 } },
     aura: { name: 'Forge Guard', text: 'Fire heroes get +40% Defense.', effect: { kind: 'def', value: 1.4, team: true, element: 'fire' } } },
-  { id: 'ember', rarity: 'common', name: 'Ember', element: 'fire', type: 'Magician', baseAtk: 8, baseHp: 40, range: 150, attackCooldown: 1.4, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 40,
+  { id: 'ember', rarity: 'rare', name: 'Ember', element: 'fire', type: 'Magician', baseAtk: 8, baseHp: 40, range: 150, attackCooldown: 1.4, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 40,
     bio: 'An energetic arcanist with flame-shaped hair ornaments and a fire orb she never puts down.',
     basic: { name: 'Fire Orb', text: 'Ranged fireballs that splash every enemy near the target.' },
     ultimate: { name: 'Meteor', text: `${ULT('A meteor crashes into')} Leaves burning ground for 5 seconds that burns anything walking through it.` },
@@ -200,7 +200,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Wildfire', text: 'A Burning enemy that dies explodes for 2x ATK on enemies around it.', effect: { kind: 'burnBurst', value: 2 } },
     sp2: { name: 'Stoke the Flames', text: '+40% damage to Burning enemies.', effect: { kind: 'vsBurning', value: 1.4 } },
     aura: { name: 'Heat Shimmer', text: 'Team critical hit chance +5%.', effect: { kind: 'crit', value: 0.05, team: true } } },
-  { id: 'flint', rarity: 'common', name: 'Flint', element: 'fire', type: 'Rogue', baseAtk: 6, baseHp: 50, range: 24, attackCooldown: 0.6, moveSpeed: 170, unlockCost: 50, upgradeBaseCost: 15, goldMult: 2,
+  { id: 'flint', rarity: 'rare', name: 'Flint', element: 'fire', type: 'Rogue', baseAtk: 6, baseHp: 50, range: 24, attackCooldown: 0.6, moveSpeed: 170, unlockCost: 50, upgradeBaseCost: 15, goldMult: 2,
     ult: { kind: 'strike', mult: 3, plusMult: 4 },
     ultPlus: 'The strike hits for 160x ATK.',
     bio: 'A quick salamander in a red scarf, with twin daggers and a tail that never stops burning.',
@@ -210,7 +210,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Dancing Blades', text: '30% chance for each attack to strike twice.', effect: { kind: 'doubleStrike', value: 0.3 } },
     sp2: { name: 'Ember Edge', text: '+10% critical hit chance.', effect: { kind: 'crit', value: 0.1 } },
     aura: { name: 'Hot Blood', text: 'Fire heroes deal +20% critical damage.', effect: { kind: 'critDmg', value: 0.2, team: true, element: 'fire' } } },
-  { id: 'cinder', rarity: 'common', name: 'Cinder', element: 'fire', type: 'Brawler', baseAtk: 5.5, baseHp: 80, range: 26, attackCooldown: 1.0, moveSpeed: 120, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
+  { id: 'cinder', rarity: 'rare', name: 'Cinder', element: 'fire', type: 'Brawler', baseAtk: 5.5, baseHp: 80, range: 26, attackCooldown: 1.0, moveSpeed: 120, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
     signature: { kind: 'combo', perHit: 0.05, max: 0.3 },
     bio: 'A rust-red steam golem with a smoking stack and piston fists. It hits harder with every punch and never takes a step back.',
     basic: { name: 'Piston Punch', text: 'Heavy punches at the nearest enemy ahead.' },
@@ -221,7 +221,7 @@ export const HEROES: HeroDef[] = [
     aura: { name: 'Iron Works', text: 'Fire heroes get +40% Defense.', effect: { kind: 'def', value: 1.4, team: true, element: 'fire' } } },
 
   // ---- Earth (Grass): life and growth ----
-  { id: 'briar', rarity: 'common', name: 'Briar', element: 'earth', type: 'Ranger', baseAtk: 5.5, baseHp: 45, range: 185, attackCooldown: 0.9, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'briar', rarity: 'rare', name: 'Briar', element: 'earth', type: 'Ranger', baseAtk: 5.5, baseHp: 45, range: 185, attackCooldown: 0.9, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     signature: { kind: 'sureCrit' },
     bio: 'A hooded fox archer in forest green who can put an arrow through a falling acorn.',
     basic: { name: 'Leaf Arrow', text: 'Long-range arrows at the nearest enemy.' },
@@ -230,7 +230,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Multi Shot', text: 'Each shot also hits the next 2 enemies just behind the target.', effect: { kind: 'pierce', value: 2 } },
     sp2: { name: 'Quickdraw', text: 'Attacks 20% faster.', effect: { kind: 'attackSpeed', value: 0.8 } },
     aura: { name: "Hunter's Eye", text: 'Earth heroes deal +20% critical damage.', effect: { kind: 'critDmg', value: 0.2, team: true, element: 'earth' } } },
-  { id: 'fern', rarity: 'common', name: 'Fern', element: 'earth', type: 'Support', flying: true, baseAtk: 3, baseHp: 55, range: 130, attackCooldown: 1.2, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
+  { id: 'fern', rarity: 'epic', name: 'Fern', element: 'earth', type: 'Support', flying: true, baseAtk: 3, baseHp: 55, range: 130, attackCooldown: 1.2, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
     ult: { kind: 'teamShield', share: 1, plusShare: 1.5 },
     ultPlus: 'Shields are worth 150% of her max HP.',
     bio: 'A tiny forest faery in a leaf cap and leaf dress, whose sprouting wand mends wounds.',
@@ -240,7 +240,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Faery Shield', text: 'Every 3rd heal or attack also shields a random ally for 40% of her max HP.', effect: { kind: 'ward', value: 0.4, every: 3 } },
     sp2: { name: 'Green Touch', text: 'Heals are 50% stronger.', effect: { kind: 'healPower', value: 1.5 } },
     aura: { name: 'Wild Vigor', text: 'Whole team +15% HP.', effect: { kind: 'hp', value: 1.15, team: true } } },
-  { id: 'thorn', rarity: 'common', name: 'Thicket', element: 'earth', type: 'Knight', baseAtk: 3.5, baseHp: 150, range: 34, attackCooldown: 1.0, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'thorn', rarity: 'epic', name: 'Thicket', element: 'earth', type: 'Knight', baseAtk: 3.5, baseHp: 150, range: 34, attackCooldown: 1.0, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A sturdy thorn sentinel in bark armor. His thorn spear gives him a little more reach than other knights.',
     basic: { name: 'Thorn Thrust', text: 'Heavy spear thrusts with a little extra reach that shove enemies back.' },
     ultimate: { name: 'Bramble Wall', text: `${ULT('Thorns burst from the ground under')} Roots them in place for 3 seconds (bosses for 1).` },
@@ -252,7 +252,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Taproot', text: 'Regenerates 2% of max HP every second.', effect: { kind: 'regen', value: 0.02 } },
     sp2: { name: 'Thornmail', text: 'Bramble Hide reflects 50% instead of 20%.', effect: { kind: 'reflect', value: 0.3 } },
     aura: { name: 'Old Growth', text: 'Team max HP +20%.', effect: { kind: 'hp', value: 1.2, team: true } } },
-  { id: 'moss', rarity: 'common', name: 'Moss', element: 'earth', type: 'Magician', baseAtk: 7, baseHp: 55, range: 140, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 48,
+  { id: 'moss', rarity: 'rare', name: 'Moss', element: 'earth', type: 'Magician', baseAtk: 7, baseHp: 55, range: 140, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 48,
     signature: { kind: 'slow', chance: 0.3, mult: 0.6, seconds: 2 },
     ult: { kind: 'earthen', seconds: 8, plusSeconds: 15 },
     ultPlus: 'Earth damage lasts 15 s.',
@@ -265,7 +265,7 @@ export const HEROES: HeroDef[] = [
     aura: { name: 'Forest Might', text: 'Earth heroes get +40% ATK.', effect: { kind: 'atk', value: 1.4, team: true, element: 'earth' } } },
 
   // ---- Water: adaptability and wisdom ----
-  { id: 'brine', rarity: 'common', name: 'Brine', element: 'water', type: 'Samurai', baseAtk: 5, baseHp: 65, range: 28, attackCooldown: 0.8, moveSpeed: 120, unlockCost: 0, upgradeBaseCost: 5, goldMult: 1,
+  { id: 'brine', rarity: 'rare', name: 'Brine', element: 'water', type: 'Samurai', baseAtk: 5, baseHp: 65, range: 28, attackCooldown: 0.8, moveSpeed: 120, unlockCost: 0, upgradeBaseCost: 5, goldMult: 1,
     bio: 'A young tidecoast sailor with a cutlass and a sea-blue scarf, sworn to bring the Lantern Queen home. The reason every early boss goes down.',
     basic: { name: 'Cutlass Slash', text: 'Fast cutlass slashes at the nearest enemy ahead.' },
     ultimate: { name: 'Rogue Wave', text: `${ULT('A crashing wave hits')} Washes regular enemies far back.` },
@@ -277,7 +277,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Undertow', text: '20% chance for each attack to strike twice.', effect: { kind: 'doubleStrike', value: 0.2 } },
     sp2: { name: 'Salt Spray', text: '+15% critical hit chance.', effect: { kind: 'crit', value: 0.15 } },
     aura: { name: 'Fair Winds', text: 'Whole team attacks 10% faster.', effect: { kind: 'attackSpeed', value: 0.9, team: true } } },
-  { id: 'brook', rarity: 'common', name: 'Brook', element: 'water', type: 'Support', baseAtk: 2.8, baseHp: 60, range: 140, attackCooldown: 1.2, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
+  { id: 'brook', rarity: 'rare', name: 'Brook', element: 'water', type: 'Support', baseAtk: 2.8, baseHp: 60, range: 140, attackCooldown: 1.2, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
     signature: { kind: 'knockback', push: 30 },
     ult: { kind: 'teamShield', share: 1, plusShare: 1.5 },
     ultPlus: 'Shields are worth 150% of her max HP.',
@@ -288,7 +288,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Mini Tsunami', text: 'Every 4th attack is a small wave: 2x damage to every enemy near the target, pushing them back.', effect: { kind: 'slam', value: 2, every: 4 } },
     sp2: { name: 'Still Waters', text: 'Takes 25% less damage.', effect: { kind: 'damageTaken', value: 0.75 } },
     aura: { name: 'Spring Blessing', text: 'Water heroes +15% HP.', effect: { kind: 'hp', value: 1.15, team: true, element: 'water' } } },
-  { id: 'ripple', rarity: 'common', name: 'Ripple', element: 'water', type: 'Ranger', baseAtk: 6, baseHp: 44, range: 175, attackCooldown: 1.0, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'ripple', rarity: 'rare', name: 'Ripple', element: 'water', type: 'Ranger', baseAtk: 6, baseHp: 44, range: 175, attackCooldown: 1.0, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     signature: { kind: 'curse', seconds: 4, mult: 1.5 },
     ult: { kind: 'weaken', mult: 0.5, seconds: 6, plusSeconds: 10 },
     ultPlus: 'Enemies stay weakened for 10 s.',
@@ -299,7 +299,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Runaway Snowball', text: 'Every 4th shot rolls a snowball through the enemies just behind the target; everyone hit takes 25% more damage for 4 s.', effect: { kind: 'snowball', value: 1.25, every: 4 } },
     sp2: { name: 'Cold Aim', text: '+20% critical hit chance.', effect: { kind: 'crit', value: 0.2 } },
     aura: { name: 'Snow Fury', text: 'Water heroes +40% ATK.', effect: { kind: 'atk', value: 1.4, team: true, element: 'water' } } },
-  { id: 'marina', rarity: 'common', name: 'Marina', element: 'water', type: 'Magician', baseAtk: 8.5, baseHp: 45, range: 160, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 36,
+  { id: 'marina', rarity: 'rare', name: 'Marina', element: 'water', type: 'Magician', baseAtk: 8.5, baseHp: 45, range: 160, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 36,
     bio: 'An octopus sea witch hung with pearls, who carries the sea in a single orb.',
     basic: { name: 'Water Orb', text: 'Ranged bursts of seawater that splash every enemy near the target.' },
     ultimate: { name: 'Heavy Rain', text: ULT('A crushing downpour hits') },
@@ -309,7 +309,7 @@ export const HEROES: HeroDef[] = [
     aura: { name: "Ocean's Embrace", text: 'Water heroes +15% HP.', effect: { kind: 'hp', value: 1.15, team: true, element: 'water' } } },
 
   // ---- Dark: mystery and forbidden power ----
-  { id: 'shade', rarity: 'common', name: 'Shade', element: 'dark', type: 'Rogue', baseAtk: 6.5, baseHp: 46, range: 24, attackCooldown: 0.55, moveSpeed: 170, unlockCost: 50, upgradeBaseCost: 15, goldMult: 2,
+  { id: 'shade', rarity: 'epic', name: 'Shade', element: 'dark', type: 'Rogue', baseAtk: 6.5, baseHp: 46, range: 24, attackCooldown: 0.55, moveSpeed: 170, unlockCost: 50, upgradeBaseCost: 15, goldMult: 2,
     bio: 'A black cat ninja in a violet mask with twin daggers, in it for the loot and not pretending otherwise.',
     basic: { name: 'Kunai', text: 'Very fast stabs at the closest enemy.' },
     ultimate: { name: 'Shuriken Storm', text: ULT('A storm of shadow shuriken hits') },
@@ -317,7 +317,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Assassination', text: 'Every 5th attack blinks to the farthest enemy in reach (a boss first) and backstabs it for 3x damage.', effect: { kind: 'assassinate', value: 3, every: 5 } },
     sp2: { name: 'Backstab', text: '+10% critical hit chance.', effect: { kind: 'crit', value: 0.1 } },
     aura: { name: 'Dread Veil', text: 'Enemies attack 10% slower.', effect: { kind: 'enemyHaste', value: 0.9, team: true } } },
-  { id: 'vex', rarity: 'common', name: 'Vex', element: 'dark', type: 'Magician', baseAtk: 9, baseHp: 40, range: 150, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 40,
+  { id: 'vex', rarity: 'rare', name: 'Vex', element: 'dark', type: 'Magician', baseAtk: 9, baseHp: 40, range: 150, attackCooldown: 1.5, moveSpeed: 100, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 40,
     ult: { kind: 'weaken', mult: 0.5, seconds: 5, plusSeconds: 8 },
     ultPlus: 'Enemies stay weakened for 8 s.',
     bio: 'A hooded skeleton sorcerer channelling a violet orb that hums when nobody is looking at it.',
@@ -339,7 +339,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Barbed Shot', text: 'Arrows pierce 1 more enemy.', effect: { kind: 'pierce', value: 1 } },
     sp2: { name: 'Night Eyes', text: '+20% critical hit chance.', effect: { kind: 'crit', value: 0.2 } },
     aura: { name: "Hunter's Mark", text: 'Whole team deals 10% more damage to bosses.', effect: { kind: 'bossDamage', value: 1.1, team: true } } },
-  { id: 'dread', rarity: 'common', name: 'Dread', element: 'dark', type: 'Knight', baseAtk: 4, baseHp: 145, range: 26, attackCooldown: 1.0, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'dread', rarity: 'rare', name: 'Dread', element: 'dark', type: 'Knight', baseAtk: 4, baseHp: 145, range: 26, attackCooldown: 1.0, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     signature: { kind: 'knockback', push: 25 },
     bio: 'A suit of black armor with nobody inside, only violet ghost-fire behind a massive shield. It feeds on the fight.',
     basic: { name: 'Abyss Blade', text: 'Heavy sword blows that shove enemies back a step.' },
@@ -359,7 +359,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Soul Pierce', text: 'Arrows pierce 2 more enemies.', effect: { kind: 'pierce', value: 2 } },
     sp2: { name: 'Haunting', text: 'Every 5th arrow hits for 3x damage.', effect: { kind: 'everyNth', value: 3, every: 5 } },
     aura: { name: 'Grave Chill', text: 'Dark heroes +10% critical hit chance.', effect: { kind: 'crit', value: 0.1, team: true, element: 'dark' } } },
-  { id: 'nyx', rarity: 'rare', name: 'Nyx', element: 'dark', type: 'Support', flying: true, baseAtk: 3.3, baseHp: 58, range: 135, attackCooldown: 1.1, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
+  { id: 'nyx', rarity: 'epic', name: 'Nyx', element: 'dark', type: 'Support', flying: true, baseAtk: 3.3, baseHp: 58, range: 135, attackCooldown: 1.1, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
     ult: { kind: 'teamShield', share: 0.8, plusShare: 1.2 },
     ultPlus: "Shields are worth 120% of Nyx's max HP.",
     bio: 'A little bat mage in a violet robe whose crystal staff mends wounds with moonlight.',
@@ -417,7 +417,7 @@ export const HEROES: HeroDef[] = [
     aura: { name: "Gladiator's Vigor", text: 'Earth heroes +15% HP.', effect: { kind: 'hp', value: 1.15, team: true, element: 'earth' } } },
 
   // ---- Light: hope and protection ----
-  { id: 'dawn', rarity: 'common', name: 'Dawn', element: 'light', type: 'Lancer', baseAtk: 5, baseHp: 65, range: 36, attackCooldown: 0.85, moveSpeed: 120, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'dawn', rarity: 'rare', name: 'Dawn', element: 'light', type: 'Lancer', baseAtk: 5, baseHp: 65, range: 36, attackCooldown: 0.85, moveSpeed: 120, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A white-and-gold lancer with a radiant spear, first into every fight and last to complain.',
     basic: { name: 'Radiant Thrust', text: 'Quick spear thrusts at the nearest enemy ahead.' },
     ultimate: { name: 'Spear Wave', text: ULT('A wave of shining spears hits') },
@@ -425,7 +425,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Piercing Thrust', text: 'Each thrust also hits the next 3 enemies just behind the target.', effect: { kind: 'pierce', value: 3 } },
     sp2: { name: 'Radiant Edge', text: 'Deals 25% more damage to bosses.', effect: { kind: 'bossDamage', value: 1.25 } },
     aura: { name: 'Holy Bastion', text: 'Light heroes get +40% Defense.', effect: { kind: 'def', value: 1.4, team: true, element: 'light' } } },
-  { id: 'lumen', rarity: 'common', name: 'Lumen', element: 'light', type: 'Support', baseAtk: 3, baseHp: 55, range: 130, attackCooldown: 1.15, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
+  { id: 'lumen', rarity: 'rare', name: 'Lumen', element: 'light', type: 'Support', baseAtk: 3, baseHp: 55, range: 130, attackCooldown: 1.15, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, heals: true,
     bio: 'A radiant cleric from the Lantern Queen\'s chapel, carrying a staff shaped like the sun.',
     basic: { name: 'Sunlight Mend', text: HEAL_BASIC },
     ultimate: { name: 'Dawn Chorus', text: 'Fully heals every living hero and brings back one fallen hero at half HP.' },
@@ -437,7 +437,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Halo', text: 'Heals are 50% stronger.', effect: { kind: 'healPower', value: 1.5 } },
     sp2: { name: 'Beacon', text: 'The ally she heals deals 20% more damage for 4 seconds.', effect: { kind: 'beacon', value: 1.2 } },
     aura: { name: 'Sunlit', text: 'Whole team regenerates 1% of max HP every second.', effect: { kind: 'regen', value: 0.01, team: true } } },
-  { id: 'sol', rarity: 'common', name: 'Sol', element: 'light', type: 'Gunner', baseAtk: 6, baseHp: 48, range: 170, attackCooldown: 1.0, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 28,
+  { id: 'sol', rarity: 'rare', name: 'Sol', element: 'light', type: 'Gunner', baseAtk: 6, baseHp: 48, range: 170, attackCooldown: 1.0, moveSpeed: 115, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 28,
     bio: 'A small bunny in golden armor hauling a sun cannon twice her size. Every shot leaves a streak of light in the air.',
     basic: { name: 'Sun Shell', text: 'Long-range explosive shots that splash enemies near the target.' },
     ultimate: { name: 'Shell Rain', text: ULT('A rain of sun shells hits') },
@@ -445,7 +445,7 @@ export const HEROES: HeroDef[] = [
     sp1: { name: 'Flash Shell', text: 'Every 4th shot blinds the enemies it hits: they miss half their attacks for 3 s.', effect: { kind: 'blind', value: 0.5, every: 4 } },
     sp2: { name: 'Hop Reload', text: 'Attacks 20% faster.', effect: { kind: 'attackSpeed', value: 0.8 } },
     aura: { name: 'High Noon', text: 'Light heroes +40% ATK.', effect: { kind: 'atk', value: 1.4, team: true, element: 'light' } } },
-  { id: 'aegis', rarity: 'common', name: 'Aegis', element: 'light', type: 'Knight', baseAtk: 3.2, baseHp: 160, range: 26, attackCooldown: 1.0, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  { id: 'aegis', rarity: 'rare', name: 'Aegis', element: 'light', type: 'Knight', baseAtk: 3.2, baseHp: 160, range: 26, attackCooldown: 1.0, moveSpeed: 110, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
     bio: 'A lion paladin in white-and-gold armor with a sun-emblem shield. Nothing gets past him that he does not allow.',
     basic: { name: 'Gold Blade', text: 'Steady sword blows at the nearest enemy ahead.' },
     ultimate: { name: 'Thunder Wave', text: ULT('A wave of golden thunder hits') },
@@ -634,6 +634,14 @@ export const MAX_STARS = STAR_CRESTS.length;
  * sells them. The free starter (unlockCost 0) needs none.
  */
 export const UNLOCK_CRESTS: Record<Exclude<Rarity, 'legendary'>, number> = { common: 10, rare: 30, epic: 80 };
+/**
+ * Heroes whose rarity went up to match their Crush unit (2026-10-21): our first 20 were Common, Nyx was Rare.
+ * Saves from before then unlock a locked one that already held enough medals under its old cost.
+ */
+export const RAISED_RARITY_OLD_COST: Record<string, number> = {
+  ...Object.fromEntries(['blaze', 'ember', 'flint', 'cinder', 'briar', 'fern', 'thorn', 'moss', 'brine', 'brook', 'ripple', 'marina', 'shade', 'vex', 'dread', 'dawn', 'lumen', 'sol', 'aegis'].map((id) => [id, UNLOCK_CRESTS.common])),
+  nyx: UNLOCK_CRESTS.rare,
+};
 /** Evolutions needed for each star unlock (0 = 1★): the team Aura at 4★ like the original, the stronger Ultimate at 5★. */
 export const AURA_EVOLUTIONS = 3;
 export const ULT_PLUS_EVOLUTIONS = 4;
