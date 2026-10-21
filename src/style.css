@@ -665,6 +665,11 @@ div.g-req { margin-bottom: 8px; }
 .tm-slot.empty { border: 2px dashed rgba(255,255,255,.2); background: transparent; }
 .tm-slot .face, .tm-card .face { width: 40px; height: 40px; border-radius: 8px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
 .tm-slot.empty .face { border-color: transparent; }
+.tm-slot.buy { border: 2px dashed var(--gold, #f2c94c); background: transparent; cursor: pointer; font: inherit; color: inherit; }
+.tm-slot.buy .face { border-color: transparent; color: var(--gold, #f2c94c); font-size: 22px; }
+.tm-slot.buy:disabled { opacity: .5; cursor: default; }
+.tm-slot.locked { border: 2px solid rgba(255,255,255,.08); background: transparent; opacity: .45; }
+.tm-slot.locked .face { border-color: transparent; font-size: 16px; }
 .tm-slot small { font-size: 11px; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tm-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .tm-chips { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }

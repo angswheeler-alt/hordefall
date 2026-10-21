@@ -2,7 +2,7 @@ import { DEV_TOOLS } from './config';
 import Decimal from 'break_infinity.js';
 import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, LINEUP_SIZE, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
@@ -219,11 +219,15 @@ export class UI {
     const peek = this.teamPeek ? HEROES.find((h) => h.id === this.teamPeek) : undefined;
     const starsOf = (h: HeroDef) => `<span class="tm-stars">${'★'.repeat(Math.max(1, (s.stars[h.id] ?? 0) + 1))}</span>`;
     const face = (h: HeroDef, cls = '') => `<span class="face art${cls}" style="${faceStyle(h)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span>`;
-    const slots = Array.from({ length: LINEUP_SIZE }, (_, i) => {
+    const slotCost = s.nextTeamSlotCost();
+    const slots = Array.from({ length: TEAM_SLOTS_MAX }, (_, i) => {
       const h = team[i];
-      return h
-        ? `<button type="button" class="tm-slot on" data-peek="${h.id}" aria-label="${h.name}">${face(h)}<small>${h.name}</small></button>`
-        : '<span class="tm-slot empty"><span class="face"></span><small>Empty</small></span>';
+      if (h) return `<button type="button" class="tm-slot on" data-peek="${h.id}" aria-label="${h.name}">${face(h)}<small>${h.name}</small></button>`;
+      if (i < s.teamSlots) return '<span class="tm-slot empty"><span class="face"></span><small>Empty</small></span>';
+      // The next slot can be bought here; the ones after it show as locked.
+      if (i === s.teamSlots && slotCost !== null)
+        return `<button type="button" class="tm-slot buy" data-buy-slot ${s.gems < slotCost ? 'disabled' : ''} aria-label="Buy team slot ${i + 1} for ${slotCost} Gems"><span class="face">+</span><small>${slotCost} Gems</small></button>`;
+      return '<span class="tm-slot locked" aria-hidden="true"><span class="face">🔒</span><small>Locked</small></span>';
     }).join('');
     let body: string;
     if (peek) {
@@ -242,7 +246,7 @@ export class UI {
         <p class="team-help">Tap a hero to see their stats and add or remove them. Taking a hero out drops them to gold level 1 and gives that gold back. Their Ember levels stay. New heroes are unlocked in Collection.</p>`;
     }
     this.showModal(
-      `Team ${count}/${LINEUP_SIZE}`,
+      `Team ${count}/${s.teamSlots}`,
       `<button type="button" class="tm-x" data-team-close aria-label="Close">✕</button><p class="tm-total">Total Combat Power <b>${fmt(s.totalCombatPower())}</b></p>${note ? `<p class="team-note">${note}</p>` : ''}<div class="tm-slots">${slots}</div><div class="tm-scroll">${body}</div>`,
       'Done',
     );
@@ -257,8 +261,8 @@ export class UI {
     const on = s.inLineup(h.id);
     const spent = s.goldSpent(h.id);
     const label = on ? (spent.gt(0) ? `Remove (+${fmt(spent)} gold)` : 'Remove') : 'Add to team';
-    const disabled = (on && count <= 1) || (!on && count >= LINEUP_SIZE);
-    const why = on && count <= 1 ? 'The team needs at least one hero.' : !on && count >= LINEUP_SIZE ? `The team is full (${LINEUP_SIZE}). Remove someone first.` : '';
+    const disabled = (on && count <= 1) || (!on && count >= s.teamSlots);
+    const why = on && count <= 1 ? 'The team needs at least one hero.' : !on && count >= s.teamSlots ? `The team is full (${s.teamSlots}). Remove someone first, or buy another team slot.` : '';
     const pct = (n: number) => `${(Math.round(n * 1000) / 10).toLocaleString()}%`;
     const num = (n: number) => (Math.round(n * 100) / 100).toLocaleString();
     const stat = (label: string, value: string) => `<div><span>${label}</span><b>${value}</b></div>`;
@@ -818,6 +822,15 @@ export class UI {
       if (t.closest('[data-peek-back]')) {
         this.teamPeek = null;
         this.openTeam();
+        return;
+      }
+      const buySlot = t.closest<HTMLButtonElement>('button[data-buy-slot]');
+      if (buySlot) {
+        if (!buySlot.disabled && this.state.buyTeamSlot()) {
+          play('unlock');
+          this.render();
+          this.openTeam(`Team slot ${this.state.teamSlots} unlocked.`);
+        }
         return;
       }
       if (t.closest('[data-team-close]')) {
