@@ -13,6 +13,7 @@ import type { GameState, OfflineReport, SummonDrop, RekindleResult, TrialResult,
 import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, BOOTCAMP, MILESTONE_STEP, milestoneReward, milestoneText, rewardText, type Reward } from './rewards';
 import { rarityOdds, SHOP_HEROES } from './state';
 import type { BattleScene } from './BattleScene';
+import type { ColosseumLink } from './colosseumLink';
 import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_BANDS, RANK_DAILY, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies } from './colosseum';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -23,6 +24,7 @@ const setHtml = (el: HTMLElement, html: string) => {
   el.innerHTML = html;
 };
 const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
+const escHtml = (text: string) => String(text).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 /** Inline style for a hero face: their sprite's head and shoulders over their element colour. */
 /**
  * Hero portrait URL, made absolute: a relative url() inside a CSS variable resolves against the
@@ -1461,6 +1463,43 @@ export class UI {
   private pvpPickKind: 'attack' | 'defense' = 'attack';
   private pvpPickIds: string[] = [];
   private pvpForecastKey = '';
+  /** The Colosseum server link (real opponents, defense log); null until main.ts sets it. */
+  private pvpServer: ColosseumLink | null = null;
+  private pvpFinding = false;
+
+  setPvpServer(link: ColosseumLink) {
+    this.pvpServer = link;
+  }
+
+  /** New opponents: real players from the server where they fit, Ghosts for the rest. */
+  private async pvpFindOpponents() {
+    if (this.pvpFinding) return;
+    this.pvpFinding = true;
+    try {
+      const real = (await this.pvpServer?.candidates().catch(() => [])) ?? [];
+      this.state.refreshPvpOpponents(Date.now(), real);
+    } finally {
+      this.pvpFinding = false;
+    }
+    if (this.tab === 'battle') this.renderPvp();
+  }
+
+  /** Top players and this player's defense log, in a pop-up. */
+  private async showPvpBoard() {
+    const esc = escHtml;
+    const board = await this.pvpServer?.board().catch(() => null);
+    if (!board) {
+      this.showModal('Colosseum', '<p>Sign in to see the leaderboard and who attacked your defense team. If you are signed in, the server needs supabase/colosseum.sql run once.</p>', 'Okay');
+      return;
+    }
+    const top = board.top.length
+      ? board.top.map((r) => `<li${r.isMe ? ' class="me"' : ''}><b>${r.rank}.</b> ${esc(r.username)} <small>${rankName(rankIndex(r.trophies))} · ${r.trophies}</small></li>`).join('')
+      : '<li>Nobody yet.</li>';
+    const log = board.log.length
+      ? board.log.map((l) => `<li>${esc(l.attacker)} ${l.attackerWon ? 'beat your defense' : 'lost to your defense'} <small>${new Date(l.at).toLocaleString()}</small></li>`).join('')
+      : '<li>Nobody has attacked your defense team yet.</li>';
+    this.showModal('Colosseum', `<h3>Top players</h3><ol class="pvp-list">${top}</ol><h3>Your defense log</h3><ul class="pvp-list">${log}</ul>`, 'Okay');
+  }
   private pvpForecastValue: ReturnType<GameState['pvpForecast']> = null;
 
   private pvpFace(h: HeroDef, stars?: number) {
@@ -1484,7 +1523,11 @@ export class UI {
       setHtml($('pvp'), `<p>Fight other players' teams, climb from Bronze to Legend and earn Starmotes for pink awakening stars.</p><small>Opens at player level ${s.pvpUnlockLevel()}. You are level ${s.keeperLevel()}.</small>`);
       return;
     }
-    if (!p.picks.length) s.refreshPvpOpponents();
+    if (!p.picks.length) {
+      void this.pvpFindOpponents();
+      setHtml($('pvp'), '<p>Finding opponents…</p>');
+      return;
+    }
     if (this.pvpView === 'team') return setHtml($('pvp'), this.pvpTeamHtml());
     if (this.pvpView === 'foe' && p.picks[this.pvpSlot]) return setHtml($('pvp'), this.pvpFoeHtml(this.pvpSlot));
     this.pvpView = 'list';
@@ -1497,7 +1540,7 @@ export class UI {
       .map((foe, i) => {
         const band = PVP_BANDS[foe.band] ?? PVP_BANDS[1];
         return `<button class="pvp-foe" data-pvp="foe" data-slot="${i}">
-          <div class="who"><b>${foe.name}${foe.ghost ? '<span class="pvp-tag">GHOST</span>' : ''}</b><span><span class="pvp-band b${foe.band}">${band.name}</span> <small>CP ${fmt(new Decimal(foe.cp))}</small></span><span class="faces">${this.pvpFoeFaces(foe)}</span></div>
+          <div class="who"><b>${escHtml(foe.name)}${foe.ghost ? '<span class="pvp-tag">GHOST</span>' : '<span class="pvp-tag real">PLAYER</span>'}</b><span><span class="pvp-band b${foe.band}">${band.name}</span> <small>CP ${fmt(new Decimal(foe.cp))}</small></span><span class="faces">${this.pvpFoeFaces(foe)}</span></div>
           <div class="pvp-pay">Win: +${band.win} trophies<br>+${band.motes} Starmotes</div>
         </button>`;
       })
@@ -1511,7 +1554,8 @@ export class UI {
         <div class="pvp-pay">${s.starmotes} Starmotes<br><small>${p.wins}W ${p.losses}L${p.streak ? ` · streak ${p.streak} (+${Math.round(s.pvpStreakBonus() * 100)}% dmg)` : ''}</small></div></div>
       <small>Daily ${RANK_DAILY[r]} · Weekly ${RANK_WEEKLY[r]} Starmotes at this rank. On Monday the weekly reward pays, then you drop to ${rankName(rankIndex(droppedTrophies(p.trophies)))}.</small>
       ${foes}
-      <div class="pvp-row"><button class="wood-btn small" data-pvp="refresh" ${refreshIn ? 'disabled' : ''}>${refreshIn ? `New opponents in ${Math.floor(refreshIn / 60)}:${String(refreshIn % 60).padStart(2, '0')}` : 'New opponents'}</button>${ticketBtn}</div>
+      ${this.pvpServer?.online ? '' : '<small>Sign in to also face other players\' defense teams. Until then every opponent is a Ghost.</small>'}
+      <div class="pvp-row"><button class="wood-btn small" data-pvp="board">Leaderboard &amp; log</button><button class="wood-btn small" data-pvp="refresh" ${refreshIn ? 'disabled' : ''}>${refreshIn ? `New opponents in ${Math.floor(refreshIn / 60)}:${String(refreshIn % 60).padStart(2, '0')}` : 'New opponents'}</button>${ticketBtn}</div>
       <div class="pvp-team"><div class="pvp-row"><b>Defense team</b><button class="wood-btn small" data-pvp="team" data-kind="defense">Edit</button></div><span class="faces">${s.pvpDefenseTeam().map((h) => this.pvpFace(h)).join('')}</span><small>Other players fight this team. Losing on defense never costs trophies.</small></div>`,
     );
   }
@@ -1532,7 +1576,7 @@ export class UI {
     const forecast = !fc ? '' : fc.won && fc.left[0].reduce((a, b) => a + b, 0) / fc.left[0].length > 0.4 ? ['win', 'Looks winnable.'] : fc.won ? ['close', 'A close fight.'] : ['lose', 'Looks tough. Try other elements or a stronger team.'];
     const can = s.canStartPvp(slot);
     return `<div class="pvp-row"><button class="wood-btn small" data-pvp="back">‹ Back</button><span class="pvp-band b${foe.band}">${band.name}</span></div>
-      <div class="pvp-team"><b>${foe.name}${foe.ghost ? '<span class="pvp-tag">GHOST</span>' : ''} <small>CP ${fmt(new Decimal(foe.cp))}</small></b><span class="faces">${this.pvpFoeFaces(foe)}</span></div>
+      <div class="pvp-team"><b>${escHtml(foe.name)}${foe.ghost ? '<span class="pvp-tag">GHOST</span>' : '<span class="pvp-tag real">PLAYER</span>'} <small>CP ${fmt(new Decimal(foe.cp))}</small></b><span class="faces">${this.pvpFoeFaces(foe)}</span></div>
       <div class="pvp-team"><div class="pvp-row"><b>Your attack team <small>CP ${fmt(mine)}</small></b><button class="wood-btn small" data-pvp="team" data-kind="attack">Change</button></div><span class="faces">${team.map((h) => this.pvpFace(h)).join('')}</span></div>
       ${forecast ? `<small class="pvp-forecast ${forecast[0]}">${forecast[1]}</small>` : ''}
       <small>Your team starts at the blue crystal and theirs at the red one. Fallen fighters come back after a few seconds. The first crystal destroyed loses. Win: +${band.win} trophies and ${band.motes} Starmotes. Loss: -6 trophies, 1 Starmote.</small>
@@ -1564,8 +1608,14 @@ export class UI {
         this.pvpView = 'list';
         break;
       case 'refresh':
-        s.refreshPvpOpponents();
+        if (Date.now() >= s.pvp.refreshAt) {
+          s.pvp.picks = [];
+          void this.pvpFindOpponents();
+        }
         break;
+      case 'board':
+        void this.showPvpBoard();
+        return;
       case 'buy':
         if (s.buyPvpTicket()) play('unlock');
         break;
@@ -1589,6 +1639,7 @@ export class UI {
         break;
       case 'team-save':
         s.setPvpTeam(this.pvpPickKind, this.pvpPickIds);
+        if (this.pvpPickKind === 'defense') void this.pvpServer?.report(true);
         this.pvpView = this.pvpPickKind === 'attack' ? 'foe' : 'list';
         break;
       case 'fight':
@@ -1611,11 +1662,13 @@ export class UI {
     document.body.classList.add('in-trial');
     $('trial-hud').hidden = false;
     $('trial-hud-name').textContent = `Colosseum vs ${foe.name}`;
+    const defender = foe.userId;
     $('trial-hud-note').textContent = 'Fighters fight at their Ember levels and get back up after a few seconds. Destroy the red crystal before they destroy yours.';
     $('trial-leave').textContent = 'Leave';
     scene.startPvp(ids, s.pvpFoeUnits(foe).map((f) => ({ def: f.def, stats: f.stats })), bonus, (won) => {
       $('trial-leave').textContent = 'Back';
       const r = s.finishPvp(won);
+      if (defender) void this.pvpServer?.reportFight(defender, won);
       const html = !r
         ? ''
         : `<p class="tf-result ${r.won ? 'win' : 'lose'}">${r.won ? 'Victory!' : 'Defeat.'} ${r.trophies > 0 ? `+${r.trophies} trophies` : r.trophies < 0 ? `${r.trophies} trophies` : 'No trophies lost'} · +${r.starmotes} Starmote${r.starmotes === 1 ? '' : 's'}${r.firstWin ? ' (first win today +10)' : ''}</p>${r.rankAfter !== r.rankBefore ? `<p>${r.rankAfter > r.rankBefore ? 'Ranked up' : 'Dropped'} to <b>${rankName(r.rankAfter)}</b>!</p>` : ''}`;

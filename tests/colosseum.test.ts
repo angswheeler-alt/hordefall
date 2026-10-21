@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import Decimal from 'break_infinity.js';
-import { GameState } from '../src/state';
+import { GameState, cleanSnapHero, type PvpCandidate } from '../src/state';
 import { HEROES, AWAKEN_UNLOCK_LEVEL } from '../src/data';
 import { keeperThreshold } from '../src/formulas';
 import {
@@ -111,6 +111,8 @@ describe('Colosseum tickets and fights', () => {
     expect(r.trophies).toBe(band.win);
     expect(r.starmotes).toBe(band.motes + PVP_FIRST_WIN_MOTES);
     expect(s.pvp.streak).toBe(1);
+    expect(s.pvp.picks).toEqual([]); // new opponents are fetched next
+    s.rollPvpOpponents(WED);
     s.startPvp(1, WED);
     const r2 = s.finishPvp(true, WED)!;
     expect(r2.firstWin).toBe(false);
@@ -128,6 +130,7 @@ describe('Colosseum tickets and fights', () => {
     expect(s.pvp.trophies).toBe(0);
     expect(s.pvp.streak).toBe(0);
     s.pvp.trophies = 100;
+    s.rollPvpOpponents(WED);
     s.startPvp(0, WED);
     s.finishPvp(false, WED);
     expect(s.pvp.trophies).toBe(100 - PVP_LOSS_TROPHIES);
@@ -180,5 +183,51 @@ describe('Colosseum fight forecast', () => {
     const a = seededRandom('x');
     const b = seededRandom('x');
     expect([a(), a(), a()]).toEqual([b(), b(), b()]);
+  });
+});
+
+describe('Colosseum real opponents', () => {
+  const snapOf = (s: GameState, cpScale: number): PvpCandidate => {
+    const snap = s.pvpSnapshot();
+    return { userId: `u${cpScale}`, name: `Player ${cpScale}`, cp: new Decimal(snap.p_team_cp).times(cpScale).toString(), team: snap.p_team };
+  };
+
+  it('upload the defense team with permanent stats only', () => {
+    const s = opened();
+    s.levels[starter.id] = 500; // gold levels don't count
+    const snap = s.pvpSnapshot();
+    expect(snap.p_team).toHaveLength(1);
+    expect(snap.p_team[0].id).toBe(starter.id);
+    expect(snap.p_team[0].hp).toBe(s.heroStats(starter, s.permanentLevel(starter.id)).hp.value.toString());
+    expect(snap.p_cp_log).toBeGreaterThan(0);
+  });
+
+  it('fill a band with a real player whose CP fits, Ghosts elsewhere', () => {
+    const s = opened();
+    s.rollPvpOpponents(WED, [snapOf(s, 1.0), snapOf(s, 3)]);
+    expect(s.pvp.picks[1].ghost).toBe(false);
+    expect(s.pvp.picks[1].userId).toBe('u1');
+    expect(s.pvp.picks[0].ghost).toBe(true);
+    expect(s.pvp.picks[2].ghost).toBe(true); // 3x is too strong for any band
+  });
+
+  it('fight a real team with the stats it was saved with', () => {
+    const s = opened();
+    const c = snapOf(s, 1);
+    c.team[0].atk = '12345';
+    s.rollPvpOpponents(WED, [c]);
+    const foe = s.pvpFoeUnits(s.pvp.picks[1]);
+    expect(foe[0].stats.atk.value.toString()).toBe('12345');
+    expect(foe[0].unit.hp.toString()).toBe(c.team[0].hp);
+  });
+
+  it('reject bad saved heroes from the server', () => {
+    const good = opened().pvpSnapshot().p_team[0];
+    expect(cleanSnapHero(good)).toEqual(good);
+    expect(cleanSnapHero({ ...good, id: 'nobody' })).toBeNull();
+    expect(cleanSnapHero({ ...good, atk: 'NaN' })).toBeNull();
+    expect(cleanSnapHero({ ...good, aps: Infinity })).toBeNull();
+    expect(cleanSnapHero({ ...good, crit: 5 })!.crit).toBe(1);
+    expect(cleanSnapHero(null)).toBeNull();
   });
 });
