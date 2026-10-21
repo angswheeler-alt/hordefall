@@ -871,13 +871,12 @@ export const TRIAL_LEVELS: TrialLevel[] = TRIAL_DIFFICULTY.map((difficulty, i) =
   req: TRIAL_REQS[i],
 }));
 /**
- * Trial medals (Samuel, 2026-10-21): each element's Trial features two of its heroes, shown with
- * their pictures, and a win at any level gives TRIAL_MEDALS medals, each to one of the two at
- * random (both can go to the same hero). The pair moves on every day so every hero of the element
- * comes up in turn.
+ * Trial medals (Samuel, 2026-10-21): a win at any level gives TRIAL_MEDALS medals. Each one goes to a
+ * random hero of the Trial's element, rarer heroes less likely (TRIAL_RARITY_WEIGHTS), so both
+ * can land on the same hero. The win screen shows pictures of the heroes they went to.
  */
-export const TRIAL_FEATURED_HEROES = 2;
 export const TRIAL_MEDALS = 2;
+export const TRIAL_RARITY_WEIGHTS: Record<Exclude<Rarity, 'legendary'>, number> = { common: 80, rare: 17, epic: 3 };
 export const TRIAL_TIERS = TRIAL_LEVELS.length;
 export const TRIAL_TIME = 30;
 /** A Trial level won in this many seconds or less (half the timer) can be Quick Battled: skip the fight, same ticket and reward. */
