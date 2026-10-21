@@ -1158,7 +1158,7 @@ export class UI {
     }
 
     $('sheet-ember-lvl').textContent = `+${ember}`;
-    $('sheet-embers').textContent = String(s.embers);
+    $('sheet-embers').textContent = fmt(s.embers);
     const eb = emberBulk(ember, s.buyAmount, s.embers);
     const eShown = eb.levels > 0 ? eb : emberBulk(ember, 1, s.embers);
     const emberBtn = $<HTMLButtonElement>('sheet-ember-up');
@@ -2142,13 +2142,13 @@ export class UI {
     const s = this.state;
     $('gold').textContent = fmt(s.gold);
     $('gps').textContent = `${fmt(new Decimal(s.goldPerSec))}/s`;
-    $('gems').textContent = String(s.gems);
+    $('gems').textContent = fmt(s.gems);
     const summon = $<HTMLButtonElement>('summon');
     summon.disabled = s.gems < CHEST_COST;
     setHtml(summon, `Open · ${CHEST_COST} <span class="gem"></span>`);
     $<HTMLButtonElement>('chest-btn').disabled = s.gems < CHEST_COST;
     $('embers-stat').hidden = s.embers === 0 && s.rekindles === 0;
-    $('embers').textContent = String(s.embers);
+    $('embers').textContent = fmt(s.embers);
     const rk = $<HTMLButtonElement>('rekindle');
     rk.hidden = s.runBestStage < 100 && s.rekindles === 0;
     rk.disabled = !s.canRekindle();
