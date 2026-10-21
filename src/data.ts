@@ -783,6 +783,18 @@ export const ULT_SLOTS_START = 3;
 export const ULT_SLOT_COSTS = [300, 600];
 export const ULT_SLOTS_MAX = ULT_SLOTS_START + ULT_SLOT_COSTS.length;
 
+// ---------- Gem Shop (Samuel, 2026-10-21: more ways to spend Gems) ----------
+
+/** Hourglass: this many minutes of your current gold income at once, a few times a day. */
+export const HOURGLASS_GEMS = 40;
+export const HOURGLASS_MINUTES = 120;
+export const HOURGLASS_PER_DAY = 5;
+/** Gold Boost: x GOLD_BOOST_MULT gold from enemies and floating chests for GOLD_BOOST_MINUTES, stacking up to a cap. */
+export const GOLD_BOOST_GEMS = 50;
+export const GOLD_BOOST_MINUTES = 30;
+export const GOLD_BOOST_MAX_MINUTES = 240;
+export const GOLD_BOOST_MULT = 2;
+
 /** Elemental Trials (GDD 11.1): each element's dungeon opens on set days (Samuel's schedule). */
 export const TRIAL_ROTATION: Element[] = ['water', 'earth', 'fire', 'light', 'dark'];
 /** Days each Trial is open, as Date.getDay() numbers (0 = Sunday), in the player's local time. */
