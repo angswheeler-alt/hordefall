@@ -283,6 +283,8 @@ export interface UltState {
   reviveIn: number;
   /** Full cooldown in seconds (shorter for Ascended 8★ heroes). */
   total: number;
+  /** Whether the hero holds one of the player's Ultimate slots; without one the Ultimate never fires. */
+  slotted: boolean;
 }
 
 export class BattleScene extends Phaser.Scene {
@@ -1825,6 +1827,7 @@ export class BattleScene extends Phaser.Scene {
       remaining: h ? Math.max(0, h.ultReadyAt - this.clock) : 0,
       reviveIn: h ? reviveIn(h, this.clock) : 0,
       total: this.ultCooldown(heroId),
+      slotted: this.state.hasUltSlot(heroId),
     };
   }
 
@@ -1832,7 +1835,7 @@ export class BattleScene extends Phaser.Scene {
     const h = this.heroes.find((u) => u.def?.id === heroId);
     if (!h || !h.alive || this.transitioning) return false;
     const s = this.getUltState(heroId);
-    if (!s.unlocked || s.remaining > 0) return false;
+    if (!s.slotted || !s.unlocked || s.remaining > 0) return false;
     h.ultReadyAt = this.clock + this.ultCooldown(heroId);
     const color = ELEMENT_COLORS[h.element];
     play('ult');
@@ -1956,7 +1959,7 @@ export class BattleScene extends Phaser.Scene {
   private tryAutoUlt(h: Unit) {
     if (!h.alive || !h.def) return;
     const s = this.getUltState(h.def.id);
-    if (!s.unlocked || s.remaining > 0) return;
+    if (!s.slotted || !s.unlocked || s.remaining > 0) return;
     if (h.def.heals) {
       const revives = h.def.ult?.kind === 'revive' && this.heroes.some((a) => !a.alive);
       if (revives || this.heroes.some((a) => a.alive && a.hp.lt(a.maxHp.times(0.4)))) this.triggerUlt(h.def.id);
