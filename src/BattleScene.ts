@@ -260,8 +260,8 @@ const CHESTS: ChestKind[] = [
 
 /** Each Trial's arena: the background set for its element. */
 const TRIAL_ARENAS: Record<Element, string> = { water: 'tidecoast', fire: 'emberwastes', earth: 'dunes', light: 'stormcrag', dark: 'hollowmoon' };
-/** The Trial boss waits this far along the lane, so the fight starts within a couple of seconds. */
-const TRIAL_BOSS_X = 330;
+/** The Trial boss waits at the far end of the lane where the red crystal would be, so the heroes run across to it. */
+const TRIAL_BOSS_X = ENEMY_CRYSTAL_X - 50;
 const TRIAL_BOSS_RANGE = 260;
 
 /** A live Elemental Trial: heroes at their Trial levels against one element boss, no respawns. */
@@ -363,7 +363,7 @@ export class BattleScene extends Phaser.Scene {
   /** The boss timer only runs once a hero reaches the boss. */
   private bossEngaged = false;
   private progressBar!: Phaser.GameObjects.Graphics;
-  /** Both crystals with their shadows, hidden during a Trial. */
+  /** The red crystal with its shadow, shield and HP bar, hidden during a Trial (the boss stands there instead). */
   private crystalParts: Phaser.GameObjects.GameObject[] = [];
   private trial: TrialFight | null = null;
   private pvp: PvpLive | null = null;
@@ -442,11 +442,12 @@ export class BattleScene extends Phaser.Scene {
       this.tweens.add({ targets: shadow, alpha: 0.2, scaleX: 0.75, scaleY: 0.75, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       const view = this.add.image(x, CRYSTAL_Y, key).setDepth(LANE_TOP);
       this.tweens.add({ targets: view, y: CRYSTAL_Y - 4, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-      this.crystalParts.push(shadow, view);
-      return view;
+      return [shadow, view] as const;
     };
-    this.playerCrystalView = crystalAt(PLAYER_CRYSTAL_X, 'crystal-player');
-    this.crystalView = crystalAt(ENEMY_CRYSTAL_X, 'crystal-enemy');
+    this.playerCrystalView = crystalAt(PLAYER_CRYSTAL_X, 'crystal-player')[1];
+    const enemyCrystal = crystalAt(ENEMY_CRYSTAL_X, 'crystal-enemy');
+    this.crystalView = enemyCrystal[1];
+    this.crystalParts.push(...enemyCrystal);
     this.crystalShield = this.add.circle(ENEMY_CRYSTAL_X, CRYSTAL_Y, 44, 0xff3355, 0.18).setStrokeStyle(2, 0xff6680, 0.8).setDepth(LANE_TOP + 1);
     this.crystalBar = this.add.graphics().setDepth(1000);
     this.crystalParts.push(this.crystalShield, this.crystalBar);
@@ -1208,7 +1209,8 @@ export class BattleScene extends Phaser.Scene {
 
   /**
    * Start a live Elemental Trial: the run pauses, the heroes come back at their Trial levels (Ember levels only)
-   * and face one element boss that hits back. No respawns, so the team can lose. `onEnd` gets the outcome once.
+   * at the blue crystal and run across the lane to one element boss that hits back. There is no red crystal:
+   * killing the boss wins. No respawns, so the team can lose. `onEnd` gets the outcome once.
    */
   startTrial(element: Element, tier: number, onEnd: (won: boolean, seconds: number) => void) {
     if (this.trial) return;
@@ -2453,8 +2455,18 @@ export class BattleScene extends Phaser.Scene {
   /** Trial HUD: the boss and level at the top left, with the time left under it. */
   private drawTrialHud(t: TrialFight) {
     this.stageText.setText(`Trial Lv ${t.tier} · ${Math.ceil(Math.max(0, t.timeLeft))}s`);
-    this.progressBar.clear();
     this.crystalBar.clear();
+    // Lane progress from the blue crystal to the boss at the far end.
+    const px = WIDTH - 150;
+    const pw = 140;
+    const toBar = (ux: number) => px + (pw * (ux - PLAYER_CRYSTAL_X)) / (TRIAL_BOSS_X - PLAYER_CRYSTAL_X);
+    const pb = this.progressBar;
+    pb.clear();
+    pb.fillStyle(0x000000, 0.55).fillRoundedRect(px - 6, 8, pw + 12, 14, 7);
+    pb.fillStyle(0xffffff, 0.35).fillRect(px, 14, pw, 2);
+    pb.fillStyle(0x6fd3ff, 1).fillRect(px - 2, 11, 4, 8);
+    pb.fillStyle(ELEMENT_COLORS[t.element], 1).fillCircle(px + pw, 15, 5);
+    for (const h of this.heroes) if (h.alive) pb.fillStyle(ELEMENT_COLORS[h.element], 1).fillCircle(toBar(h.x), 15, 3);
     const w = 150;
     const x = 10;
     this.bossBar.clear();
