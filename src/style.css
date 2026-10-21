@@ -837,3 +837,6 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .pvp-pick button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px; background: rgba(0,0,0,.25); border: 2px solid var(--wood-deep); border-radius: 8px; color: #fff4dd; font-size: 11px; }
 .pvp-pick button.on { border-color: #ffd84a; background: rgba(255,216,74,.18); }
 .pvp-forecast.win { color: #9effa8; } .pvp-forecast.close { color: #ffe066; } .pvp-forecast.lose { color: #ff8a8a; }
+.pvp-tag.real { background: #2f6e9a; color: #e6f6ff; }
+.pvp-list { margin: 4px 0 10px; padding-left: 20px; text-align: left; font-size: 13px; max-height: 30vh; overflow: auto; }
+.pvp-list li.me { color: #ffd84a; font-weight: 800; }

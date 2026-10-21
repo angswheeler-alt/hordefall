@@ -50,6 +50,50 @@ export interface PvpOpponent {
   /** ATK, HP and Defense multiplier that fine-tunes a Ghost onto its target CP (Ember levels jump in steps). */
   power?: number;
   cp: string;
+  /** A real player's defense team: their id and each hero's saved stats (see pvpSnapshot). */
+  userId?: string;
+  snap?: PvpSnapHero[];
+}
+
+/** One hero of a saved Colosseum defense team: permanent stats, as uploaded by its owner. */
+export interface PvpSnapHero {
+  id: string;
+  stars: number;
+  awaken: number;
+  atk: string;
+  hp: string;
+  def: string;
+  aps: number;
+  crit: number;
+  critDmg: number;
+  move: number;
+}
+
+/** Another player's defense team offered by the server, before it is placed in a band. */
+export interface PvpCandidate {
+  userId: string;
+  name: string;
+  cp: string;
+  team: PvpSnapHero[];
+}
+
+/** Which share of the attack team's CP (before rank pressure) a real player must have to fill each band. */
+const PVP_BAND_WINDOWS: Array<[number, number]> = [
+  [0.6, 0.95],
+  [0.95, 1.08],
+  [1.08, 1.6],
+];
+
+/** A saved hero from the server, checked: numbers finite and in range, and a hero that exists. */
+export function cleanSnapHero(v: unknown): PvpSnapHero | null {
+  const o = v as Partial<PvpSnapHero> | null;
+  if (!o || typeof o !== 'object' || typeof o.id !== 'string' || !HEROES.some((h) => h.id === o.id)) return null;
+  const big = (x: unknown) => (typeof x === 'string' && /^[0-9.e+]{1,40}$/.test(x) ? x : null);
+  const n = (x: unknown, lo: number, hi: number) => (typeof x === 'number' && Number.isFinite(x) ? Math.min(hi, Math.max(lo, x)) : null);
+  const atk = big(o.atk), hp = big(o.hp), def = big(o.def);
+  const aps = n(o.aps, 0.05, 20), crit = n(o.crit, 0, 1), critDmg = n(o.critDmg, 0, 100), move = n(o.move, 0, 1000);
+  if (!atk || !hp || !def || aps === null || crit === null || critDmg === null || move === null) return null;
+  return { id: o.id, stars: Math.floor(n(o.stars, 0, MAX_STARS) ?? 0), awaken: Math.floor(n(o.awaken, 0, MAX_AWAKEN) ?? 0), atk, hp, def, aps, crit, critDmg, move };
 }
 
 /** Stats with ATK, HP and Defense multiplied by `p`. */
@@ -981,21 +1025,36 @@ export class GameState {
     return g;
   }
 
-  /** New opponents: Weaker, Even and Stronger than the player's team, a bit stronger in higher ranks. */
-  rollPvpOpponents(now = Date.now()) {
+  /**
+   * New opponents: Weaker, Even and Stronger than the player's attack team. Real players from the
+   * server (`real`, already in the player's rank) fill a band when their CP fits it; Ghosts, a bit
+   * stronger in higher ranks, fill the rest.
+   */
+  rollPvpOpponents(now = Date.now(), real: PvpCandidate[] = []) {
     const p = this.pvp;
     const mine = this.teamCpOf(this.pvpAttackTeam());
     const pressure = 1 + RANK_PRESSURE * rankIndex(p.trophies);
-    p.picks = PVP_BANDS.map((b, i) => this.buildGhost(`${p.refreshes}:${i}`, mine.times(b.cp * pressure), i));
+    const used = new Set<string>();
+    p.picks = PVP_BANDS.map((b, i) => {
+      const [lo, hi] = PVP_BAND_WINDOWS[i];
+      const fits = real
+        .filter((c) => !used.has(c.userId) && c.team.length > 0)
+        .map((c) => ({ c, ratio: mine.gt(0) ? new Decimal(c.cp).div(mine).toNumber() : 1 }))
+        .filter((x) => x.ratio >= lo && x.ratio < hi)
+        .sort((x, y) => Math.abs(x.ratio - b.cp) - Math.abs(y.ratio - b.cp) || x.c.userId.localeCompare(y.c.userId))[0];
+      if (!fits) return this.buildGhost(`${p.refreshes}:${i}`, mine.times(b.cp * pressure), i);
+      used.add(fits.c.userId);
+      return { band: i, name: fits.c.name, ghost: false, heroes: fits.c.team.map((x) => ({ id: x.id, stars: x.stars })), ember: 1, cp: fits.c.cp, userId: fits.c.userId, snap: fits.c.team };
+    });
     p.refreshes++;
     p.refreshAt = now + PVP_REFRESH_MINUTES * 60000;
   }
 
   /** Free new opponents once the refresh timer is up (or there are none). */
-  refreshPvpOpponents(now = Date.now()): boolean {
+  refreshPvpOpponents(now = Date.now(), real: PvpCandidate[] = []): boolean {
     if (!this.pvpOpen()) return false;
     if (this.pvp.picks.length && now < this.pvp.refreshAt) return false;
-    this.rollPvpOpponents(now);
+    this.rollPvpOpponents(now, real);
     this.save();
     return true;
   }
@@ -1030,6 +1089,21 @@ export class GameState {
     return true;
   }
 
+  /** The defense team as the server keeps it, for other players to fight. */
+  pvpSnapshot(): { p_trophies: number; p_team_cp: string; p_cp_log: number; p_team: PvpSnapHero[] } {
+    const team = this.pvpDefenseTeam();
+    const cp = this.teamCpOf(team);
+    return {
+      p_trophies: this.pvp.trophies,
+      p_team_cp: cp.toString(),
+      p_cp_log: cp.gt(1) ? Math.max(0, cp.log10()) : 0,
+      p_team: team.map((h) => {
+        const st = this.heroStats(h, this.permanentLevel(h.id));
+        return { id: h.id, stars: this.stars[h.id] ?? 0, awaken: this.awaken[h.id] ?? 0, atk: st.atk.value.toString(), hp: st.hp.value.toString(), def: st.def.value.toString(), aps: st.attacksPerSec.value, crit: st.critRate, critDmg: st.critDmg, move: st.moveSpeed.value };
+      }),
+    };
+  }
+
   /** CP of a set of heroes. */
   teamCpOf(team: HeroDef[]): Decimal {
     return team.reduce((t, h) => t.plus(this.heroCombatPower(h)), new Decimal(0));
@@ -1038,6 +1112,16 @@ export class GameState {
   /** An opponent's fighters, with stats worked out the same way as the player's. */
   pvpFoeUnits(foe: PvpOpponent): Array<{ def: HeroDef; unit: PvpUnit; stats: HeroStats }> {
     const g = GameState.ghostState(foe);
+    if (foe.snap) {
+      // A real player's team fights with the stats it was saved with; the rest of the sheet comes from the hero itself.
+      return foe.snap.map((x) => {
+        const def = HEROES.find((h) => h.id === x.id)!;
+        const base = g.heroStats(def, 1);
+        const pair = (v: string) => ({ value: new Decimal(v), base: new Decimal(v) });
+        const stats: HeroStats = { ...base, atk: pair(x.atk), hp: pair(x.hp), def: pair(x.def), attacksPerSec: { value: x.aps, base: base.attacksPerSec.base }, critRate: x.crit, critDmg: x.critDmg, moveSpeed: { value: x.move, base: base.moveSpeed.base } };
+        return { def, unit: { id: def.id, element: def.element, atk: stats.atk.value, hp: stats.hp.value, def: stats.def.value, attacksPerSec: x.aps, critRate: x.crit, critDmg: x.critDmg, melee: def.range <= 60 }, stats };
+      });
+    }
     return foe.heroes.map((x) => {
       const def = HEROES.find((h) => h.id === x.id)!;
       const stats = scaleStats(g.heroStats(def, g.permanentLevel(def.id)), foe.power ?? 1);
@@ -1105,7 +1189,9 @@ export class GameState {
     }
     p.trophies += trophies;
     this.starmotes += starmotes;
-    this.rollPvpOpponents(now);
+    // New opponents come next (the game asks the server for real players first).
+    p.picks = [];
+    p.refreshAt = 0;
     this.save();
     return { foe, won, trophies, starmotes, firstWin, rankBefore, rankAfter: rankIndex(p.trophies) };
   }
@@ -2375,6 +2461,8 @@ export class GameState {
     p.refreshes = Math.max(0, Math.floor(num(p.refreshes, 0)));
     p.refreshAt = num(p.refreshAt, 0);
     if (!Array.isArray(p.picks) || !p.picks.every((o) => o && Array.isArray(o.heroes) && o.heroes.every((x) => HEROES.some((h) => h.id === x?.id)))) p.picks = [];
+    for (const o of p.picks) if (o.snap) o.snap = o.snap.map(cleanSnapHero).filter((x): x is PvpSnapHero => !!x);
+    p.picks = p.picks.filter((o) => !o.snap || o.snap.length > 0);
     if (!Array.isArray(p.notes)) p.notes = [];
     if (!p.buys || typeof p.buys !== 'object') p.buys = { day: '', used: 0 };
     const ids = (v: unknown) => (Array.isArray(v) ? v.filter((id): id is string => typeof id === 'string' && HEROES.some((h) => h.id === id)) : []);

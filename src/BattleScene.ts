@@ -368,7 +368,7 @@ export class BattleScene extends Phaser.Scene {
     this.load.image('chest-wood', chestWoodUrl);
     this.load.image('chest-bronze', chestBronzeUrl);
     this.load.image('chest-gold', chestGoldUrl);
-    for (const r of REGIONS) for (const layer of ['sky', 'far', 'ground']) this.load.image(`bg-${r}-${layer}`, `bg/${r}_${layer}.png`);
+    for (const r of [...REGIONS, 'colosseum']) for (const layer of ['sky', 'far', 'ground']) this.load.image(`bg-${r}-${layer}`, `bg/${r}_${layer}.png`);
     // Hero sprites (32x32, feet on row 30). A hero without a file falls back to its placeholder block.
     for (const h of HEROES) if (HERO_ANIMS[h.id]) this.load.image(`hero-${h.id}`, `heroes/${h.id}.png`);
     for (const [id, a] of Object.entries(HERO_ANIMS)) {
@@ -496,7 +496,7 @@ export class BattleScene extends Phaser.Scene {
     // Nyxara guards the Hollow Moon Ruins, so her fights always happen there.
     const stage = this.state.stage;
     const region = this.pvp
-      ? 'stormcrag'
+      ? 'colosseum'
       : this.trial
       ? TRIAL_ARENAS[this.trial.element]
       : isBossStage(stage) && stageBoss(stage).art === 'dark' ? 'hollowmoon' : REGIONS[Math.floor((stage - 1) / 50) % REGIONS.length];
