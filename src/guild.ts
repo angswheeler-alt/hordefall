@@ -325,7 +325,7 @@ export class Guild {
       play('chest');
       this.ui.showModal(
         'Boss reward',
-        `<p>+${got.coins} Guild Coins · +${got.embers.toLocaleString()} Embers · a Hero Chest</p>${dropCards(got.drops)}`,
+        `<p>+${got.coins} Guild Coins · +${fmt(got.embers)} Embers · a Hero Chest</p>${dropCards(got.drops)}`,
         'Collect',
       );
       this.ui.render();
@@ -543,7 +543,7 @@ export class Guild {
       if (!got) return;
       play('chest');
       if (got.drops.length) this.ui.showModal('Hero Chest', `${dropCards(got.drops)}Bought with Guild Coins.`, 'Collect');
-      else if (got.embers) this.ui.showModal('Ember pouch', `<p>+${got.embers.toLocaleString()} Embers</p>`, 'Nice');
+      else if (got.embers) this.ui.showModal('Ember pouch', `<p>+${fmt(got.embers)} Embers</p>`, 'Nice');
       this.ui.render();
       this.render();
     } else if (kind === 'offer') {
