@@ -833,7 +833,8 @@ export const GOLD_BOOST_MULT = 2;
  * HERO_SHOP_REFRESH_MINUTES or early for HERO_SHOP_REFRESH_GEMS.
  * Featured hero: one hero a week (every hero comes round in turn) with a cheaper bundle once a
  * week, and a big bundle every FEATURED_BIG_EVERY weeks.
- * Trial tickets: TICKET_GEMS each, TICKETS_PER_DAY a day, only up to the ticket cap.
+ * Trial tickets: TICKET_GEMS each, TICKETS_PER_DAY a day. Bought tickets go to their own stash
+ * (BOUGHT_TICKET_CAP), apart from the TICKET_CAP that refills over time, so they can be saved up.
  */
 export const MEDAL_PACK = { medals: 100, gems: { common: 300, rare: 500, epic: 1000 } } as const;
 export const HERO_SHOP_OFFERS = 4;
@@ -845,6 +846,21 @@ export const FEATURED_BIG_BUNDLE = { medals: 250, gems: 600 } as const;
 export const FEATURED_BIG_EVERY = 4;
 export const TICKET_GEMS = 10;
 export const TICKETS_PER_DAY = 10;
+export const BOUGHT_TICKET_CAP = 100;
+
+/**
+ * Events (Samuel, 2026-10-21): every TRIAL_EVENT_EVERY weeks, Saturday and Sunday pay double Trial
+ * medals. Limited Gem deals alternate weeks: the Ticket Crate in the week of a double-medal weekend
+ * (tickets to save for it), the Hero Voucher in the other week (medals for a hero picked when it is
+ * used, fewer for rarer heroes). Each deal can be bought once while it's up. Test prices.
+ */
+export const TRIAL_EVENT_EVERY = 2;
+/** weekIndex() % TRIAL_EVENT_EVERY on an event week (the week of 19 Oct 2026 is one). */
+export const TRIAL_EVENT_PHASE = 1;
+export const TRIAL_EVENT_DAYS = [6, 0];
+export const TRIAL_EVENT_MEDAL_MULT = 2;
+export const TICKET_CRATE = { tickets: 30, gems: 200 } as const;
+export const HERO_VOUCHER = { gems: 500, medals: { common: 200, rare: 100, epic: 60 } } as const;
 
 /** Elemental Trials (GDD 11.1): each element's dungeon opens on set days (Samuel's schedule). */
 export const TRIAL_ROTATION: Element[] = ['water', 'earth', 'fire', 'light', 'dark'];
@@ -856,6 +872,8 @@ export const TRIAL_SCHEDULE: Record<Element, number[]> = {
   water: [3, 5, 0],
   fire: [1, 3, 6],
 };
+/** Samuel (2026-10-21): on a day the Light or Dark Trial is open, every element's Trial is open. */
+export const ALL_TRIALS_WITH: Element[] = ['light', 'dark'];
 export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 /**
  * Trial levels from Samuel's table (original dungeon chart). Essence is the

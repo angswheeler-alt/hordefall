@@ -526,6 +526,27 @@ i.stone { display: inline-block; width: 12px; height: 12px; background: linear-g
 .hs-feat-buy button { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 6px 4px; }
 .hs-actions { display: flex; gap: 6px; margin-top: 8px; }
 .hs-actions button { flex: 1; padding: 8px 4px; }
+.hs-deal { margin-top: 10px; padding: 8px; border: 2px dashed #e0a23a; border-radius: 8px; display: flex; flex-direction: column; gap: 6px; }
+.hs-deal .deal-head { display: flex; align-items: center; gap: 8px; }
+.hs-deal .deal-head div { flex: 1; min-width: 0; }
+.hs-deal small { display: block; color: var(--muted); font-size: 11px; }
+.hs-deal .deal-tag { display: block; font-size: 10px; font-weight: 800; color: #ffd84a; letter-spacing: .05em; text-transform: uppercase; }
+.hs-deal button { white-space: nowrap; padding: 7px 10px; }
+.tr-stash { color: #8fd6ff; font-size: 12px; }
+.tr-event { color: #ffd84a; font-weight: 800; font-size: 12px; }
+.ico-set-events { background-image: url('./assets/ui/set-events.png'); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin: 8px 0; }
+.cal-grid .cal-h { font-size: 10px; text-align: center; color: var(--muted); font-weight: 700; }
+.cal-day { min-height: 44px; border-radius: 6px; background: rgba(255,255,255,.06); padding: 3px; font-size: 11px; display: flex; flex-direction: column; gap: 2px; align-items: center; }
+.cal-day.past { opacity: .4; }
+.cal-day.today { outline: 2px solid #ffd84a; }
+.cal-day.double { background: rgba(255,216,74,.22); }
+.cal-day .cal-x2 { font-size: 9px; font-weight: 800; color: #ffd84a; }
+.cal-dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 1px; }
+.cal-dots i { width: 6px; height: 6px; border-radius: 50%; display: block; }
+.cal-legend, .cal-list { font-size: 12px; margin: 4px 0; padding-left: 16px; text-align: left; }
+.cal-legend { padding: 0; display: flex; flex-wrap: wrap; gap: 8px; list-style: none; }
+.cal-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 3px; }
 .gem-shop li > div { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .gem-shop small { opacity: .8; }
 .rw-list button { flex: none; min-width: 72px; min-height: 36px; }

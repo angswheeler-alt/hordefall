@@ -413,9 +413,12 @@ describe('trial tickets', () => {
     const before = HEROES.reduce((t, h) => t + (s.crests[h.id] ?? 0), 0);
     const r = s.finishTrial(element, 8, true, 20)!;
     expect(r.won).toBe(true);
-    expect(r.medals).toHaveLength(TRIAL_MEDALS);
+    // TRIAL_MEDALS on a normal day, double on an event weekend (tests/events.test.ts pins the dates).
+    const n = s.trialMedals();
+    expect(n % TRIAL_MEDALS).toBe(0);
+    expect(r.medals).toHaveLength(n);
     for (const id of r.medals) expect(pool).toContain(id);
-    expect(HEROES.reduce((t, h) => t + (s.crests[h.id] ?? 0), 0) - before).toBe(TRIAL_MEDALS);
+    expect(HEROES.reduce((t, h) => t + (s.crests[h.id] ?? 0), 0) - before).toBe(n);
   });
 
   it('both Trial medals can land on the same hero', () => {
@@ -425,7 +428,7 @@ describe('trial tickets', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     const r = s.finishTrial(element, 1, true, 10)!;
     vi.restoreAllMocks();
-    expect(r.medals).toHaveLength(TRIAL_MEDALS);
+    expect(r.medals).toHaveLength(s.trialMedals());
     expect(new Set(r.medals).size).toBe(1);
   });
 
