@@ -7,6 +7,7 @@ import { RENAMED_HEROES, PLAYABLE_HEROES } from './data';
 import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills';
 import { isKnight, combatPower, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
+import { PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_TICKET_GEMS, PVP_TICKET_BUYS, PVP_REFRESH_MINUTES, PVP_BANDS, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_FIRST_WIN_MOTES, PVP_STREAK_DMG, PVP_STREAK_MAX, RANK_PRESSURE, RANK_DAILY, RANK_WEEKLY, rankIndex, rankName, droppedTrophies, seededRandom, ghostName, simulatePvp, type PvpUnit, type PvpResult } from './colosseum';
 
 const SAVE_KEY = 'hordefall-save-v1';
 
@@ -38,6 +39,64 @@ export interface RekindleResult {
 }
 
 export type SaveData = Record<string, any>;
+
+/** A Colosseum opponent: a Ghost (bot) team built from a seed to a target CP. Real players come later. */
+export interface PvpOpponent {
+  band: number;
+  name: string;
+  ghost: boolean;
+  heroes: Array<{ id: string; stars: number }>;
+  ember: number;
+  /** ATK, HP and Defense multiplier that fine-tunes a Ghost onto its target CP (Ember levels jump in steps). */
+  power?: number;
+  cp: string;
+}
+
+/** Stats with ATK, HP and Defense multiplied by `p`. */
+function scaleStats(st: HeroStats, p: number): HeroStats {
+  if (p === 1) return st;
+  const big = (b: HeroStats['atk']) => ({ value: b.value.times(p), base: b.base.times(p) });
+  return { ...st, atk: big(st.atk), hp: big(st.hp), def: big(st.def) };
+}
+
+/** A Colosseum fight's outcome, already paid out. */
+export interface PvpFight {
+  foe: PvpOpponent;
+  won: boolean;
+  trophies: number;
+  starmotes: number;
+  firstWin: boolean;
+  rankBefore: number;
+  rankAfter: number;
+}
+
+export interface PvpState {
+  trophies: number;
+  tickets: number;
+  clock: number;
+  streak: number;
+  wins: number;
+  losses: number;
+  /** Day and week (Monday) last rewarded; empty until the Colosseum first opens. */
+  day: string;
+  week: string;
+  /** Day of the last first-win bonus. */
+  firstWin: string;
+  buys: { day: string; used: number };
+  /** Opponent lists made so far (seeds the Ghosts) and when a free new list is ready (ms). */
+  refreshes: number;
+  refreshAt: number;
+  picks: PvpOpponent[];
+  /** Daily/weekly reward lines not shown to the player yet. */
+  notes: string[];
+  /** Attack and defense teams (hero ids); empty means the lineup. */
+  attack: string[];
+  defense: string[];
+  /** The opponent slot being fought right now (its ticket is spent), or -1. */
+  active: number;
+}
+
+const newPvp = (): PvpState => ({ trophies: 0, tickets: PVP_TICKET_CAP, clock: Date.now(), streak: 0, wins: 0, losses: 0, day: '', week: '', firstWin: '', buys: { day: '', used: 0 }, refreshes: 0, refreshAt: 0, picks: [], notes: [], attack: [], defense: [], active: -1 });
 
 export interface TrialResult {
   won: boolean;
@@ -152,6 +211,10 @@ export class GameState {
   awaken: Record<string, number> = {};
   /** Awakening currency, earned in the Colosseum. */
   starmotes = 0;
+  /** Colosseum (PvP): trophies, tickets, rewards and the current opponents. */
+  pvp: PvpState = newPvp();
+  /** While a Colosseum battle runs, star skills and builds follow the attack team instead of the lineup. Not saved. */
+  skillTeam: Set<string> | null = null;
   gems = START_GEMS;
   levels: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, h.unlockCost === 0 ? 1 : 0]));
   /** False after losing to a boss: clears repeat the current stage until the player challenges again. */
@@ -252,7 +315,7 @@ export class GameState {
   /** How many heroes in the lineup bring each build effect (freeze, burn, poison, stun). */
   buildCounts(): Record<BuildEffect, number> {
     const counts = Object.fromEntries(BUILD_EFFECTS.map((e) => [e, 0])) as Record<BuildEffect, number>;
-    for (const h of HEROES) if (this.inLineup(h.id)) for (const e of heroBuildEffects(h)) counts[e]++;
+    for (const h of HEROES) if (this.skillsOn(h.id)) for (const e of heroBuildEffects(h)) counts[e]++;
     return counts;
   }
 
@@ -573,7 +636,12 @@ export class GameState {
 
   /** True when the hero is recruited and has evolved to at least `star`. */
   hasStar(id: string, star: number): boolean {
-    return this.inLineup(id) && (this.stars[id] ?? 0) >= star;
+    return this.skillsOn(id) && (this.stars[id] ?? 0) >= star;
+  }
+
+  /** Whether a hero's star skills and build count right now: the lineup, or the Colosseum attack team mid-battle. */
+  skillsOn(id: string): boolean {
+    return this.skillTeam ? this.skillTeam.has(id) && (this.levels[id] ?? 0) > 0 : this.inLineup(id);
   }
 
   inLineup(id: string): boolean {
@@ -747,6 +815,301 @@ export class GameState {
     this.save();
     return true;
   }
+  // ---------- Colosseum (PvP) ----------
+
+  /** The Colosseum opens with awakening, at player level AWAKEN_UNLOCK_LEVEL. */
+  pvpOpen(): boolean {
+    return this.awakenOpen();
+  }
+
+  pvpUnlockLevel(): number {
+    return AWAKEN_UNLOCK_LEVEL;
+  }
+
+  /** The heroes the player fights with: the lineup. */
+  pvpTeam(): HeroDef[] {
+    return HEROES.filter((h) => this.inLineup(h.id));
+  }
+
+  /** CP of the fighting team only (what Colosseum matching uses). */
+  teamCombatPower(): Decimal {
+    return this.pvpTeam().reduce((t, h) => t.plus(this.heroCombatPower(h)), new Decimal(0));
+  }
+
+  /** A hero as a Colosseum fighter: permanent stats only, like CP. */
+  pvpUnit(def: HeroDef): PvpUnit {
+    const st = this.heroStats(def, this.permanentLevel(def.id));
+    return { id: def.id, element: def.element, atk: st.atk.value, hp: st.hp.value, def: st.def.value, attacksPerSec: st.attacksPerSec.value, critRate: st.critRate, critDmg: st.critDmg, melee: def.range <= 60 };
+  }
+
+  /** Colosseum tickets regained over time. Returns seconds until the next one (0 when full). */
+  refreshPvpTickets(now = Date.now()): number {
+    const p = this.pvp;
+    const period = PVP_TICKET_MINUTES * 60000;
+    if (p.clock > now) p.clock = now;
+    if (p.tickets >= PVP_TICKET_CAP) {
+      p.clock = now;
+      return 0;
+    }
+    const earned = Math.floor((now - p.clock) / period);
+    if (earned > 0) {
+      p.tickets = Math.min(PVP_TICKET_CAP, p.tickets + earned);
+      p.clock += earned * period;
+      if (p.tickets >= PVP_TICKET_CAP) p.clock = now;
+    }
+    return p.tickets >= PVP_TICKET_CAP ? 0 : Math.ceil((p.clock + period - now) / 1000);
+  }
+
+  /** Extra Colosseum tickets left to buy today. */
+  pvpBuysLeft(now = Date.now()): number {
+    return this.pvp.buys.day === dayKey(now) ? Math.max(0, PVP_TICKET_BUYS - this.pvp.buys.used) : PVP_TICKET_BUYS;
+  }
+
+  buyPvpTicket(now = Date.now()): boolean {
+    if (!this.pvpOpen() || this.pvpBuysLeft(now) <= 0 || this.gems < PVP_TICKET_GEMS) return false;
+    const day = dayKey(now);
+    if (this.pvp.buys.day !== day) this.pvp.buys = { day, used: 0 };
+    this.gems -= PVP_TICKET_GEMS;
+    this.pvp.buys.used++;
+    this.pvp.tickets++;
+    this.save();
+    return true;
+  }
+
+  /**
+   * Pay the daily and weekly rank rewards once their day or week has ended, then the
+   * weekly drop. Uses the rank held now, which is the rank held when the period ended
+   * since trophies only move in fights. Returns the new reward lines (also kept in pvp.notes).
+   */
+  pvpTick(now = Date.now()): string[] {
+    if (!this.pvpOpen()) return [];
+    const p = this.pvp;
+    const day = dayKey(now);
+    const week = weekKey(now);
+    if (!p.day) {
+      p.day = day;
+      p.week = week;
+      return [];
+    }
+    const lines: string[] = [];
+    if (p.day !== day) {
+      const r = rankIndex(p.trophies);
+      this.starmotes += RANK_DAILY[r];
+      lines.push(`Daily reward for ${rankName(r)}: ${RANK_DAILY[r]} Starmotes`);
+      p.day = day;
+    }
+    if (p.week !== week) {
+      const r = rankIndex(p.trophies);
+      this.starmotes += RANK_WEEKLY[r];
+      lines.push(`Weekly reward for ${rankName(r)}: ${RANK_WEEKLY[r]} Starmotes`);
+      p.trophies = droppedTrophies(p.trophies);
+      p.streak = 0;
+      lines.push(`New week: you drop to ${rankName(rankIndex(p.trophies))}. Climb back up!`);
+      p.week = week;
+      p.refreshAt = 0;
+    }
+    if (lines.length) {
+      p.notes.push(...lines);
+      this.save();
+    }
+    return lines;
+  }
+
+  /** A Ghost team: heroes, stars and one Ember level for all, chosen so its CP lands near `target`. */
+  buildGhost(seed: string, target: Decimal, band: number): PvpOpponent {
+    const rand = seededRandom(seed);
+    const name = ghostName(rand);
+    const team = this.pvpAttackTeam();
+    const size = Math.max(1, team.length);
+    const avgStars = team.length ? Math.round(team.reduce((t, h) => t + (this.stars[h.id] ?? 0), 0) / team.length) : 0;
+    const pool = PLAYABLE_HEROES.filter((h) => h.rarity !== 'legendary');
+    const heroes: Array<{ id: string; stars: number }> = [];
+    while (heroes.length < Math.min(size, pool.length)) {
+      const h = pool[Math.floor(rand() * pool.length)];
+      if (heroes.some((x) => x.id === h.id)) continue;
+      heroes.push({ id: h.id, stars: Math.min(MAX_STARS, Math.max(0, avgStars + Math.floor(rand() * 3) - 1)) });
+    }
+    const opp: PvpOpponent = { band, name, ghost: true, heroes, ember: 1, cp: '0' };
+    const cpAt = (ember: number) => GameState.ghostState({ ...opp, ember }).teamCombatPower();
+    // Grow the Ember level until the team passes the target, then narrow down.
+    let lo = 1;
+    let hi = 1;
+    while (cpAt(hi).lt(target) && hi < 1e7) {
+      lo = hi;
+      hi *= 2;
+    }
+    while (hi - lo > 1) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (cpAt(mid).lt(target)) lo = mid;
+      else hi = mid;
+    }
+    // Take the Ember level just under the target, then scale its stats the rest of the way.
+    opp.ember = cpAt(hi).lte(target) ? hi : lo;
+    const cpWith = (power: number) => GameState.opponentCp({ ...opp, power });
+    let pLo = 1;
+    let pHi = 1;
+    while (cpWith(pHi).lt(target) && pHi < 64) pHi *= 2;
+    for (let i = 0; i < 20 && pHi > pLo; i++) {
+      const mid = (pLo + pHi) / 2;
+      if (cpWith(mid).lt(target)) pLo = mid;
+      else pHi = mid;
+    }
+    opp.power = Math.round(pLo * 1000) / 1000;
+    opp.cp = cpWith(opp.power).toString();
+    return opp;
+  }
+
+  /** An opponent's team CP, with its power multiplier. */
+  static opponentCp(opp: PvpOpponent): Decimal {
+    const g = GameState.ghostState(opp);
+    return opp.heroes.reduce((t, x) => {
+      const def = HEROES.find((h) => h.id === x.id)!;
+      return t.plus(combatPower(scaleStats(g.heroStats(def, g.permanentLevel(def.id)), opp.power ?? 1)));
+    }, new Decimal(0));
+  }
+
+  /** A throwaway game holding only an opponent's team, to get its stats the same way as the player's. */
+  static ghostState(opp: PvpOpponent): GameState {
+    const g = new GameState();
+    for (const h of HEROES) g.levels[h.id] = 0;
+    g.teamSlots = Math.max(g.teamSlots, opp.heroes.length);
+    for (const x of opp.heroes) {
+      g.levels[x.id] = 1;
+      g.emberLevels[x.id] = opp.ember;
+      g.stars[x.id] = x.stars;
+    }
+    return g;
+  }
+
+  /** New opponents: Weaker, Even and Stronger than the player's team, a bit stronger in higher ranks. */
+  rollPvpOpponents(now = Date.now()) {
+    const p = this.pvp;
+    const mine = this.teamCpOf(this.pvpAttackTeam());
+    const pressure = 1 + RANK_PRESSURE * rankIndex(p.trophies);
+    p.picks = PVP_BANDS.map((b, i) => this.buildGhost(`${p.refreshes}:${i}`, mine.times(b.cp * pressure), i));
+    p.refreshes++;
+    p.refreshAt = now + PVP_REFRESH_MINUTES * 60000;
+  }
+
+  /** Free new opponents once the refresh timer is up (or there are none). */
+  refreshPvpOpponents(now = Date.now()): boolean {
+    if (!this.pvpOpen()) return false;
+    if (this.pvp.picks.length && now < this.pvp.refreshAt) return false;
+    this.rollPvpOpponents(now);
+    this.save();
+    return true;
+  }
+
+  /** Extra damage from the win streak on the next attack. */
+  pvpStreakBonus(): number {
+    return PVP_STREAK_DMG * Math.min(PVP_STREAK_MAX, this.pvp.streak);
+  }
+
+  /** Recruited heroes picked for a Colosseum team (attack or defense): falls back to the lineup, at most teamSlots. */
+  private pvpPicked(ids: string[]): HeroDef[] {
+    const picked = HEROES.filter((h) => ids.includes(h.id) && (this.levels[h.id] ?? 0) > 0).slice(0, this.teamSlots);
+    return picked.length ? picked : this.pvpTeam();
+  }
+
+  /** The team the player attacks with. */
+  pvpAttackTeam(): HeroDef[] {
+    return this.pvpPicked(this.pvp.attack);
+  }
+
+  /** The team other players fight when they attack this player. */
+  pvpDefenseTeam(): HeroDef[] {
+    return this.pvpPicked(this.pvp.defense);
+  }
+
+  /** Set the attack or defense team (recruited heroes only, up to teamSlots). */
+  setPvpTeam(kind: 'attack' | 'defense', ids: string[]): boolean {
+    const clean = HEROES.filter((h) => ids.includes(h.id) && (this.levels[h.id] ?? 0) > 0).map((h) => h.id);
+    if (!clean.length || clean.length > this.teamSlots) return false;
+    this.pvp[kind] = clean;
+    this.save();
+    return true;
+  }
+
+  /** CP of a set of heroes. */
+  teamCpOf(team: HeroDef[]): Decimal {
+    return team.reduce((t, h) => t.plus(this.heroCombatPower(h)), new Decimal(0));
+  }
+
+  /** An opponent's fighters, with stats worked out the same way as the player's. */
+  pvpFoeUnits(foe: PvpOpponent): Array<{ def: HeroDef; unit: PvpUnit; stats: HeroStats }> {
+    const g = GameState.ghostState(foe);
+    return foe.heroes.map((x) => {
+      const def = HEROES.find((h) => h.id === x.id)!;
+      const stats = scaleStats(g.heroStats(def, g.permanentLevel(def.id)), foe.power ?? 1);
+      return { def, unit: { ...g.pvpUnit(def), atk: stats.atk.value, hp: stats.hp.value, def: stats.def.value }, stats };
+    });
+  }
+
+  /** A quick no-luck run of the fight, for the "how it looks" line before a battle. */
+  pvpForecast(slot: number): PvpResult | null {
+    const foe = this.pvp.picks[slot];
+    if (!foe) return null;
+    return simulatePvp(this.pvpAttackTeam().map((h) => this.pvpUnit(h)), this.pvpFoeUnits(foe).map((f) => f.unit), this.pvpStreakBonus());
+  }
+
+  /** Whether the player can start a fight against this opponent now. */
+  canStartPvp(slot: number, now = Date.now()): boolean {
+    this.refreshPvpTickets(now);
+    return this.pvpOpen() && this.pvp.active < 0 && !!this.pvp.picks[slot] && this.pvp.tickets > 0 && this.pvpAttackTeam().length > 0;
+  }
+
+  /**
+   * Start a live Colosseum battle: spends the ticket now, so leaving or closing the game mid-fight
+   * counts as a loss. Star skills follow the attack team while it fights (see skillTeam).
+   */
+  startPvp(slot: number, now = Date.now()): PvpOpponent | null {
+    if (!this.canStartPvp(slot, now)) return null;
+    this.pvpTick(now);
+    const p = this.pvp;
+    if (p.tickets >= PVP_TICKET_CAP) p.clock = now;
+    p.tickets--;
+    p.active = slot;
+    this.skillTeam = new Set(this.pvpAttackTeam().map((h) => h.id));
+    this.save();
+    return p.picks[slot];
+  }
+
+  /** End the live battle: pays trophies and Starmotes (a loss still pays a little), then rolls new opponents. */
+  finishPvp(won: boolean, now = Date.now()): PvpFight | null {
+    const p = this.pvp;
+    if (p.active < 0) return null;
+    const foe = p.picks[p.active];
+    p.active = -1;
+    this.skillTeam = null;
+    if (!foe) return null;
+    const band = PVP_BANDS[foe.band] ?? PVP_BANDS[1];
+    const rankBefore = rankIndex(p.trophies);
+    let trophies: number;
+    let starmotes: number;
+    let firstWin = false;
+    if (won) {
+      trophies = band.win;
+      starmotes = band.motes;
+      if (p.firstWin !== dayKey(now)) {
+        firstWin = true;
+        p.firstWin = dayKey(now);
+        starmotes += PVP_FIRST_WIN_MOTES;
+      }
+      p.streak++;
+      p.wins++;
+    } else {
+      trophies = -Math.min(PVP_LOSS_TROPHIES, p.trophies);
+      starmotes = PVP_LOSS_MOTES;
+      p.streak = 0;
+      p.losses++;
+    }
+    p.trophies += trophies;
+    this.starmotes += starmotes;
+    this.rollPvpOpponents(now);
+    this.save();
+    return { foe, won, trophies, starmotes, firstWin, rankBefore, rankAfter: rankIndex(p.trophies) };
+  }
+
 
   /** The first stage this run that opens Rekindle: past REKINDLE_STAGE, and HEAD_START_MIN_PUSH past a head start. */
   rekindleStage() {
@@ -1804,6 +2167,7 @@ export class GameState {
       stars: this.stars,
       awaken: this.awaken,
       starmotes: this.starmotes,
+      pvp: this.pvp,
       gems: this.gems,
       levels: this.levels,
       autoAdvance: this.autoAdvance,
@@ -1938,6 +2302,7 @@ export class GameState {
       this.stars = { ...this.stars, ...(d.stars ?? {}) };
       this.awaken = { ...(d.awaken ?? {}) };
       this.starmotes = d.starmotes ?? 0;
+      this.pvp = { ...newPvp(), ...(d.pvp ?? {}) };
       this.gems = d.gems ?? START_GEMS;
       this.levels = { ...this.levels, ...(d.levels ?? {}) };
       this.autoAdvance = d.autoAdvance ?? true;
@@ -2002,6 +2367,22 @@ export class GameState {
     this.headStart = this.headStart !== false;
     this.gems = Math.max(0, Math.floor(num(this.gems, START_GEMS)));
     this.starmotes = Math.max(0, Math.floor(num(this.starmotes, 0)));
+    const p = this.pvp;
+    p.trophies = Math.max(0, Math.floor(num(p.trophies, 0)));
+    p.tickets = Math.max(0, Math.floor(num(p.tickets, PVP_TICKET_CAP)));
+    p.clock = num(p.clock, Date.now());
+    p.streak = Math.max(0, Math.floor(num(p.streak, 0)));
+    p.refreshes = Math.max(0, Math.floor(num(p.refreshes, 0)));
+    p.refreshAt = num(p.refreshAt, 0);
+    if (!Array.isArray(p.picks) || !p.picks.every((o) => o && Array.isArray(o.heroes) && o.heroes.every((x) => HEROES.some((h) => h.id === x?.id)))) p.picks = [];
+    if (!Array.isArray(p.notes)) p.notes = [];
+    if (!p.buys || typeof p.buys !== 'object') p.buys = { day: '', used: 0 };
+    const ids = (v: unknown) => (Array.isArray(v) ? v.filter((id): id is string => typeof id === 'string' && HEROES.some((h) => h.id === id)) : []);
+    p.attack = ids(p.attack);
+    p.defense = ids(p.defense);
+    // A battle cut short by closing the game counts as a loss (its ticket is already spent).
+    if (typeof p.active === 'number' && p.active >= 0) this.finishPvp(false);
+    p.active = -1;
     this.ultSlots = Math.min(ULT_SLOTS_MAX, Math.max(ULT_SLOTS_START, Math.floor(num(this.ultSlots, ULT_SLOTS_START))));
     this.teamSlots = Math.min(TEAM_SLOTS_MAX, Math.max(TEAM_SLOTS_START, Math.floor(num(this.teamSlots, TEAM_SLOTS_START))));
     this.embers = Math.max(0, num(this.embers, 0));

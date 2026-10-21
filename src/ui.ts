@@ -9,10 +9,11 @@ import { HERO_ANIMS } from './heroAnims';
 import { setMuted } from './sfx';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES } from './bossAnims';
 import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberRefund, emberBulk, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
-import type { GameState, OfflineReport, SummonDrop, RekindleResult, TrialResult } from './state';
+import type { GameState, OfflineReport, SummonDrop, RekindleResult, TrialResult, PvpOpponent } from './state';
 import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, BOOTCAMP, MILESTONE_STEP, milestoneReward, milestoneText, rewardText, type Reward } from './rewards';
 import { rarityOdds, SHOP_HEROES } from './state';
 import type { BattleScene } from './BattleScene';
+import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_BANDS, RANK_DAILY, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies } from './colosseum';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** Set innerHTML only when it changed, so 5x-a-second renders don't rebuild nodes under the player's finger. */
@@ -717,8 +718,14 @@ export class UI {
     $('tr-up').addEventListener('click', () => this.stepTier(1));
     $('tr-fight').addEventListener('click', () => this.fightTrial());
     $('tr-quick').addEventListener('click', () => this.pickQuickCount());
+    $('pvp').addEventListener('click', (e) => this.onPvpClick(e));
     $('trial-leave').addEventListener('click', () => {
       const scene = this.scene();
+      if (scene?.inPvp()) {
+        if ($('trial-leave').textContent === 'Leave') scene.leavePvp();
+        else this.endPvpScreen();
+        return;
+      }
       // Mid-fight, leaving counts as a loss (the ticket is kept); after it, this goes back to the run.
       if (scene?.inTrial() && $('trial-leave').textContent === 'Leave') {
         this.trialLeft = true;
@@ -1446,8 +1453,193 @@ export class UI {
     return `+${fmt(result.essence)} ${ESSENCE_NAMES[el]}${result.stones ? ` · +${result.stones} Enhance Stone${result.stones === 1 ? '' : 's'}` : ''} · medal${result.medals.length === 1 ? '' : 's'}: ${medalNames}`;
   }
 
+  // ---------- Colosseum ----------
+
+  /** Which Colosseum page shows: the rank and three opponents, one opponent before battle, or a team picker. */
+  private pvpView: 'list' | 'foe' | 'team' = 'list';
+  private pvpSlot = 0;
+  private pvpPickKind: 'attack' | 'defense' = 'attack';
+  private pvpPickIds: string[] = [];
+  private pvpForecastKey = '';
+  private pvpForecastValue: ReturnType<GameState['pvpForecast']> = null;
+
+  private pvpFace(h: HeroDef, stars?: number) {
+    const st = stars ?? this.state.stars[h.id] ?? 0;
+    return `<span class="face art" title="${h.name} ${st + 1}★" style="${faceStyle(h)};border-color:${hex(ELEMENT_COLORS[h.element])}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span>`;
+  }
+
+  private pvpFoeFaces(foe: PvpOpponent) {
+    return foe.heroes.map((x) => this.pvpFace(HEROES.find((h) => h.id === x.id)!, x.stars)).join('');
+  }
+
+  private renderPvp() {
+    const s = this.state;
+    s.pvpTick();
+    const p = s.pvp;
+    const wait = s.refreshPvpTickets();
+    const mm = Math.floor(wait / 3600);
+    const m2 = String(Math.floor((wait % 3600) / 60)).padStart(2, '0');
+    setHtml($('pvp-tickets'), s.pvpOpen() ? `<i class="ticket"></i>${p.tickets}/${PVP_TICKET_CAP} ${wait ? `<small>next ${mm}:${m2}</small>` : '<small>(Maxed)</small>'}` : '');
+    if (!s.pvpOpen()) {
+      setHtml($('pvp'), `<p>Fight other players' teams, climb from Bronze to Legend and earn Starmotes for pink awakening stars.</p><small>Opens at player level ${s.pvpUnlockLevel()}. You are level ${s.keeperLevel()}.</small>`);
+      return;
+    }
+    if (!p.picks.length) s.refreshPvpOpponents();
+    if (this.pvpView === 'team') return setHtml($('pvp'), this.pvpTeamHtml());
+    if (this.pvpView === 'foe' && p.picks[this.pvpSlot]) return setHtml($('pvp'), this.pvpFoeHtml(this.pvpSlot));
+    this.pvpView = 'list';
+    const r = rankIndex(p.trophies);
+    const next = r < LEGEND ? RANK_TROPHIES[r + 1] : null;
+    const fill = next === null ? 100 : ((p.trophies - RANK_TROPHIES[r]) / (next - RANK_TROPHIES[r])) * 100;
+    const refreshIn = Math.max(0, Math.ceil((p.refreshAt - Date.now()) / 1000));
+    const notes = p.notes.length ? `<div class="pvp-notes">${p.notes.map((n) => `<span>${n}</span>`).join('')}<button class="wood-btn small" data-pvp="notes-ok">Got it</button></div>` : '';
+    const foes = p.picks
+      .map((foe, i) => {
+        const band = PVP_BANDS[foe.band] ?? PVP_BANDS[1];
+        return `<button class="pvp-foe" data-pvp="foe" data-slot="${i}">
+          <div class="who"><b>${foe.name}${foe.ghost ? '<span class="pvp-tag">GHOST</span>' : ''}</b><span><span class="pvp-band b${foe.band}">${band.name}</span> <small>CP ${fmt(new Decimal(foe.cp))}</small></span><span class="faces">${this.pvpFoeFaces(foe)}</span></div>
+          <div class="pvp-pay">Win: +${band.win} trophies<br>+${band.motes} Starmotes</div>
+        </button>`;
+      })
+      .join('');
+    const buys = s.pvpBuysLeft();
+    const ticketBtn = p.tickets <= 0 && buys > 0 ? `<button class="wood-btn small gem-btn" data-pvp="buy" ${s.gems < PVP_TICKET_GEMS ? 'disabled' : ''}>+1 ticket (${PVP_TICKET_GEMS} Gems, ${buys} left today)</button>` : '';
+    setHtml(
+      $('pvp'),
+      `${notes}
+      <div class="pvp-rank"><div style="flex:1"><div class="badge-rank">${rankName(r)}</div><small>${p.trophies} trophies${next === null ? '' : ` · ${next - p.trophies} to ${rankName(r + 1)}`}</small><div class="pvp-bar"><div style="width:${fill}%"></div></div></div>
+        <div class="pvp-pay">${s.starmotes} Starmotes<br><small>${p.wins}W ${p.losses}L${p.streak ? ` · streak ${p.streak} (+${Math.round(s.pvpStreakBonus() * 100)}% dmg)` : ''}</small></div></div>
+      <small>Daily ${RANK_DAILY[r]} · Weekly ${RANK_WEEKLY[r]} Starmotes at this rank. On Monday the weekly reward pays, then you drop to ${rankName(rankIndex(droppedTrophies(p.trophies)))}.</small>
+      ${foes}
+      <div class="pvp-row"><button class="wood-btn small" data-pvp="refresh" ${refreshIn ? 'disabled' : ''}>${refreshIn ? `New opponents in ${Math.floor(refreshIn / 60)}:${String(refreshIn % 60).padStart(2, '0')}` : 'New opponents'}</button>${ticketBtn}</div>
+      <div class="pvp-team"><div class="pvp-row"><b>Defense team</b><button class="wood-btn small" data-pvp="team" data-kind="defense">Edit</button></div><span class="faces">${s.pvpDefenseTeam().map((h) => this.pvpFace(h)).join('')}</span><small>Other players fight this team. Losing on defense never costs trophies.</small></div>`,
+    );
+  }
+
+  private pvpFoeHtml(slot: number) {
+    const s = this.state;
+    const foe = s.pvp.picks[slot];
+    const band = PVP_BANDS[foe.band] ?? PVP_BANDS[1];
+    const team = s.pvpAttackTeam();
+    const mine = s.teamCpOf(team);
+    // The forecast runs a whole fight, so it is worked out once per opponent, team and streak.
+    const key = `${s.pvp.refreshes}:${slot}:${team.map((h) => h.id).join(',')}:${s.pvp.streak}`;
+    if (this.pvpForecastKey !== key) {
+      this.pvpForecastKey = key;
+      this.pvpForecastValue = s.pvpForecast(slot);
+    }
+    const fc = this.pvpForecastValue;
+    const forecast = !fc ? '' : fc.won && fc.left[0].reduce((a, b) => a + b, 0) / fc.left[0].length > 0.4 ? ['win', 'Looks winnable.'] : fc.won ? ['close', 'A close fight.'] : ['lose', 'Looks tough. Try other elements or a stronger team.'];
+    const can = s.canStartPvp(slot);
+    return `<div class="pvp-row"><button class="wood-btn small" data-pvp="back">‹ Back</button><span class="pvp-band b${foe.band}">${band.name}</span></div>
+      <div class="pvp-team"><b>${foe.name}${foe.ghost ? '<span class="pvp-tag">GHOST</span>' : ''} <small>CP ${fmt(new Decimal(foe.cp))}</small></b><span class="faces">${this.pvpFoeFaces(foe)}</span></div>
+      <div class="pvp-team"><div class="pvp-row"><b>Your attack team <small>CP ${fmt(mine)}</small></b><button class="wood-btn small" data-pvp="team" data-kind="attack">Change</button></div><span class="faces">${team.map((h) => this.pvpFace(h)).join('')}</span></div>
+      ${forecast ? `<small class="pvp-forecast ${forecast[0]}">${forecast[1]}</small>` : ''}
+      <small>Your team starts at the blue crystal and theirs at the red one. Fallen fighters come back after a few seconds. The first crystal destroyed loses. Win: +${band.win} trophies and ${band.motes} Starmotes. Loss: -6 trophies, 1 Starmote.</small>
+      <button class="wood-btn levelall" data-pvp="fight" ${can ? '' : 'disabled'}>${s.pvp.tickets > 0 ? 'Battle! (1 ticket)' : 'No tickets left'}</button>`;
+  }
+
+  private pvpTeamHtml() {
+    const s = this.state;
+    const owned = HEROES.filter((h) => (s.levels[h.id] ?? 0) > 0).sort((a, b) => s.heroCombatPower(b).cmp(s.heroCombatPower(a)));
+    const picks = owned
+      .map((h) => `<button class="${this.pvpPickIds.includes(h.id) ? 'on' : ''}" data-pvp="pick" data-id="${h.id}">${this.pvpFace(h)}<span>${h.name}</span><small>${fmt(s.heroCombatPower(h))}</small></button>`)
+      .join('');
+    return `<div class="pvp-row"><b>${this.pvpPickKind === 'attack' ? 'Attack' : 'Defense'} team ${this.pvpPickIds.length}/${s.teamSlots}</b><small>CP ${fmt(s.teamCpOf(owned.filter((h) => this.pvpPickIds.includes(h.id))))}</small></div>
+      <small>Pick up to ${s.teamSlots} heroes. They fight at their Ember levels, stars and relics (gold levels don't count).</small>
+      <div class="pvp-pick">${picks}</div>
+      <div class="pvp-row"><button class="wood-btn small" data-pvp="team-cancel">Cancel</button><button class="wood-btn small levelall" data-pvp="team-save" ${this.pvpPickIds.length ? '' : 'disabled'}>Save team</button></div>`;
+  }
+
+  private onPvpClick(e: Event) {
+    const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-pvp]');
+    if (!btn || (btn as HTMLButtonElement).disabled) return;
+    const s = this.state;
+    switch (btn.dataset.pvp) {
+      case 'foe':
+        this.pvpSlot = Number(btn.dataset.slot);
+        this.pvpView = 'foe';
+        break;
+      case 'back':
+        this.pvpView = 'list';
+        break;
+      case 'refresh':
+        s.refreshPvpOpponents();
+        break;
+      case 'buy':
+        if (s.buyPvpTicket()) play('unlock');
+        break;
+      case 'notes-ok':
+        s.pvp.notes = [];
+        s.save();
+        break;
+      case 'team':
+        this.pvpPickKind = btn.dataset.kind === 'defense' ? 'defense' : 'attack';
+        this.pvpPickIds = (this.pvpPickKind === 'attack' ? s.pvpAttackTeam() : s.pvpDefenseTeam()).map((h) => h.id);
+        this.pvpView = 'team';
+        break;
+      case 'pick': {
+        const id = btn.dataset.id!;
+        if (this.pvpPickIds.includes(id)) this.pvpPickIds = this.pvpPickIds.filter((x) => x !== id);
+        else if (this.pvpPickIds.length < s.teamSlots) this.pvpPickIds.push(id);
+        break;
+      }
+      case 'team-cancel':
+        this.pvpView = this.pvpPickKind === 'attack' ? 'foe' : 'list';
+        break;
+      case 'team-save':
+        s.setPvpTeam(this.pvpPickKind, this.pvpPickIds);
+        this.pvpView = this.pvpPickKind === 'attack' ? 'foe' : 'list';
+        break;
+      case 'fight':
+        this.fightPvp(this.pvpSlot);
+        return;
+    }
+    this.renderPvp();
+  }
+
+  /** Start a live Colosseum battle on the lane. */
+  private fightPvp(slot: number) {
+    const s = this.state;
+    const scene = this.scene();
+    if (!scene || scene.inTrial() || scene.inPvp() || !s.canStartPvp(slot)) return;
+    const bonus = s.pvpStreakBonus();
+    const ids = s.pvpAttackTeam().map((h) => h.id);
+    const foe = s.startPvp(slot);
+    if (!foe) return;
+    this.closeSheet();
+    document.body.classList.add('in-trial');
+    $('trial-hud').hidden = false;
+    $('trial-hud-name').textContent = `Colosseum vs ${foe.name}`;
+    $('trial-hud-note').textContent = 'Fighters fight at their Ember levels and get back up after a few seconds. Destroy the red crystal before they destroy yours.';
+    $('trial-leave').textContent = 'Leave';
+    scene.startPvp(ids, s.pvpFoeUnits(foe).map((f) => ({ def: f.def, stats: f.stats })), bonus, (won) => {
+      $('trial-leave').textContent = 'Back';
+      const r = s.finishPvp(won);
+      const html = !r
+        ? ''
+        : `<p class="tf-result ${r.won ? 'win' : 'lose'}">${r.won ? 'Victory!' : 'Defeat.'} ${r.trophies > 0 ? `+${r.trophies} trophies` : r.trophies < 0 ? `${r.trophies} trophies` : 'No trophies lost'} · +${r.starmotes} Starmote${r.starmotes === 1 ? '' : 's'}${r.firstWin ? ' (first win today +10)' : ''}</p>${r.rankAfter !== r.rankBefore ? `<p>${r.rankAfter > r.rankBefore ? 'Ranked up' : 'Dropped'} to <b>${rankName(r.rankAfter)}</b>!</p>` : ''}`;
+      this.pvpView = 'list';
+      window.setTimeout(() => {
+        if (scene.inPvp()) this.showModal('Colosseum', html, 'Okay', () => this.endPvpScreen());
+      }, 1200);
+      this.render();
+    });
+  }
+
+  /** Leave the battle screen and go back to the run. */
+  private endPvpScreen() {
+    const scene = this.scene();
+    if (scene?.inPvp()) scene.closePvp();
+    document.body.classList.remove('in-trial');
+    $('trial-hud').hidden = true;
+    $('trial-hud-note').textContent = 'Your team fights at its Ember levels. Fallen heroes stay down until the Trial ends. Beat the boss before time runs out.';
+    this.render();
+  }
+
   private renderBattle() {
     this.renderTrials();
+    this.renderPvp();
     const s = this.state;
     const nextBoss = Math.ceil((s.stage + (isBossStage(s.stage) ? 0 : 1)) / BOSS_EVERY) * BOSS_EVERY;
     $('bt-stage').textContent = s.stage.toLocaleString();

@@ -275,6 +275,28 @@ interface TrialFight {
   onEnd: (won: boolean, seconds: number) => void;
 }
 
+/** One opponent hero in a Colosseum battle, with its stats worked out by GameState. */
+export interface PvpFoe {
+  def: HeroDef;
+  stats: HeroStats;
+}
+
+/** A live Colosseum battle: both teams start at their own crystal; the first crystal destroyed loses. */
+interface PvpLive {
+  ids: Set<string>;
+  bonus: number;
+  mine: { hp: Decimal; max: Decimal };
+  theirs: { hp: Decimal; max: Decimal };
+  timeLeft: number;
+  done: boolean;
+  onEnd: (won: boolean) => void;
+}
+
+/** Each crystal holds this many times its team's total HP. */
+const PVP_CRYSTAL_HP = 1.5;
+/** Seconds a Colosseum battle may run; then the crystal with more HP left (as a share) wins, ties to the defender. */
+const PVP_LIVE_TIME = 90;
+
 export interface UltState {
   unlocked: boolean;
   alive: boolean;
@@ -328,6 +350,8 @@ export class BattleScene extends Phaser.Scene {
   /** Both crystals with their shadows, hidden during a Trial. */
   private crystalParts: Phaser.GameObjects.GameObject[] = [];
   private trial: TrialFight | null = null;
+  private pvp: PvpLive | null = null;
+  private playerCrystalView!: Phaser.GameObjects.Image;
 
   constructor() {
     super('battle');
@@ -405,7 +429,7 @@ export class BattleScene extends Phaser.Scene {
       this.crystalParts.push(shadow, view);
       return view;
     };
-    crystalAt(PLAYER_CRYSTAL_X, 'crystal-player');
+    this.playerCrystalView = crystalAt(PLAYER_CRYSTAL_X, 'crystal-player');
     this.crystalView = crystalAt(ENEMY_CRYSTAL_X, 'crystal-enemy');
     this.crystalShield = this.add.circle(ENEMY_CRYSTAL_X, CRYSTAL_Y, 44, 0xff3355, 0.18).setStrokeStyle(2, 0xff6680, 0.8).setDepth(LANE_TOP + 1);
     this.crystalBar = this.add.graphics().setDepth(1000);
@@ -471,7 +495,9 @@ export class BattleScene extends Phaser.Scene {
     // Each 50-stage block is a new region, cycling through the five background sets.
     // Nyxara guards the Hollow Moon Ruins, so her fights always happen there.
     const stage = this.state.stage;
-    const region = this.trial
+    const region = this.pvp
+      ? 'stormcrag'
+      : this.trial
       ? TRIAL_ARENAS[this.trial.element]
       : isBossStage(stage) && stageBoss(stage).art === 'dark' ? 'hollowmoon' : REGIONS[Math.floor((stage - 1) / 50) % REGIONS.length];
     this.sky.setTexture(`bg-${region}-sky`);
@@ -480,7 +506,7 @@ export class BattleScene extends Phaser.Scene {
     // Distance posts so the walk reads as travel.
     const g = this.ground;
     g.clear();
-    for (let i = 1; i < 4 && !this.trial; i++) {
+    for (let i = 1; i < 4 && !this.trial && !this.pvp; i++) {
       const x = (WORLD_WIDTH / 4) * i;
       g.fillStyle(0x5a3a1a, 1).fillRect(x - 2, LANE_TOP - 26, 4, 24);
       g.fillStyle(0xd8b47a, 1).fillRect(x - 12, LANE_TOP - 32, 24, 10);
@@ -525,7 +551,8 @@ export class BattleScene extends Phaser.Scene {
     // Frame-animated heroes stand on their feet point, on the same foot line as everyone else.
     const animDef = opts.def ? HERO_ANIMS[opts.def.id] : undefined;
     const anim = animDef && this.anims.exists(`${opts.def!.id}-run`) ? { id: opts.def!.id, state: 'idle' as AnimState } : undefined;
-    if (anim && animDef) body.setOrigin(animDef.feet[0] / animDef.frame[0], animDef.feet[1] / animDef.frame[1]).setY(FOOT_Y);
+    // A Colosseum foe is a hero facing left, so its feet point mirrors.
+    if (anim && animDef) body.setOrigin(opts.side === 'enemy' ? 1 - animDef.feet[0] / animDef.frame[0] : animDef.feet[0] / animDef.frame[0], animDef.feet[1] / animDef.frame[1]).setY(FOOT_Y);
     // Mob art faces right like the heroes and is flipped above, so its feet point mirrors too.
     if (mobDef) body.setOrigin(1 - mobDef.feet[0] / mobDef.frame[0], mobDef.feet[1] / mobDef.frame[1]).setY(FOOT_Y).play(`${mobKey}-walk`);
     const barWidth = opts.isBoss ? 80 : 24;
@@ -621,7 +648,7 @@ export class BattleScene extends Phaser.Scene {
       });
       // Melee heroes get a slash streak on the frame that reaches furthest (frames run at ATTACK_FPS, scaled
       // by battle speed); ranged heroes already fire a projectile.
-      if (u.def && u.def.range <= 60) this.time.delayedCall((HERO_ANIMS[a.id].hitFrame / ATTACK_FPS) * 1000 / this.speedMultiplier(), () => this.slashStreak(u));
+      if (u.def && u.side === 'hero' && u.def.range <= 60) this.time.delayedCall((HERO_ANIMS[a.id].hitFrame / ATTACK_FPS) * 1000 / this.speedMultiplier(), () => this.slashStreak(u));
     }
   }
 
@@ -693,16 +720,17 @@ export class BattleScene extends Phaser.Scene {
   /** Create units for newly recruited heroes and refresh stats after upgrades. */
   syncHeroes() {
     // Heroes taken out of the lineup leave the lane.
-    for (const h of this.heroes) if (h.def && !this.state.inLineup(h.def.id)) h.view.destroy();
-    this.heroes = this.heroes.filter((h) => h.def && this.state.inLineup(h.def.id));
+    for (const h of this.heroes) if (h.def && !this.fights(h.def.id)) h.view.destroy();
+    this.heroes = this.heroes.filter((h) => h.def && this.fights(h.def.id));
     for (const def of HEROES) {
-      if (!this.state.inLineup(def.id)) continue;
+      if (!this.fights(def.id)) continue;
       const level = this.levelOf(def.id);
       if (level <= 0) continue;
       const stats = this.state.heroStats(def, level);
       // A squad splits the hero's ATK and HP between its small fighters (the first one owns the Ultimate).
       const size = def.squad ?? 1;
-      const atk = stats.atk.value.div(size), hp = stats.hp.value.div(size), defense = stats.def.value;
+      // A Colosseum win streak hits harder.
+      const atk = stats.atk.value.div(size).times(1 + (this.pvp?.bonus ?? 0)), hp = stats.hp.value.div(size), defense = stats.def.value;
       const squad = this.heroes.filter((h) => h.def?.id === def.id);
       for (const u of squad) {
         const ratio = u.maxHp.gt(0) ? u.hp.div(u.maxHp) : new Decimal(1);
@@ -739,9 +767,14 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  /** A hero's fighting level: gold plus Ember levels, or in a Trial only Ember levels (at least 1). */
+  /** Whether a hero is on the field: the lineup, or the attack team in a Colosseum battle. */
+  private fights(heroId: string) {
+    return this.pvp ? this.pvp.ids.has(heroId) && (this.state.levels[heroId] ?? 0) > 0 : this.state.inLineup(heroId);
+  }
+
+  /** A hero's fighting level: gold plus Ember levels, or in a Trial or the Colosseum only Ember levels (at least 1). */
   private levelOf(heroId: string) {
-    if (!this.trial) return this.state.heroLevel(heroId);
+    if (!this.trial && !this.pvp) return this.state.heroLevel(heroId);
     return this.state.permanentLevel(heroId);
   }
 
@@ -968,8 +1001,8 @@ export class BattleScene extends Phaser.Scene {
 
   /** Called after offline progress or a reset changes the stage. */
   restart() {
-    // A Trial in progress keeps going; the run restarts when it ends.
-    if (this.trial) return;
+    // A Trial or Colosseum battle in progress keeps going; the run restarts when it ends.
+    if (this.trial || this.pvp) return;
     // Rebuilt heroes keep their ultimate cooldowns (clock keeps running across restarts).
     const ults = new Map(this.heroes.map((h) => [h.def?.id, h.ultReadyAt]));
     for (const h of this.heroes) h.view.destroy();
@@ -984,6 +1017,158 @@ export class BattleScene extends Phaser.Scene {
   /** Whether a live Trial fight is on. */
   inTrial() {
     return !!this.trial;
+  }
+
+  /** Whether a live Colosseum battle is on. */
+  inPvp() {
+    return !!this.pvp;
+  }
+
+  /**
+   * Start a Colosseum battle: the run pauses, the attack team (`ids`, Ember levels only) starts at the
+   * blue crystal and the opponent's team at the red one. Fallen fighters on both sides get back up after
+   * the usual wait; the first crystal destroyed loses. `onEnd` gets the outcome once.
+   */
+  startPvp(ids: string[], foes: PvpFoe[], bonus: number, onEnd: (won: boolean) => void) {
+    if (this.trial || this.pvp) return;
+    this.nextStageTimer?.remove();
+    this.nextStageTimer = undefined;
+    this.pvp = { ids: new Set(ids), bonus, mine: { hp: new Decimal(1), max: new Decimal(1) }, theirs: { hp: new Decimal(1), max: new Decimal(1) }, timeLeft: PVP_LIVE_TIME, done: false, onEnd };
+    const ults = new Map(this.heroes.map((h) => [h.def?.id, h.ultReadyAt]));
+    for (const h of this.heroes) h.view.destroy();
+    this.heroes = [];
+    this.syncHeroes();
+    for (const h of this.heroes) h.ultReadyAt = ults.get(h.def?.id) ?? 0;
+    for (const e of this.enemies) e.view.destroy();
+    this.enemies = [];
+    for (const z of this.zones) z.view.destroy();
+    this.zones = [];
+    for (const h of this.heroes) {
+      h.shield = new Decimal(0);
+      h.streakTarget = undefined;
+      this.reviveHero(h);
+    }
+    for (const [i, f] of foes.entries()) {
+      const size = f.def.squad ?? 1;
+      for (let k = 0; k < size; k++) {
+        const e = this.makeUnit({
+          side: 'enemy',
+          def: f.def,
+          texture: `hero-${f.def.id}`,
+          x: ENEMY_CRYSTAL_X - 20 - i * 6 - k * 12,
+          hp: f.stats.hp.value.div(size),
+          // Foes have no crit rolls of their own: their hits carry the average crit.
+          atk: f.stats.atk.value.div(size).times(1 + f.stats.critRate * f.stats.critDmg),
+          range: f.def.range,
+          cooldown: 1 / Math.max(0.05, f.stats.attacksPerSec.value),
+          speed: f.stats.moveSpeed.value,
+          element: f.def.element,
+          flying: f.def.flying,
+        });
+        if (size > 1) e.view.setScale(0.7);
+        e.defense = f.stats.def.value;
+        e.stats = f.stats;
+        this.enemies.push(e);
+      }
+    }
+    const teamHp = (units: Unit[]) => units.reduce((t, u) => t.plus(u.maxHp), new Decimal(0)).times(PVP_CRYSTAL_HP);
+    const mine = teamHp(this.heroes);
+    const theirs = teamHp(this.enemies);
+    this.pvp.mine = { hp: mine, max: mine };
+    this.pvp.theirs = { hp: theirs, max: theirs };
+    this.crystalShield.setVisible(false);
+    this.transitioning = false;
+    this.bossEngaged = false;
+    this.cameras.main.scrollX = 0;
+    this.drawBackground();
+    this.banner('COLOSSEUM\nFIGHT!', '#ffd84a');
+    play('boss');
+    this.state.emit();
+  }
+
+  /** Give up the battle in progress: it counts as a loss. */
+  leavePvp() {
+    this.endPvp(false);
+  }
+
+  /** Back from a finished battle to the run, which restarts its current stage. */
+  closePvp() {
+    if (!this.pvp) return;
+    this.pvp = null;
+    this.bannerText.setAlpha(0);
+    this.restart();
+  }
+
+  private endPvp(won: boolean) {
+    const p = this.pvp;
+    if (!p || p.done) return;
+    p.done = true;
+    this.transitioning = true;
+    this.banner(won ? 'VICTORY!' : 'DEFEAT', won ? '#ffe066' : '#ff6b6b');
+    play(won ? 'clear' : 'defeat');
+    if (won) {
+      this.cameras.main.shake(250, 0.012);
+      this.freeze(0.12);
+    }
+    p.onEnd(won);
+  }
+
+  /** One frame of a Colosseum battle: both sides fight and push for the other's crystal; fallen fighters come back. */
+  private updatePvp(dt: number, realDt: number) {
+    const p = this.pvp!;
+    p.timeLeft -= dt;
+    for (const h of this.heroes) {
+      if (!h.alive) {
+        if (this.clock >= h.respawnAt) this.reviveHero(h);
+        else h.reviveText?.setText(`${Math.ceil(reviveIn(h, this.clock))}`);
+        continue;
+      }
+      this.stepHero(h, dt);
+    }
+    for (const e of this.enemies) {
+      if (!e.alive) {
+        if (this.clock >= e.respawnAt) this.reviveFoe(e);
+        continue;
+      }
+      this.stepEnemy(e, dt);
+    }
+    this.tickBurns(dt);
+    this.tickStatus(dt);
+    this.followHeroes(realDt);
+    if (p.done) return;
+    if (p.theirs.hp.lte(0)) return this.endPvp(true);
+    if (p.mine.hp.lte(0)) return this.endPvp(false);
+    if (p.timeLeft <= 0) {
+      p.timeLeft = 0;
+      const share = (c: { hp: Decimal; max: Decimal }) => c.hp.div(c.max).toNumber();
+      return this.endPvp(share(p.mine) > share(p.theirs));
+    }
+    this.regenerate(dt);
+    if (this.state.autoUlt) for (const h of this.heroes) this.tryAutoUlt(h);
+  }
+
+  /** A fallen Colosseum foe gets back up at the red crystal. */
+  private reviveFoe(e: Unit) {
+    e.alive = true;
+    e.hp = e.maxHp;
+    e.rootedUntil = 0;
+    e.burnUntil = 0;
+    e.poisonUntil = 0;
+    e.x = ENEMY_CRYSTAL_X - 20;
+    this.tweens.killTweensOf(e.view);
+    e.view.setPosition(e.x, e.y).setAlpha(1).setScale(e.def?.squad ? 0.7 : 1).setVisible(true);
+    e.body.setAlpha(1);
+    this.drawHpBar(e);
+  }
+
+  /** A Colosseum foe hits the blue crystal. */
+  private damagePlayerCrystal(amount: Decimal) {
+    const p = this.pvp!;
+    p.mine.hp = Decimal.max(0, p.mine.hp.minus(amount));
+    this.sparks(PLAYER_CRYSTAL_X + 8, LANE_TOP + 26, 0x8fd0ff, 3);
+    play('hurt');
+    this.playerCrystalView.setTintFill(0xffffff);
+    this.time.delayedCall(60, () => this.playerCrystalView.clearTint());
   }
 
   /**
@@ -1121,12 +1306,16 @@ export class BattleScene extends Phaser.Scene {
     const dt = realDt * (this.speedMultiplier());
     this.anims.globalTimeScale = this.speedMultiplier();
     this.clock += dt;
-    if (!this.trial) this.updateChests(dt);
+    if (!this.trial && !this.pvp) this.updateChests(dt);
     this.drawHud();
     this.syncShadows();
     if (this.transitioning) return;
     if (this.trial) {
       this.updateTrial(dt, realDt);
+      return;
+    }
+    if (this.pvp) {
+      this.updatePvp(dt, realDt);
       return;
     }
 
@@ -1302,10 +1491,23 @@ export class BattleScene extends Phaser.Scene {
         this.mobAnim(e, 'attack');
         // A caster throws its magic across the gap.
         if (e.range > 60) this.shot(e, target.x, target.y, ELEMENT_COLORS[e.element]);
+        if (e.anim) this.setAnim(e, 'attack');
         if (this.trial && e.isBoss) this.trialBossHits(e, target);
         else this.enemyHits(e, target);
       } else if (e.mob?.state === 'walk') this.mobAnim(e, 'idle');
+      else if (e.anim && e.anim.state === 'run') this.setAnim(e, 'idle');
       this.mobBob(e, false);
+      return;
+    }
+    // Colosseum foes with no hero in reach hit the blue crystal once they get to it.
+    if (this.pvp && e.x - (PLAYER_CRYSTAL_X + 14) <= e.range) {
+      if (e.cooldownLeft <= 0) {
+        e.cooldownLeft = e.cooldown;
+        if (e.range > 60) this.shot(e, PLAYER_CRYSTAL_X, LANE_TOP + 26, ELEMENT_COLORS[e.element]);
+        else this.lunge(e, -1);
+        if (e.anim) this.setAnim(e, 'attack');
+        this.damagePlayerCrystal(e.atk);
+      }
       return;
     }
     // Bosses guard the crystal; regular enemies march at the heroes.
@@ -1315,6 +1517,7 @@ export class BattleScene extends Phaser.Scene {
     e.view.x = e.x;
     const walking = e.x !== x0;
     if (e.mob && e.mob.state !== 'attack') this.mobAnim(e, walking ? 'walk' : 'idle');
+    if (e.anim && e.anim.state !== 'attack') this.setAnim(e, walking ? 'run' : 'idle');
     this.mobBob(e, walking);
   }
 
@@ -1727,7 +1930,14 @@ export class BattleScene extends Phaser.Scene {
         }
       }
     }
-    if (u.side === 'enemy' && this.trial) {
+    if (u.side === 'enemy' && this.pvp) {
+      // A Colosseum foe pays nothing; it fades and comes back at its crystal after the usual wait.
+      u.respawnAt = respawnTime(this.clock, 1);
+      u.hpBar.clear();
+      this.tweens.add({ targets: u.view, alpha: 0, duration: 300, onComplete: () => u.view.setVisible(false) });
+      this.shatter(u.x, u.y, ELEMENT_COLORS[u.element]);
+      play('kill');
+    } else if (u.side === 'enemy' && this.trial) {
       // A Trial pays in Essence and medals when it ends, not in gold.
       u.hpBar.clear();
       if (u.bossArt) this.bossAnim(u, 'death');
@@ -1790,6 +2000,14 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private damageCrystal(amount: Decimal) {
+    if (this.pvp) {
+      this.pvp.theirs.hp = Decimal.max(0, this.pvp.theirs.hp.minus(amount));
+      this.sparks(ENEMY_CRYSTAL_X - 8, LANE_TOP + 26, 0xff8fc0, 3);
+      play('hit');
+      this.crystalView.setTintFill(0xffffff);
+      this.time.delayedCall(60, () => this.crystalView.clearTint());
+      return;
+    }
     this.crystal.hp = this.crystal.hp.minus(amount);
     this.sparks(ENEMY_CRYSTAL_X - 8, LANE_TOP + 26, 0xff8fc0, 3);
     play('hit');
@@ -2126,6 +2344,10 @@ export class BattleScene extends Phaser.Scene {
       this.drawTrialHud(this.trial);
       return;
     }
+    if (this.pvp) {
+      this.drawPvpHud(this.pvp);
+      return;
+    }
     const stage = this.state.stage;
     const boss = isBossStage(stage);
     this.stageText.setText(`Stage ${stage}${boss ? ' · BOSS' : this.state.autoAdvance ? '' : ' · Farming'}`);
@@ -2167,5 +2389,27 @@ export class BattleScene extends Phaser.Scene {
     this.bossBar.clear();
     this.bossBar.fillStyle(0x000000, 0.7).fillRect(x - 2, 52, w + 4, 10);
     this.bossBar.fillStyle(t.timeLeft < 10 ? 0xff4c4c : 0xffb84c, 1).fillRect(x, 54, w * Math.max(0, t.timeLeft / TRIAL_TIME), 6);
+  }
+
+  /** Colosseum HUD: time left at the top left and an HP bar over each crystal. */
+  private drawPvpHud(p: PvpLive) {
+    this.stageText.setText(`Colosseum · ${Math.ceil(Math.max(0, p.timeLeft))}s`);
+    this.progressBar.clear();
+    this.bossBar.clear();
+    const bar = (x: number, c: { hp: Decimal; max: Decimal }, color: number) => {
+      const ratio = c.max.gt(0) ? Math.max(0, c.hp.div(c.max).toNumber()) : 0;
+      this.crystalBar.fillStyle(0x000000, 0.7).fillRect(x - 22, CRYSTAL_Y - 48, 44, 6);
+      this.crystalBar.fillStyle(color, 1).fillRect(x - 21, CRYSTAL_Y - 47, 42 * ratio, 4);
+    };
+    this.crystalBar.clear();
+    bar(PLAYER_CRYSTAL_X, p.mine, 0x4cb8ff);
+    bar(ENEMY_CRYSTAL_X, p.theirs, 0xd04a8a);
+    // Both crystals' HP side by side under the timer, so the race reads at a glance.
+    const w = 150;
+    const x = 10;
+    const share = (c: { hp: Decimal; max: Decimal }) => (c.max.gt(0) ? Math.max(0, c.hp.div(c.max).toNumber()) : 0);
+    this.bossBar.fillStyle(0x000000, 0.7).fillRect(x - 2, 34, w + 4, 22);
+    this.bossBar.fillStyle(0x4cb8ff, 1).fillRect(x, 36, w * share(p.mine), 8);
+    this.bossBar.fillStyle(0xd04a8a, 1).fillRect(x, 46, w * share(p.theirs), 8);
   }
 }
