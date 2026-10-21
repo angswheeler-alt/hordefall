@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, MILESTONE_STEP, milestoneReward, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
 import { relicCost, bossHp, bossAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES, PLAYABLE_HEROES } from './data';
@@ -143,6 +143,11 @@ export class GameState {
   relicSlots = RELIC_START_SLOTS;
   /** Team slots owned: how many heroes can fight at once (bought with Gems up to TEAM_SLOTS_MAX). */
   teamSlots = TEAM_SLOTS_START;
+  /** Ultimate slots owned, and the heroes the player put in them (others in the team fill any open slot). */
+  ultSlots = ULT_SLOTS_START;
+  ultPicks: string[] = [];
+  /** Team heroes the player took out of the Ultimate slots; they don't fill open slots. */
+  ultSkip: string[] = [];
   /** The Relic Shop's offers (relic ids), when New relics can be used again, and whether it was ever stocked. */
   relicShop: { offers: string[]; refreshAt: number; rolled: boolean } = { offers: [], refreshAt: 0, rolled: false };
   enhanceStones = 0;
@@ -466,6 +471,54 @@ export class GameState {
     if (cost === null || this.gems < cost) return false;
     this.gems -= cost;
     this.teamSlots += 1;
+    this.save();
+    return true;
+  }
+
+  /** Gems for the next Ultimate slot, or null when all are bought. */
+  nextUltSlotCost(): number | null {
+    return ULT_SLOT_COSTS[this.ultSlots - ULT_SLOTS_START] ?? null;
+  }
+
+  buyUltSlot(): boolean {
+    const cost = this.nextUltSlotCost();
+    if (cost === null || this.gems < cost) return false;
+    this.gems -= cost;
+    this.ultSlots += 1;
+    this.save();
+    return true;
+  }
+
+  /**
+   * The team heroes whose Ultimates are slotted, in button order: the player's picks first, then the rest
+   * of the team in roster order while slots are open.
+   */
+  ultHeroes(): string[] {
+    const picks = this.ultPicks.filter((id) => this.inLineup(id)).slice(0, this.ultSlots);
+    for (const h of HEROES) if (picks.length < this.ultSlots && this.inLineup(h.id) && !picks.includes(h.id) && !this.ultSkip.includes(h.id)) picks.push(h.id);
+    return picks;
+  }
+
+  hasUltSlot(id: string): boolean {
+    return this.ultHeroes().includes(id);
+  }
+
+  /**
+   * Put a team hero's Ultimate in a slot or take it out. A picked hero takes the place of one who only filled
+   * an open slot; when every slot holds a pick, someone has to come out first. A hero taken out stays out
+   * until picked again. False when nothing changes.
+   */
+  setUltSlot(id: string, on: boolean): boolean {
+    if (!this.inLineup(id) || on === this.hasUltSlot(id)) return false;
+    const picked = this.ultPicks.filter((h) => this.inLineup(h));
+    if (on) {
+      if (picked.length >= this.ultSlots) return false;
+      this.ultPicks = [...picked, id];
+      this.ultSkip = this.ultSkip.filter((h) => h !== id);
+    } else {
+      this.ultPicks = picked.filter((h) => h !== id);
+      this.ultSkip = [...this.ultSkip.filter((h) => h !== id), id];
+    }
     this.save();
     return true;
   }
@@ -1554,6 +1607,9 @@ export class GameState {
       equipped: this.equipped,
       relicSlots: this.relicSlots,
       teamSlots: this.teamSlots,
+      ultSlots: this.ultSlots,
+      ultPicks: this.ultPicks,
+      ultSkip: this.ultSkip,
       relicShop: this.relicShop,
       legendaryMedals: this.legendaryMedals,
       goldPerSec: this.goldPerSec,
@@ -1688,6 +1744,11 @@ export class GameState {
       this.relicSlots = d.relicSlots ?? RELIC_START_SLOTS;
       // Saves from before team slots fought with 5 heroes; they keep those slots.
       this.teamSlots = d.teamSlots ?? OLD_SAVE_TEAM_SLOTS;
+      // Before Ultimate slots every hero could use theirs; those saves keep all 5.
+      this.ultSlots = d.ultSlots ?? ULT_SLOTS_MAX;
+      const heroIds = (v: unknown): string[] => (Array.isArray(v) ? v.filter((id: unknown): id is string => typeof id === 'string' && HEROES.some((h) => h.id === id)) : []);
+      this.ultPicks = heroIds(d.ultPicks);
+      this.ultSkip = heroIds(d.ultSkip);
       this.legendaryMedals = d.legendaryMedals ?? 0;
       this.equipped = (d.equipped ?? []).filter((id: string) => this.relics[id]).slice(0, this.relicSlots);
       this.goldPerSec = d.goldPerSec ?? 0;
@@ -1716,6 +1777,7 @@ export class GameState {
     this.runStartStage = Math.min(this.runBestStage, Math.max(1, Math.floor(num(this.runStartStage, 1))));
     this.headStart = this.headStart !== false;
     this.gems = Math.max(0, Math.floor(num(this.gems, START_GEMS)));
+    this.ultSlots = Math.min(ULT_SLOTS_MAX, Math.max(ULT_SLOTS_START, Math.floor(num(this.ultSlots, ULT_SLOTS_START))));
     this.teamSlots = Math.min(TEAM_SLOTS_MAX, Math.max(TEAM_SLOTS_START, Math.floor(num(this.teamSlots, TEAM_SLOTS_START))));
     this.embers = Math.max(0, num(this.embers, 0));
     this.tickets = Math.min(TICKET_CAP, Math.max(0, Math.floor(num(this.tickets, TICKET_CAP))));

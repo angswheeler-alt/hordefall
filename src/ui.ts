@@ -247,10 +247,28 @@ export class UI {
     }
     this.showModal(
       `Team ${count}/${s.teamSlots}`,
-      `<button type="button" class="tm-x" data-team-close aria-label="Close">✕</button><p class="tm-total">Total Combat Power <b>${fmt(s.totalCombatPower())}</b></p>${note ? `<p class="team-note">${note}</p>` : ''}<div class="tm-slots">${slots}</div><div class="tm-scroll">${body}</div>`,
+      `<button type="button" class="tm-x" data-team-close aria-label="Close">✕</button><p class="tm-total">Total Combat Power <b>${fmt(s.totalCombatPower())}</b></p>${note ? `<p class="team-note">${note}</p>` : ''}<div class="tm-slots">${slots}</div>${this.ultSlotsHtml()}<div class="tm-scroll">${body}</div>`,
       'Done',
     );
     $('modal').classList.add('team-mode');
+  }
+
+  /** In a team hero's quick stats: whether their Ultimate has a slot, and a button to change it. */
+  private ultToggleHtml(h: HeroDef): string {
+    const s = this.state;
+    const has = s.hasUltSlot(h.id);
+    const picksFull = s.ultPicks.filter((id) => s.inLineup(id)).length >= s.ultSlots;
+    const note = has ? 'Their Ultimate is on the battle bar.' : picksFull ? 'All Ultimate slots are taken. Take another hero out first, or buy a slot.' : 'Their Ultimate is off: they fight without it.';
+    return `<p class="team-help tm-ult-note">${note}</p><button type="button" class="tm-ult-toggle${has ? '' : ' hot'}" data-ult="${h.id}" ${!has && picksFull ? 'disabled' : ''}>${has ? 'Take Ultimate out' : 'Give Ultimate a slot'}</button>`;
+  }
+
+  /** The Ultimate slots line in Manage Team: who holds them, and the next slot for Gems. */
+  private ultSlotsHtml(): string {
+    const s = this.state;
+    const held = s.ultHeroes().map((id) => HEROES.find((h) => h.id === id)!.name);
+    const cost = s.nextUltSlotCost();
+    const buy = cost === null ? '' : `<button type="button" class="tm-ult-buy" data-buy-ult ${s.gems < cost ? 'disabled' : ''}>+1 slot · ${cost} Gems</button>`;
+    return `<div class="tm-ults"><span><b>Ultimates ${held.length}/${s.ultSlots}</b> ${held.length ? held.join(', ') : 'none'}</span>${buy}</div>`;
   }
 
   /** A hero's quick stats inside Manage Team, with Add/Remove and a link to the full hero page. */
@@ -275,6 +293,7 @@ export class UI {
       <div class="tm-stats">${stat('Atk', fmt(st.atk.value))}${stat('HP', fmt(st.hp.value))}${stat('Def', fmt(st.def.value))}${stat('Atk per sec', num(st.attacksPerSec.value))}${stat('Crit', pct(st.critRate))}${stat('Crit Dmg', `+${pct(st.critDmg)}`)}${stat('Range', num(st.range.value))}${stat('Move', num(st.moveSpeed.value))}${stat('Dodge', pct(st.dodge.value))}</div>
       <p class="tm-spec">${prof.specialty}</p>
       ${why ? `<p class="team-help">${why}</p>` : ''}
+      ${on ? this.ultToggleHtml(h) : ''}
       <div class="tm-peek-btns"><button type="button" data-peek-back>Back</button><button type="button" data-team-page="${h.id}">Hero page</button><button type="button" data-lineup="${h.id}" class="${on ? '' : 'hot'}" ${disabled ? 'disabled' : ''}>${label}</button></div>
     </div>`;
   }
@@ -822,6 +841,24 @@ export class UI {
       if (t.closest('[data-peek-back]')) {
         this.teamPeek = null;
         this.openTeam();
+        return;
+      }
+      const buyUlt = t.closest<HTMLButtonElement>('button[data-buy-ult]');
+      if (buyUlt) {
+        if (!buyUlt.disabled && this.state.buyUltSlot()) {
+          play('unlock');
+          this.render();
+          this.openTeam(`Ultimate slot ${this.state.ultSlots} unlocked.`);
+        }
+        return;
+      }
+      const ult = t.closest<HTMLButtonElement>('button[data-ult]');
+      if (ult) {
+        if (!ult.disabled && this.state.setUltSlot(ult.dataset.ult!, !this.state.hasUltSlot(ult.dataset.ult!))) {
+          play('unlock');
+          this.render();
+          this.openTeam();
+        }
         return;
       }
       const buySlot = t.closest<HTMLButtonElement>('button[data-buy-slot]');
@@ -1747,9 +1784,12 @@ export class UI {
     this.renderSheet();
 
     const scene = this.scene();
+    // Only heroes holding an Ultimate slot get a button, in slot order.
+    const slotted = this.state.ultHeroes();
     for (const u of this.ults) {
-      const fights = this.state.inLineup(u.def.id);
+      const fights = slotted.includes(u.def.id);
       u.button.hidden = !fights;
+      u.button.style.order = String(slotted.indexOf(u.def.id));
       if (!scene || !fights) continue;
       const st = scene.getUltState(u.def.id);
       const ready = st.unlocked && st.alive && st.remaining <= 0;

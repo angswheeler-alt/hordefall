@@ -5,7 +5,7 @@ import { GameState, rarityOdds, weekKey } from '../src/state';
 import { emberBulk, emberCost, emberRefund } from '../src/formulas';
 import { mulEffect } from '../src/skills';
 import {
-  HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, AURA_EVOLUTIONS, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS,
+  HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, AURA_EVOLUTIONS, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOTS_MAX, ULT_SLOT_COSTS,
   TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_MIN_PUSH, ROAD_START, ROAD_STEP, RELICS, RELIC_SETS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, TRIAL_QUICK_TIME, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL, bossWeakness,
 } from '../src/data';
 
@@ -1244,5 +1244,76 @@ describe('team slots', () => {
     s.crests[commons[2].id] = 10;
     expect(s.unlockHero(commons[2].id)).toBe(true);
     expect(s.inLineup(commons[2].id)).toBe(false);
+  });
+});
+
+describe('Ultimate slots', () => {
+  /** A fresh game with five team heroes (enough slots bought). */
+  function teamOfFive() {
+    const s = fresh();
+    s.teamSlots = 5;
+    const team = [starter, ...HEROES.filter((h) => h.rarity === 'common' && h.id !== starter.id).slice(0, 4)];
+    for (const h of team) s.levels[h.id] = 1;
+    return { s, ids: team.map((h) => h.id) };
+  }
+
+  it('the first 3 team heroes hold the Ultimate slots until the player picks', () => {
+    const { s, ids } = teamOfFive();
+    expect(s.ultSlots).toBe(ULT_SLOTS_START);
+    expect(s.ultHeroes()).toHaveLength(3);
+    expect(s.hasUltSlot(ids[4]) || s.hasUltSlot(ids[3])).toBe(true);
+    expect(s.ultHeroes().every((id) => s.inLineup(id))).toBe(true);
+  });
+
+  it('picking a hero bumps one who only filled a slot; with every slot picked, someone must come out first', () => {
+    const { s } = teamOfFive();
+    const out = HEROES.filter((h) => s.inLineup(h.id) && !s.hasUltSlot(h.id)).map((h) => h.id);
+    expect(out).toHaveLength(2);
+    expect(s.setUltSlot(out[0], true)).toBe(true);
+    expect(s.hasUltSlot(out[0])).toBe(true);
+    expect(s.ultHeroes()).toHaveLength(3);
+    expect(s.setUltSlot(out[0], true)).toBe(false); // already has one
+    expect(s.setUltSlot(out[1], true)).toBe(true);
+    const waiting = HEROES.filter((h) => s.inLineup(h.id) && !s.hasUltSlot(h.id)).map((h) => h.id);
+    expect(s.setUltSlot(waiting[0], true)).toBe(true); // the third pick fills the last slot
+    expect(s.setUltSlot(waiting[1], true)).toBe(false); // every slot is a pick now
+    expect(s.setUltSlot(out[0], false)).toBe(true);
+    expect(s.hasUltSlot(out[0])).toBe(false);
+    expect(s.setUltSlot(waiting[1], true)).toBe(true);
+  });
+
+  it('a hero taken out stays out instead of refilling the open slot', () => {
+    const { s } = teamOfFive();
+    const first = s.ultHeroes()[0];
+    s.setUltSlot(first, false);
+    expect(s.hasUltSlot(first)).toBe(false);
+    expect(s.ultHeroes()).toHaveLength(3); // a benched-from-slots hero's place goes to the next teammate
+  });
+
+  it('buys 2 more slots with Gems, up to 5', () => {
+    const { s } = teamOfFive();
+    s.gems = ULT_SLOT_COSTS.reduce((a, b) => a + b, 0);
+    expect(s.buyUltSlot()).toBe(true);
+    expect(s.buyUltSlot()).toBe(true);
+    expect(s.buyUltSlot()).toBe(false);
+    expect(s.ultSlots).toBe(ULT_SLOTS_MAX);
+    expect(s.gems).toBe(0);
+    expect(s.ultHeroes()).toHaveLength(5);
+  });
+
+  it('saves slots and picks; saves from before slots keep all 5', () => {
+    const { s } = teamOfFive();
+    const out = HEROES.find((h) => s.inLineup(h.id) && !s.hasUltSlot(h.id))!.id;
+    s.setUltSlot(out, true);
+    s.save();
+    const back = new GameState();
+    back.load();
+    expect(back.ultPicks).toEqual([out]);
+    expect(back.hasUltSlot(out)).toBe(true);
+    expect(back.ultSlots).toBe(ULT_SLOTS_START);
+    localStorage.setItem('hordefall-save-v1', JSON.stringify({ gold: '0' }));
+    const old = new GameState();
+    old.load();
+    expect(old.ultSlots).toBe(ULT_SLOTS_MAX);
   });
 });

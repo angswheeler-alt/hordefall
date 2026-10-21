@@ -775,6 +775,13 @@ export const TEAM_SLOTS_MAX = 10;
 /** Gems for slots 4, 5, ... 10. */
 export const TEAM_SLOT_COSTS = [50, 100, 300, 600, 1000, 1500, 2500];
 export const OLD_SAVE_TEAM_SLOTS = 5;
+/**
+ * Ultimate slots: how many team heroes can use their Ultimate. 3 to start, 2 more for Gems (Samuel, 2026-10-21).
+ * The player picks which heroes get them; open slots go to the team in order. Older saves keep 5.
+ */
+export const ULT_SLOTS_START = 3;
+export const ULT_SLOT_COSTS = [300, 600];
+export const ULT_SLOTS_MAX = ULT_SLOTS_START + ULT_SLOT_COSTS.length;
 
 /** Elemental Trials (GDD 11.1): each element's dungeon opens on set days (Samuel's schedule). */
 export const TRIAL_ROTATION: Element[] = ['water', 'earth', 'fire', 'light', 'dark'];
