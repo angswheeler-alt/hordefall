@@ -2,7 +2,7 @@ import { DEV_TOOLS } from './config';
 import Decimal from 'break_infinity.js';
 import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { HEROES, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, PLAYABLE_HEROES, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, TRIAL_SCHEDULE, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
@@ -43,9 +43,9 @@ const ULT_ICONS: Record<string, string> = {
   dark: '<svg viewBox="0 0 24 24"><path d="M20 15A9 9 0 0 1 9 4a9 9 0 1 0 11 11z"/></svg>',
   light: '<svg viewBox="0 0 24 24"><path d="M12 2l2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5z"/></svg>',
 };
-const TABS = ['heroes', 'market', 'relics', 'battle', 'shop', 'guild'] as const;
+/** 'home' is the daily panel under the battle; it shows when no tab is open. */
+const TABS = ['home', 'heroes', 'market', 'relics', 'battle', 'shop', 'guild'] as const;
 type Tab = (typeof TABS)[number];
-const TAB_KEY = 'hordefall-tab';
 
 interface HeroRow {
   def: HeroDef;
@@ -947,15 +947,13 @@ export class UI {
       this.openTeam(this.state.inLineup(id) ? '' : `${name} left the team. ${fmt(refund)} gold came back; their Embers stay.`);
     });
     for (const btn of $('tabbar').querySelectorAll<HTMLButtonElement>('button')) {
-      btn.addEventListener('click', () => this.setTab(btn.dataset.tab as Tab));
+      // Tapping the open tab again closes it, same as the down arrow.
+      btn.addEventListener('click', () => this.setTab(this.tab === btn.dataset.tab ? 'home' : (btn.dataset.tab as Tab)));
     }
-    let saved: string | null = null;
-    try {
-      saved = localStorage.getItem(TAB_KEY);
-    } catch {
-      // Storage blocked: start on Heroes.
-    }
-    this.setTab(TABS.includes(saved as Tab) ? (saved as Tab) : 'heroes');
+    $('home-btn').addEventListener('click', () => this.setTab('home'));
+    $('home-wheel').addEventListener('click', () => this.showModal('Element wheel', `${elementWheelSvg()}<p class="ew-note">${ELEMENT_WHEEL_NOTE}</p>`, 'Got it'));
+    setHtml($('home-wheel'), `${elementWheelSvg()}<small>Elements</small>`);
+    this.setTab('home');
     $('freegems').addEventListener('click', () => {
       if (!DEV_TOOLS) return;
       this.state.gems += 100;
@@ -1259,8 +1257,9 @@ export class UI {
     $('modal').hidden = false;
   }
 
-  private tab: Tab = 'heroes';
+  private tab: Tab = 'home';
 
+  /** Open a tab's section in place of the home panel ('home' closes it). */
   private setTab(tab: Tab) {
     this.tab = tab;
     for (const panel of $('panels').querySelectorAll<HTMLElement>('.panel')) panel.hidden = panel.dataset.tab !== tab;
@@ -1270,11 +1269,12 @@ export class UI {
       btn.classList.toggle('on', on);
       btn.setAttribute('aria-current', on ? 'page' : 'false');
     }
-    try {
-      localStorage.setItem(TAB_KEY, tab);
-    } catch {
-      // Not remembered; harmless.
+    $('home-btn').hidden = tab === 'home';
+    if (tab === 'home') {
+      this.offlineAt = 0;
+      this.renderHome();
     }
+    if (tab === 'shop') this.renderRewards();
     if (tab === 'battle') this.renderBattle();
   }
 
@@ -2003,12 +2003,18 @@ export class UI {
     }
   }
 
-  private renderRewards() {
+  /** When the offline reach was last worked out (it runs the boss checks, so not every frame). */
+  private offlineAt = 0;
+
+  /** The home panel: offline reach, Objective, daily challenges, login, Lucky Spin and Medal Bundle. */
+  private renderHome() {
     const s = this.state;
     const now = Date.now();
-    this.renderGemShop(now);
-    this.renderHeroShop(now);
-    const short = (v: number) => (v >= 1e4 ? fmt(v) : v.toLocaleString());
+    if (now - this.offlineAt > 3000) {
+      this.offlineAt = now;
+      $('home-offline').textContent = s.maxOfflineStage().toLocaleString();
+      $('home-offline-note').textContent = s.autoAdvance ? `In ${OFFLINE_CAP_HOURS} h away, from stage ${s.stage.toLocaleString()}` : 'Auto-advance is off';
+    }
 
     const login = s.loginState(now);
     // Claimed today with the cycle just finished: show every day as collected.
@@ -2063,11 +2069,20 @@ export class UI {
     }
     setHtml($('ms-track'), nodes.join(''));
     const next = reached + MILESTONE_STEP;
-    $('ms-next').textContent = `Next: beat the stage ${next.toLocaleString()} boss for ${milestoneText(milestoneReward(next))}.`;
+    $('ms-goal').textContent = `Beat stage ${next.toLocaleString()}`;
+    $('ms-next').textContent = `Reward: ${milestoneText(milestoneReward(next))}. Every 50th-stage boss pays once.`;
     $('ms-note').textContent = s.milestone ? `${(s.milestone / MILESTONE_STEP).toLocaleString()} claimed` : '';
     $<HTMLButtonElement>('ms-claim').disabled = ready <= 0;
     $('ms-claim').textContent = ready > 1 ? `Claim ${ready} milestones` : ready === 1 ? 'Claim' : `Best stage ${s.bestStage.toLocaleString()}`;
 
+  }
+
+  private renderRewards() {
+    const s = this.state;
+    const now = Date.now();
+    this.renderGemShop(now);
+    this.renderHeroShop(now);
+    const short = (v: number) => (v >= 1e4 ? fmt(v) : v.toLocaleString());
     const bootList = $('boot-list');
     let bootLeft = 0;
     for (const b of BOOTCAMP) {
@@ -2224,6 +2239,8 @@ export class UI {
     this.badge('heroes', heroesBadge || teamReady);
     $('collection-btn').classList.toggle('ready', teamReady);
     this.badge('shop', s.gems >= CHEST_COST || s.rewardsWaiting());
+    $<HTMLElement>('home-btn').querySelector<HTMLElement>('.badge')!.hidden = !s.homeWaiting();
+    if (this.tab === 'home') this.renderHome();
     if (this.tab === 'shop') this.renderRewards();
     if (this.tab === 'battle') this.renderBattle();
     this.renderSheet();

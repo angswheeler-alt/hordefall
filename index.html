@@ -26,13 +26,51 @@
         <div class="pill"><span class="gem"></span><b id="gems">0</b></div>
         <div class="pill" id="embers-stat" hidden><span class="ember"></span><b id="embers">0</b></div>
         <div class="pill gold-pill"><span class="coin"></span><b id="gold">0</b><small id="gps">0/s</small></div>
+        <button id="home-btn" class="home-btn" aria-label="Close and go home" title="Home" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16l-8 11z"/></svg><i class="badge" hidden></i></button>
       </div>
       <div id="controls">
         <button id="boss" class="hot" hidden>Fight boss</button>
         <button id="rekindle" class="ember-btn" hidden>Rekindle</button>
       </div>
       <main id="panels">
-        <section class="panel" data-tab="heroes">
+        <section class="panel" data-tab="home">
+          <div id="home">
+          <div class="home-top">
+            <div class="rw-card home-offline">
+              <h3>Max stage while offline</h3>
+              <b id="home-offline"></b>
+              <small id="home-offline-note"></small>
+            </div>
+            <button id="home-wheel" class="rw-card home-wheel" aria-label="Element wheel"></button>
+          </div>
+          <div class="rw-card objective">
+            <h3>Objective: <span id="ms-goal"></span> <small id="ms-note"></small></h3>
+            <ol id="ms-track" class="ms-track"></ol>
+            <p id="ms-next" class="ms-next"></p>
+            <button id="ms-claim" class="hot rw-wide">Claim</button>
+          </div>
+          <div class="rw-card">
+            <h3>Daily challenges <small id="daily-note"></small></h3>
+            <ul id="daily-list" class="rw-list"></ul>
+          </div>
+          <div class="rw-card">
+            <h3>Daily login <small>30 days · missed days never reset</small></h3>
+            <div id="login-days" class="login-days"></div>
+            <button id="login-claim" class="hot rw-wide">Claim</button>
+          </div>
+          <div class="rw-card spin-card">
+            <div class="spin-wrap"><div id="spin-wheel" class="spin-wheel"></div><i class="spin-pin" aria-hidden="true"></i></div>
+            <div class="spin-side"><h3>Lucky Spin</h3><p>One free spin every day.</p><button id="spin-btn" class="hot">Free spin</button></div>
+          </div>
+          <div class="rw-card">
+            <h3>Daily Medal Bundle <small id="bundle-note"></small></h3>
+            <p>Free medals for today's daily challenges. A new bundle every day.</p>
+            <div id="bundle-heroes" class="bundle-heroes"></div>
+            <button id="bundle-claim" class="hot rw-wide">Claim</button>
+          </div>
+          </div>
+        </section>
+        <section class="panel" data-tab="heroes" hidden>
           <div class="hero-head">
             <button id="team-btn" class="wood-btn">Manage<br>Team</button>
             <button id="evolve-all" class="wood-btn evolve-all" disabled>Evolve all</button>
@@ -122,32 +160,6 @@
         <section class="panel" data-tab="shop" hidden>
           <div class="panel-head"><h2>Shop</h2></div>
           <div id="rewards">
-          <div class="rw-card">
-            <h3>Daily login <small>30 days · missed days never reset</small></h3>
-            <div id="login-days" class="login-days"></div>
-            <button id="login-claim" class="hot rw-wide">Claim</button>
-          </div>
-          <div class="rw-card spin-card">
-            <div class="spin-wrap"><div id="spin-wheel" class="spin-wheel"></div><i class="spin-pin" aria-hidden="true"></i></div>
-            <div class="spin-side"><h3>Lucky Spin</h3><p>One free spin every day.</p><button id="spin-btn" class="hot">Free spin</button></div>
-          </div>
-          <div class="rw-card">
-            <h3>Daily challenges <small id="daily-note"></small></h3>
-            <ul id="daily-list" class="rw-list"></ul>
-          </div>
-          <div class="rw-card">
-            <h3>Daily Medal Bundle <small id="bundle-note"></small></h3>
-            <p>Free medals for today's daily challenges. A new bundle every day.</p>
-            <div id="bundle-heroes" class="bundle-heroes"></div>
-            <button id="bundle-claim" class="hot rw-wide">Claim</button>
-          </div>
-          <div class="rw-card">
-            <h3>Stage Milestones <small id="ms-note"></small></h3>
-            <p>Beat every 50th-stage boss for a one-time reward. Each pays once, on your best stage ever.</p>
-            <ol id="ms-track" class="ms-track"></ol>
-            <p id="ms-next" class="ms-next"></p>
-            <button id="ms-claim" class="hot rw-wide">Claim</button>
-          </div>
           <div class="shop-card">
             <div class="shop-art chest" aria-hidden="true"></div>
             <div class="shop-text"><b>Hero Chest</b><p>3 drops of Hero Crests (medals). Crests unlock new heroes (10 for a common) and evolve them.</p></div>
@@ -186,7 +198,7 @@
         </section>
       </main>
       <nav id="tabbar" aria-label="Main">
-        <button data-tab="heroes" class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg><span>Heroes</span><i class="badge" hidden></i></button>
+        <button data-tab="heroes"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg><span>Heroes</span><i class="badge" hidden></i></button>
         <button data-tab="market"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l2-5h14l2 5"/><path d="M3 9h18v2a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0z"/><path d="M5 13v7h14v-7"/></svg><span>Market</span><i class="badge" hidden></i></button>
         <button data-tab="relics"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/></svg><span>Relics</span><i class="badge" hidden></i></button>
         <button data-tab="battle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l10 10M4 4h4M4 4v4M20 4L10 14M20 4h-4M20 4v4M7 15l2 2-3 3-2-2zM17 15l-2 2 3 3 2-2z"/></svg><span>Battle</span><i class="badge" hidden></i></button>

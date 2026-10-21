@@ -224,7 +224,7 @@ describe('Stage Milestones', () => {
     expect(s.milestonesReady()).toBe(0);
     s.reachStage(51);
     expect(s.milestonesReady()).toBe(1);
-    expect(s.rewardsWaiting()).toBe(true);
+    expect(s.homeWaiting()).toBe(true);
     const stones = s.enhanceStones;
     const got = s.claimMilestones()!;
     expect(got.count).toBe(1);

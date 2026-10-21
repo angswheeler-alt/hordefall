@@ -151,6 +151,18 @@ describe('offline earnings', () => {
     expect(r.stages).toBe(146);
   });
 
+  it('maxOfflineStage shows where a full offline stretch would stop, without moving', () => {
+    const s = fresh();
+    const team = HEROES.filter((h) => h.rarity === 'common').slice(0, 5);
+    for (const h of HEROES) s.levels[h.id] = team.includes(h) ? 100 : 0;
+    s.secondsPerStage = 1;
+    s.stage = 3;
+    expect(s.maxOfflineStage()).toBe(149);
+    expect(s.stage).toBe(3);
+    s.autoAdvance = false;
+    expect(s.maxOfflineStage()).toBe(3);
+  });
+
   it('does not beat a boss without enough time left, or with a team that is too weak', () => {
     const s = fresh();
     const team = HEROES.filter((h) => h.rarity === 'common').slice(0, 5);
@@ -893,7 +905,7 @@ describe('Daily Medal Bundle', () => {
     expect(s.medalBundleState(day1).ready).toBe(false);
     s.track('minutes', 15);
     expect(s.medalBundleState(day1).ready).toBe(true);
-    expect(s.rewardsWaiting(day1)).toBe(true);
+    expect(s.homeWaiting(day1)).toBe(true);
 
     const before = b.drops.map((d) => s.crests[d.heroId] ?? 0);
     const drops = s.claimMedalBundle(day1)!;

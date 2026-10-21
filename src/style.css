@@ -874,3 +874,21 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .mode-alert[hidden] { display: none; }
 [data-battle-pane] > .trial-back { margin: 0 4px 8px; }
 @media (max-width: 380px) { .mode-orbs { gap: 6px; } .mode-orb { width: 16px; height: 16px; } .mode-title { font-size: 22px; } }
+
+/* ---------- Home panel (shows under the battle when no tab is open) ---------- */
+.home-top { display: flex; gap: 8px; align-items: stretch; }
+.home-offline { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.home-offline h3 { margin: 0 0 4px; color: var(--orange); font-size: 15px; }
+.home-offline b { font-size: 26px; color: #fff; text-shadow: 0 2px 0 var(--wood-deep); font-variant-numeric: tabular-nums; }
+.home-offline small { font-size: 11px; color: #e8d3b0; }
+.home-wheel { flex: none; width: 128px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; font: inherit; }
+.home-wheel svg { width: 100%; height: auto; display: block; }
+.home-wheel small { font-size: 11px; color: #e8d3b0; font-weight: 700; }
+.objective h3 span { color: #fff; }
+.objective h3 { color: var(--orange); }
+/* The down arrow that closes a tab and returns to home, top right like the original. */
+#wallet .home-btn { position: relative; flex: none; width: 40px; height: 30px; display: grid; place-items: center; padding: 0; border-radius: 8px; background: linear-gradient(180deg, var(--plank), #4a2d17); border: 2px solid var(--wood-deep); box-shadow: 0 2px 0 var(--wood-deep); cursor: pointer; }
+#wallet .home-btn[hidden] { display: none; }
+#wallet .home-btn svg { width: 22px; height: 22px; fill: #fff4dd; }
+#wallet .home-btn .badge { position: absolute; top: -6px; right: -6px; width: 14px; height: 14px; border-radius: 50%; background: #e3261c; border: 2px solid #fff; }
+#wallet .home-btn .badge[hidden] { display: none; }
