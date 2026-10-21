@@ -10,6 +10,12 @@
 // Same look as the heroes (art/heroes/animate.js: magenta key, block shrink, one palette, outline), but frames
 // are split by columns instead of connected shapes, because a dying boss breaks into loose particles, and
 // each frame stands on the middle of its feet instead of under its head.
+//
+// A folder may hold split.json for sheets the even split gets wrong, keyed by animation:
+//   { "death": { "cuts": [290, 568, 812, 1015] }, "idle": { "shapes": true } }
+// `cuts` are the source x positions between frames (for unevenly spaced frames). `shapes` gives every
+// connected shape to the frame its middle falls in, so a part reaching past a cut (a lure, a tail) stays with
+// its own frame instead of being sliced off.
 const fs = require('fs');
 const path = require('path');
 const { readPNG, Canvas } = require('../backgrounds/png');
@@ -26,7 +32,7 @@ const median = a => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)];
 
 // Split a sheet into `count` frames. The generator spaces frames evenly, so cut at the emptiest column near
 // each even boundary (slashes, beams and dust can join neighbouring frames, so gaps alone aren't enough).
-function frames(file, count, scaleBy) {
+function frames(file, count, scaleBy, hint = {}) {
   const img = readPNG(file);
   const W = img.w, H = img.h;
   const fg = (x, y) => x >= 0 && y >= 0 && x < W && y < H && !isBg(img.get(x, y));
@@ -39,7 +45,8 @@ function frames(file, count, scaleBy) {
   while (right > left && !solid(right)) right--;
   const cell = (right + 1 - left) / count;
   const cuts = [left];
-  for (let k = 1; k < count; k++) {
+  if (hint.cuts) cuts.push(...hint.cuts);
+  else for (let k = 1; k < count; k++) {
     const mid = Math.round(left + k * cell), reach = Math.round(cell * 0.3);
     let cut = mid;
     for (let x = mid - reach; x <= mid + reach; x++) if (colN[x] < colN[cut] || (colN[x] === colN[cut] && Math.abs(x - mid) < Math.abs(cut - mid))) cut = x;
@@ -70,16 +77,47 @@ function frames(file, count, scaleBy) {
       if (sx === x0 ? bx1 < x0 + quarter : bx0 > x1 - quarter) for (const i of blob) dropped[i] = 1;
     }
   }
-  const keep = (x, y) => fg(x, y) && !dropped[y * W + x];
+  // With `shapes`, each connected shape belongs to the frame its middle is in (-1: too wide, cut by columns).
+  const owner = new Int32Array(W * H).fill(-1);
+  if (hint.shapes) {
+    const seen = new Uint8Array(W * H);
+    for (let sy = 0; sy < H; sy++) for (let sx = 0; sx < W; sx++) {
+      if (seen[sy * W + sx] || !fg(sx, sy)) continue;
+      const blob = [], stack = [[sx, sy]];
+      seen[sy * W + sx] = 1;
+      let bx0 = sx, bx1 = sx;
+      while (stack.length) {
+        const [px, py] = stack.pop();
+        blob.push(py * W + px); bx0 = Math.min(bx0, px); bx1 = Math.max(bx1, px);
+        for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+          const nx = px + a, ny = py + b;
+          if (!fg(nx, ny) || seen[ny * W + nx]) continue;
+          seen[ny * W + nx] = 1; stack.push([nx, ny]);
+        }
+      }
+      if (bx1 - bx0 > cell * 1.2) continue;
+      const mid = (bx0 + bx1) / 2;
+      let k = 0;
+      while (k < count - 1 && mid >= cuts[k + 1]) k++;
+      for (const i of blob) owner[i] = k;
+    }
+  }
+  const inFrame = (k, x, y) => {
+    const o = owner[y * W + x];
+    return o >= 0 ? o === k : x >= cuts[k] && x < cuts[k + 1] && !dropped[y * W + x];
+  };
   const boxes = [];
   for (let k = 0; k < count; k++) {
-    const x0 = cuts[k], x1 = cuts[k + 1];
+    // A shape may reach past its cuts, so look half a cell either side.
+    const reach = hint.shapes ? Math.ceil(cell / 2) : 0;
+    const x0 = Math.max(0, cuts[k] - reach), x1 = Math.min(W, cuts[k + 1] + reach);
+    const kept = (x, y) => fg(x, y) && inFrame(k, x, y);
     let y0 = H, y1 = 0;
-    for (let x = x0; x < x1; x++) for (let y = 0; y < H; y++) if (keep(x, y)) { y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    for (let x = x0; x < x1; x++) for (let y = 0; y < H; y++) if (kept(x, y)) { y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
     // Middle of the feet: the median column of the bottom eighth of the frame.
     const xs = [];
-    for (let y = Math.floor(y1 - Math.max(2, (y1 - y0) / 8)); y <= y1; y++) for (let x = x0; x < x1; x++) if (keep(x, y)) xs.push(x);
-    boxes.push({ x0, x1, y0, y1, footX: xs.length ? median(xs) : (x0 + x1) / 2, cellX: left + k * cell });
+    for (let y = Math.floor(y1 - Math.max(2, (y1 - y0) / 8)); y <= y1; y++) for (let x = x0; x < x1; x++) if (kept(x, y)) xs.push(x);
+    boxes.push({ x0, x1, y0, y1, kept, footX: xs.length ? median(xs) : (x0 + x1) / 2, cellX: hint.cuts ? (cuts[k] + cuts[k + 1] - cell) / 2 : left + k * cell });
   }
   if (boxes.some(b => b.y1 < b.y0)) throw new Error(`${file}: an empty frame`);
   // Every frame stands at the same spot in its cell: the usual one, so a beam or slash on the ground in one
@@ -90,15 +128,17 @@ function frames(file, count, scaleBy) {
   const block = (scaleBy === 'first' ? heights[0] : median(heights)) / TARGET_HEIGHT;
   return boxes.map(b => ({
     img, x0: b.x0, x1: b.x1, y0: b.y0, y1: b.y1, headX: b.cellX + offset, ground, block,
-    fg: (x, y) => x >= b.x0 && x < b.x1 && keep(x, y),
+    fg: (x, y) => x >= b.x0 && x < b.x1 && b.kept(x, y),
   }));
 }
 
 function buildBoss(id) {
   const dir = path.join(ROOT, id);
+  const hintFile = path.join(dir, 'split.json');
+  const hints = fs.existsSync(hintFile) ? JSON.parse(fs.readFileSync(hintFile, 'utf8')) : {};
   // A death sheet collapses, so it's scaled by its first (still standing) frame.
   const small = Object.fromEntries(Object.entries(ANIMS).map(([anim, n]) =>
-    [anim, frames(path.join(dir, `${anim}_sheet.png`), n, anim === 'death' ? 'first' : 'median').map(shrink)]));
+    [anim, frames(path.join(dir, `${anim}_sheet.png`), n, anim === 'death' ? 'first' : 'median', hints[anim]).map(shrink)]));
 
   let minX = 0, maxX = 0, minY = 0;
   for (const list of Object.values(small)) for (const fr of list) for (const k of fr.keys()) {

@@ -299,8 +299,8 @@ button.glass:disabled { opacity: .7; font-size: 11px; }
 .market-note { margin: 0 4px 10px; color: #e8d3b0; font-size: 13px; }
 #stalls { display: flex; flex-direction: column; gap: 6px; }
 .stall { display: grid; grid-template-columns: 58px 1fr auto; gap: 10px; align-items: center; background: linear-gradient(180deg, var(--plank), #4a2d17); border: 2px solid var(--wood-deep); border-radius: 10px; padding: 6px 8px 6px 6px; box-shadow: inset 0 1px 0 rgba(255,255,255,.12); }
-.stall-art { position: relative; width: 58px; height: 58px; border-radius: 8px; border: 2px solid var(--wood-deep); background: linear-gradient(180deg, #8a5a32 0 45%, #5a3a1e 45%); overflow: hidden; }
-.stall-art .awning { position: absolute; left: 0; right: 0; top: 0; height: 22px; background: repeating-linear-gradient(90deg, var(--c) 0 10px, #fff3dc 10px 20px); border-bottom: 2px solid var(--wood-deep); border-radius: 0 0 6px 6px; }
+.stall-art { position: relative; width: 58px; height: 58px; border-radius: 8px; border: 2px solid var(--wood-deep); background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--c) 40%, #6b4626), #2e1b0c); overflow: hidden; }
+.stall-img { position: absolute; inset: 1px; width: calc(100% - 2px); height: calc(100% - 2px); object-fit: contain; image-rendering: pixelated; pointer-events: none; }
 .stall-art .stall-lv { position: absolute; left: 2px; bottom: 1px; font-size: 11px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
 .stall .banner { display: flex; align-items: center; background: linear-gradient(90deg, var(--el), color-mix(in srgb, var(--el) 55%, #000)); border: 1px solid rgba(0,0,0,.5); border-radius: 6px; padding: 2px 8px; }
 .stall .banner .name { font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
@@ -435,7 +435,8 @@ body.in-trial #settings-btn { display: none !important; }
 .relic { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; background: linear-gradient(180deg, var(--plank), #4a2d17); border: 2px solid var(--wood-deep); border-radius: 10px; padding: 6px 8px 6px 6px; margin-bottom: 6px; color: #fff4dd; }
 .relic.on { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
 .relic.uncrafted .relic-art { filter: grayscale(.8) brightness(.7); }
-.relic-art { width: 52px; height: 52px; border-radius: 10px; display: grid; place-items: center; font-weight: 900; font-size: 22px; color: #fff; text-shadow: 0 1px 2px #000; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--a) 70%, #fff), var(--a) 55%, var(--b)); border: 2px solid rgba(0,0,0,.5); }
+.relic-art { width: 52px; height: 52px; border-radius: 10px; display: grid; place-items: center; font-weight: 900; font-size: 22px; color: #fff; text-shadow: 0 1px 2px #000; background: radial-gradient(circle at 40% 35%, color-mix(in srgb, var(--a) 45%, #3a2414), color-mix(in srgb, var(--b) 35%, #140b05)); border: 2px solid rgba(0,0,0,.5); overflow: hidden; }
+.relic-img { width: 92%; height: 92%; object-fit: contain; image-rendering: pixelated; pointer-events: none; }
 .relic-info b { display: block; font-size: 15px; }
 .relic-info .eff { color: #9effa8; font-size: 13px; font-weight: 700; }
 .relic-info small { display: block; color: #e8d6b8; font-size: 12px; line-height: 1.3; }

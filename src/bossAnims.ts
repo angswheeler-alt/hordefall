@@ -15,5 +15,10 @@ export const BOSS_ANIMS: Record<string, BossAnim> = {
   earth: { frame: [82,119], feet: [37,118], headTop: 21 },
   fire: { frame: [87,103], feet: [40,102], headTop: 4 },
   light: { frame: [86,112], feet: [38,111], headTop: 15 },
+  trial_dark: { frame: [87,105], feet: [36,104], headTop: 5 },
+  trial_earth: { frame: [111,117], feet: [54,116], headTop: 18 },
+  trial_fire: { frame: [114,101], feet: [53,100], headTop: 2 },
+  trial_light: { frame: [80,104], feet: [42,103], headTop: 5 },
+  trial_water: { frame: [94,108], feet: [37,107], headTop: 11 },
   water: { frame: [90,103], feet: [40,102], headTop: 6 },
 };
