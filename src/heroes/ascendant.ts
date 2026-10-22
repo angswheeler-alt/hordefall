@@ -3,9 +3,9 @@ import { standardSteps, chargeText, type AscendantDef, type Charge } from '../as
 import { VS, ULT } from '../heroText';
 
 /**
- * Ascendant heroes (src/ascendant.ts). Not part of HEROES or RELEASED_HEROES yet, so nothing here reaches the
- * game. asc_test is a stand-in to build and test the framework with. The five real heroes use codename ids
- * (asc_dark...); their names, form names and art keys live only in their entries here.
+ * Ascendant heroes (src/ascendant.ts). The five real heroes are in the roster (src/heroes/index.ts) under codename
+ * ids (asc_dark...), but never in chests, shops, Trials or guild requests: their crests come from the Guild Boss
+ * week and the Ascendant Chest. asc_test is a stand-in to build and test the framework with and stays hidden.
  *
  * Balance (tests/ascendant.test.ts): Form I hits no harder per second than the best Rare of its Type, and
  * Form IV no more than 15% over the best Epic or Legendary of its Type.

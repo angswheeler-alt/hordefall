@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { isAscendant } from '../src/heroes/ascendant';
 import { GameState } from '../src/state';
 import { HEROES, UNLOCK_CRESTS, RAISED_RARITY_OLD_COST, type Element } from '../src/data';
 
@@ -11,7 +12,7 @@ function fresh() {
 describe('rarity mix', () => {
   it('every element has more Rares than Commons or Epics', () => {
     for (const el of ['water', 'fire', 'earth', 'light', 'dark'] as Element[]) {
-      const n = (r: string) => HEROES.filter((h) => h.element === el && h.rarity === r).length;
+      const n = (r: string) => HEROES.filter((h) => h.element === el && h.rarity === r && !isAscendant(h.id)).length;
       expect(n('common')).toBeLessThanOrEqual(6);
       expect(n('rare')).toBeGreaterThan(n('common'));
       expect(n('rare')).toBeGreaterThan(n('epic'));

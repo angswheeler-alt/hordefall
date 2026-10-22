@@ -2069,7 +2069,7 @@ export class GameState {
     const today = dayKey(now);
     if (this.guildShop.day !== today) {
       const offers: GuildOffer[] = [];
-      const pool = PLAYABLE_HEROES.filter((h) => guildRarity(h));
+      const pool = SHOP_HEROES.filter((h) => guildRarity(h));
       for (let tries = 0; offers.length < GUILD_SHOP_OFFERS && tries < 50; tries++) {
         const h = pickByRarity(pool.filter((x) => !offers.some((o) => o.heroId === x.id)), CHEST_RARITY_WEIGHTS);
         const r = h && guildRarity(h);
@@ -2303,7 +2303,7 @@ export class GameState {
   private rollMedalBundle(): Array<{ heroId: string; crests: number }> {
     const drops: Array<{ heroId: string; crests: number }> = [];
     for (let tries = 0; drops.length < MEDAL_BUNDLE_HEROES && tries < 50; tries++) {
-      const left = PLAYABLE_HEROES.filter((h) => !drops.some((d) => d.heroId === h.id));
+      const left = SHOP_HEROES.filter((h) => !drops.some((d) => d.heroId === h.id));
       const hero = pickByRarity(left, CHEST_RARITY_WEIGHTS);
       if (!hero) break;
       drops.push({ heroId: hero.id, crests: CREST_ROLLS[hero.rarity as keyof typeof CREST_ROLLS][0][0] });

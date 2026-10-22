@@ -53,7 +53,7 @@ const isBg = p => p[2] - p[0] <= 20 && lum(p) < 130 && ((p[0] - p[1] > 80 && p[2
 
 // Each figure is one connected shape (weapons can reach into the next figure's columns). `scale` (source px per
 // sprite px) overrides the sheet's own, so two sheets cut from one image keep one size.
-function figures(file, target = TARGET_HEIGHT, scale) {
+function figures(file, target = TARGET_HEIGHT, scale, want) {
   const img = readPNG(file);
   const W = img.w, H = img.h, label = new Int32Array(W * H).fill(-1);
   const shapes = [];
@@ -107,6 +107,32 @@ function figures(file, target = TARGET_HEIGHT, scale) {
       if (piece.n >= typicalN * 0.3) big.push(piece); // a stretch of beam on its own is no frame
     }
   }
+  // frames.json can name how many frames a sheet holds: when effects glue frames together beyond the cut above,
+  // join every figure into one shape and cut it at the emptiest columns near the even divisions.
+  if (want && big.length !== want) {
+    const all = shapes.filter(s => s.n > 2000), ids = new Set(all.map(s => s.id));
+    const x0 = Math.min(...all.map(s => s.x0)), x1 = Math.max(...all.map(s => s.x1)), w = x1 - x0 + 1;
+    const y0 = Math.min(...all.map(s => s.y0)), y1 = Math.max(...all.map(s => s.y1));
+    const colN = x => { let n = 0; for (let y = y0; y <= y1; y++) if (ids.has(label[y * W + x])) n++; return n; };
+    const cuts = [x0];
+    for (let j = 1; j < want; j++) {
+      const mid = Math.round(x0 + (w * j) / want), reach = Math.round(w / want * 0.3);
+      let cut = mid;
+      for (let x = mid - reach; x <= mid + reach; x++) if (colN(x) < colN(cut)) cut = x;
+      cuts.push(cut);
+    }
+    cuts.push(x1 + 1);
+    big = [];
+    for (let j = 0; j < want; j++) {
+      const piece = { id: shapes.length, n: 0, x0: W, x1: 0, y0: H, y1: 0 };
+      for (let y = y0; y <= y1; y++) for (let x = cuts[j]; x < cuts[j + 1]; x++) {
+        if (!ids.has(label[y * W + x])) continue;
+        label[y * W + x] = piece.id;
+        piece.n++; piece.x0 = Math.min(piece.x0, x); piece.x1 = Math.max(piece.x1, x); piece.y0 = Math.min(piece.y0, y); piece.y1 = Math.max(piece.y1, y);
+      }
+      shapes.push(piece); big.push(piece);
+    }
+  }
   big.sort((a, b) => a.x0 - b.x0);
   const ground = Math.max(...big.map(s => s.y1)) + 1;
   const block = scale ?? median(big.map(s => s.y1 - s.y0 + 1)) / target;
@@ -150,13 +176,14 @@ function shrink(f) {
 function buildHero(id) {
   const dir = path.join(ROOT, id);
   const size = HERO_SIZE[id] ?? 1;
-  const attack = figures(path.join(dir, 'attack_sheet.png'), TARGET_HEIGHT * size);
+  const want = fs.existsSync(path.join(dir, 'frames.json')) ? JSON.parse(fs.readFileSync(path.join(dir, 'frames.json'), 'utf8')) : {};
+  const attack = figures(path.join(dir, 'attack_sheet.png'), TARGET_HEIGHT * size, undefined, want.attack);
   // Sheets cut from one image by split.js are drawn at one size, so the run keeps the attack's scale (a hero who
   // rides a balloon between fights stays the same size in it); separately generated sheets each find their own.
   const oneImage = fs.existsSync(path.join(dir, 'split.json'));
   const small = {
     attack: attack.map(shrink),
-    run: figures(path.join(dir, 'run_sheet.png'), TARGET_HEIGHT * size, oneImage ? attack[0].block : undefined).map(shrink),
+    run: figures(path.join(dir, 'run_sheet.png'), TARGET_HEIGHT * size, oneImage ? attack[0].block : undefined, want.run).map(shrink),
   };
   // One canvas for every frame: head anchor at a fixed column, ground on the bottom rows.
   let minX = 0, maxX = 0, minY = 0;

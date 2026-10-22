@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { isAscendant } from '../src/heroes/ascendant';
 import Decimal from 'break_infinity.js';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS } from '../src/profiles';
 import { GameState, rarityOdds, weekKey, SHOP_HEROES } from '../src/state';
@@ -436,7 +437,7 @@ describe('trial tickets', () => {
     const s = fresh();
     for (const element of TRIAL_ROTATION) {
       const pool = s.trialPool(element);
-      const all = PLAYABLE_HEROES.filter((h) => h.element === element && h.rarity !== 'legendary');
+      const all = PLAYABLE_HEROES.filter((h) => h.element === element && h.rarity !== 'legendary' && !isAscendant(h.id));
       expect(pool.map((h) => h.id).sort()).toEqual(all.map((h) => h.id).sort());
       expect(pool.length).toBeGreaterThan(0);
     }

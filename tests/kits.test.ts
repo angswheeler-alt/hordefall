@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { isAscendant } from '../src/heroes/ascendant';
 import Decimal from 'break_infinity.js';
 import { HEROES, HERO_TYPES, TYPE_MASTERY, type HeroType } from '../src/data';
 import { comboMult, executeMult, signatureReflect, splitHeal, controlEnd, BOSS_CC, SIG_PLUS } from '../src/kits';
@@ -45,7 +46,8 @@ describe('hero standard', () => {
       Magician: { atk: [7, 9.5], hp: [35, 60] },
       Support: { atk: [2.5, 3.5], hp: [50, 60] },
     };
-    for (const h of HEROES) {
+    // Ascendant heroes have their own limits per form (tests/ascendant-five.test.ts).
+    for (const h of HEROES.filter((x) => !isAscendant(x.id))) {
       const b = budget[h.type];
       expect(h.baseAtk).toBeGreaterThanOrEqual(b.atk[0]);
       expect(h.baseAtk).toBeLessThanOrEqual(b.atk[1]);
