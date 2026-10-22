@@ -956,23 +956,24 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .summon-grid.many .drop .new { font-size: 9px; }
 .summon-grid.many .drop .crest { font-size: 10px; white-space: nowrap; }
 
-/* Trial Gates: the five element bosses as portals on a night map, in a ring like the element wheel. */
-.portal-map { position: relative; width: 100%; max-width: 380px; aspect-ratio: 1 / 1.02; margin: 2px auto 4px; border-radius: 50%; background: radial-gradient(circle at 50% 50%, #2c3a63 0, #1b2440 45%, #0f1426 72%, transparent 73%), radial-gradient(1px 1px at 20% 30%, #cfe3ff 50%, transparent 51%), radial-gradient(1px 1px at 75% 20%, #cfe3ff 50%, transparent 51%), radial-gradient(1px 1px at 60% 80%, #cfe3ff 50%, transparent 51%), radial-gradient(1px 1px at 30% 70%, #cfe3ff 50%, transparent 51%); }
-.portal-map::before { content: ''; position: absolute; inset: 22%; border-radius: 50%; border: 2px dashed rgba(126, 230, 238, .25); }
-.portal-hub { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; font-size: 12px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; line-height: 1.2; color: #7ee6ee; text-shadow: 0 0 8px rgba(126, 230, 238, .5); }
-.portal { position: absolute; transform: translate(-50%, -50%); width: 30%; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 0; background: none; border: 0; color: #e4eaf8; text-align: center; cursor: default; }
-.portal:disabled { opacity: 1; }
-.portal-ring { display: grid; place-items: center; width: 74px; height: 74px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--el) 35%, #0b0f18) 55%, #0b0f18 70%); border: 3px solid color-mix(in srgb, var(--el) 70%, #0b0f18); box-shadow: 0 0 0 2px #0b0f18; }
-.portal-ring .trial-portrait { width: 60px; height: 60px; border-radius: 50%; border: 0; }
-.portal b { font-size: 12px; line-height: 1.15; text-shadow: 0 1px 2px #000; }
-.portal small { font-size: 11px; font-weight: 700; color: #98abd9; }
-.portal:not(.open) .portal-ring { filter: grayscale(.8) brightness(.6); }
-.portal.lit { cursor: pointer; }
-.portal.lit .portal-ring { border-color: var(--el); box-shadow: 0 0 0 2px #0b0f18, 0 0 14px 3px color-mix(in srgb, var(--el) 80%, transparent); animation: portal-glow 2.2s ease-in-out infinite; }
-.portal.lit small { color: #7ee6ee; }
-.portal.lit:active .portal-ring { transform: scale(.96); }
-.portal:focus-visible .portal-ring { outline: 2px solid #7ee6ee; outline-offset: 3px; }
-@keyframes portal-glow { 50% { box-shadow: 0 0 0 2px #0b0f18, 0 0 22px 6px color-mix(in srgb, var(--el) 80%, transparent); } }
-@media (prefers-reduced-motion: reduce) { .portal.lit .portal-ring { animation: none; } }
-.portal-reward { margin: 0 4px 10px; text-align: center; font-size: 12px; color: #b0c1e8; }
-.portal-reward i.medal { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; background: center / contain no-repeat; image-rendering: pixelated; }
+.trial-reward { margin: 0 4px 10px; text-align: center; font-size: 12px; color: #b0c1e8; }
+.trial-reward i.medal { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; background-position: center; background-size: contain; background-repeat: no-repeat; image-rendering: pixelated; }
+
+/* Trial banners: one wide card per element boss with its week of open days. */
+.tb-list { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 8px; }
+.tb-card { display: flex; align-items: center; gap: 10px; padding: 8px 10px 8px 8px; border-radius: 12px; border: 2px solid color-mix(in srgb, var(--el) 45%, #0b0f18); background: linear-gradient(100deg, color-mix(in srgb, var(--el) 38%, #121a30) 0, #141c33 55%, #10172b 100%); color: #e4eaf8; text-align: left; box-shadow: 0 2px 0 #0b0f18; cursor: default; }
+.tb-card:disabled { opacity: 1; }
+.tb-card:not(.open) { filter: saturate(.35) brightness(.8); }
+.tb-card.lit { cursor: pointer; border-color: var(--el); box-shadow: 0 2px 0 #0b0f18, 0 0 12px color-mix(in srgb, var(--el) 45%, transparent); }
+.tb-card.lit:active { transform: translateY(1px); }
+.tb-frame { flex: none; display: grid; place-items: center; width: 74px; height: 74px; border-radius: 37px 37px 8px 8px; background: color-mix(in srgb, var(--el) 30%, #0b0f18); border: 2px solid color-mix(in srgb, var(--el) 80%, #fff 0%); }
+.tb-frame .trial-portrait { width: 68px; height: 68px; border: 0; border-radius: 34px 34px 6px 6px; }
+.tb-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.tb-text b { font-size: 15px; text-shadow: 0 1px 2px #000; }
+.tb-text small { font-size: 11px; color: #b0c1e8; }
+.tg-week { display: flex; gap: 3px; }
+.tg-week i { display: grid; place-items: center; width: 17px; height: 17px; border-radius: 4px; font-style: normal; font-size: 10px; font-weight: 800; color: #6f7fa6; background: #0d1324; }
+.tg-week i.on { background: var(--el); color: #0b0f18; }
+.tg-week i.now { outline: 2px solid #fff; outline-offset: 1px; }
+.tb-go { flex: none; padding: 7px 10px; border-radius: 9px; font-size: 12px; font-weight: 900; color: #98abd9; background: #0d1324; white-space: nowrap; }
+.tb-card.lit .tb-go { color: #0b0f18; background: linear-gradient(180deg, #7ee6ee, #1f8fa6); }
