@@ -2474,7 +2474,8 @@ export class UI {
     this.badge('battle', s.rekindles > 0 && s.tickets >= TICKET_CAP);
     this.badge('heroes', heroesBadge || teamReady);
     $('collection-btn').classList.toggle('ready', teamReady);
-    this.badge('shop', s.gems >= CHEST_COST || s.rewardsWaiting());
+    if (this.tab === 'shop') s.seeHeroShop();
+    this.badge('shop', s.shopWaiting());
     const goals = s.goalsReady();
     for (const btn of document.querySelectorAll<HTMLButtonElement>('.claim-all')) {
       // One goal has its own Claim button right there; the shortcut is for two or more.

@@ -309,6 +309,8 @@ export class GameState {
   hourglasses: { day: string; used: number } = { day: '', used: 0 };
   /** Gem Hero Shop: the rotating offers and when they next refresh for free (ms). */
   heroShop: { offers: HeroShopOffer[]; refreshAt: number } = { offers: [], refreshAt: 0 };
+  /** The Hero Shop set the player last looked at (its refreshAt), so a new set can light the Shop tab. */
+  heroShopSeen = 0;
   /** Featured hero bundles bought this week. */
   featured: { week: number; small: boolean; big: boolean } = { week: 0, small: false, big: false };
   /** Trial tickets bought with Gems today. */
@@ -2463,6 +2465,18 @@ export class GameState {
     );
   }
 
+  /** The Shop tab's red dot: a Gem goal to claim, or a Hero Shop set the player hasn't looked at yet. */
+  shopWaiting(now = Date.now()): boolean {
+    this.heroShopState(now);
+    return this.rewardsWaiting() || this.heroShop.refreshAt !== this.heroShopSeen;
+  }
+
+  /** The player opened the Shop: the current Hero Shop set counts as seen. */
+  seeHeroShop(now = Date.now()) {
+    this.heroShopState(now);
+    this.heroShopSeen = this.heroShop.refreshAt;
+  }
+
   /** True when an achievement or Bootcamp goal is waiting (drives the Shop tab badge). */
   rewardsWaiting(): boolean {
     return (
@@ -2548,6 +2562,7 @@ export class GameState {
       goldBoostUntil: this.goldBoostUntil,
       hourglasses: this.hourglasses,
       heroShop: this.heroShop,
+      heroShopSeen: this.heroShopSeen,
       featured: this.featured,
       ticketBuys: this.ticketBuys,
       boughtTickets: this.boughtTickets,
@@ -2688,6 +2703,8 @@ export class GameState {
           .map((o: any) => ({ heroId: String(o.heroId), medals: Math.max(1, Math.floor(Number(o.medals) || 1)), gems: Math.max(1, Math.floor(Number(o.gems) || 1)), bought: !!o.bought }))
           .slice(0, HERO_SHOP_OFFERS);
         this.heroShop = { offers, refreshAt: Number(d.heroShop.refreshAt) || 0 };
+        // Older saves have looked at whatever set they hold.
+        this.heroShopSeen = typeof d.heroShopSeen === 'number' ? d.heroShopSeen : this.heroShop.refreshAt;
       }
       if (d.featured && typeof d.featured === 'object') this.featured = { week: Number(d.featured.week) || 0, small: !!d.featured.small, big: !!d.featured.big };
       if (d.ticketBuys && typeof d.ticketBuys === 'object') this.ticketBuys = { day: String(d.ticketBuys.day ?? ''), used: Math.max(0, Number(d.ticketBuys.used) || 0) };
