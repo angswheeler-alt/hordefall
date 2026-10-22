@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { isAscendant } from './heroes/ascendant';
 import {
   HEROES, RELEASED_HEROES, GUILD_MAX_MEMBERS, GUILD_REQUEST_GOAL, GUILD_REQUEST_HOURS, GUILD_REQUEST_OPEN_HOURS, GUILD_DONATE_MAX, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP,
   GUILD_BOSS_ATTEMPTS, GUILD_BOSS_FIGHT_GAP_SECONDS, GUILD_BOSS_REST_MINUTES, GUILD_BOSS_NAMES, GUILD_BOSS_PAR_ATTEMPTS, ELEMENT_COLORS, elementMultiplier, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, guildResearchPerAttempt, GUILD_WILD_PER_WEEK, GUILD_WILD_COST, GUILD_EMBER_POUCHES_PER_DAY, GUILD_QUESTS, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS,
@@ -43,10 +44,10 @@ const ROLE_ORDER: Record<Role, number> = { leader: 0, officer: 1, member: 2 };
 const ROLE_NAME: Record<Role, string> = { leader: 'Leader', officer: 'Officer', member: 'Member' };
 
 const hero = (id: string) => HEROES.find((h) => h.id === id);
-/** Heroes Wild Crests can buy: any released non-Legendary. */
-const wildable = (h: HeroDef) => h.rarity !== 'legendary' && RELEASED_HEROES.includes(h.id);
-/** Heroes guildmates can be asked for: released Commons only (the server checks this too). */
-const requestable = (h: HeroDef) => h.rarity === 'common' && RELEASED_HEROES.includes(h.id);
+/** Heroes Wild Crests can buy: any released non-Legendary, except Ascendant heroes (own crests only). */
+const wildable = (h: HeroDef) => h.rarity !== 'legendary' && RELEASED_HEROES.includes(h.id) && !isAscendant(h.id);
+/** Heroes guildmates can be asked for: released Commons only, never Ascendant heroes (the server checks this too). */
+const requestable = (h: HeroDef) => h.rarity === 'common' && RELEASED_HEROES.includes(h.id) && !isAscendant(h.id);
 const utcDay = () => new Date().toISOString().slice(0, 10);
 const big = (v: number | string) => new Decimal(v);
 const ago = (iso: string) => {

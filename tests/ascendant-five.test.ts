@@ -9,12 +9,12 @@ const dps = (h: HeroDef) => h.baseAtk / h.attackCooldown;
 const forms = (i: number) => [0, 1, 2, 3].map((f) => resolveForm(ASCENDANT_FIVE[i], f));
 
 describe('the five Ascendant heroes', () => {
-  it('are one per element under codename ids, and still hidden', () => {
+  it('are one per element under codename ids, and released', () => {
     expect(ASCENDANT_FIVE.map((a) => a.base.id)).toEqual(ELEMENTS.map((e) => `asc_${e}`));
     expect(ASCENDANT_FIVE.map((a) => a.base.element)).toEqual([...ELEMENTS]);
     for (const a of ASCENDANT_FIVE) {
-      expect(HEROES.some((h) => h.id === a.base.id)).toBe(false);
-      expect(RELEASED_HEROES).not.toContain(a.base.id);
+      expect(HEROES.some((h) => h.id === a.base.id)).toBe(true);
+      expect(RELEASED_HEROES).toContain(a.base.id);
       expect(a.base.rarity).toBe('common');
     }
   });

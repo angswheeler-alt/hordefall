@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GameState } from '../src/state';
+import { GameState, SHOP_HEROES } from '../src/state';
 import { HEROES, RELEASED_HEROES, PLAYABLE_HEROES, MAX_STARS, ASCENDANT_CHEST, CHEST_DROPS } from '../src/data';
 import { FORM_RARITIES, MAX_FORM, COUNTERED_BY, resolveForm, clampForm, ascendBlocker, formArtKey } from '../src/ascendant';
 import { activeEffects } from '../src/skills';
@@ -27,12 +27,11 @@ function ready() {
 }
 
 describe('Ascendant framework', () => {
-  it('keeps Ascendant heroes out of the game for now', () => {
-    for (const a of ASCENDANT_HEROES) {
-      expect(HEROES.some((h) => h.id === a.base.id)).toBe(false);
-      expect(RELEASED_HEROES).not.toContain(a.base.id);
-      expect(PLAYABLE_HEROES.some((h) => h.id === a.base.id)).toBe(false);
-    }
+  it('keeps the test hero out of the game, and Ascendant heroes out of chests and shops', () => {
+    expect(HEROES.some((h) => h.id === 'asc_test')).toBe(false);
+    expect(RELEASED_HEROES).not.toContain('asc_test');
+    expect(PLAYABLE_HEROES.some((h) => h.id === 'asc_test')).toBe(false);
+    for (const a of ASCENDANT_HEROES) expect(SHOP_HEROES.some((h) => h.id === a.base.id)).toBe(false);
     expect(isAscendant('asc_test')).toBe(true);
     expect(isAscendant(HEROES[0].id)).toBe(false);
   });
@@ -209,7 +208,7 @@ describe('forms in play', () => {
 
   it('other heroes are untouched', () => {
     const s = ready();
-    for (const h of HEROES) expect(s.formDef(h)).toBe(h);
+    for (const h of HEROES) if (!isAscendant(h.id)) expect(s.formDef(h)).toBe(h);
   });
 
   it('star skills read the hero as it is now', () => {
@@ -253,8 +252,8 @@ describe('Ascendant Chest', () => {
 
   it('is hidden while no Ascendant hero is out', () => {
     const s = fresh();
-    expect(s.ascendantChestState(lightWeek)).toBeNull();
-    expect(s.buyAscendantChest(lightWeek)).toBeNull();
+    expect(s.ascendantChestState(lightWeek, [])).toBeNull();
+    expect(s.buyAscendantChest(lightWeek, [])).toBeNull();
   });
 
   it('sells the hero whose element beats the Guild Boss of the week', () => {
