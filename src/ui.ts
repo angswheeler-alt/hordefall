@@ -901,6 +901,15 @@ export class UI {
       this.render();
     });
     $('events-btn').addEventListener('click', () => this.showCalendar());
+    for (const btn of document.querySelectorAll<HTMLButtonElement>('.claim-all')) {
+      btn.addEventListener('click', () => {
+        const got = this.state.claimAllGoals();
+        if (!got.count) return;
+        play('coin');
+        this.showModal('Rewards claimed', `You claimed ${got.count} reward${got.count === 1 ? '' : 's'}: <b>${got.gems.toLocaleString()} Gems</b>.`, 'Collect');
+        this.render();
+      });
+    }
     $('rewards').addEventListener('click', (e) => {
       const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-hs]');
       if (!btn || btn.disabled) return;
@@ -2454,6 +2463,12 @@ export class UI {
     this.badge('heroes', heroesBadge || teamReady);
     $('collection-btn').classList.toggle('ready', teamReady);
     this.badge('shop', s.gems >= CHEST_COST || s.rewardsWaiting());
+    const goals = s.goalsReady();
+    for (const btn of document.querySelectorAll<HTMLButtonElement>('.claim-all')) {
+      // One goal has its own Claim button right there; the shortcut is for two or more.
+      btn.hidden = goals.count < 2;
+      btn.textContent = `Claim all ${goals.count} rewards · ${goals.gems.toLocaleString()} Gems`;
+    }
     $<HTMLElement>('home-btn').querySelector<HTMLElement>('.badge')!.hidden = !s.homeWaiting();
     if (this.tab === 'home') this.renderHome();
     if (this.tab === 'shop') this.renderRewards();

@@ -2390,6 +2390,29 @@ export class GameState {
     return true;
   }
 
+  /** Daily challenges, achievement tiers and Recruit Trials ready to claim, and the Gems they pay together. */
+  goalsReady(): { count: number; gems: number } {
+    let count = 0;
+    let gems = 0;
+    for (const r of this.dailies()) if (!r.claimed && r.progress >= r.def.goal) { count++; gems += DAILY_GEMS; }
+    for (const a of this.achievements()) {
+      // An achievement can be several tiers ahead; each ready tier counts.
+      for (let t = a.tier; a.def.tiers[t] && a.value >= a.def.tiers[t][0]; t++) { count++; gems += a.def.tiers[t][1]; }
+    }
+    for (const b of BOOTCAMP) if (!this.bootcamp.includes(b.id) && this.bootcampDone(b)) { count++; gems += b.gems; }
+    return { count, gems };
+  }
+
+  /** Claim every ready daily challenge, achievement tier and Recruit Trial at once. */
+  claimAllGoals(): { count: number; gems: number } {
+    const before = this.gems;
+    let count = 0;
+    for (const r of this.dailies()) if (this.claimDaily(r.def.stat)) count++;
+    for (const a of ACHIEVEMENTS) while (this.claimAchievement(a.id)) count++;
+    for (const b of BOOTCAMP) if (this.claimBootcamp(b.id)) count++;
+    return { count, gems: this.gems - before };
+  }
+
   /** Highest milestone stage whose boss has been beaten (best stage ever, so Rekindle can't farm it). */
   milestoneReached(): number {
     return Math.floor((this.bestStage - 1) / MILESTONE_STEP) * MILESTONE_STEP;
