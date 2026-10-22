@@ -41,7 +41,7 @@ export const TYPE_PROFILES: Record<HeroType, StatProfile> = {
   Barbarian: { crit: 0.15, critDmg: 1.8, dodge: 0.03, frenzy: 0.12, effectRes: 0.2, defMult: 1.5, stunChance: 0, freezeChance: 0, burnChance: 0, poisonChance: 0, atkMult: 1, hpMult: 1, ...NO_BONUS },
   Lancer: { crit: 0.12, critDmg: 1.5, dodge: 0.05, frenzy: 0.06, effectRes: 0.25, defMult: 2, stunChance: 0, freezeChance: 0, burnChance: 0, poisonChance: 0, atkMult: 1, hpMult: 1, ...NO_BONUS },
   Samurai: { crit: 0.2, critDmg: 2, dodge: 0.06, frenzy: 0.05, effectRes: 0.2, defMult: 1, stunChance: 0, freezeChance: 0, burnChance: 0, poisonChance: 0, atkMult: 1, hpMult: 1, ...NO_BONUS },
-  Rogue: { crit: 0.22, critDmg: 1.5, dodge: 0.12, frenzy: 0.06, effectRes: 0.1, defMult: 0.75, stunChance: 0, freezeChance: 0, burnChance: 0, poisonChance: 0, atkMult: 1, hpMult: 1, ...NO_BONUS },
+  Rogue: { crit: 0.22, critDmg: 1.5, dodge: 0.12, frenzy: 0.06, effectRes: 0.1, defMult: 1, stunChance: 0, freezeChance: 0, burnChance: 0, poisonChance: 0, atkMult: 1, hpMult: 1.4, ...NO_BONUS },
   Ranger: { crit: 0.15, critDmg: 2, dodge: 0.05, frenzy: 0.05, effectRes: 0.15, defMult: 0.75, stunChance: 0, freezeChance: 0, burnChance: 0, poisonChance: 0, atkMult: 1, hpMult: 1, ...NO_BONUS },
   Gunner: { crit: 0.12, critDmg: 2.2, dodge: 0.03, frenzy: 0.08, effectRes: 0.15, defMult: 0.75, stunChance: 0, freezeChance: 0, burnChance: 0, poisonChance: 0, atkMult: 1, hpMult: 1, ...NO_BONUS },
   Magician: { crit: 0.08, critDmg: 1, dodge: 0.03, frenzy: 0.03, effectRes: 0.25, defMult: 0.75, stunChance: 0, freezeChance: 0, burnChance: 0, poisonChance: 0, atkMult: 1, hpMult: 1, ...NO_BONUS },
@@ -118,5 +118,7 @@ export function buildBonus(count: number): { time: number; dmg: number } {
 /** The full profile for a hero: Type shape plus specialty. */
 export function heroProfile(def: HeroDef): StatProfile & { specialty: string } {
   const own = HERO_PROFILES[def.id];
-  return { ...TYPE_PROFILES[def.type], ...(own ?? { specialty: '' }) };
+  const type = TYPE_PROFILES[def.type];
+  // ATK and HP multiply, so a hero's "a little less HP" stays relative to its Type (Rogues have +40% HP).
+  return { ...type, ...(own ?? { specialty: '' }), atkMult: type.atkMult * (own?.atkMult ?? 1), hpMult: type.hpMult * (own?.hpMult ?? 1) };
 }
