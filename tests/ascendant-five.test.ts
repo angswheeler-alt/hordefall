@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { HEROES, RELEASED_HEROES, elementBoss, type HeroDef } from '../src/data';
 import { ASCENDANT_FIVE } from '../src/heroes/ascendant';
+import { maskTriggers, barrageHits, zealState, torrentMults, spiritTargets } from '../src/kits';
 import { resolveForm, chargeOf, chargeStep, chargeDamageMult, chargeText, COUNTERED_BY, MAX_FORM, type Charge } from '../src/ascendant';
 
 const ELEMENTS = ['dark', 'fire', 'light', 'water', 'earth'] as const;
@@ -68,6 +69,49 @@ describe('the five Ascendant heroes', () => {
       return dps(f) * chargeDamageMult(chargeOf(f)!, true);
     };
     for (let i = 1; i < ASCENDANT_FIVE.length; i++) expect(boss(0)).toBeGreaterThan(boss(i));
+  });
+});
+
+describe('their own moves', () => {
+  it('each has a Signature and Ultimate kind no other hero uses, kept through every form', () => {
+    const others = HEROES.filter((h) => !h.id.startsWith('asc_'));
+    const sigs = ASCENDANT_FIVE.map((_, i) => forms(i).map((f) => f.signature!.kind));
+    const ults = ASCENDANT_FIVE.map((_, i) => forms(i).map((f) => f.ult!.kind));
+    for (const kinds of [...sigs, ...ults]) expect(new Set(kinds).size).toBe(1);
+    const own = [...sigs.map((k) => k[0]), ...ults.map((k) => k[0])];
+    expect(new Set(own).size).toBe(10);
+    for (const kind of own) {
+      expect(others.some((h) => h.signature?.kind === kind || h.ult?.kind === kind)).toBe(false);
+    }
+    expect(sigs.map((k) => k[0])).toEqual(['mask', 'barrage', 'zeal', 'torrent', 'spirit']);
+    expect(ults.map((k) => k[0])).toEqual(['crescent', 'bounce', 'sanctuary', 'hydro', 'tempest']);
+  });
+
+  it('mask goes on once a life, under its HP line or on a killing blow', () => {
+    const mask = { kind: 'mask' as const, below: 0.3, heal: 0.3, haste: 0.5, seconds: 6, plusSeconds: 10 };
+    expect(maskTriggers(mask, 0.5, false)).toBe(false);
+    expect(maskTriggers(mask, 0.2, false)).toBe(true);
+    expect(maskTriggers(mask, 0.2, true)).toBe(false);
+    // A killing blow puts it on too (battle leaves the hero at 1% HP).
+    expect(maskTriggers(mask, -0.5, false)).toBe(true);
+  });
+
+  it('barrage, zeal, torrent and spirit follow their numbers', () => {
+    const barrage = { kind: 'barrage' as const, every: 4, hits: 4, plusHits: 6, mult: 0.6 };
+    expect([1, 2, 3, 4, 8].map((n) => barrageHits(barrage, n))).toEqual([1, 1, 1, 4, 4]);
+    expect(barrageHits(barrage, 4, true)).toBe(6);
+    const zeal = { kind: 'zeal' as const, perStack: 0.1, max: 5, plusMax: 8, waveAt: 5, wave: 30 };
+    expect(zealState(zeal, 0)).toEqual({ stacks: 0, cooldown: 1, wave: 0 });
+    expect(zealState(zeal, 4).wave).toBe(0);
+    expect(zealState(zeal, 9)).toEqual({ stacks: 5, cooldown: 1 / 1.5, wave: 30 });
+    expect(zealState(zeal, 9, true).stacks).toBe(8);
+    const torrent = { kind: 'torrent' as const, below: 0.4, plusBelow: 0.6, dmg: 1.5, guard: 0.6 };
+    expect(torrentMults(torrent, 0.5)).toEqual({ dmg: 1, taken: 1 });
+    expect(torrentMults(torrent, 0.5, true)).toEqual({ dmg: 1.5, taken: 0.6 });
+    expect(torrentMults(torrent, 0.3)).toEqual({ dmg: 1.5, taken: 0.6 });
+    const spirit = { kind: 'spirit' as const, every: 3, targets: 2, plusTargets: 3, mult: 1 };
+    expect([1, 2, 3, 6].map((n) => spiritTargets(spirit, n))).toEqual([0, 0, 2, 2]);
+    expect(spiritTargets(spirit, 3, true)).toBe(3);
   });
 });
 
