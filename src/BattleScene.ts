@@ -1007,6 +1007,8 @@ export class BattleScene extends Phaser.Scene {
     this.state.recordStageTime(this.stageRealTime);
     if (isBossStage(stage)) {
       this.state.autoAdvance = true;
+    } else {
+      this.state.retryBossIfDue();
     }
     this.state.track('stages');
     const prevBest = this.state.bestStage;
@@ -1035,9 +1037,10 @@ export class BattleScene extends Phaser.Scene {
       // Drop back and farm until the player is ready to challenge again.
       this.state.stage = Math.max(1, stage - 1);
       this.state.autoAdvance = false;
+      this.state.startBossRetry();
     }
     this.banner(reason, '#ff6b6b');
-    if (isBossStage(stage)) this.time.delayedCall(1400, () => this.banner('Tap FIGHT BOSS to retry', '#ffd27a'));
+    if (isBossStage(stage) && !this.state.autoBoss) this.time.delayedCall(1400, () => this.banner('Tap FIGHT BOSS to retry', '#ffd27a'));
     play('defeat');
     this.state.save();
     this.lostStage = true;
@@ -1047,6 +1050,7 @@ export class BattleScene extends Phaser.Scene {
   /** Player tapped "Fight boss": resume advancing and jump to the boss now. */
   challengeBoss() {
     this.state.autoAdvance = true;
+    this.state.bossRetryAt = 0;
     if (!isBossStage(this.state.stage)) this.state.stage += 1;
     this.startStage();
   }

@@ -591,6 +591,8 @@ export function elementBoss(stage: number): { name: string; title: string; eleme
 
 export const BOSS_EVERY = 50;
 export const BOSS_TIME_LIMIT = 30;
+/** Auto boss: after a boss loss, farm this long, then try the boss again on the next clear. */
+export const AUTO_BOSS_SECONDS = 60;
 /** Offline, a boss falls only if the team's estimate kills it inside this share of the time limit (walk-up, misses). */
 export const OFFLINE_BOSS_TIME_SHARE = 0.8;
 /** Seconds between a boss's hits (matches the battle). */
