@@ -921,7 +921,8 @@ export const TRIAL_LEVELS: TrialLevel[] = TRIAL_DIFFICULTY.map((difficulty, i) =
 /**
  * Trial medals (Samuel, 2026-10-21): a win at any level gives TRIAL_MEDALS medals. Each one goes to a
  * random hero of the Trial's element, rarer heroes less likely (TRIAL_RARITY_WEIGHTS), so both
- * can land on the same hero. The win screen shows pictures of the heroes they went to.
+ * can land on the same hero. The win screen shows pictures of the heroes they went to. Heroes at 8★ get none
+ * (GameState.trialPool), so once a color's Commons are maxed its Trials pay Rares and Epics only (85% / 15%).
  */
 export const TRIAL_MEDALS = 2;
 export const TRIAL_RARITY_WEIGHTS: Record<Exclude<Rarity, 'legendary'>, number> = { common: 80, rare: 17, epic: 3 };

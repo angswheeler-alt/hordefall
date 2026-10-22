@@ -1726,9 +1726,15 @@ export class GameState {
     return this.trialsUnlocked() && this.trialOpen(element) && this.trialTickets() > 0 && tier >= 1 && tier <= this.trialUnlocked(element) && this.trialReqMet(tier);
   }
 
-  /** Heroes a Trial of this element can pay medals to: every hero of the element except Legendaries (special means only). */
+  /**
+   * Heroes a Trial of this element can pay medals to: every hero of the element except Legendaries (special means
+   * only) and heroes already at 8★ (Samuel, 2026-10-22), so finishing a color's Commons moves their share to its
+   * Rares and Epics. A color with every hero at 8★ pays them all again (their medals become Legendary medals).
+   */
   trialPool(element: Element): HeroDef[] {
-    return PLAYABLE_HEROES.filter((h) => h.element === element && h.rarity !== 'legendary' && !isAscendant(h.id));
+    const all = PLAYABLE_HEROES.filter((h) => h.element === element && h.rarity !== 'legendary' && !isAscendant(h.id));
+    const open = all.filter((h) => (this.stars[h.id] ?? 0) < MAX_STARS);
+    return open.length ? open : all;
   }
 
   /** Whether a Trial fight can start now: open today, unlocked, requirement met and a ticket in hand. */

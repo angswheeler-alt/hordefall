@@ -446,6 +446,40 @@ describe('trial tickets', () => {
   });
 });
 
+describe('Trials skip heroes at 8★', () => {
+  it('a hero at 8★ leaves the pool and its rarity share goes to the rest', () => {
+    const s = fresh();
+    const element = TRIAL_ROTATION[0];
+    const full = s.trialPool(element);
+    const commons = full.filter((h) => h.rarity === 'common');
+    s.stars[commons[0].id] = MAX_STARS;
+    expect(s.trialPool(element).map((h) => h.id)).not.toContain(commons[0].id);
+    expect(s.trialPool(element)).toHaveLength(full.length - 1);
+  });
+
+  it('with every Common of a color at 8★, Trial medals only go to its Rares and Epics', () => {
+    const s = fresh();
+    s.bestStage = 51;
+    const element = s.openTrials()[0];
+    for (const h of s.trialPool(element)) if (h.rarity === 'common') s.stars[h.id] = MAX_STARS;
+    const pool = s.trialPool(element);
+    expect(pool.some((h) => h.rarity === 'common')).toBe(false);
+    // Math.random 0 picks the first rarity left by weight, which is now Rare
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const r = s.finishTrial(element, 1, true, 10)!;
+    vi.restoreAllMocks();
+    for (const id of r.medals) expect(HEROES.find((h) => h.id === id)!.rarity).not.toBe('common');
+  });
+
+  it('a color with every hero at 8★ still pays its heroes (Legendary medals)', () => {
+    const s = fresh();
+    const element = TRIAL_ROTATION[0];
+    const full = s.trialPool(element);
+    for (const h of full) s.stars[h.id] = MAX_STARS;
+    expect(s.trialPool(element).map((h) => h.id).sort()).toEqual(full.map((h) => h.id).sort());
+  });
+});
+
 describe('live trial fights', () => {
   function ready() {
     const s = fresh();
