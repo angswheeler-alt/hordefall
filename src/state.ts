@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, MILESTONE_STEP, milestoneReward, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
-import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_DEALS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TRIAL_EVENT_EVERY, TRIAL_EVENT_PHASE, TRIAL_EVENT_DAYS, TRIAL_EVENT_MEDAL_MULT, TICKET_CRATE, HERO_VOUCHER, ALL_TRIALS_WITH, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, AUTO_BOSS_SECONDS, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, RAISED_RARITY_OLD_COST, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, AWAKEN_STARMOTES, MAX_AWAKEN, AWAKEN_STAT_MULT, AWAKEN_UNLOCK_LEVEL, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_KILL_EMBERS, GUILD_BOSS_KILL_MIN_EMBERS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
+import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_DEALS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TRIAL_EVENT_EVERY, TRIAL_EVENT_PHASE, TRIAL_EVENT_DAYS, TRIAL_EVENT_MEDAL_MULT, TICKET_CRATE, HERO_VOUCHER, ALL_TRIALS_WITH, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, AUTO_BOSS_SECONDS, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, STAR_CRESTS, MAX_STARS, REGULAR_MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, RAISED_RARITY_OLD_COST, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_EMBER_POUCHES_PER_DAY, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, AWAKEN_STARMOTES, MAX_AWAKEN, AWAKEN_STAT_MULT, AWAKEN_UNLOCK_LEVEL, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_KILL_EMBERS, GUILD_BOSS_KILL_MIN_EMBERS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
 import { utcWeekStart, guildBossElement, relicCost, bossHp, bossAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES, PLAYABLE_HEROES, RELEASED_HEROES, ASCENDANT_CHEST } from './data';
@@ -326,7 +326,7 @@ export class GameState {
   guildQuestPending = { kills: 0, stages: 0, trials: 0 };
   /** Guild Research ranks of the player's guild, cached from the server (empty outside a guild). */
   guildResearch: Partial<Record<ResearchBranch, number>> = {};
-  /** Legendary medals, made by 8★ heroes from extra medals; any Legendary hero spends them to unlock and gain stars. */
+  /** Legendary medals, made by maxed heroes from extra medals; any Legendary hero spends them to unlock and gain stars. */
   legendaryMedals = 0;
   /** Ascendant heroes' forms (src/ascendant.ts): 0 = Common up to 3 = Legendary. Missing = Common; a form never goes down. */
   forms: Record<string, number> = {};
@@ -765,12 +765,12 @@ export class GameState {
   }
 
   /**
-   * Give a hero medals. Once a hero is 8★ they can't use more, so every
+   * Give a hero medals. Once a hero is at their top star they can't use more, so every
    * LEGENDARY_MEDAL_RATE of them becomes a Legendary medal instead.
    */
   addCrests(id: string, amount: number) {
     this.crests[id] = (this.crests[id] ?? 0) + amount;
-    if ((this.stars[id] ?? 0) < MAX_STARS) return;
+    if (!this.atTopStar(id)) return;
     const made = Math.floor(this.crests[id] / LEGENDARY_MEDAL_RATE);
     this.legendaryMedals += made;
     this.crests[id] -= made * LEGENDARY_MEDAL_RATE;
@@ -850,9 +850,21 @@ export class GameState {
     return drops;
   }
 
+  /**
+   * A hero's top star in evolutions: 7★ for regular heroes, 8★ for Ascendant heroes (REGULAR_MAX_STARS).
+   * Heroes that reached 8★ before the cap keep it.
+   */
+  maxStars(id: string): number {
+    return isAscendant(id) ? MAX_STARS : REGULAR_MAX_STARS;
+  }
+
+  atTopStar(id: string): boolean {
+    return (this.stars[id] ?? 0) >= this.maxStars(id);
+  }
+
   evolveCost(id: string): number | null {
     const stars = this.stars[id] ?? 0;
-    if (stars >= MAX_STARS) return null;
+    if (stars >= this.maxStars(id)) return null;
     return isLegendary(id) ? LEGENDARY_STAR_MEDALS[stars] : STAR_CRESTS[stars];
   }
 
@@ -861,7 +873,7 @@ export class GameState {
     if (cost === null || (this.levels[id] ?? 0) <= 0 || this.medalsFor(id) < cost) return false;
     this.spendMedals(id, cost);
     this.stars[id] = (this.stars[id] ?? 0) + 1;
-    this.addCrests(id, 0); // at 8★, leftover medals turn into Legendary medals
+    this.addCrests(id, 0); // at the top star, leftover medals turn into Legendary medals
     this.save();
     return true;
   }
@@ -1077,7 +1089,7 @@ export class GameState {
     while (heroes.length < Math.min(size, pool.length)) {
       const h = pool[Math.floor(rand() * pool.length)];
       if (heroes.some((x) => x.id === h.id)) continue;
-      heroes.push({ id: h.id, stars: Math.min(MAX_STARS, Math.max(0, avgStars + Math.floor(rand() * 3) - 1)) });
+      heroes.push({ id: h.id, stars: Math.min(this.maxStars(h.id), Math.max(0, avgStars + Math.floor(rand() * 3) - 1)) });
     }
     const opp: PvpOpponent = { name, ghost: true, heroes, ember: 1, cp: '0' };
     const cpAt = (ember: number) => GameState.ghostState({ ...opp, ember }).teamCombatPower();
@@ -1728,12 +1740,12 @@ export class GameState {
 
   /**
    * Heroes a Trial of this element can pay medals to: every hero of the element except Legendaries (special means
-   * only) and heroes already at 8★ (Samuel, 2026-10-22), so finishing a color's Commons moves their share to its
-   * Rares and Epics. A color with every hero at 8★ pays them all again (their medals become Legendary medals).
+   * only) and heroes already at their top star (Samuel, 2026-10-22), so finishing a color's Commons moves their share
+   * to its Rares and Epics. A color with every hero maxed pays them all again (their medals become Legendary medals).
    */
   trialPool(element: Element): HeroDef[] {
     const all = PLAYABLE_HEROES.filter((h) => h.element === element && h.rarity !== 'legendary' && !isAscendant(h.id));
-    const open = all.filter((h) => (this.stars[h.id] ?? 0) < MAX_STARS);
+    const open = all.filter((h) => !this.atTopStar(h.id));
     return open.length ? open : all;
   }
 

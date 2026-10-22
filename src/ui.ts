@@ -1207,8 +1207,8 @@ export class UI {
     const legendary = def.rarity === 'legendary';
     const crests = s.medalsFor(id);
 
-    // A hero is 1★ when unlocked; each evolution adds a star, up to 8★.
-    setHtml($('sheet-stars'), [0, ...STAR_CRESTS].map((_, i) => `<span class="${gold > 0 && i <= stars ? 'on' : ''}">★</span>`).join(''));
+    // A hero is 1★ when unlocked; each evolution adds a star, up to 7★ (Ascendant heroes 8★).
+    setHtml($('sheet-stars'), [0, ...STAR_CRESTS].slice(0, Math.max(s.maxStars(id), stars) + 1).map((_, i) => `<span class="${gold > 0 && i <= stars ? 'on' : ''}">★</span>`).join(''));
     // Pink awakening stars sit under the yellow ones once awakening opens (or the hero has some).
     const pink = s.awaken[id] ?? 0;
     $('sheet-pink').hidden = !s.awakenOpen() && pink === 0;
@@ -1298,10 +1298,15 @@ export class UI {
       [ULT_PLUS_EVOLUTIONS, `${now.ultimate.name}+`, now.ultPlus ?? `Ultimate hits for ${ULT_MULTIPLIER * ULT_STAR_BONUS}x instead of ${ULT_MULTIPLIER}x.`],
       ...(now.signature && now.sigPlus ? [[SIG_PLUS_EVOLUTIONS, `${now.trait.name}+`, now.sigPlus] as [number, string, string]] : []),
       [MASTERY_EVOLUTIONS, `${def.type} Mastery: ${TYPE_MASTERY[def.type].name}`, TYPE_MASTERY[def.type].text],
-      [ASCENDED_EVOLUTIONS, 'Ascended', `The Ultimate recharges in ${ASCENDED_ULT_COOLDOWN} seconds instead of ${ULT_COOLDOWN}. Every ${LEGENDARY_MEDAL_RATE} extra crests for this hero become a Legendary crest, used to get Legendary heroes.`],
+      [ASCENDED_EVOLUTIONS, 'Ascended', `The Ultimate recharges in ${ASCENDED_ULT_COOLDOWN} seconds instead of ${ULT_COOLDOWN}.`],
     ];
+    // Regular heroes stop at 7★ (only Ascendant heroes, or heroes that got there before the cap, show the 8★ row).
+    const topStar = Math.max(s.maxStars(id), stars);
+    const rows = unlocks.filter(([star]) => star <= topStar);
+    const last = rows[rows.length - 1];
+    rows[rows.length - 1] = [last[0], last[1], `${last[2]} Top star: every ${LEGENDARY_MEDAL_RATE} extra crests for this hero become a Legendary crest, used to get Legendary heroes.`];
     if ($('sheet-unlocks').dataset.key !== `${id}:${stars}:${form}`) {
-      $('sheet-unlocks').innerHTML = unlocks
+      $('sheet-unlocks').innerHTML = rows
         .map(([star, name, text]) => {
           const on = stars >= star;
           return `<li class="${on ? '' : 'locked'}"><span class="kind">${star + 1}★</span><span class="tag${on ? ' ready' : ''}">${on ? 'Unlocked' : 'Locked'}</span><div><b>${name}</b></div><p>${text}</p></li>`;
@@ -2560,7 +2565,7 @@ function cap(s: string) {
 
 /** Bold, color-coded rarity label shown under a hero's name. */
 /** How Legendary heroes are earned, shown in the Collection and on their hero page. */
-const LEGENDARY_HOW = `Legendary heroes never drop. An 8★ hero turns every ${LEGENDARY_MEDAL_RATE} extra crests into 1 Legendary crest; spend them on any Legendary hero: ${LEGENDARY_UNLOCK_MEDALS} to unlock, then more for each star.`;
+const LEGENDARY_HOW = `Legendary heroes never drop. A maxed hero (7★, Ascendant heroes 8★) turns every ${LEGENDARY_MEDAL_RATE} extra crests into 1 Legendary crest; spend them on any Legendary hero: ${LEGENDARY_UNLOCK_MEDALS} to unlock, then more for each star.`;
 
 /** "12/30 Crests", or Legendary crests for Legendary heroes. */
 function medalCount(def: HeroDef, have: number, need: number) {
