@@ -819,11 +819,13 @@ export class GameState {
   }
 
   /** Open a Hero Chest: Crests (medals) for random heroes. Locked heroes unlock once they have enough. */
-  summon(): SummonDrop[] | null {
-    if (this.gems < CHEST_COST) return null;
-    this.gems -= CHEST_COST;
-    this.track('summons');
-    const drops = this.rollChest();
+  /** Open `times` Hero Chests in one go (all or none). */
+  summon(times = 1): SummonDrop[] | null {
+    if (times < 1 || this.gems < CHEST_COST * times) return null;
+    this.gems -= CHEST_COST * times;
+    this.track('summons', times);
+    const drops: SummonDrop[] = [];
+    for (let i = 0; i < times; i++) drops.push(...this.rollChest());
     this.save();
     return drops;
   }

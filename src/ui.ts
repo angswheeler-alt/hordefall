@@ -2,7 +2,7 @@ import { DEV_TOOLS } from './config';
 import Decimal from 'break_infinity.js';
 import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { HEROES, byRarity, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, byRarity, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_BULK, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
@@ -1126,34 +1126,46 @@ export class UI {
         <p>${CHEST_DROPS} drops of Hero Crests. Collect enough to unlock a hero, then keep collecting to evolve them. Legendary heroes never drop.</p>
         <div class="chest-heroes">${faces}</div>
         <ul class="chest-odds">${odds}</ul>
-        <p class="chest-wallet">You have <b>${s.gems}</b> Gems${afford ? '' : `. You need ${CHEST_COST - s.gems} more.`}</p></div>`,
+        <p class="chest-wallet">You have <b>${s.gems}</b> Gems${afford ? '' : `. You need ${CHEST_COST - s.gems} more.`}</p>
+        ${s.gems >= CHEST_COST * CHEST_BULK ? `<button type="button" class="gem-btn chest-bulk">Open ${CHEST_BULK} · ${CHEST_COST * CHEST_BULK} Gems</button>` : ''}</div>`,
       afford ? `Buy · ${CHEST_COST} Gems` : 'Okay',
       afford ? () => this.summon() : null,
       afford,
       'Cancel',
     );
+    this.bindChestBulk();
   }
 
-  private summon() {
-    const drops = this.state.summon();
+  /** The "Open 10" button inside a Hero Chest pop-up. */
+  private bindChestBulk() {
+    $('modal-body').querySelector('.chest-bulk')?.addEventListener('click', () => this.summon(CHEST_BULK));
+  }
+
+  private summon(times = 1) {
+    const drops = this.state.summon(times);
     if (!drops) return;
     play('chest');
     this.scene()?.syncHeroes();
-    this.showSummon(drops);
+    this.showSummon(drops, times);
     this.render();
   }
 
-  private showSummon(drops: SummonDrop[]) {
+  private showSummon(drops: SummonDrop[], times = 1) {
     const cards = dropCards(drops);
-    const canAgain = this.state.gems >= CHEST_COST;
+    const gems = this.state.gems;
+    const canAgain = gems >= CHEST_COST;
+    // After opening 10, the main button opens 10 more while the Gems last.
+    const again = times > 1 && gems >= CHEST_COST * times ? times : 1;
+    const bulk = again === 1 && gems >= CHEST_COST * CHEST_BULK ? `<button type="button" class="gem-btn chest-bulk">Open ${CHEST_BULK} · ${CHEST_COST * CHEST_BULK} Gems</button>` : '';
     this.showModal(
-      'Hero Chest',
-      `${cards}Tap a hero to evolve them when their Crest bar is full.`,
-      canAgain ? `Open another (${CHEST_COST} Gems)` : 'Done',
-      canAgain ? () => this.summon() : null,
+      times > 1 ? `${times} Hero Chests` : 'Hero Chest',
+      `${cards}<p>Tap a hero to evolve them when their Crest bar is full.</p>${bulk}`,
+      canAgain ? (again > 1 ? `Open ${again} more (${CHEST_COST * again} Gems)` : `Open another (${CHEST_COST} Gems)`) : 'Done',
+      canAgain ? () => this.summon(again) : null,
       canAgain,
       'Done',
     );
+    this.bindChestBulk();
   }
 
   // ---------- hero page ----------
@@ -2504,13 +2516,15 @@ export function dropCards(drops: SummonDrop[]): string {
     const m = merged.get(d.heroId);
     merged.set(d.heroId, m ? { heroId: d.heroId, crests: m.crests + d.crests, isNew: m.isNew || d.isNew } : { ...d });
   }
+  // Heroes now ready to unlock go first.
   const cards = [...merged.values()]
+    .sort((a, b) => Number(b.isNew) - Number(a.isNew))
     .map((d) => {
       const def = HEROES.find((h) => h.id === d.heroId)!;
       return `<div class="drop"><div class="face art" style="${faceStyle(def)}">${def.name[0]}</div><b>${def.name}</b>${d.isNew ? '<span class="new">READY TO UNLOCK</span>' : ''}<span class="crest">+${d.crests} Crests</span></div>`;
     })
     .join('');
-  return `<div class="summon-grid">${cards}</div>`;
+  return `<div class="summon-grid${merged.size > 9 ? ' many' : ''}">${cards}</div>`;
 }
 
 /** Short label for a Fortune Wheel slice. */
