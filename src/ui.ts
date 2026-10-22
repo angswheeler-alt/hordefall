@@ -1451,18 +1451,26 @@ export class UI {
     const listKey = `${open.join(',')}:${unlocked}:${medals}`;
     if ($('tr-list').dataset.key !== listKey) {
       $('tr-list').dataset.key = listKey;
-      $('tr-list').innerHTML = (unlocked ? '' : '<p class="trial-lock">Trials open once you beat the stage 50 boss.</p>') + TRIAL_ROTATION.map((e) => {
-        const isOpen = open.includes(e);
-        const days = s.trialDays(e).map((d) => DAY_NAMES[d]).join(', ');
-        const face = Object.entries(bossFace(e, 60)).map(([k, v]) => `${k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}:${v}`).join(';');
-        const btn = unlocked ? 'Enter' : 'Locked';
-        return `<div class="trial-entry${isOpen ? ' open' : ''}" style="--el:${hex(ELEMENT_COLORS[e])}">` +
-          `<span class="trial-portrait" style="${face}" title="${cap(e)}"></span>` +
-          `<div class="trial-entry-text"><b>${TRIAL_BOSS_NAMES[e]} <span>(${days})</span></b>` +
-          `<small>Rewards: <i class="ess-${e}" title="${ESSENCE_NAMES[e]}"></i> and <i class="medal" title="${medals} crests for random ${cap(e)} heroes"></i> x${medals}</small></div>` +
-          `<button class="trial-enter${isOpen && unlocked ? ' lit' : ''}" data-el="${e}" ${isOpen && unlocked ? '' : 'disabled'} title="${isOpen ? (unlocked ? `Open today` : 'Opens after the stage 50 boss') : `Open ${days}`}">${btn}</button>` +
-          `</div>`;
-      }).join('');
+      // Five portals on a map, one per element boss, in a ring like the element wheel. Open ones glow.
+      const spots = TRIAL_ROTATION.map((_, i) => {
+        const a = (-90 + i * 72) * (Math.PI / 180);
+        return [50 + 34 * Math.cos(a), 50 + 36 * Math.sin(a)];
+      });
+      $('tr-list').innerHTML = (unlocked ? '' : '<p class="trial-lock">Trials open once you beat the stage 50 boss.</p>') +
+        '<div class="portal-map"><span class="portal-hub">Trial<br>Gates</span>' + TRIAL_ROTATION.map((e, i) => {
+          const isOpen = open.includes(e);
+          const days = s.trialDays(e);
+          const today = new Date().getDay();
+          const next = days.length ? DAY_NAMES[[...days].sort((a, b) => ((a - today + 7) % 7) - ((b - today + 7) % 7)).find((d) => d !== today) ?? days[0]] : '';
+          const face = Object.entries(bossFace(e, 60)).map(([k, v]) => `${k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}:${v}`).join(';');
+          const ready = isOpen && unlocked;
+          const note = ready ? 'Open today' : isOpen ? 'Locked' : `Opens ${next}`;
+          return `<button type="button" class="portal${isOpen ? ' open' : ''}${ready ? ' lit' : ''}" data-el="${e}" ${ready ? '' : 'disabled'} ` +
+            `style="--el:${hex(ELEMENT_COLORS[e])};left:${spots[i][0].toFixed(1)}%;top:${spots[i][1].toFixed(1)}%" title="${TRIAL_BOSS_NAMES[e]}: ${note}">` +
+            `<span class="portal-ring"><span class="trial-portrait" style="${face}"></span></span>` +
+            `<b>${TRIAL_BOSS_NAMES[e]}</b><small>${note}</small></button>`;
+        }).join('') + '</div>' +
+        `<p class="portal-reward">Each win: Essence of the boss's element and <i class="medal"></i> x${medals} crests for random heroes of that element.</p>`;
     }
     setHtml($('tr-ess'), TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}"></i>${fmt(s.essences[e] ?? 0)}</span>`).join(''));
     if (!this.trialEntered) return;
