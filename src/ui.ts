@@ -1487,9 +1487,11 @@ export class UI {
     }
     const level = TRIAL_LEVELS[tier - 1];
     $('tr-info').textContent = `Uses Ember levels and stars, not gold levels. Drops ${ESSENCE_NAMES[el]} and ${s.trialMedals()} crests, each for a random ${cap(el)} hero.`;
-    if ($('tr-medals').dataset.key !== el) {
-      $('tr-medals').dataset.key = el;
-      const odds = rarityOdds(s.trialPool(el), TRIAL_RARITY_WEIGHTS).map(([r, pct]) => `${cap(r)} ${+pct.toFixed(1)}%`).join(' · ');
+    const pool = s.trialPool(el);
+    const oddsKey = `${el}:${pool.length}`;
+    if ($('tr-medals').dataset.key !== oddsKey) {
+      $('tr-medals').dataset.key = oddsKey;
+      const odds = rarityOdds(pool, TRIAL_RARITY_WEIGHTS).map(([r, pct]) => `${cap(r)} ${+pct.toFixed(1)}%`).join(' · ');
       setHtml($('tr-medals'), `Crest odds: ${odds}`);
     }
     $('tr-tier').textContent = `Level ${tier} / ${TRIAL_TIERS}`;
