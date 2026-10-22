@@ -2210,7 +2210,7 @@ export class UI {
       `<p>${evLine}. Every other weekend, Trials pay x${TRIAL_EVENT_MEDAL_MULT} crests.</p>
       <div class="cal-grid">${head}${cells}</div>
       <ul class="cal-legend">${legend}<li><span class="cal-x2">x2</span> double crests</li></ul>
-      <p>Dots show which Trials are open. On Light and Dark days every Trial is open.</p>
+      <p>Dots show which Trials are open. Each Trial opens on two weekdays, and every Trial is open on Saturday and Sunday.</p>
       <h3>Limited deals</h3><ul class="cal-list">${deals.join('')}</ul>`,
       'Close',
     );
