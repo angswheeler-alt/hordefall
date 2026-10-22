@@ -63,15 +63,15 @@ export interface AscendantDef {
 export const COUNTERED_BY: Record<Element, Element> = { earth: 'fire', fire: 'water', water: 'earth', light: 'dark', dark: 'light' };
 
 /**
- * The shared ascension steps: Rare at 3★, Epic at 5★, Legendary at 7★ (8★ is still their top star, past the
- * final form), each also needing a Trial level and a best stage. `finalStage` is the element boss the hero counters
+ * The shared ascension steps: Rare at 3★, Epic at 5★, Legendary at 8★ (Samuel, 2026-10-22: the final form
+ * stays at their top star), each also needing a Trial level and a best stage. `finalStage` is the element boss the hero counters
  * (its Legendary challenge).
  */
 export function standardSteps(finalStage: number): [AscensionStep, AscensionStep, AscensionStep] {
   return [
     { evolutions: 2, trialTier: 5, bestStage: 200, essence: 500, stones: 30 },
     { evolutions: 4, trialTier: 10, bestStage: 500, essence: 5000, stones: 100 },
-    { evolutions: 6, trialTier: 15, bestStage: finalStage, essence: 50000, stones: 300 },
+    { evolutions: 7, trialTier: 15, bestStage: finalStage, essence: 50000, stones: 300 },
   ];
 }
 
