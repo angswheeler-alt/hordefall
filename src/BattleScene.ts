@@ -60,6 +60,7 @@ import chestGoldUrl from './assets/ui/chest-gold.png';
 import { sumEffect, mulEffect, everyNth, procEffect, procs } from './skills';
 import { marchCap, marchStep } from './movement';
 import { respawnTime, reviveIn, stageStartRevives } from './respawn';
+import { chestsAllowed, laneMode } from './chests';
 import { PVP_RESPAWN_MULT } from './colosseum';
 import { HERO_ANIMS } from './heroAnims';
 import { ASCENDANT_HEROES, ascendantDef } from './heroes/ascendant';
@@ -364,6 +365,8 @@ export class BattleScene extends Phaser.Scene {
   /** The stage just ended in a loss, so the next one starts with the whole team up. */
   private lostStage = false;
   private chestTimer = 20;
+  /** Floating chests on screen, so a Trial or Colosseum fight can clear them away. */
+  private chests: Phaser.GameObjects.Image[] = [];
   private incomeWindow = new Decimal(0);
   private incomeWindowReal = 0;
   private sky!: Phaser.GameObjects.Image;
@@ -1116,6 +1119,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.trial || this.pvp) return;
     this.nextStageTimer?.remove();
     this.nextStageTimer = undefined;
+    this.clearChests();
     this.pvp = { ids: new Set(ids), bonus, mine: { hp: new Decimal(1), max: new Decimal(1) }, theirs: { hp: new Decimal(1), max: new Decimal(1) }, timeLeft: PVP_LIVE_TIME, done: false, onEnd, meter: new Map(ids.map((id) => [id, meterRow(id)])), foeMeter: meterRow('foes') };
     const ults = new Map(this.heroes.map((h) => [h.def?.id, h.ultReadyAt]));
     for (const h of this.heroes) h.view.destroy();
@@ -1264,6 +1268,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.trial) return;
     this.nextStageTimer?.remove();
     this.nextStageTimer = undefined;
+    this.clearChests();
     const trial: TrialFight = { element, tier, timeLeft: TRIAL_TIME, fought: 0, hits: 0, done: false, onEnd, meter: new Map(), foeMeter: meterRow('boss') };
     this.trial = trial;
     for (const p of this.crystalParts) (p as unknown as Phaser.GameObjects.Components.Visible).setVisible(false);
@@ -1393,7 +1398,7 @@ export class BattleScene extends Phaser.Scene {
     const dt = realDt * (this.speedMultiplier());
     this.anims.globalTimeScale = this.speedMultiplier();
     this.clock += dt;
-    if (!this.trial && !this.pvp) this.updateChests(dt);
+    if (chestsAllowed(laneMode({ trial: this.trial, pvp: this.pvp }))) this.updateChests(dt);
     this.drawHud();
     this.syncShadows();
     if (this.transitioning) return;
@@ -2426,6 +2431,15 @@ export class BattleScene extends Phaser.Scene {
 
   // ---------- chests ----------
 
+  /** Remove every floating chest, unclaimed, when a Trial or Colosseum fight takes over the lane. */
+  private clearChests() {
+    for (const c of this.chests) {
+      this.tweens.killTweensOf(c);
+      c.destroy();
+    }
+    this.chests = [];
+  }
+
   private updateChests(dt: number) {
     this.chestTimer -= dt;
     if (this.chestTimer > 0) return;
@@ -2439,10 +2453,13 @@ export class BattleScene extends Phaser.Scene {
     const remove = () => {
       this.tweens.killTweensOf(chest);
       chest.destroy();
+      this.chests = this.chests.filter((c) => c !== chest);
     };
+    this.chests.push(chest);
     this.tweens.add({ targets: chest, x: -30, duration: 11000, onComplete: remove });
     this.tweens.add({ targets: chest, y: y - 8, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     chest.once('pointerdown', () => {
+      if (!chestsAllowed(laneMode({ trial: this.trial, pvp: this.pvp }))) return remove();
       const gold = goldPerKill(this.state.stage).times(kind.killsWorth).times(1 + this.state.relicBonus('gold')).times(1 + this.state.researchBonus('prosperity')).times(this.state.goldBoostMult());
       const wx = chest.x + this.cameras.main.scrollX;
       this.gainGold(gold, wx, chest.y + 10);
