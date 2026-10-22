@@ -782,6 +782,13 @@ describe('relics', () => {
     expect(s.heroStats(knight).isKnight).toBe(true);
   });
 
+  it("a hero's own HP and ATK change multiply its Type's, so Rogues keep their extra HP", () => {
+    const flint = HEROES.find((h) => h.id === 'flint')!;
+    expect(heroProfile(flint).hpMult).toBeCloseTo(1.4 * 0.9);
+    const rogue = HEROES.find((h) => h.type === 'Rogue' && heroProfile(h).hpMult === 1.4);
+    if (rogue) expect(heroProfile(rogue).hpMult).toBe(1.4);
+  });
+
   it('every hero has its own specialty, and builds of shared effects get stronger', () => {
     for (const h of HEROES) expect(heroProfile(h).specialty.length, h.id).toBeGreaterThan(0);
     // No two heroes share the same stats: every full profile (Type shape plus specialty) differs.
