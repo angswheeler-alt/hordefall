@@ -22,15 +22,22 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('Trial days', () => {
-  it('open every element on a Light or Dark day', () => {
-    expect(s.openTrials(MON)).toEqual(TRIAL_ROTATION);
+  it('open every element on Saturday and Sunday', () => {
     expect(s.openTrials(SAT)).toEqual(TRIAL_ROTATION);
     expect(s.openTrials(SUN)).toEqual(TRIAL_ROTATION);
   });
 
-  it('keep the normal schedule on a day without Light or Dark', () => {
+  it('open each element only on its own weekdays', () => {
+    expect(s.openTrials(MON).sort()).toEqual(['dark', 'fire']);
+    expect(s.openTrials(at(10, 20)).sort()).toEqual(['earth', 'light']);
     expect(s.openTrials(WED).sort()).toEqual(['fire', 'water']);
-    expect(s.trialDays('earth')).not.toContain(3);
+    expect(s.openTrials(at(10, 22)).sort()).toEqual(['earth', 'light']);
+    expect(s.openTrials(at(10, 23)).sort()).toEqual(['dark', 'water']);
+    expect(s.trialDays('earth')).toEqual([0, 2, 4, 6]);
+  });
+
+  it('give every element two weekdays plus the weekend', () => {
+    for (const e of TRIAL_ROTATION) expect(s.trialDays(e)).toHaveLength(4);
   });
 });
 

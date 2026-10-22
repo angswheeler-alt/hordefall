@@ -895,16 +895,16 @@ export const HERO_VOUCHER = { gems: 500, medals: { common: 200, rare: 100, epic:
 
 /** Elemental Trials (GDD 11.1): each element's dungeon opens on set days (Samuel's schedule). */
 export const TRIAL_ROTATION: Element[] = ['water', 'earth', 'fire', 'light', 'dark'];
-/** Days each Trial is open, as Date.getDay() numbers (0 = Sunday), in the player's local time. */
+/** Weekdays each Trial is open, as Date.getDay() numbers (1 = Monday), in the player's local time. */
 export const TRIAL_SCHEDULE: Record<Element, number[]> = {
-  dark: [1, 5, 0],
-  light: [2, 4, 6],
-  earth: [2, 4, 0],
-  water: [3, 5, 0],
-  fire: [1, 3, 6],
+  dark: [1, 5],
+  light: [2, 4],
+  earth: [2, 4],
+  water: [3, 5],
+  fire: [1, 3],
 };
-/** Samuel (2026-10-21): on a day the Light or Dark Trial is open, every element's Trial is open. */
-export const ALL_TRIALS_WITH: Element[] = ['light', 'dark'];
+/** Samuel (2026-10-22): on weekdays each Trial keeps its own days; every Trial is open only on Saturday and Sunday. */
+export const ALL_TRIALS_DAYS = [6, 0];
 export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 /**
  * Trial levels from Samuel's table (original dungeon chart). Essence is the
