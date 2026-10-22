@@ -79,7 +79,7 @@ export const TIPS: GuideTip[] = [
     id: 'boss',
     target: '#boss',
     title: 'Boss too strong?',
-    text: 'Your team keeps farming this stage for gold. Level up your heroes, then tap the button to try again.',
+    text: 'Your team keeps farming this stage for gold. Level up your heroes. With Auto boss on, they try the boss again every minute, or tap Fight boss to try now.',
     button: 'Got it',
     when: (v) => v.bossButton,
   },

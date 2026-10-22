@@ -753,6 +753,11 @@ export class UI {
       this.render();
     });
     $('boss').addEventListener('click', () => this.scene()?.challengeBoss());
+    $('autoboss').addEventListener('click', () => {
+      this.state.autoBoss = !this.state.autoBoss;
+      this.state.bossRetryAt = 0;
+      this.render();
+    });
     $('tr-down').addEventListener('click', () => this.stepTier(-1));
     $('tr-up').addEventListener('click', () => this.stepTier(1));
     $('tr-fight').addEventListener('click', () => this.fightTrial());
@@ -2390,7 +2395,10 @@ export class UI {
     $('buyamt').textContent = `Buy ${s.buyAmount === 'max' ? 'max' : `x${s.buyAmount}`}`;
     const bossBtn = $('boss');
     bossBtn.hidden = s.autoAdvance;
-    bossBtn.textContent = isBossStage(s.stage + 1) || isBossStage(s.stage) ? 'Fight boss' : 'Resume';
+    const retryIn = s.bossRetryIn();
+    bossBtn.textContent = `${isBossStage(s.stage + 1) || isBossStage(s.stage) ? 'Fight boss' : 'Resume'}${retryIn === null ? '' : retryIn > 0 ? ` · ${fmtSecs(retryIn)}` : ' · next clear'}`;
+    $('autoboss').hidden = s.autoAdvance;
+    $('autoboss').classList.toggle('on', s.autoBoss);
 
     let heroesBadge = false;
     let teamReady = false;
