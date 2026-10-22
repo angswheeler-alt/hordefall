@@ -62,8 +62,8 @@ import { marchCap, marchStep } from './movement';
 import { respawnTime, reviveIn, stageStartRevives } from './respawn';
 import { PVP_RESPAWN_MULT } from './colosseum';
 import { HERO_ANIMS } from './heroAnims';
-import { formArtKey } from './ascendant';
 import { ASCENDANT_HEROES, ascendantDef } from './heroes/ascendant';
+import { formArtKey, chargeOf, chargeStep, chargeDamageMult, CHARGE_AREA, CHARGE_LINE, CHARGE_HASTE_SECONDS, type Charge } from './ascendant';
 import { MOB_ANIMS } from './mobAnims';
 import { MOB_ELEMENTS, MOB_KINDS, pickMob, type MobId } from './mobs';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES, type BossAnim } from './bossAnims';
@@ -194,6 +194,8 @@ interface Unit {
   /** Riptide Combo: the enemy this hero is hitting and how many hits in a row. */
   streakTarget?: Unit;
   streak: number;
+  /** Ascendant heroes: attacks in a row toward the next charged Signature (src/ascendant.ts). */
+  chargeStacks: number;
   /** Burning (Kindling, Meteor ground): damage per second until burnUntil, from burnBy. */
   burnUntil: number;
   burnDps: Decimal;
@@ -633,6 +635,7 @@ export class BattleScene extends Phaser.Scene {
       hpBar,
       barWidth,
       streak: 0,
+      chargeStacks: 0,
       burnUntil: 0,
       burnDps: new Decimal(0),
       burnTick: 0,
@@ -768,6 +771,8 @@ export class BattleScene extends Phaser.Scene {
         u.maxHp = hp;
         u.atk = atk;
         u.def = def;
+        // Ascending can change reach.
+        u.range = def.range;
         u.defense = defense;
         u.stats = stats;
         u.speed = stats.moveSpeed.value;
@@ -1719,6 +1724,22 @@ export class BattleScene extends Phaser.Scene {
     const blind = procEffect(fx, 'blind', def.id);
     const blinded = procs(blind, h.attacks);
     const element = this.dealsAs(h);
+    // Charge (Ascendant heroes): every Nth attack in a row fires the charged Signature.
+    const charge = chargeOf(def);
+    let charged: Charge | undefined;
+    if (charge) {
+      const step = chargeStep(h.chargeStacks, charge);
+      h.chargeStacks = step.stacks;
+      if (step.fired) {
+        charged = charge;
+        this.floatText(h.x, h.y - 34, 'CHARGE!', '#fff1a8', 10);
+        this.puff(target.x, target.y, ELEMENT_COLORS[def.element]);
+        if (charge.boost === 'attackSpeed' && !(h.hasteUntil > this.clock && h.hasteMult <= 1 / (1 + charge.value))) {
+          h.hasteUntil = this.clock + CHARGE_HASTE_SECONDS;
+          h.hasteMult = 1 / (1 + charge.value);
+        }
+      }
+    }
     // Shadow Pounce: every Nth attack blinks to the farthest enemy in reach, or to a boss in reach.
     if (procs(assassin, h.attacks)) {
       const inReach = this.enemies.filter((e) => e.alive && e.x >= h.x && e.x - h.x <= ASSASSIN_REACH && this.reaches(h, e));
@@ -1765,7 +1786,9 @@ export class BattleScene extends Phaser.Scene {
       const rolled = procs(snowball, h.attacks);
       const splash = def.splash ? def.splash * (1 + st.aoeRadius) : slammed ? SLAM_RADIUS : 0;
       let targets: Unit[];
-      if (splash) targets = this.enemies.filter((e) => e.alive && Math.abs(e.x - target.x) <= splash);
+      if (charged?.boost === 'area') targets = this.enemies.filter((e) => e.alive && Math.abs(e.x - target.x) <= Math.max(splash, CHARGE_AREA));
+      else if (charged?.boost === 'pierce') targets = [target, ...this.enemies.filter((e) => e.alive && e !== target && e.x > target.x && e.x - target.x <= CHARGE_LINE)];
+      else if (splash) targets = this.enemies.filter((e) => e.alive && Math.abs(e.x - target.x) <= splash);
       else {
         // Piercing shots also hit the next enemies just behind the target.
         const pierce = Math.round(this.sum('pierce', h));
@@ -1781,7 +1804,8 @@ export class BattleScene extends Phaser.Scene {
           (t === target ? comboMult(sig, h.streak) : 1) *
           executeMult(sig, t.maxHp.gt(0) ? t.hp.div(t.maxHp).toNumber() : 1, this.sigPlus(h)) *
           (t.burnUntil > this.clock ? vsBurning : 1) *
-          (splash ? 1 + st.aoeDmg : 1);
+          (splash ? 1 + st.aoeDmg : 1) *
+          (charged ? chargeDamageMult(charged, t.isBoss) : 1);
         const amount = atk.times(mult);
         // Lifesteal only counts hits that land (element-locked bosses shrug off the rest).
         if (t.lockStage === undefined || !bossImmuneTo(t.lockStage, this.dealsAs(h))) dealt = dealt.plus(amount);
@@ -2072,6 +2096,7 @@ export class BattleScene extends Phaser.Scene {
       }
     } else {
       u.respawnAt = respawnTime(this.clock, this.mul('respawn', null) * (this.pvp ? PVP_RESPAWN_MULT : 1));
+      u.chargeStacks = 0;
       this.puff(u.x, u.y, 0xffffff);
       if (this.trial) u.view.setVisible(false);
       else this.ghostHero(u);

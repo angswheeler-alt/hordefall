@@ -15,7 +15,7 @@ export const MAX_FORM = FORM_RARITIES.length - 1;
 
 /**
  * Charge: every attack in a row adds a stack; at `stacks` the hero's next Signature fires empowered by `value`
- * of `boost` (0.5 = +50%). Data only for now; battle runs it in a later step.
+ * of `boost` (0.5 = +50%). BattleScene runs it with chargeStep and chargeDamageMult below.
  */
 export interface Charge {
   stacks: number;
@@ -147,4 +147,41 @@ export function ascendNeeds(def: AscendantDef, c: AscendContext, essenceName: st
     { text: `${step.essence.toLocaleString()} ${essenceName}`, met: c.essence >= step.essence },
     { text: `${step.stones.toLocaleString()} Enhance Stones`, met: c.stones >= step.stones },
   ];
+}
+
+/** Charge in battle: how far a charged pierce reaches behind the target, a charged area hit's radius (px), and how long a charged haste lasts (s). */
+export const CHARGE_LINE = 220;
+export const CHARGE_AREA = 70;
+export const CHARGE_HASTE_SECONDS = 4;
+
+/** The Charge a hero fights with in its current form (set by resolveForm), if any. */
+export function chargeOf(def: HeroDef): Charge | undefined {
+  return (def as HeroDef & { charge?: Charge }).charge;
+}
+
+/** One attack's worth of Charge: the stacks after it, and whether this attack fires the charged Signature. */
+export function chargeStep(stacks: number, c: Charge): { stacks: number; fired: boolean } {
+  const next = stacks + 1;
+  return next >= c.stacks ? { stacks: 0, fired: true } : { stacks: next, fired: false };
+}
+
+/** Damage multiplier of a charged attack on one target (bossDamage hits regular enemies for half the bonus). */
+export function chargeDamageMult(c: Charge, isBoss: boolean): number {
+  if (c.boost === 'attackSpeed') return 1;
+  if (c.boost === 'bossDamage' && !isBoss) return 1 + c.value / 2;
+  return 1 + c.value;
+}
+
+/** The Charge line on the hero page. */
+export function chargeText(c: Charge): string {
+  const pct = `${Math.round(c.value * 100)}%`;
+  const what = {
+    damage: `hits for +${pct} damage`,
+    pierce: `cuts through every enemy in a line behind the target for +${pct} damage`,
+    area: `hits every enemy around the target for +${pct} damage`,
+    attackSpeed: `speeds up attacks by ${pct} for ${CHARGE_HASTE_SECONDS} seconds`,
+    bossDamage: `hits bosses for +${pct} damage (other enemies +${Math.round(c.value * 50)}%)`,
+  }[c.boost];
+  const nth = c.stacks === 2 ? '2nd' : c.stacks === 3 ? '3rd' : `${c.stacks}th`;
+  return `Charge: every ${nth} attack in a row ${what}.`;
 }
