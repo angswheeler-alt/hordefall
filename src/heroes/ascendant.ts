@@ -83,7 +83,8 @@ const fireC: Charge[] = [
   { stacks: 5, boost: 'area', value: 1 },
   { stacks: 5, boost: 'area', value: 1.5 },
   { stacks: 4, boost: 'area', value: 2 },
-  { stacks: 4, boost: 'area', value: 3 },
+  // Every 5th, not 4th: on a 4 beat it always landed on the same attack as the flurry and the slam and tripled them.
+  { stacks: 5, boost: 'area', value: 3 },
 ];
 const barrageText = (every: number, hits: number, pct: number) => `Every ${every}th attack is a flurry of ${hits} rubbery punches for ${pct}% damage each.`;
 const ascFire: AscendantDef = {
