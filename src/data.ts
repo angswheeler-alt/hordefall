@@ -731,6 +731,8 @@ export const LEGENDARY_STAR_MEDALS = STAR_CRESTS;
 export const START_GEMS = 60;
 // Free Gems come from rewards.ts (dailies, login calendar, Lucky Spin, achievements, Bootcamp) and gold chests.
 export const CHEST_COST = 30;
+/** The bulk button on the Hero Chest pop-up opens this many at once. */
+export const CHEST_BULK = 10;
 export const CHEST_DROPS = 3;
 /**
  * Hero Chest odds. Each drop first picks a rarity by weight (Legendary never
