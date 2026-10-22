@@ -37,14 +37,16 @@ const maskText = (below: number, heal: number, seconds: number, speed: string) =
   `Once a life, when a hit would drop him under ${below}% HP (even a killing blow), he survives it and a bone-white mask covers his face: he heals ${heal}% of max HP and attacks ${speed} for ${seconds} seconds.`;
 const ascDark: AscendantDef = {
   base: {
-    ...base, id: 'asc_dark', name: 'Zanshin', element: 'dark', type: 'Samurai', baseAtk: 5.2, baseHp: 46, range: 28, attackCooldown: 0.8, moveSpeed: 140,
+    ...base, id: 'asc_dark', name: 'Zanshin', element: 'dark', type: 'Samurai', baseAtk: 4.8, baseHp: 46, range: 28, attackCooldown: 0.8, moveSpeed: 140,
     signature: { kind: 'mask', below: 0.3, heal: 0.3, haste: 0.5, seconds: 6, plusSeconds: 10 },
     sigPlus: 'The mask lasts 10 seconds.',
-    ult: { kind: 'crescent', mult: 2, plusMult: 3 },
-    ultPlus: 'Bosses take 3x instead of 2x.',
+    // Balance check 2026-10-22: the whole-lane crescent at full damage (and 2x/3x on bosses) made him the strongest
+    // hero in every form, so the lane takes half an Ultimate and bosses a little more than one.
+    ult: { kind: 'crescent', mult: 1.25, plusMult: 1.5, lane: 0.5 },
+    ultPlus: 'Bosses take 1.5x instead of 1.25x.',
     bio: 'A young swordsman who carries a bandaged cleaver taller than he is.',
     basic: { name: 'Cleaver Chop', text: 'Heavy chops at the nearest enemy ahead.' },
-    ultimate: { name: 'Moonfall Crescent', text: 'He swings a crescent of dark energy down the whole lane: every enemy ahead takes 40x ATK, bosses 2x that, with element bonuses.' },
+    ultimate: { name: 'Moonfall Crescent', text: 'He swings a crescent of dark energy down the whole lane: every enemy ahead takes 20x ATK and bosses 50x, with element bonuses.' },
     trait: sig('Wraith Mask', maskText(30, 30, 6, 'twice as fast'), darkC[0], 'dark'),
     sp1: { name: 'Second Swing', text: '20% chance for each attack to strike twice.', effect: { kind: 'doubleStrike', value: 0.2 } },
     sp2: { name: 'Sharp Eye', text: '+10% critical hit chance.', effect: { kind: 'crit', value: 0.1 } },
@@ -67,9 +69,9 @@ const ascDark: AscendantDef = {
       bio: 'His final form: twin blades of dark energy and an aura of black flame.',
       signature: { kind: 'mask', below: 0.4, heal: 0.5, haste: 0.4, seconds: 8, plusSeconds: 12 },
       trait: sig('Void Mask', maskText(40, 50, 8, '2.5x as fast'), darkC[3], 'dark'),
-      ult: { kind: 'crescent', mult: 3, plusMult: 4.5 },
-      ultPlus: 'Bosses take 4.5x instead of 3x.',
-      ultimate: { name: 'Black Moonfall', text: 'Two black crescents tear down the whole lane: every enemy ahead takes 40x ATK, bosses 3x that, with element bonuses.' } },
+      ult: { kind: 'crescent', mult: 1.25, plusMult: 1.5, lane: 0.6 },
+      ultPlus: 'Bosses take 1.5x instead of 1.25x.',
+      ultimate: { name: 'Black Moonfall', text: 'Two black crescents tear down the whole lane: every enemy ahead takes 24x ATK and bosses 50x, with element bonuses.' } },
   ],
   // Dark counters the Light element boss (stage 1000).
   steps: standardSteps(1000),
