@@ -656,6 +656,11 @@ export const LEVEL_GIFT_STONES = 3;
 export const STAR_CRESTS = [10, 50, 250, 600, 1500, 2500, 5000];
 export const MAX_STARS = STAR_CRESTS.length;
 /**
+ * Regular heroes stop at 7★ for now (Samuel, 2026-10-22); only Ascendant heroes go on to 8★ (their Legendary form
+ * needs it). In evolutions (0 = 1★), like MAX_STARS. At their top star a hero's extra medals become Legendary medals.
+ */
+export const REGULAR_MAX_STARS = MAX_STARS - 1;
+/**
  * Hero Crests (medals) a hero needs to unlock, by rarity (Samuel's table).
  * Unlocking spends them. Legendary heroes never unlock from their own Crests:
  * they take Legendary medals (LEGENDARY_UNLOCK_MEDALS), and nothing drops or
@@ -696,7 +701,7 @@ export const AWAKEN_UNLOCK_LEVEL = 15;
 export const SIG_PLUS_EVOLUTIONS = 5;
 /** 7★: the hero's Type Mastery. */
 export const MASTERY_EVOLUTIONS = 6;
-/** 8★: Ascended, the Ultimate recharges in ASCENDED_ULT_COOLDOWN seconds instead of ULT_COOLDOWN. */
+/** 8★ (Ascendant heroes only, REGULAR_MAX_STARS): Ascended, the Ultimate recharges in ASCENDED_ULT_COOLDOWN seconds instead of ULT_COOLDOWN. */
 export const ASCENDED_EVOLUTIONS = 7;
 export const ASCENDED_ULT_COOLDOWN = 20;
 /**
@@ -717,7 +722,7 @@ export const TYPE_MASTERY: Record<HeroType, { name: string; text: string; effect
 };
 /**
  * Legendary heroes come only from late-game progression (Samuel, 2026-10-21: no event, no chests, shops or Trials).
- * An 8★ hero turns every LEGENDARY_MEDAL_RATE extra medals into one Legendary medal. All Legendary medals share
+ * A hero at their top star (7★, Ascendant heroes 8★) turns every LEGENDARY_MEDAL_RATE extra medals into one Legendary medal. All Legendary medals share
  * one pool, and the player spends it on whichever Legendary hero they want: LEGENDARY_UNLOCK_MEDALS to unlock,
  * then LEGENDARY_STAR_MEDALS[n] for each star (1★→2★ first): the same numbers as a normal hero (Samuel picked "Hard",
  * 2026-10-21), but each Legendary medal is 10 medals, so a Legendary 8★ takes ~100,000 extra medals. Sim (2026-10-21,
@@ -921,7 +926,7 @@ export const TRIAL_LEVELS: TrialLevel[] = TRIAL_DIFFICULTY.map((difficulty, i) =
 /**
  * Trial medals (Samuel, 2026-10-21): a win at any level gives TRIAL_MEDALS medals. Each one goes to a
  * random hero of the Trial's element, rarer heroes less likely (TRIAL_RARITY_WEIGHTS), so both
- * can land on the same hero. The win screen shows pictures of the heroes they went to. Heroes at 8★ get none
+ * can land on the same hero. The win screen shows pictures of the heroes they went to. Heroes at their top star get none
  * (GameState.trialPool), so once a color's Commons are maxed its Trials pay Rares and Epics only (85% / 15%).
  */
 export const TRIAL_MEDALS = 2;

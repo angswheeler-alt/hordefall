@@ -6,7 +6,7 @@ import { GameState, rarityOdds, weekKey, SHOP_HEROES } from '../src/state';
 import { emberBulk, emberCost, emberRefund } from '../src/formulas';
 import { mulEffect } from '../src/skills';
 import {
-  HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, AURA_EVOLUTIONS, STAR_CRESTS, MAX_STARS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOTS_MAX, ULT_SLOT_COSTS,
+  HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, AURA_EVOLUTIONS, STAR_CRESTS, MAX_STARS, REGULAR_MAX_STARS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOTS_MAX, ULT_SLOT_COSTS,
   TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_MIN_PUSH, ROAD_START, ROAD_STEP, RELICS, RELIC_SETS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, TRIAL_QUICK_TIME, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, TRIAL_ROTATION, PLAYABLE_HEROES, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL, bossWeakness,
 } from '../src/data';
 
@@ -232,13 +232,39 @@ describe('medals, unlocks and evolution', () => {
     const s = fresh();
     s.crests[other.id] = 1e6;
     expect(s.evolve(other.id)).toBe(false); // still locked
-    s.crests[starter.id] = STAR_CRESTS.reduce((a, b) => a + b, 0) + 25;
-    for (let i = 0; i < MAX_STARS; i++) expect(s.evolve(starter.id)).toBe(true);
+    // Regular heroes top out at 7★ (REGULAR_MAX_STARS); only Ascendant heroes go to 8★.
+    s.crests[starter.id] = STAR_CRESTS.slice(0, REGULAR_MAX_STARS).reduce((a, b) => a + b, 0) + 25;
+    for (let i = 0; i < REGULAR_MAX_STARS; i++) expect(s.evolve(starter.id)).toBe(true);
     expect(s.evolve(starter.id)).toBe(false);
-    expect(s.stars[starter.id]).toBe(MAX_STARS);
+    expect(s.evolveCost(starter.id)).toBeNull();
+    expect(s.stars[starter.id]).toBe(REGULAR_MAX_STARS);
     // Leftover medals at max stars became Legendary medals.
     expect(s.legendaryMedals).toBe(Math.floor(25 / LEGENDARY_MEDAL_RATE));
     expect(s.crests[starter.id]).toBe(25 % LEGENDARY_MEDAL_RATE);
+  });
+
+  it('regular heroes stop at 7★, Ascendant heroes go on to 8★, and an older 8★ hero keeps it', () => {
+    const s = fresh();
+    expect(s.maxStars(starter.id)).toBe(REGULAR_MAX_STARS);
+    expect(s.maxStars('asc_dark')).toBe(MAX_STARS);
+    // At 7★ extra medals already turn into Legendary medals.
+    s.stars[starter.id] = REGULAR_MAX_STARS;
+    s.addCrests(starter.id, LEGENDARY_MEDAL_RATE * 3);
+    expect(s.legendaryMedals).toBe(3);
+    // An Ascendant hero at 7★ can still evolve.
+    s.levels.asc_dark = 1;
+    s.stars.asc_dark = REGULAR_MAX_STARS;
+    s.crests.asc_dark = STAR_CRESTS[REGULAR_MAX_STARS];
+    expect(s.evolve('asc_dark')).toBe(true);
+    expect(s.stars.asc_dark).toBe(MAX_STARS);
+    // A regular hero that reached 8★ before the cap keeps it through a save and load.
+    s.stars[other.id] = MAX_STARS;
+    s.levels[other.id] = 1;
+    s.save();
+    const t = new GameState();
+    expect(t.load()).toBe(true);
+    expect(t.stars[other.id]).toBe(MAX_STARS);
+    expect(t.evolveCost(other.id)).toBeNull();
   });
 
   it('Legendary heroes unlock and gain stars only from the shared Legendary medal pool', () => {
