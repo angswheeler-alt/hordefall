@@ -1177,12 +1177,13 @@ export const GUILD_BOSS_WEEK_MAX_CHESTS = 10;
 /**
  * Ascendant Chest (Samuel, 2026-10-21): Gems only, sold each week (Monday 00:00 UTC, with the Guild Boss) for the Ascendant
  * hero whose element beats that week's Guild Boss. Each buy gives that hero's crests plus a Hero Chest's drops for other
- * heroes; each buy costs more and gives more Ascendant crests, and the price resets every week. Test values until the
- * balance pass. Hidden while no Ascendant hero is released.
+ * heroes; each buy costs more and gives more Ascendant crests, and the price resets every week. All 10 buys give 516
+ * crests, and a hero's week comes every 5 weeks, so its final form (7★, about 5,000 crests) takes about a year of
+ * full buys. Hidden while no Ascendant hero is released.
  */
 export const ASCENDANT_CHEST: ReadonlyArray<{ gems: number; crests: number }> = [
-  { gems: 100, crests: 10 }, { gems: 150, crests: 12 }, { gems: 200, crests: 15 }, { gems: 300, crests: 18 }, { gems: 400, crests: 22 },
-  { gems: 500, crests: 26 }, { gems: 650, crests: 30 }, { gems: 800, crests: 35 }, { gems: 1000, crests: 40 }, { gems: 1250, crests: 50 },
+  { gems: 100, crests: 20 }, { gems: 150, crests: 24 }, { gems: 200, crests: 30 }, { gems: 300, crests: 36 }, { gems: 400, crests: 44 },
+  { gems: 500, crests: 52 }, { gems: 650, crests: 60 }, { gems: 800, crests: 70 }, { gems: 1000, crests: 80 }, { gems: 1250, crests: 100 },
 ];
 /** Boss for each week's element (guildBossElement / the server pick the element). */
 export const GUILD_BOSS_NAMES: Record<Element, string> = {
