@@ -912,14 +912,19 @@ export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
  * the team needs) and `req` is [heroes, Ember level] needed to enter.
  */
 export interface TrialLevel { essence: number; difficulty: number; req: [number, number] | null }
-const TRIAL_DIFFICULTY = [1, 10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 950, 1100, 1300, 1500, 1700, 2000, 2300, 2600, 2900, 3200, 3600];
+const TRIAL_DIFFICULTY = [1, 10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 950, 1100, 1300, 1500, 1700, 2000, 2300, 2600, 2900, 3200, 3600,
+  // Samuel (2026-10-22): higher levels so the top one takes years, not months (players reached 24 of 26 by day 90).
+  4000, 4300, 4700, 5200, 5700, 6200, 6800, 7400, 8100, 8800, 9600, 10500, 11500, 12600];
 const TRIAL_REQS: ([number, number] | null)[] = [
   null, null, null, null, null, null, null, null, null,
   [2, 100], [2, 200], [2, 300], [2, 400], [2, 500], [3, 600], [3, 750], [3, 850], [3, 1050], [3, 1250],
   [4, 1450], [4, 1700], [4, 2000], [4, 2300], [4, 2600], [5, 2850], [5, 4000],
+  [5, 4400], [5, 4800], [5, 5250], [5, 5750], [5, 6300], [5, 6900], [5, 7550], [5, 8250], [5, 9000], [5, 9800], [5, 10700], [5, 11700], [5, 12800], [5, 14000],
 ];
+/** Essence doubles each level up to level 26, then grows x1.5 a level: by then relics are mostly bought and Essence piles up. */
+export const TRIAL_ESSENCE_DOUBLING_LEVELS = 26;
 export const TRIAL_LEVELS: TrialLevel[] = TRIAL_DIFFICULTY.map((difficulty, i) => ({
-  essence: 20 * 2 ** i,
+  essence: Math.round(20 * 2 ** Math.min(i, TRIAL_ESSENCE_DOUBLING_LEVELS - 1) * 1.5 ** Math.max(0, i - (TRIAL_ESSENCE_DOUBLING_LEVELS - 1))),
   difficulty,
   req: TRIAL_REQS[i],
 }));
@@ -930,6 +935,15 @@ export const TRIAL_LEVELS: TrialLevel[] = TRIAL_DIFFICULTY.map((difficulty, i) =
  * (GameState.trialPool), so once a color's Commons are maxed its Trials pay Rares and Epics only (85% / 15%).
  */
 export const TRIAL_MEDALS = 2;
+/**
+ * First win at a Trial level, once per element (Samuel, 2026-10-22: balance the rewards across levels): from level 10,
+ * Hero Chests (1 per full 10 levels) and Enhance Stones, so each new level is worth reaching.
+ */
+export const TRIAL_FIRST_WIN_FROM = 10;
+export const TRIAL_FIRST_WIN_STONES = 2;
+export function trialFirstWin(tier: number): { chests: number; stones: number } | null {
+  return tier >= TRIAL_FIRST_WIN_FROM ? { chests: Math.floor(tier / 10), stones: TRIAL_FIRST_WIN_STONES } : null;
+}
 export const TRIAL_RARITY_WEIGHTS: Record<Exclude<Rarity, 'legendary'>, number> = { common: 80, rare: 17, epic: 3 };
 export const TRIAL_TIERS = TRIAL_LEVELS.length;
 export const TRIAL_TIME = 30;

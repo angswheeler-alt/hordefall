@@ -2,7 +2,7 @@ import { DEV_TOOLS } from './config';
 import Decimal from 'break_infinity.js';
 import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { HEROES, byRarity, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_BULK, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, byRarity, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_BULK, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, trialFirstWin, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
@@ -1522,7 +1522,9 @@ export class UI {
         ? ((s.trialBest[el] ?? 0) >= TRIAL_TIERS ? '<span class="win">Top level cleared</span><br>' : 'This is the top level<br>')
         : `<b>Win this level to open level ${tier + 1}</b>${nextReq}<br>`;
     $('tr-up').title = tier < top ? `Level ${tier + 1}` : next ? `Win level ${tier} to open level ${tier + 1}` : 'Top level';
-    setHtml($('tr-odds'), `Difficulty <b>${level.difficulty.toLocaleString()}</b> · reward <b>${fmt(level.essence)}</b> Essence · ${s.trialMedals()} crests${s.trialEventOn() ? ' (x2 weekend)' : ''}<br>${req}<br>${nextLine}${bestLine}<br>Boss HP <b>${fmt(trialHp(level))}</b> · team damage in ${TRIAL_TIME}s <b>${fmt(sim.dps.times(TRIAL_TIME))}</b> · <span class="${sim.won ? 'win' : 'lose'}">${sim.won ? 'Should be winnable' : 'Too strong for now'}</span>`);
+    const fw = tier > (s.trialBest[el] ?? 0) ? trialFirstWin(tier) : null;
+    const firstLine = fw ? `<br>First win: <b>${fw.chests} Hero Chest${fw.chests === 1 ? '' : 's'}</b> and <b>${fw.stones} Enhance Stones</b>` : '';
+    setHtml($('tr-odds'), `Difficulty <b>${level.difficulty.toLocaleString()}</b> · reward <b>${fmt(level.essence)}</b> Essence · ${s.trialMedals()} crests${s.trialEventOn() ? ' (x2 weekend)' : ''}${firstLine}<br>${req}<br>${nextLine}${bestLine}<br>Boss HP <b>${fmt(trialHp(level))}</b> · team damage in ${TRIAL_TIME}s <b>${fmt(sim.dps.times(TRIAL_TIME))}</b> · <span class="${sim.won ? 'win' : 'lose'}">${sim.won ? 'Should be winnable' : 'Too strong for now'}</span>`);
     const fight = $<HTMLButtonElement>('tr-fight');
     const have = s.trialTickets();
     fight.disabled = !unlocked || have <= 0 || !reqMet;
@@ -1620,7 +1622,9 @@ export class UI {
       const h = HEROES.find((x) => x.id === id)!;
       return `<span class="trial-medal"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span><b>${h.name}</b><small>x${n}</small></span>`;
     }).join('');
-    return `+${fmt(result.essence)} ${ESSENCE_NAMES[el]}${result.stones ? ` · +${result.stones} Enhance Stone${result.stones === 1 ? '' : 's'}` : ''} · ${result.medals.length} crest${result.medals.length === 1 ? '' : 's'}:</p><div class="trial-won">${faces}</div>`;
+    const fw = result.firstWin;
+    const first = fw ? `<p>First win at this level: <b>${fw.chests} Hero Chest${fw.chests === 1 ? '' : 's'}</b> (${fw.drops.reduce((t, d) => t + d.crests, 0)} crests) and <b>${fw.stones} Enhance Stones</b>.</p>` : '';
+    return `+${fmt(result.essence)} ${ESSENCE_NAMES[el]}${result.stones ? ` · +${result.stones} Enhance Stone${result.stones === 1 ? '' : 's'}` : ''} · ${result.medals.length} crest${result.medals.length === 1 ? '' : 's'}:</p><div class="trial-won">${faces}</div>${first}`;
   }
 
   // ---------- Colosseum ----------

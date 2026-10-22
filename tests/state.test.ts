@@ -536,6 +536,25 @@ describe('live trial fights', () => {
     expect(s.trialTime(element, 1)).toBe(12);
   });
 
+  it('the first win at a level from 10 up pays Hero Chests and Enhance Stones once per element', () => {
+    const { s, element } = ready();
+    for (const h of HEROES.slice(0, 2)) { s.levels[h.id] = 1; s.emberLevels[h.id] = 200; }
+    s.trialBest[element] = 9;
+    const stones = s.enhanceStones;
+    const r = s.finishTrial(element, 10, true, 20)!;
+    expect(r.firstWin).toMatchObject({ chests: 1, stones: 2 });
+    expect(r.firstWin!.drops.length).toBe(CHEST_DROPS);
+    expect(s.enhanceStones).toBe(stones + r.stones + 2);
+    expect(s.finishTrial(element, 10, true, 20)!.firstWin).toBeUndefined();
+    expect(s.finishTrial(element, 9, true, 20)!.firstWin).toBeUndefined();
+  });
+
+  it('Trials go to level 40 and the top levels need Ember far past day-90 players (~2,800)', () => {
+    expect(TRIAL_LEVELS.length).toBe(40);
+    expect(TRIAL_LEVELS[39].req).toEqual([5, 14000]);
+    for (let i = 27; i < TRIAL_LEVELS.length; i++) expect(TRIAL_LEVELS[i].req![1]).toBeGreaterThan(TRIAL_LEVELS[i - 1].req![1]);
+  });
+
   it("can't skip ahead or play without a ticket", () => {
     const { s, element } = ready();
     expect(s.canStartTrial(element, 3)).toBe(false);
