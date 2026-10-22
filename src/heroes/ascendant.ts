@@ -178,8 +178,9 @@ const ascLight: AscendantDef = {
   steps: standardSteps(900),
 };
 
-// ---- Water: Spout, a shelled water cannon. Durable artillery; slow attacks, slow walker. ----
-// His own moves: Torrent (hits harder and hides in his shell when hurt), and a cannon blast that soaks and pushes.
+// ---- Water: Marisel, a water mage. Steady area caster; sturdier than most mages, slow walker. ----
+// Her own moves: Tidal Veil (a water barrier when hurt: she casts harder and takes less), and a tide that soaks and
+// pushes, which becomes a water dragon in her final form.
 const waterC: Charge[] = [
   { stacks: 4, boost: 'damage', value: 1 },
   { stacks: 4, boost: 'area', value: 1 },
@@ -187,43 +188,44 @@ const waterC: Charge[] = [
   { stacks: 3, boost: 'area', value: 2.5 },
 ];
 const torrentText = (below: number, dmg: number, guard: number) =>
-  `Under ${below}% HP he pulls into his shell and fires harder: +${dmg}% damage and ${guard}% less damage taken.`;
+  `Under ${below}% HP a veil of water wraps around her: +${dmg}% damage and ${guard}% less damage taken.`;
 const ascWater: AscendantDef = {
   base: {
-    ...base, id: 'asc_water', name: 'Spout', element: 'water', type: 'Gunner', baseAtk: 6, baseHp: 52, range: 160, attackCooldown: 1.3, moveSpeed: 95,
+    ...base, id: 'asc_water', name: 'Marisel', element: 'water', type: 'Magician', baseAtk: 6, baseHp: 46, range: 150, attackCooldown: 1.3, moveSpeed: 95, splash: 20,
     signature: { kind: 'torrent', below: 0.4, plusBelow: 0.6, dmg: 1.5, guard: 0.6 },
-    sigPlus: 'Torrent starts under 60% HP.',
+    sigPlus: 'The veil rises under 60% HP.',
     ult: { kind: 'hydro', push: 140, slow: 0.5, seconds: 3, plusSeconds: 5 },
     ultPlus: 'Enemies stay soaked for 5 seconds.',
-    bio: 'A cheerful little turtle who squirts water hard enough to sting.',
-    basic: { name: 'Water Jet', text: 'Strong water jets at the nearest enemy.' },
-    ultimate: { name: 'Hydro Blast', text: `${ULT('A blast of water hits')} Pushes regular enemies back and soaks everyone hit: they move and attack at half speed for 3 seconds.` },
-    trait: sig('Torrent Shell', torrentText(40, 50, 40), waterC[0], 'water'),
-    sp1: { name: 'Double Squirt', text: '20% chance for each attack to fire twice.', effect: { kind: 'doubleStrike', value: 0.2 } },
-    sp2: { name: 'Iron Shell', text: 'Takes 25% less damage.', effect: { kind: 'damageTaken', value: 0.75 } },
-    aura: { name: 'Shell Wall', text: 'Water heroes +20% HP.', effect: { kind: 'hp', value: 1.2, team: true, element: 'water' } },
+    bio: 'A quiet young mage in a black robe whose water magic is far stronger than she believes.',
+    basic: { name: 'Water Bolt', text: 'Bolts of water that also hit enemies close to the target.' },
+    ultimate: { name: 'Tide Surge', text: `${ULT('A surging tide hits')} Pushes regular enemies back and soaks everyone hit: they move and attack at half speed for 3 seconds.` },
+    trait: sig('Tidal Veil', torrentText(40, 50, 40), waterC[0], 'water'),
+    sp1: { name: 'Twin Bolts', text: '20% chance for each attack to cast twice.', effect: { kind: 'doubleStrike', value: 0.2 } },
+    sp2: { name: 'Still Water', text: 'Takes 25% less damage.', effect: { kind: 'damageTaken', value: 0.75 } },
+    aura: { name: 'Tidecall', text: 'Water heroes +20% HP.', effect: { kind: 'hp', value: 1.2, team: true, element: 'water' } },
   },
   forms: [
-    { formName: 'Puddle Shell', art: 'asc_water', charge: waterC[0] },
-    { formName: 'Swirl Shell', art: 'asc_water_f2', baseAtk: 6.6, baseHp: 58, attackCooldown: 1.25, charge: waterC[1],
-      bio: 'Bigger and bolder. He spins in his shell to spray water all around.',
-      trait: sig('Torrent Shell', torrentText(40, 50, 40), waterC[1], 'water') },
-    { formName: 'Twin Cannon', art: 'asc_water_f3', baseAtk: 7.2, baseHp: 64, attackCooldown: 1.2, range: 175, charge: waterC[2],
-      bio: 'A heavy tortoise with two steel water cannons on his shell.',
-      basic: { name: 'Twin Jets', text: 'High-pressure jets from both cannons.' },
+    { formName: 'Tide Apprentice', art: 'asc_water', charge: waterC[0] },
+    { formName: 'Silver Valkyrie', art: 'asc_water_f2', baseAtk: 6.6, baseHp: 50, attackCooldown: 1.25, charge: waterC[1],
+      bio: 'Her magic takes shape as silver armor, a winged staff and a cloak of flowing water.',
+      basic: { name: 'Water Lance', text: 'Lances of water that also hit enemies close to the target.' },
+      trait: sig('Tidal Veil', torrentText(40, 50, 40), waterC[1], 'water') },
+    { formName: 'Wyrm Armor', art: 'asc_water_f3', baseAtk: 7.2, baseHp: 55, attackCooldown: 1.2, range: 165, charge: waterC[2],
+      bio: 'Dragon-scale armor and wings of water: she rides the waves into battle.',
+      basic: { name: 'Wyrm Spray', text: 'Piercing sprays of water that also hit enemies close to the target.' },
       signature: { kind: 'torrent', below: 0.4, plusBelow: 0.6, dmg: 1.6, guard: 0.55 },
-      trait: sig('Torrent Shell', torrentText(40, 60, 45), waterC[2], 'water'),
+      trait: sig('Tidal Veil', torrentText(40, 60, 45), waterC[2], 'water'),
       ult: { kind: 'hydro', push: 170, slow: 0.45, seconds: 3.5, plusSeconds: 5.5 },
       ultPlus: 'Enemies stay soaked for 5.5 seconds.',
-      ultimate: { name: 'Twin Hydro Blast', text: `${ULT('Two blasts of water hit')} Pushes regular enemies back and soaks everyone hit: they move and attack at 45% speed for 3.5 seconds.` } },
-    { formName: 'Megabore', art: 'asc_water_f4', baseAtk: 7.8, baseHp: 72, attackCooldown: 1.15, range: 185, splash: 30, charge: waterC[3],
-      bio: 'His final form: a towering armored tortoise with one giant central cannon.',
-      basic: { name: 'Cannon Blast', text: 'Cannon blasts that also hit enemies close to the target.' },
+      ultimate: { name: 'Great Tide', text: `${ULT('A great wave hits')} Pushes regular enemies back and soaks everyone hit: they move and attack at 45% speed for 3.5 seconds.` } },
+    { formName: 'Tidewyrm Queen', art: 'asc_water_f4', baseAtk: 7.8, baseHp: 60, attackCooldown: 1.15, range: 175, splash: 30, charge: waterC[3],
+      bio: 'Her final form: wrapped in a living water dragon, with a blade of pure water in hand.',
+      basic: { name: 'Tide Blade', text: 'Waves from her water blade that also hit enemies close to the target.' },
       signature: { kind: 'torrent', below: 0.4, plusBelow: 0.6, dmg: 1.8, guard: 0.5 },
-      trait: sig('Full Torrent', torrentText(40, 80, 50), waterC[3], 'water'),
+      trait: sig('Dragon Veil', torrentText(40, 80, 50), waterC[3], 'water'),
       ult: { kind: 'hydro', push: 200, slow: 0.4, seconds: 4, plusSeconds: 6 },
       ultPlus: 'Enemies stay soaked for 6 seconds.',
-      ultimate: { name: 'Megabore Blast', text: `${ULT('The giant cannon blasts')} Pushes regular enemies far back and soaks everyone hit: they move and attack at 40% speed for 4 seconds.` } },
+      ultimate: { name: 'Tidewyrm Roar', text: `${ULT('Her water dragon crashes through')} Pushes regular enemies far back and soaks everyone hit: they move and attack at 40% speed for 4 seconds.` } },
   ],
   // Water counters the Fire element boss (stage 600).
   steps: standardSteps(600),
