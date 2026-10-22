@@ -68,7 +68,7 @@ import { MOB_ANIMS } from './mobAnims';
 import { MOB_ELEMENTS, MOB_KINDS, pickMob, type MobId } from './mobs';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES, type BossAnim } from './bossAnims';
 import type { EffectKind } from './data';
-import { comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS } from './kits';
+import { comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets } from './kits';
 import { STAT_BASE, FREEZE_BLAST_RADIUS, BOSS_STUN_CHANCE, BOSS_STUN_SECONDS, type HeroStats } from './stats';
 import { heroProfile } from './profiles';
 import { canReach, pickVictim } from './reach';
@@ -196,6 +196,12 @@ interface Unit {
   streak: number;
   /** Ascendant heroes: attacks in a row toward the next charged Signature (src/ascendant.ts). */
   chargeStacks: number;
+  /** Hollow-style mask (Signature 'mask'): already worn this life. */
+  maskUsed?: boolean;
+  /** Zeal (Signature 'zeal'): attacks in a row. */
+  zeal: number;
+  /** Sanctuary: takes no damage until this time. */
+  guardUntil: number;
   /** Burning (Kindling, Meteor ground): damage per second until burnUntil, from burnBy. */
   burnUntil: number;
   burnDps: Decimal;
@@ -636,6 +642,8 @@ export class BattleScene extends Phaser.Scene {
       barWidth,
       streak: 0,
       chargeStacks: 0,
+      zeal: 0,
+      guardUntil: 0,
       burnUntil: 0,
       burnDps: new Decimal(0),
       burnTick: 0,
@@ -1515,6 +1523,8 @@ export class BattleScene extends Phaser.Scene {
       }
       if (!target) return;
     }
+    // Walking breaks a Zeal streak.
+    h.zeal = 0;
     // Walk at this hero's own Move Speed, held to its Type's place in the team (src/movement.ts).
     const stopAt = ENEMY_CRYSTAL_X - 14 - Math.min(h.range, 30);
     const team = this.heroes.map((u) => ({ x: u.x, type: u.def!.type, alive: u.alive, engaged: !!u.engaged }));
@@ -1526,7 +1536,7 @@ export class BattleScene extends Phaser.Scene {
   /** Seconds until a hero's next attack: Atk per sec from the stat sheet, sped up by Rogue Wave+ and Frenzy. */
   private cooldownFor(h: Unit) {
     const base = h.stats ? 1 / h.stats.attacksPerSec.value : h.cooldown;
-    return base * (h.hasteUntil > this.clock ? h.hasteMult : 1);
+    return base * (h.hasteUntil > this.clock ? h.hasteMult : 1) * zealState(h.def?.signature, h.zeal, this.sigPlus(h)).cooldown;
   }
 
   /** Enemies the heroes fight: everyone but those under Puppet Bind for now. */
@@ -1641,10 +1651,25 @@ export class BattleScene extends Phaser.Scene {
       if (this.mastery(target, 'Rogue')) target.riposte = true;
       return;
     }
-    const mult = this.elem(e, target) * this.mul('damageTaken', target) * (e.weakUntil > this.clock ? e.weakMult : 1);
-    const dmg = defended(e.atk.times(mult), target.defense);
+    const torrent = torrentMults(target.def?.signature, this.hpRatio(target), this.sigPlus(target)).taken;
+    const mult = this.elem(e, target) * this.mul('damageTaken', target) * (e.weakUntil > this.clock ? e.weakMult : 1) * torrent;
+    let dmg = defended(e.atk.times(mult), target.defense);
+    // Wraith Mask: once a life, a hit that would take the hero under the line (even a killing blow) leaves him
+    // standing; then the mask heals him and he fights faster for a while.
+    const mask = target.def?.signature;
+    const left = target.maxHp.gt(0) ? target.hp.plus(target.shield).minus(dmg).div(target.maxHp).toNumber() : 1;
+    const masked = target.alive && mask?.kind === 'mask' && maskTriggers(mask, left, !!target.maskUsed);
+    if (masked) dmg = Decimal.min(dmg, Decimal.max(0, target.hp.plus(target.shield).minus(target.maxHp.times(0.01))));
     if (target.alive) this.meter(e, 'dealt', Decimal.min(dmg, target.hp.plus(target.shield)));
     this.damageUnit(target, dmg, null);
+    if (masked && target.alive && mask?.kind === 'mask') {
+      target.maskUsed = true;
+      this.heal(target, target.maxHp.times(mask.heal), target);
+      target.hasteMult = mask.haste;
+      target.hasteUntil = this.clock + (this.sigPlus(target) ? mask.plusSeconds : mask.seconds);
+      this.floatText(target.x, target.y - 34, 'MASK ON', '#e0c8ff', 11);
+      this.puff(target.x, target.y, 0x2b1640);
+    }
     // Frost Curse: the enemy that fells this hero freezes and takes more damage.
     const curse = target.def?.signature;
     if (!target.alive && curse?.kind === 'curse' && e.alive) {
@@ -1706,7 +1731,13 @@ export class BattleScene extends Phaser.Scene {
       h.hasteMult = STAT_BASE.frenzyHaste;
       this.floatText(h.x, h.y - 30, 'FRENZY', '#ff7ad9', 9);
     }
-    const strikes = Math.random() < this.sum('doubleStrike', h) ? 2 : 1;
+    // Barrage: every Nth attack is a flurry of quick blows instead of the double-strike roll.
+    const barrage = barrageHits(def.signature, h.attacks, this.sigPlus(h));
+    const strikes = barrage > 1 ? barrage : Math.random() < this.sum('doubleStrike', h) ? 2 : 1;
+    if (barrage > 1) this.floatText(h.x, h.y - 34, 'BARRAGE!', '#ffb36b', 10);
+    // Zeal: each attack in a row speeds up the next ones (cooldownFor), and a full streak sends out light waves.
+    if (def.signature?.kind === 'zeal') h.zeal++;
+    const zealWave = zealState(def.signature, h.zeal, this.sigPlus(h)).wave;
     const nth = everyNth(this.state.effects(), def.id);
     const fx = this.state.effects();
     const slam = procEffect(fx, 'slam', def.id);
@@ -1769,6 +1800,7 @@ export class BattleScene extends Phaser.Scene {
       if (this.control(target, 0.5)) this.floatText(target.x, target.y - 30, 'STUN', '#ffd84a', 9);
     }
     const beacon = h.beaconUntil > this.clock ? h.beaconMult : 1;
+    const torrentDmg = torrentMults(sig, this.hpRatio(h), this.sigPlus(h)).dmg;
     let dealt = new Decimal(0);
     for (let i = 0; i < strikes; i++) {
       // Hawkeye: shots at an enemy at full HP always crit. Owl Eyes: shots at flyers always crit.
@@ -1783,8 +1815,9 @@ export class BattleScene extends Phaser.Scene {
       const slammed = procs(slam, h.attacks);
       if (slammed) atk = atk.times(slam!.value);
       if (procs(assassin, h.attacks)) atk = atk.times(assassin!.value);
+      if (barrage > 1 && sig?.kind === 'barrage') atk = atk.times(sig.mult);
       const rolled = procs(snowball, h.attacks);
-      const splash = def.splash ? def.splash * (1 + st.aoeRadius) : slammed ? SLAM_RADIUS : 0;
+      const splash = def.splash ? Math.max(def.splash * (1 + st.aoeRadius), zealWave) : slammed ? SLAM_RADIUS : zealWave;
       let targets: Unit[];
       if (charged?.boost === 'area') targets = this.enemies.filter((e) => e.alive && Math.abs(e.x - target.x) <= Math.max(splash, CHARGE_AREA));
       else if (charged?.boost === 'pierce') targets = [target, ...this.enemies.filter((e) => e.alive && e !== target && e.x > target.x && e.x - target.x <= CHARGE_LINE)];
@@ -1805,7 +1838,8 @@ export class BattleScene extends Phaser.Scene {
           executeMult(sig, t.maxHp.gt(0) ? t.hp.div(t.maxHp).toNumber() : 1, this.sigPlus(h)) *
           (t.burnUntil > this.clock ? vsBurning : 1) *
           (splash ? 1 + st.aoeDmg : 1) *
-          (charged ? chargeDamageMult(charged, t.isBoss) : 1);
+          (charged ? chargeDamageMult(charged, t.isBoss) : 1) *
+          torrentDmg;
         const amount = atk.times(mult);
         // Lifesteal only counts hits that land (element-locked bosses shrug off the rest).
         if (t.lockStage === undefined || !bossImmuneTo(t.lockStage, this.dealsAs(h))) dealt = dealt.plus(amount);
@@ -1819,6 +1853,17 @@ export class BattleScene extends Phaser.Scene {
           t.markMult = Math.max(t.markUntil > this.clock ? t.markMult : 1, snowball!.value);
           t.markUntil = Math.max(t.markUntil, this.clock + SNOWBALL_SECONDS);
         }
+      }
+    }
+    // Spirit: every Nth attack the hero's spirit also hits other enemies in reach.
+    const spirits = spiritTargets(sig, h.attacks, this.sigPlus(h));
+    if (spirits > 0 && sig?.kind === 'spirit') {
+      const others = this.foes().filter((e) => e.alive && e !== target && Math.abs(e.x - h.x) <= h.range && this.reaches(h, e)).slice(0, spirits);
+      for (const o of others) {
+        this.shot(h, o.x, o.y, ELEMENT_COLORS[def.element]);
+        const amount = h.atk.times(sig.mult * this.elem(element, o) * (o.isBoss ? bossMult : 1));
+        dealt = dealt.plus(amount);
+        this.damageUnit(o, amount, h);
       }
     }
     if (lifesteal > 0 && h.alive && h.hp.lt(h.maxHp)) {
@@ -1963,6 +2008,8 @@ export class BattleScene extends Phaser.Scene {
   private damageUnit(target: Unit, amount: Decimal, source: Unit | null, crit = false) {
     if (!target.alive) return;
     if (this.immune(target, source)) return;
+    // Sanctuary: no damage at all for a while.
+    if (target.side === 'hero' && target.guardUntil > this.clock) return;
     if (target.side === 'enemy' && target.markUntil > this.clock) amount = amount.times(target.markMult);
     if (target.side === 'enemy') amount = amount.times(this.mul('enemyVuln', null));
     let toHp = amount;
@@ -2097,6 +2144,8 @@ export class BattleScene extends Phaser.Scene {
     } else {
       u.respawnAt = respawnTime(this.clock, this.mul('respawn', null) * (this.pvp ? PVP_RESPAWN_MULT : 1));
       u.chargeStacks = 0;
+      u.zeal = 0;
+      u.maskUsed = false;
       this.puff(u.x, u.y, 0xffffff);
       if (this.trial) u.view.setVisible(false);
       else this.ghostHero(u);
@@ -2218,6 +2267,17 @@ export class BattleScene extends Phaser.Scene {
       }
       return true;
     }
+    if (ult?.kind === 'crescent') {
+      // A crescent wave down the whole lane: everything ahead takes the hit, bosses more.
+      const wave = this.add.rectangle(h.x + 20, h.y, 14, 60, color, 0.6).setDepth(999);
+      this.tweens.add({ targets: wave, x: ENEMY_CRYSTAL_X, alpha: 0.15, duration: 420, onComplete: () => wave.destroy() });
+      this.cameras.main.shake(300, 0.015);
+      for (const e of this.enemies.filter((e) => e.alive && e.x >= h.x - 30)) {
+        this.damageUnit(e, dmg.times(this.elem(this.dealsAs(h), e) * (e.isBoss ? (plus ? ult.plusMult : ult.mult) : 1)), h, e.isBoss);
+      }
+      if (!this.bossAlive()) this.damageCrystal(dmg, h);
+      return true;
+    }
     const radius = 170;
     const ring = this.add.circle(h.x + 60, h.y, 10, color, 0.45).setDepth(999);
     this.tweens.add({ targets: ring, radius, alpha: 0, duration: 380, onComplete: () => ring.destroy() });
@@ -2292,9 +2352,51 @@ export class BattleScene extends Phaser.Scene {
           }
         }
         break;
+      case 'bounce':
+        for (const e of living) {
+          if (this.control(e, plus ? ult.plusSeconds : ult.seconds)) this.floatText(e.x, e.y - 40, 'STUN', '#ffd84a', 9);
+        }
+        break;
+      case 'sanctuary': {
+        const alive = this.heroes.filter((a) => a.alive);
+        const safe = plus ? alive : alive.sort((a, b) => this.hpRatio(a) - this.hpRatio(b)).slice(0, 1);
+        for (const a of safe) {
+          a.guardUntil = this.clock + (plus ? ult.plusSeconds : ult.seconds);
+          this.floatText(a.x, a.y - 34, 'SANCTUARY', '#fff1a8', 10);
+          this.puff(a.x, a.y, 0xfff6a0);
+        }
+        break;
+      }
+      case 'hydro':
+        for (const e of living) {
+          if (!e.isBoss) {
+            e.x = Math.min(e.x + ult.push, ENEMY_CRYSTAL_X - 12);
+            this.tweens.add({ targets: e.view, x: e.x, duration: 260, ease: 'Quad.out' });
+          }
+          e.slowMult = ult.slow;
+          e.slowUntil = this.clock + (plus ? ult.plusSeconds : ult.seconds);
+          this.floatText(e.x, e.y - 40, 'SOAKED', '#9fdcff', 9);
+        }
+        break;
+      case 'tempest': {
+        const pulled = living.filter((e) => !e.isBoss);
+        if (!pulled.length) break;
+        const mid = pulled.reduce((sum, e) => sum + e.x, 0) / pulled.length;
+        for (const e of pulled) {
+          e.x = mid + (e.x - mid) * 0.2;
+          this.tweens.add({ targets: e.view, x: e.x, duration: 300, ease: 'Quad.in' });
+          if (this.control(e, plus ? ult.plusSeconds : ult.seconds)) this.floatText(e.x, e.y - 40, 'CAUGHT', '#b5e48c', 9);
+        }
+        break;
+      }
       default:
         break;
     }
+  }
+
+  /** Share of max HP a unit has left. */
+  private hpRatio(u: Unit): number {
+    return u.maxHp.gt(0) ? u.hp.div(u.maxHp).toNumber() : 0;
   }
 
   private tryAutoUlt(h: Unit) {

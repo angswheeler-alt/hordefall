@@ -54,7 +54,18 @@ export type Signature =
   /** Hits push regular enemies `push` px back. */
   | { kind: 'knockback'; push: number }
   /** When this hero falls, the enemy that did it is frozen for `seconds` and takes `mult` damage meanwhile. */
-  | { kind: 'curse'; seconds: number; mult: number };
+  | { kind: 'curse'; seconds: number; mult: number }
+  // Ascendant heroes' own Signatures (src/heroes/ascendant.ts); the 6★ twist is the plus field.
+  /** Once per life, when HP drops below `below`: heals `heal` of max HP and attacks at `haste` cooldown for `seconds` (6★: plusSeconds). */
+  | { kind: 'mask'; below: number; heal: number; haste: number; seconds: number; plusSeconds: number }
+  /** Every `every`th attack is `hits` quick blows of `mult` damage each (6★: plusHits blows). */
+  | { kind: 'barrage'; every: number; hits: number; plusHits: number; mult: number }
+  /** Each attack in a row adds `perStack` attack speed, up to `max` stacks (6★: plusMax); from `waveAt` stacks attacks also hit enemies within `wave` px. */
+  | { kind: 'zeal'; perStack: number; max: number; plusMax: number; waveAt: number; wave: number }
+  /** Below `below` of max HP (6★: plusBelow): deals `dmg` damage and takes `guard` damage. */
+  | { kind: 'torrent'; below: number; plusBelow: number; dmg: number; guard: number }
+  /** Every `every`th attack the hero's spirit also hits `targets` other enemies in reach for `mult` damage (6★: plusTargets). */
+  | { kind: 'spirit'; every: number; targets: number; plusTargets: number; mult: number };
 
 /** What a standard hero's Ultimate does on top of the big hit (or full heal), and its 5★ twist. */
 export type UltEffect =
@@ -75,7 +86,18 @@ export type UltEffect =
   /** Healers: on top of the full heal, shields every living hero for `share` of the caster's max HP (5★: plusShare). */
   | { kind: 'teamShield'; share: number; plusShare: number }
   /** Enemies hit deal `mult` damage for `seconds` (5★: plusSeconds). */
-  | { kind: 'weaken'; mult: number; seconds: number; plusSeconds: number };
+  | { kind: 'weaken'; mult: number; seconds: number; plusSeconds: number }
+  // Ascendant heroes' own Ultimates.
+  /** A wave down the whole lane: every enemy ahead takes the hit, bosses `mult` x it (5★: plusMult). */
+  | { kind: 'crescent'; mult: number; plusMult: number }
+  /** Stuns every enemy hit for `seconds` (bosses half as long; 5★: plusSeconds). */
+  | { kind: 'bounce'; seconds: number; plusSeconds: number }
+  /** The most injured hero takes no damage for `seconds` (5★: the whole team, plusSeconds). */
+  | { kind: 'sanctuary'; seconds: number; plusSeconds: number }
+  /** Pushes regular enemies `push` px back and soaks every enemy hit: `slow` speed for `seconds` (5★: plusSeconds). */
+  | { kind: 'hydro'; push: number; slow: number; seconds: number; plusSeconds: number }
+  /** Pulls regular enemies hit together at the middle of the blast and holds them for `seconds` (5★: plusSeconds). */
+  | { kind: 'tempest'; seconds: number; plusSeconds: number };
 
 export interface HeroDef {
   id: string;

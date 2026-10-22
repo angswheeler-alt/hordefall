@@ -62,3 +62,33 @@ export function splitHeal(sig: Signature | undefined, amount: Decimal, missing: 
   const cap = maxHp.times(plus ? SIG_PLUS.overhealCap : sig.cap);
   return { hp, shield: Decimal.max(shield, Decimal.min(cap, shield.plus(amount.minus(hp)))) };
 }
+
+/** Wraith Mask (Ascendant Dark): whether a hit leaving `hpRatio` of max HP (0 or less = a killing blow) puts the mask on, if not used this life. */
+export function maskTriggers(sig: Signature | undefined, hpRatio: number, used: boolean): boolean {
+  return sig?.kind === 'mask' && !used && hpRatio < sig.below;
+}
+
+/** Barrage: how many blows this attack is (1 unless it is the every-Nth one). */
+export function barrageHits(sig: Signature | undefined, attacks: number, plus = false): number {
+  if (sig?.kind !== 'barrage' || attacks % sig.every !== 0) return 1;
+  return plus ? sig.plusHits : sig.hits;
+}
+
+/** Zeal: attack cooldown multiplier and splash radius at `stacks` attacks in a row. */
+export function zealState(sig: Signature | undefined, stacks: number, plus = false): { stacks: number; cooldown: number; wave: number } {
+  if (sig?.kind !== 'zeal') return { stacks: 0, cooldown: 1, wave: 0 };
+  const n = Math.min(stacks, plus ? sig.plusMax : sig.max);
+  return { stacks: n, cooldown: 1 / (1 + n * sig.perStack), wave: n >= sig.waveAt ? sig.wave : 0 };
+}
+
+/** Torrent: damage dealt and damage taken multipliers at `hpRatio` of max HP. */
+export function torrentMults(sig: Signature | undefined, hpRatio: number, plus = false): { dmg: number; taken: number } {
+  if (sig?.kind !== 'torrent' || hpRatio >= (plus ? sig.plusBelow : sig.below)) return { dmg: 1, taken: 1 };
+  return { dmg: sig.dmg, taken: sig.guard };
+}
+
+/** Spirit: how many extra enemies the spirit hits on this attack. */
+export function spiritTargets(sig: Signature | undefined, attacks: number, plus = false): number {
+  if (sig?.kind !== 'spirit' || attacks % sig.every !== 0) return 0;
+  return plus ? sig.plusTargets : sig.targets;
+}
