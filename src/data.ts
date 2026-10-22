@@ -89,7 +89,7 @@ export type UltEffect =
   | { kind: 'weaken'; mult: number; seconds: number; plusSeconds: number }
   // Ascendant heroes' own Ultimates.
   /** A wave down the whole lane: every enemy ahead takes the hit, bosses `mult` x it (5★: plusMult). */
-  | { kind: 'crescent'; mult: number; plusMult: number }
+  | { kind: 'crescent'; mult: number; plusMult: number; lane: number }
   /** Stuns every enemy hit for `seconds` (bosses half as long; 5★: plusSeconds). */
   | { kind: 'bounce'; seconds: number; plusSeconds: number }
   /** The most injured hero takes no damage for `seconds` (5★: the whole team, plusSeconds). */

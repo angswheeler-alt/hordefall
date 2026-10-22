@@ -2280,12 +2280,12 @@ export class BattleScene extends Phaser.Scene {
       return true;
     }
     if (ult?.kind === 'crescent') {
-      // A crescent wave down the whole lane: everything ahead takes the hit, bosses more.
+      // A crescent wave down the whole lane: everything ahead takes `lane` of the hit, bosses `mult` of it.
       const wave = this.add.rectangle(h.x + 20, h.y, 14, 60, color, 0.6).setDepth(999);
       this.tweens.add({ targets: wave, x: ENEMY_CRYSTAL_X, alpha: 0.15, duration: 420, onComplete: () => wave.destroy() });
       this.cameras.main.shake(300, 0.015);
       for (const e of this.enemies.filter((e) => e.alive && e.x >= h.x - 30)) {
-        this.damageUnit(e, dmg.times(this.elem(this.dealsAs(h), e) * (e.isBoss ? (plus ? ult.plusMult : ult.mult) : 1)), h, e.isBoss);
+        this.damageUnit(e, dmg.times(this.elem(this.dealsAs(h), e) * (e.isBoss ? (plus ? ult.plusMult : ult.mult) : ult.lane)), h, e.isBoss);
       }
       if (!this.bossAlive()) this.damageCrystal(dmg, h);
       return true;
