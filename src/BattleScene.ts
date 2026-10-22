@@ -402,8 +402,7 @@ export class BattleScene extends Phaser.Scene {
     for (const r of [...REGIONS, 'colosseum']) for (const layer of ['sky', 'far', 'ground']) this.load.image(`bg-${r}-${layer}`, `bg/${r}_${layer}.png`);
     // Hero sprites (32x32, feet on row 30). A hero without a file falls back to its placeholder block.
     for (const h of HEROES) if (HERO_ANIMS[h.id]) this.load.image(`hero-${h.id}`, `heroes/${h.id}.png`);
-    // Ascendant heroes' form art (src/ascendant.ts), for forms whose art has landed.
-    for (const a of ASCENDANT_HEROES) for (const f of a.forms) if (f.art && HERO_ANIMS[f.art]) this.load.image(`hero-${f.art}`, `heroes/${f.art}.png`);
+    // Ascendant heroes' later forms (src/ascendant.ts) need no standing file: create() cuts it from the attack strip.
     for (const [id, a] of Object.entries(HERO_ANIMS)) {
       const size = { frameWidth: a.frame[0], frameHeight: a.frame[1] };
       this.load.spritesheet(`hero-${id}-run`, `heroes/${id}_run.png`, size);
@@ -425,6 +424,15 @@ export class BattleScene extends Phaser.Scene {
 
   create() {
     this.makeTextures();
+    // A later form's standing pose is the first attack frame, as animate.js draws it (fewer files to ship).
+    for (const a of ASCENDANT_HEROES) for (const f of a.forms) {
+      const anim = f.art && HERO_ANIMS[f.art];
+      if (!anim || this.textures.exists(`hero-${f.art}`) || !this.textures.exists(`hero-${f.art}-attack`)) continue;
+      const [w, h] = anim.frame;
+      const tex = this.textures.createCanvas(`hero-${f.art}`, w, h)!;
+      tex.context.drawImage(this.textures.get(`hero-${f.art}-attack`).getSourceImage() as CanvasImageSource, 0, 0, w, h, 0, 0, w, h);
+      tex.refresh();
+    }
     for (const [id, a] of Object.entries(HERO_ANIMS)) {
       if (!this.anims.exists(`${id}-run`)) {
         this.anims.create({ key: `${id}-run`, frames: this.anims.generateFrameNumbers(`hero-${id}-run`, { start: 0, end: a.run - 1 }), frameRate: RUN_FPS, repeat: -1 });
