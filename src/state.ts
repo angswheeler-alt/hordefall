@@ -1928,45 +1928,6 @@ export class GameState {
     return this.payTrial(element, tier, { won: true, seconds: 0, essence: 0, stones: 0, medals: [] });
   }
 
-  /** For Quick all: each open Trial's highest level that can be Quick Battled right now. */
-  quickAllPlan(): { element: Element; tier: number }[] {
-    const plan: { element: Element; tier: number }[] = [];
-    if (!this.trialsUnlocked()) return plan;
-    for (const element of this.openTrials()) {
-      for (let tier = this.trialUnlocked(element); tier >= 1; tier--) {
-        if (this.canQuickTrial(element, tier) && this.trialReqMet(tier)) {
-          plan.push({ element, tier });
-          break;
-        }
-      }
-    }
-    return plan;
-  }
-
-  /**
-   * Quick all: spend the free (refilling) tickets across every Trial in quickAllPlan, one at a time in turn so
-   * each element gets its share. Bought tickets stay in their stash. Null when nothing could run.
-   */
-  quickAllTrials(): { element: Element; tier: number; result: TrialResult & { runs: number } }[] | null {
-    this.refreshTickets();
-    const plan = this.quickAllPlan();
-    if (!plan.length || this.tickets <= 0) return null;
-    const out = plan.map((p) => ({ ...p, result: { won: true, seconds: 0, essence: 0, stones: 0, medals: [] as string[], runs: 0 } }));
-    let left = this.tickets;
-    for (let i = 0; left > 0; i = (i + 1) % out.length) {
-      const row = out[i];
-      const r = this.quickTrial(row.element, row.tier);
-      if (!r) break;
-      left--;
-      row.result.runs++;
-      row.result.essence += r.essence;
-      row.result.stones += r.stones;
-      row.result.medals.push(...r.medals);
-    }
-    const ran = out.filter((o) => o.result.runs > 0);
-    return ran.length ? ran : null;
-  }
-
   /** Quick Battle the same level up to `times` times in one go (stops when tickets run out). Null if none ran. */
   quickTrials(element: Element, tier: number, times: number): (TrialResult & { runs: number }) | null {
     const total: TrialResult & { runs: number } = { won: true, seconds: 0, essence: 0, stones: 0, medals: [], runs: 0 };
