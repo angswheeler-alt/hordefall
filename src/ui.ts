@@ -11,6 +11,7 @@ import { HERO_ANIMS } from './heroAnims';
 import { setMuted, setVolumes } from './sfx';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES } from './bossAnims';
 import { guildBossElement, utcWeekStart, bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberRefund, emberBulk, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
+import type { WelcomeSection } from './welcome';
 import type { GameState, OfflineReport, SummonDrop, RekindleResult, TrialResult, PvpOpponent } from './state';
 import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, BOOTCAMP, MILESTONE_STEP, milestoneReward, milestoneText, rewardText, type Reward } from './rewards';
 import { rarityOdds, SHOP_HEROES, medalPackCost } from './state';
@@ -18,7 +19,7 @@ import { FORM_RARITIES, MAX_FORM, resolveForm, formArtKey } from './ascendant';
 import { ascendantDef, isAscendant } from './heroes/ascendant';
 import type { BattleScene } from './BattleScene';
 import type { ColosseumLink } from './colosseumLink';
-import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, RANK_DAILY, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies } from './colosseum';
+import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_QUICK_CP, RANK_DAILY, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies } from './colosseum';
 
 import { setHtml } from './taps';
 import { holdToRepeat } from './hold';
@@ -1695,7 +1696,7 @@ export class UI {
   }
 
   showModal(title: string, html: string, ok: string, action: (() => void) | null = null, cancel = false, cancelLabel = 'Not yet') {
-    $('modal').classList.remove('team-mode');
+    $('modal').classList.remove('team-mode', 'welcome-mode');
     $('modal-title').textContent = title;
     $('modal-body').innerHTML = html;
     $('modal-ok').textContent = ok;
@@ -2081,12 +2082,14 @@ export class UI {
     const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
     const forecast = !fc ? '' : fc.won && avg(fc.left[0]) > 0.6 ? ['win', 'Looks winnable.'] : !fc.won && avg(fc.left[1]) > 0.6 ? ['lose', 'Looks tough. Try other elements or a stronger team.'] : ['close', 'Could go either way.'];
     const can = s.canStartPvp(slot);
+    const strong = s.pvpClearlyStronger(slot, fc);
     return `<div class="pvp-row"><button class="wood-btn small" data-pvp="back">‹ Back</button></div>
       <div class="pvp-team"><b>${escHtml(foe.name)} <small>CP ${fmt(new Decimal(foe.cp))}</small></b><span class="faces">${this.pvpFoeFaces(foe)}</span></div>
       <div class="pvp-team"><div class="pvp-row"><b>Your attack team <small>CP ${fmt(mine)}</small></b><button class="wood-btn small" data-pvp="team" data-kind="attack">Change</button></div><span class="faces">${team.map((h) => this.pvpFace(h)).join('')}</span></div>
       ${forecast ? `<small class="pvp-forecast ${forecast[0]}">${forecast[1]}</small>` : ''}
       <small>Your team starts at the blue crystal and theirs at the red one. Fallen fighters come back after 10 seconds. The first crystal destroyed loses. Win: +${PVP_WIN_TROPHIES} trophies and ${PVP_WIN_MOTES} Starmotes. Loss: -${PVP_LOSS_TROPHIES} trophies, ${PVP_LOSS_MOTES} Starmote.</small>
-      <button class="wood-btn levelall" data-pvp="fight" ${can ? '' : 'disabled'}>${s.pvp.tickets > 0 ? 'Battle! (1 ticket)' : 'No tickets left'}</button>`;
+      <button class="wood-btn levelall" data-pvp="fight" ${can ? '' : 'disabled'}>${s.pvp.tickets > 0 ? 'Battle! (1 ticket)' : 'No tickets left'}</button>
+      ${strong ? `<button class="wood-btn levelall" data-pvp="quick" ${can ? '' : 'disabled'} title="Skip the fight and take the win">Quick Battle (1 ticket)</button>` : `<small>Quick Battle opens when your attack team has ${Math.round((PVP_QUICK_CP - 1) * 100)}% more CP than theirs and looks like an easy win.</small>`}`;
   }
 
   private onPvpClick(e: Event) {
@@ -2123,8 +2126,33 @@ export class UI {
       case 'fight':
         this.fightPvp(this.pvpSlot);
         return;
+      case 'quick':
+        this.quickPvp(this.pvpSlot);
+        return;
     }
     this.renderPvp();
+  }
+
+  /** The result line after a Colosseum fight (live or Quick Battle). */
+  private pvpResultHtml(r: ReturnType<GameState['finishPvp']>, quick = false) {
+    if (!r) return '';
+    return `<p class="tf-result ${r.won ? 'win' : 'lose'}">${quick ? 'Quick Battle win!' : r.won ? 'Victory!' : 'Defeat.'} ${r.trophies > 0 ? `+${r.trophies} trophies` : r.trophies < 0 ? `${r.trophies} trophies` : 'No trophies lost'} · +${r.starmotes} Starmote${r.starmotes === 1 ? '' : 's'}${r.firstWin ? ' (first win today +10)' : ''}</p>${r.rankAfter !== r.rankBefore ? `<p>${r.rankAfter > r.rankBefore ? 'Ranked up' : 'Dropped'} to <b>${rankName(r.rankAfter)}</b>!</p>` : ''}`;
+  }
+
+  /** Quick Battle: when the attack team is clearly stronger, skip the fight and take the win. */
+  private quickPvp(slot: number) {
+    const s = this.state;
+    const scene = this.scene();
+    if (scene?.inTrial() || scene?.inPvp()) return;
+    const defender = s.pvp.picks[slot]?.userId;
+    const r = s.quickPvp(slot);
+    if (!r) return;
+    if (defender) void this.pvpServer?.reportFight(defender, true);
+    play('unlock');
+    this.pvpView = 'list';
+    this.pvpForecastKey = '';
+    this.showModal('Colosseum', this.pvpResultHtml(r, true), 'Okay');
+    this.render();
   }
 
   /** Start a live Colosseum battle on the lane. */
@@ -2147,9 +2175,7 @@ export class UI {
       $('trial-leave').textContent = 'Back';
       const r = s.finishPvp(won);
       if (defender) void this.pvpServer?.reportFight(defender, won);
-      const html = !r
-        ? ''
-        : `<p class="tf-result ${r.won ? 'win' : 'lose'}">${r.won ? 'Victory!' : 'Defeat.'} ${r.trophies > 0 ? `+${r.trophies} trophies` : r.trophies < 0 ? `${r.trophies} trophies` : 'No trophies lost'} · +${r.starmotes} Starmote${r.starmotes === 1 ? '' : 's'}${r.firstWin ? ' (first win today +10)' : ''}</p>${r.rankAfter !== r.rankBefore ? `<p>${r.rankAfter > r.rankBefore ? 'Ranked up' : 'Dropped'} to <b>${rankName(r.rankAfter)}</b>!</p>` : ''}`;
+      const html = this.pvpResultHtml(r);
       this.pvpView = 'list';
       window.setTimeout(() => {
         if (scene.inPvp()) this.showModal('Colosseum', html, 'Okay', () => this.endPvpScreen());
@@ -2751,9 +2777,51 @@ export class UI {
   }
 
   showOffline(report: OfflineReport) {
-    const stages = report.stages > 0 ? `<br>Your heroes pushed <b>${report.stages}</b> stage${report.stages === 1 ? '' : 's'}${report.bosses > 0 ? ` and beat <b>${report.bosses}</b> boss${report.bosses === 1 ? '' : 'es'}` : ''}.` : '';
-    const market = report.market.gt(0) ? `<br>Market Row made <b>${fmt(report.market)}</b> of that.` : '';
-    this.showModal('Welcome back!', `You were away for ${fmtDuration(report.seconds)}.<br>You earned <b>${fmt(report.gold)}</b> gold.${market}${stages}`, 'Collect');
+    this.showWelcome(report, []);
+  }
+
+  /** Sections shown in the open "Welcome back" pop-up, or null when it isn't open. */
+  private welcome: { report: OfflineReport | null; sections: WelcomeSection[] } | null = null;
+
+  /**
+   * The "Welcome back" pop-up: offline progress plus what happened while away (Colosseum rewards,
+   * defense fights, events). Shows nothing when there is nothing to tell.
+   */
+  showWelcome(report: OfflineReport | null, sections: WelcomeSection[], onCollect: (() => void) | null = null) {
+    const kept = sections.filter((x) => x.lines.length);
+    if (!report && !kept.length) return;
+    this.welcome = { report, sections: kept };
+    this.showModal(report ? 'Welcome back!' : 'While you were away', this.welcomeHtml(), 'Collect', () => {
+      this.welcome = null;
+      onCollect?.();
+    });
+    $('modal').classList.add('welcome-mode');
+  }
+
+  /** Add news that arrived later (e.g. the defense log once signed in): into the open pop-up, or a new one. */
+  addWelcomeNews(section: WelcomeSection) {
+    if (!section.lines.length) return;
+    if (this.welcome && !$('modal').hidden && $('modal').classList.contains('welcome-mode')) {
+      this.welcome.sections.push(section);
+      $('modal-body').innerHTML = this.welcomeHtml();
+      return;
+    }
+    this.showWelcome(null, [section]);
+  }
+
+  private welcomeHtml(): string {
+    const w = this.welcome!;
+    const parts: string[] = [];
+    const report = w.report;
+    if (report) {
+      const stages = report.stages > 0 ? `<br>Your heroes pushed <b>${report.stages}</b> stage${report.stages === 1 ? '' : 's'}${report.bosses > 0 ? ` and beat <b>${report.bosses}</b> boss${report.bosses === 1 ? '' : 'es'}` : ''}.` : '';
+      const market = report.market.gt(0) ? `<br>Market Row made <b>${fmt(report.market)}</b> of that.` : '';
+      parts.push(`<span class="welcome-lead">You were away for ${fmtDuration(report.seconds)}.<br>You earned <b>${fmt(report.gold)}</b> gold.${market}${stages}</span>`);
+    }
+    for (const sec of w.sections) {
+      parts.push(`<span class="welcome-sec"><b class="welcome-head">${sec.title}</b>${sec.lines.map((l) => `<span class="welcome-line">${l}</span>`).join('')}</span>`);
+    }
+    return parts.join('');
   }
 
   render() {

@@ -58,6 +58,10 @@ button.hot { background: var(--hot); border-color: var(--hot); color: #fff; font
 #modal h2 { margin: 0 0 8px; }
 #modal p { color: var(--muted); line-height: 1.5; }
 #modal b { color: var(--gold); }
+#modal.welcome-mode #modal-body { display: flex; flex-direction: column; gap: 10px; text-align: left; }
+#modal .welcome-lead { text-align: center; }
+#modal .welcome-sec { display: flex; flex-direction: column; gap: 3px; background: rgba(0,0,0,.22); border-radius: 10px; padding: 8px 10px; font-size: 13px; line-height: 1.4; }
+#modal .welcome-sec b.welcome-head { color: #fff; font-size: 14px; }
 
 .ember { display: inline-block; vertical-align: middle; width: 16px; height: 16px; background: url('./assets/ui/ember.png') center / contain no-repeat; image-rendering: pixelated; }
 #embers { color: var(--ember); }
