@@ -72,8 +72,6 @@ export class Guild {
   /** Level and weekly rewards this player can claim. */
   private rewards: BossRewards = { kills: [], weekly: [] };
   private fighting = false;
-  /** Heroes being picked for the Guild Boss team, or null when not picking. */
-  private bossPick: string[] | null = null;
   private me: MemberRow | null = null;
   private guild: GuildRow | null = null;
   private members: MemberRow[] = [];
@@ -542,19 +540,7 @@ export class Guild {
       this.render();
     } else if (kind === 'ask') this.pickHero();
     else if (kind === 'fight') void this.fightBoss();
-    else if (kind === 'team') {
-      this.bossPick = this.state.guildBossHeroes().map((h) => h.id);
-      this.render();
-    } else if (kind === 'pick') {
-      const ids = this.bossPick ?? [];
-      if (ids.includes(arg)) this.bossPick = ids.filter((x) => x !== arg);
-      else if (ids.length < this.state.teamSlots) this.bossPick = [...ids, arg];
-      this.render();
-    } else if (kind === 'team-save' || kind === 'team-cancel') {
-      if (kind === 'team-save' && this.bossPick) this.state.setGuildBossTeam(this.bossPick);
-      this.bossPick = null;
-      this.render();
-    }
+    else if (kind === 'team') this.ui.openTeamOn('guild');
     else if (kind === 'claim') void this.claimBoss();
     else if (kind === 'quest') void this.claimQuest(arg);
     else if (kind === 'research') {
@@ -592,6 +578,7 @@ export class Guild {
     const root = $('guild-root');
     const locked = this.locked();
     const mode = locked || (!this.me && this.error && !this.list.length) ? 'off' : this.me ? 'home' : this.lastFetch ? 'browse' : 'off';
+    this.ui.inGuild = mode === 'home';
     if (mode !== this.mode) {
       this.mode = mode;
       root.innerHTML = mode === 'home' ? this.homeShell() : mode === 'browse' ? this.browseShell() : '<div class="soon-card" id="g-off"></div>';
@@ -689,10 +676,6 @@ export class Guild {
     const top = boss.level - 1;
     const week = guildBossWeekReward(top);
     const mine = this.state.guildBossDamage(boss.element);
-    if (this.bossPick) {
-      setHtml($('g-boss'), this.bossTeamPicker(boss.element));
-      return;
-    }
     const team = this.state.guildBossTeam();
     const strong = team.filter((m) => elementMultiplier(m.def.element, boss.element) > 1).length;
     const weak = team.filter((m) => elementMultiplier(m.def.element, boss.element) < 1).length;
@@ -768,21 +751,6 @@ export class Guild {
 
   private teamFace(h: HeroDef) {
     return `<span class="face art" title="${esc(h.name)}" style="${faceStyle(h)};border-color:#${ELEMENT_COLORS[h.element].toString(16).padStart(6, '0')}">${h.name[0]}</span>`;
-  }
-
-  /** Pick up to teamSlots recruited heroes for the Guild Boss, strongest against this boss first. */
-  private bossTeamPicker(element: Element) {
-    const s = this.state;
-    const ids = this.bossPick ?? [];
-    const edge = (h: HeroDef) => elementMultiplier(h.element, element);
-    const owned = HEROES.filter((h) => (s.levels[h.id] ?? 0) > 0).sort((a, b) => edge(b) - edge(a) || s.heroCombatPower(b).cmp(s.heroCombatPower(a)));
-    const picks = owned
-      .map((h) => `<button type="button" class="${ids.includes(h.id) ? 'on' : ''}" data-g="pick:${h.id}">${this.teamFace(h)}<span>${esc(h.name)}</span><small>${edge(h) > 1 ? 'Strong · ' : edge(h) < 1 ? 'Weak · ' : ''}${fmt(s.heroCombatPower(h))}</small></button>`)
-      .join('');
-    return `<div class="g-team"><div class="pvp-row"><b>Guild Boss team ${ids.length}/${s.teamSlots}</b><small>CP ${fmt(s.teamCpOf(owned.filter((h) => ids.includes(h.id))))}</small></div>
-      <p>Pick up to ${s.teamSlots} heroes. This boss is ${element}: heroes marked Strong hit it extra hard. They fight at their Ember levels and stars (gold levels don't count). Your stage team stays as it is.</p>
-      <div class="pvp-pick">${picks}</div>
-      <div class="pvp-row"><button type="button" class="wood-btn small" data-g="team-cancel">Cancel</button><button type="button" class="wood-btn small levelall" data-g="team-save" ${ids.length ? '' : 'disabled'}>Save team</button></div></div>`;
   }
 
   private renderChat() {

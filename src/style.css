@@ -756,6 +756,37 @@ div.g-req { margin-bottom: 8px; }
 .tm-total { margin: -2px 0 8px; font-size: 13px; flex: none; }
 .tm-card .tm-cp { color: var(--gold); font-weight: 700; }
 .tm-cp-big { margin: 0 0 6px; font-size: 14px; }
+.tm-tabs { display: flex; gap: 4px; margin: 0 40px 8px 0; flex: none; overflow-x: auto; }
+.tm-tabs button { flex: 1 1 auto; font: inherit; font-size: 12px; font-weight: 700; padding: 6px 8px; border-radius: 8px; border: 2px solid rgba(255,255,255,.15); background: transparent; color: var(--muted); white-space: nowrap; }
+.tm-tabs button.on { background: var(--panel-2); border-color: var(--ok); color: var(--text); }
+.tm-hint { margin: -4px 0 8px; font-size: 12px; color: var(--muted); flex: none; }
+.tm-slot { position: relative; }
+.tm-slot.swap { border-color: var(--gold); animation: tm-pulse 1s ease-in-out infinite alternate; cursor: pointer; }
+@keyframes tm-pulse { from { box-shadow: 0 0 0 0 rgba(242,201,76,0); } to { box-shadow: 0 0 0 3px rgba(242,201,76,.45); } }
+.tm-ult-badge { position: absolute; top: 2px; right: 2px; font-style: normal; font-size: 8px; font-weight: 800; background: var(--gold); color: #3a2a00; border-radius: 4px; padding: 0 3px; line-height: 1.4; }
+.tm-summary { display: flex; flex-wrap: wrap; gap: 2px 8px; margin: -2px 0 6px; font-size: 11px; color: var(--muted); flex: none; }
+.tm-summary span { display: inline-flex; align-items: center; gap: 3px; }
+.tm-summary i, .tm-type i { width: 8px; height: 8px; border-radius: 50%; background: var(--el, var(--muted)); display: inline-block; flex: none; }
+.tm-sep { width: 1px; height: 10px; background: rgba(255,255,255,.2); }
+.tm-ult-btns { display: flex; gap: 6px; margin-left: auto; }
+.tm-ult-choose { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 8px; border: 2px solid var(--gold); background: transparent; color: var(--gold); cursor: pointer; }
+.tm-tools { display: flex; gap: 6px; margin-bottom: 8px; }
+.tm-tools button { flex: 1 1 0; font-size: 13px; padding: 7px 10px; }
+.tm-swapbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 8px 10px; border-radius: 10px; border: 2px dashed var(--gold); font-size: 13px; text-align: left; }
+.tm-swapbar span { flex: 1; }
+.tm-swapbar button { flex: none; font-size: 13px; padding: 6px 12px; }
+.tm-card .tm-type { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; max-width: 100%; white-space: nowrap; }
+.tm-edge { position: absolute; top: 3px; left: 3px; font-style: normal; font-size: 9px; font-weight: 800; border-radius: 4px; padding: 0 3px; }
+.tm-edge.strong { background: #ffb347; color: #3a2000; }
+.tm-edge.weak { background: rgba(255,255,255,.18); color: var(--muted); }
+.tm-ult-list { text-align: left; }
+.tm-ult-row { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 10px; background: var(--panel-2); margin-bottom: 6px; }
+.tm-ult-row .face { width: 40px; height: 40px; flex: none; border-radius: 8px; border: 2px solid #000; }
+.tm-ult-row > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; }
+.tm-ult-row small { font-size: 11px; color: var(--muted); }
+.tm-ult-row button { flex: none; font-size: 13px; padding: 6px 12px; }
+.tm-best { text-align: left; font-size: 13px; }
+.tm-best p { margin: 0 0 6px; }
 .st.cp { color: var(--gold); font-weight: 700; }
 
 /* Profile, friends and leaderboards: person button under the gear, a sheet like Settings */
@@ -865,9 +896,6 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .pvp-pay { font-size: 12px; text-align: right; white-space: nowrap; color: #d0daf3; }
 .pvp-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .pvp-team { display: flex; flex-direction: column; gap: 4px; }
-.pvp-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
-.pvp-pick button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px; background: rgba(0,0,0,.25); border: 2px solid var(--wood-deep); border-radius: 8px; color: #e4eaf8; font-size: 11px; }
-.pvp-pick button.on { border-color: #ffd84a; background: rgba(255,216,74,.18); }
 .g-team { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
 .g-team .faces { display: flex; gap: 3px; flex-wrap: wrap; }
 .g-team .face { width: 30px; height: 30px; border-radius: 6px; border: 2px solid #000; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; flex: none; }

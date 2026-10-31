@@ -783,6 +783,57 @@ export class GameState {
   }
 
   /**
+   * Swap a benched hero into the lineup in place of a team member, in one step. The one going out
+   * drops to gold level 1 and refunds that gold (as with setInLineup); the one coming in takes over
+   * their Ultimate pick. Returns the gold refunded, or null when the swap isn't allowed.
+   */
+  swapInLineup(inId: string, outId: string): Decimal | null {
+    if ((this.levels[inId] ?? 0) === 0 || this.inLineup(inId) || !this.inLineup(outId)) return null;
+    const refund = this.goldSpent(outId);
+    this.gold = this.gold.plus(refund);
+    this.levels[outId] = 1;
+    this.benched[outId] = true;
+    delete this.benched[inId];
+    this.ultPicks = this.ultPicks.map((id) => (id === outId ? inId : id));
+    return refund;
+  }
+
+  /**
+   * The strongest heroes for a team, best first, at most teamSlots: by Combat Power, and for the
+   * Guild Boss by Combat Power times the element edge against this week's boss.
+   */
+  bestTeamIds(kind: 'stage' | 'attack' | 'defense' | 'guild', now = Date.now()): string[] {
+    const boss = guildBossElement(utcWeekStart(now));
+    const score = (h: HeroDef) => (kind === 'guild' ? this.heroCombatPower(h).times(elementMultiplier(h.element, boss)) : this.heroCombatPower(h));
+    return HEROES.filter((h) => (this.levels[h.id] ?? 0) > 0)
+      .map((h) => ({ h, v: score(h) }))
+      .sort((a, b) => b.v.cmp(a.v))
+      .slice(0, this.teamSlots)
+      .map((x) => x.h.id);
+  }
+
+  /**
+   * Make the lineup exactly these heroes (recruited, 1 to teamSlots). Everyone else is benched,
+   * with their gold levels refunded. Returns the gold refunded, or null when the list isn't allowed.
+   */
+  setLineup(ids: string[]): Decimal | null {
+    const keep = new Set(HEROES.filter((h) => ids.includes(h.id) && (this.levels[h.id] ?? 0) > 0).map((h) => h.id));
+    if (!keep.size || keep.size > this.teamSlots) return null;
+    let refund = new Decimal(0);
+    for (const h of HEROES) {
+      if (this.inLineup(h.id) && !keep.has(h.id)) {
+        const spent = this.goldSpent(h.id);
+        refund = refund.plus(spent);
+        this.levels[h.id] = 1;
+        this.benched[h.id] = true;
+      }
+    }
+    for (const id of keep) delete this.benched[id];
+    this.gold = this.gold.plus(refund);
+    return refund;
+  }
+
+  /**
    * Give a hero medals. Once a hero is at their top star they can't use more, so every
    * LEGENDARY_MEDAL_RATE of them becomes a Legendary medal instead.
    */

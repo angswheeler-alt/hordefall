@@ -4,13 +4,13 @@ import { testAdjust, testMaxAll, testMaxHero, testRange, testRecruit, testValue,
 import Decimal from 'break_infinity.js';
 import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { HEROES, byRarity, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_BULK, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, trialFirstWin, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { HEROES, byRarity, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_BULK, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, trialFirstWin, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, elementMultiplier, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
 import { setMuted, setVolumes } from './sfx';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES } from './bossAnims';
-import { bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberRefund, emberBulk, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
+import { guildBossElement, utcWeekStart, bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberRefund, emberBulk, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
 import type { GameState, OfflineReport, SummonDrop, RekindleResult, TrialResult, PvpOpponent } from './state';
 import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, BOOTCAMP, MILESTONE_STEP, milestoneReward, milestoneText, rewardText, type Reward } from './rewards';
 import { rarityOdds, SHOP_HEROES, medalPackCost } from './state';
@@ -22,6 +22,12 @@ import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_L
 
 import { setHtml } from './taps';
 import { holdToRepeat } from './hold';
+import { sortHeroes, nextTeamSort, TEAM_SORT_LABELS, type TeamSort } from './teamSort';
+
+/** The teams Manage Team edits: stages, Colosseum attack and defense, and the Guild Boss. */
+export type TeamTab = 'stage' | 'attack' | 'defense' | 'guild';
+const TEAM_TAB_SHORT: Record<TeamTab, string> = { stage: 'Stage', attack: 'Attack', defense: 'Defense', guild: 'Guild Boss' };
+const TEAM_TAB_TITLE: Record<TeamTab, string> = { stage: 'Team', attack: 'Attack team', defense: 'Defense team', guild: 'Guild Boss' };
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
@@ -223,52 +229,150 @@ export class UI {
   /** Manage Team filter (an element, or null for everyone) and the hero whose quick stats are open. */
   private teamFilter: Element | null = null;
   private teamPeek: string | null = null;
+  /** Which team Manage Team edits, how the heroes are listed, and the open sub-view. */
+  private teamTab: TeamTab = 'stage';
+  private teamSort: TeamSort = 'cp';
+  private teamView: 'grid' | 'ults' | 'best' = 'grid';
+  /** A benched hero waiting for the player to tap who they replace. */
+  private teamSwap: string | null = null;
+  /** The last Manage Team list shown, so a re-render keeps its scroll spot. */
+  private teamScrollKey = '';
+  /** Set by the guild panel while the player is in a guild, so the Guild Boss team gets its tab. */
+  inGuild = false;
+
+  /** Open Manage Team on one team (the Colosseum and Guild panels use this for their Edit buttons). */
+  openTeamOn(tab: TeamTab) {
+    this.teamTab = tab;
+    this.teamPeek = null;
+    this.teamSwap = null;
+    this.teamView = 'grid';
+    this.openTeam();
+  }
+
+  /** The teams Manage Team can edit right now. */
+  private teamTabs(): TeamTab[] {
+    const s = this.state;
+    return ['stage', ...(s.pvpOpen() ? (['attack', 'defense'] as const) : []), ...(this.inGuild || this.teamTab === 'guild' ? (['guild'] as const) : [])];
+  }
+
+  /** Hero ids in one of the teams. */
+  private teamIdsOf(tab: TeamTab): string[] {
+    const s = this.state;
+    const team = tab === 'attack' ? s.pvpAttackTeam() : tab === 'defense' ? s.pvpDefenseTeam() : tab === 'guild' ? s.guildBossHeroes() : s.pvpTeam();
+    return team.map((h) => h.id);
+  }
+
+  /** Save a Colosseum or Guild Boss team (the stage team changes through the lineup instead). */
+  private setTeamOf(tab: TeamTab, ids: string[]): boolean {
+    const s = this.state;
+    const ok = tab === 'guild' ? s.setGuildBossTeam(ids) : tab === 'stage' ? false : s.setPvpTeam(tab, ids);
+    if (ok && tab === 'defense') void this.pvpServer?.report(true);
+    return ok;
+  }
 
   /**
-   * Manage Team: pick which recruited heroes fight. The team sits in a strip of
-   * slots at the top; everyone owned is a grid of cards below (filterable by
-   * element), and tapping a card shows that hero's stats at a glance.
+   * Manage Team: pick who fights on stages, in the Colosseum (attack and defense) and against the Guild
+   * Boss, one tab each. The team sits in a strip of slots at the top; everyone owned is a grid of cards
+   * below (filterable and sortable), and tapping a card shows that hero's stats at a glance.
    */
   private openTeam(note = '') {
     const s = this.state;
-    const count = s.lineupCount();
+    const tabs = this.teamTabs();
+    if (!tabs.includes(this.teamTab)) this.teamTab = 'stage';
+    const tab = this.teamTab;
+    const stage = tab === 'stage';
+    if (!stage && this.teamView !== 'grid') this.teamView = 'grid';
+    const ids = this.teamIdsOf(tab);
+    const count = ids.length;
     const owned = HEROES.filter((h) => (s.levels[h.id] ?? 0) > 0);
-    const team = owned.filter((h) => s.inLineup(h.id));
+    const team = ids.map((id) => HEROES.find((h) => h.id === id)!);
     const peek = this.teamPeek ? HEROES.find((h) => h.id === this.teamPeek) : undefined;
+    const swapping = this.teamSwap ? HEROES.find((h) => h.id === this.teamSwap) : undefined;
+    const boss = guildBossElement(utcWeekStart(Date.now()));
+    const edge = (h: HeroDef) => (tab === 'guild' ? elementMultiplier(h.element, boss) : 1);
     const starsOf = (h: HeroDef) => `<span class="tm-stars">${'★'.repeat(Math.max(1, (s.stars[h.id] ?? 0) + 1))}</span>`;
     const face = (h: HeroDef, cls = '') => `<span class="face art${cls}" style="${faceStyle(h)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span>`;
     const slotCost = s.nextTeamSlotCost();
     const slots = Array.from({ length: TEAM_SLOTS_MAX }, (_, i) => {
       const h = team[i];
-      if (h) return `<button type="button" class="tm-slot on" data-peek="${h.id}" aria-label="${h.name}">${face(h)}<small>${h.name}</small></button>`;
+      if (h) {
+        const ult = stage && s.hasUltSlot(h.id) ? '<i class="tm-ult-badge" title="Ultimate on">ULT</i>' : '';
+        const act = swapping ? `data-swap-out="${h.id}"` : `data-peek="${h.id}"`;
+        return `<button type="button" class="tm-slot on${swapping ? ' swap' : ''}" ${act} aria-label="${swapping ? `Swap ${swapping.name} in for ${h.name}` : h.name}">${face(h)}${ult}<small>${h.name}</small></button>`;
+      }
       if (i < s.teamSlots) return '<span class="tm-slot empty"><span class="face"></span><small>Empty</small></span>';
       // The next slot can be bought here; the ones after it show as locked.
       if (i === s.teamSlots && slotCost !== null)
         return `<button type="button" class="tm-slot buy" data-buy-slot ${s.gems < slotCost ? 'disabled' : ''} aria-label="Buy team slot ${i + 1} for ${slotCost} Gems"><span class="face">+</span><small>${slotCost} Gems</small></button>`;
       return '<span class="tm-slot locked" aria-hidden="true"><span class="face">🔒</span><small>Locked</small></span>';
     }).join('');
+    const tabBar =
+      tabs.length > 1
+        ? `<div class="tm-tabs" role="tablist">${tabs.map((t) => `<button type="button" role="tab" class="${t === tab ? 'on' : ''}" aria-selected="${t === tab}" data-team-tab="${t}">${TEAM_TAB_SHORT[t]}</button>`).join('')}</div>`
+        : '';
+    const hint =
+      tab === 'attack'
+        ? 'You fight Colosseum battles with this team, at Ember levels and stars. Your stage team stays as it is.'
+        : tab === 'defense'
+          ? 'Other players fight this team in the Colosseum. Losing on defense never costs trophies.'
+          : tab === 'guild'
+            ? `This week's Guild Boss is ${cap(boss)}: heroes marked Strong hit it extra hard. They fight at Ember levels and stars.`
+            : '';
     let body: string;
+    let scrollKey = '';
     if (peek) {
-      body = this.teamPeekHtml(peek, count);
+      body = this.teamPeekHtml(peek, ids, tab);
+    } else if (this.teamView === 'ults') {
+      body = this.teamUltsHtml();
+    } else if (this.teamView === 'best') {
+      body = this.teamBestHtml();
     } else {
-      const shown = owned
-        .filter((h) => !this.teamFilter || h.element === this.teamFilter)
-        .sort((a, b) => Number(s.inLineup(b.id)) - Number(s.inLineup(a.id)) || s.heroLevel(b.id) - s.heroLevel(a.id));
+      scrollKey = `${tab}:${this.teamFilter}:${this.teamSort}`;
+      const shown = sortHeroes(
+        owned.filter((h) => !this.teamFilter || h.element === this.teamFilter),
+        this.teamSort,
+        s,
+        !stage,
+      );
       const chips = [null, ...TRIAL_ROTATION]
         .map((e) => `<button type="button" class="tm-chip${this.teamFilter === e ? ' on' : ''}" data-filter="${e ?? ''}"${e ? ` style="--el:${hex(ELEMENT_COLORS[e])}"` : ''}>${e ? cap(e) : 'All'}</button>`)
         .join('');
+      const level = (h: HeroDef) => (stage ? `Lv ${s.heroLevel(h.id).toLocaleString()}` : `Ember Lv ${Math.max(1, s.emberLevels[h.id] ?? 0).toLocaleString()}`);
+      const edgeTag = (h: HeroDef) => (edge(h) > 1 ? '<i class="tm-edge strong">Strong</i>' : edge(h) < 1 ? '<i class="tm-edge weak">Weak</i>' : '');
       const cards = shown
-        .map((h) => `<button type="button" class="tm-card${s.inLineup(h.id) ? ' on' : ''}" data-peek="${h.id}" style="--el:${hex(ELEMENT_COLORS[h.element])}">${face(h)}<b>${h.name}</b>${rarityTag(h)}<small>Lv ${s.heroLevel(h.id).toLocaleString()}</small><small class="tm-cp">CP ${fmt(s.heroCombatPower(h))}</small>${starsOf(h)}</button>`)
+        .map(
+          (h) =>
+            `<button type="button" class="tm-card${ids.includes(h.id) ? ' on' : ''}" data-peek="${h.id}" style="--el:${hex(ELEMENT_COLORS[h.element])}">${edgeTag(h)}${face(h)}<b>${h.name}</b>${rarityTag(h)}<small class="tm-type"><i></i>${h.type}</small><small>${level(h)}</small><small class="tm-cp">CP ${fmt(s.heroCombatPower(h))}</small>${starsOf(h)}</button>`,
+        )
         .join('');
-      body = `<div class="tm-chips">${chips}</div><div class="tm-grid">${cards || '<p class="team-help">No heroes of this element yet.</p>'}</div>
-        <p class="team-help">Tap a hero to see their stats and add or remove them. Taking a hero out drops them to gold level 1 and gives that gold back. Their Ember levels stay. New heroes are unlocked in Collection.</p>`;
+      const tools = swapping
+        ? `<div class="tm-swapbar"><span>Tap a hero in the team above to swap <b>${swapping.name}</b> in.</span><button type="button" data-swap-cancel>Cancel</button></div>`
+        : `<div class="tm-tools"><button type="button" data-sort>Sort: ${TEAM_SORT_LABELS[this.teamSort]}</button><button type="button" data-best class="hot">Best team</button></div>`;
+      body = `${tools}<div class="tm-chips">${chips}</div><div class="tm-grid">${cards || '<p class="team-help">No heroes of this element yet.</p>'}</div>
+        <p class="team-help">${
+          stage
+            ? 'Tap a hero to see their stats and add, remove or swap them. Taking a hero out drops them to gold level 1 and gives that gold back. Their Ember levels stay. New heroes are unlocked in Collection.'
+            : 'Tap a hero to see their stats and add, remove or swap them. Changing this team never touches gold levels.'
+        }</p>`;
     }
+    const prevScroll = $('modal').classList.contains('team-mode') && scrollKey && scrollKey === this.teamScrollKey ? ($('modal-body').querySelector<HTMLElement>('.tm-scroll')?.scrollTop ?? 0) : 0;
+    this.teamScrollKey = scrollKey;
+    const title = stage ? `Team ${count}/${s.teamSlots}` : `${TEAM_TAB_TITLE[tab]} ${count}/${s.teamSlots}`;
     this.showModal(
-      `Team ${count}/${s.teamSlots}`,
-      `<button type="button" class="tm-x" data-team-close aria-label="Close">✕</button><p class="tm-total">Total Combat Power <b>${fmt(s.totalCombatPower())}</b></p>${note ? `<p class="team-note">${note}</p>` : ''}<div class="tm-slots">${slots}</div>${this.ultSlotsHtml()}<div class="tm-scroll">${body}</div>`,
+      title,
+      `<button type="button" class="tm-x" data-team-close aria-label="Close">✕</button>${tabBar}<p class="tm-total">${stage ? 'Total Combat Power' : 'Team Combat Power'} <b>${fmt(s.teamCpOf(team))}</b></p>${hint ? `<p class="tm-hint">${hint}</p>` : ''}${note ? `<p class="team-note">${note}</p>` : ''}<div class="tm-slots">${slots}</div>${this.teamSummaryHtml(team)}${stage ? this.ultSlotsHtml() : ''}<div class="tm-scroll">${body}</div>`,
       'Done',
     );
     $('modal').classList.add('team-mode');
+    if (prevScroll) $('modal-body').querySelector<HTMLElement>('.tm-scroll')!.scrollTop = prevScroll;
+  }
+
+  /** One line under the team: how many heroes of each element and each Type. */
+  private teamSummaryHtml(team: HeroDef[]): string {
+    if (!team.length) return '';
+    const els = TRIAL_ROTATION.map((e) => [e, team.filter((h) => h.element === e).length] as const).filter(([, n]) => n);
+    const types = (Object.keys(HERO_TYPES) as HeroDef['type'][]).map((t) => [t, team.filter((h) => h.type === t).length] as const).filter(([, n]) => n);
+    return `<p class="tm-summary">${els.map(([e, n]) => `<span style="--el:${hex(ELEMENT_COLORS[e])}"><i></i>${n} ${cap(e)}</span>`).join('')}<span class="tm-sep"></span>${types.map(([t, n]) => `<span>${n} ${t}</span>`).join('')}</p>`;
   }
 
   /** In a team hero's quick stats: whether their Ultimate has a slot, and a button to change it. */
@@ -280,29 +384,65 @@ export class UI {
     return `<p class="team-help tm-ult-note">${note}</p><button type="button" class="tm-ult-toggle${has ? '' : ' hot'}" data-ult="${h.id}" ${!has && picksFull ? 'disabled' : ''}>${has ? 'Take Ultimate out' : 'Give Ultimate a slot'}</button>`;
   }
 
-  /** The Ultimate slots line in Manage Team: who holds them, and the next slot for Gems. */
+  /** The Ultimate slots line in Manage Team: who holds them, a Choose button, and the next slot for Gems. */
   private ultSlotsHtml(): string {
     const s = this.state;
-    const held = s.ultHeroes().map((id) => HEROES.find((h) => h.id === id)!.name);
+    // Who holds a slot shows as an ULT badge on the team faces above.
+    const held = s.ultHeroes().length;
     const cost = s.nextUltSlotCost();
     const buy = cost === null ? '' : `<button type="button" class="tm-ult-buy" data-buy-ult ${s.gems < cost ? 'disabled' : ''}>+1 slot · ${cost} Gems</button>`;
-    return `<div class="tm-ults"><span><b>Ultimates ${held.length}/${s.ultSlots}</b> ${held.length ? held.join(', ') : 'none'}</span>${buy}</div>`;
+    return `<div class="tm-ults"><b>Ultimates ${held}/${s.ultSlots}</b><span class="tm-ult-btns"><button type="button" class="tm-ult-choose" data-ult-open>Choose</button>${buy}</span></div>`;
   }
 
-  /** A hero's quick stats inside Manage Team, with Add/Remove and a link to the full hero page. */
-  private teamPeekHtml(h: HeroDef, count: number): string {
+  /** Every team hero with their Ultimate on or off, to change several without opening each hero. */
+  private teamUltsHtml(): string {
     const s = this.state;
+    const picksFull = s.ultPicks.filter((id) => s.inLineup(id)).length >= s.ultSlots;
+    const rows = s
+      .pvpTeam()
+      .map((h) => {
+        const has = s.hasUltSlot(h.id);
+        return `<div class="tm-ult-row"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span><span><b>${h.name}</b><small>${has ? 'Ultimate on' : 'Ultimate off'}</small></span><button type="button" class="${has ? '' : 'hot'}" data-ult="${h.id}" ${!has && picksFull ? 'disabled' : ''}>${has ? 'Turn off' : 'Turn on'}</button></div>`;
+      })
+      .join('');
+    return `<div class="tm-ult-list"><p class="team-help">Heroes with their Ultimate on get a button on the battle bar. ${picksFull ? 'All slots are taken: turn one off first, or buy a slot.' : ''}</p>${rows}<div class="tm-peek-btns"><button type="button" data-team-back>Back</button></div></div>`;
+  }
+
+  /** Confirm box for Best team on the stage team: who comes in, who goes out and the gold that comes back. */
+  private teamBestHtml(): string {
+    const s = this.state;
+    const best = s.bestTeamIds('stage');
+    const name = (id: string) => HEROES.find((h) => h.id === id)!.name;
+    const lineup = this.teamIdsOf('stage');
+    const ins = best.filter((id) => !lineup.includes(id));
+    const outs = lineup.filter((id) => !best.includes(id));
+    const refund = outs.reduce((t, id) => t.plus(s.goldSpent(id)), new Decimal(0));
+    return `<div class="tm-best"><p><b>Best team</b>: your ${best.length} strongest heroes by Combat Power.</p>
+      <p>Comes in: ${ins.map(name).join(', ')}</p><p>Goes out: ${outs.map(name).join(', ')}</p>
+      <p class="team-help">Heroes who go out drop to gold level 1${refund.gt(0) ? ` and ${fmt(refund)} gold comes back` : ''}. Their Ember levels stay.</p>
+      <div class="tm-peek-btns"><button type="button" data-team-back>Cancel</button><button type="button" class="hot" data-best-yes>Use best team</button></div></div>`;
+  }
+
+  /** A hero's quick stats inside Manage Team, with Add/Remove/Swap and a link to the full hero page. */
+  private teamPeekHtml(h: HeroDef, ids: string[], tab: TeamTab): string {
+    const s = this.state;
+    const stage = tab === 'stage';
+    const count = ids.length;
     const st = s.heroStats(h);
     const prof = heroProfile(h);
-    const on = s.inLineup(h.id);
+    const on = ids.includes(h.id);
+    const full = count >= s.teamSlots;
     const spent = s.goldSpent(h.id);
-    const label = on ? (spent.gt(0) ? `Remove (+${fmt(spent)} gold)` : 'Remove') : 'Add to team';
-    const disabled = (on && count <= 1) || (!on && count >= s.teamSlots);
-    const why = on && count <= 1 ? 'The team needs at least one hero.' : !on && count >= s.teamSlots ? `The team is full (${s.teamSlots}). Remove someone first, or buy another team slot.` : '';
     const pct = (n: number) => `${(Math.round(n * 1000) / 10).toLocaleString()}%`;
     const num = (n: number) => (Math.round(n * 100) / 100).toLocaleString();
     const stat = (label: string, value: string) => `<div><span>${label}</span><b>${value}</b></div>`;
     const ember = s.emberLevels[h.id] ?? 0;
+    const action = on
+      ? `<button type="button" data-lineup="${h.id}" ${count <= 1 ? 'disabled' : ''}>${stage && spent.gt(0) ? `Remove (+${fmt(spent)} gold)` : 'Remove'}</button>`
+      : full
+        ? `<button type="button" class="hot" data-swap="${h.id}">Swap in</button>`
+        : `<button type="button" class="hot" data-lineup="${h.id}">Add to team</button>`;
+    const why = on && count <= 1 ? 'The team needs at least one hero.' : !on && full ? `The team is full (${s.teamSlots}). Tap Swap in, then pick who they replace.` : '';
     return `<div class="tm-peek" style="--el:${hex(ELEMENT_COLORS[h.element])}">
       <div class="tm-peek-head"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span>
         <div><b class="tm-peek-name">${h.name}</b> ${rarityTag(h)}<small>${heroTitle(h)} · ${'★'.repeat(Math.max(1, (s.stars[h.id] ?? 0) + 1))}</small>
@@ -311,8 +451,8 @@ export class UI {
       <div class="tm-stats">${stat('Atk', fmt(st.atk.value))}${stat('HP', fmt(st.hp.value))}${stat('Def', fmt(st.def.value))}${stat('Atk per sec', num(st.attacksPerSec.value))}${stat('Crit', pct(st.critRate))}${stat('Crit Dmg', `+${pct(st.critDmg)}`)}${stat('Range', num(st.range.value))}${stat('Move', num(st.moveSpeed.value))}${stat('Dodge', pct(st.dodge.value))}</div>
       <p class="tm-spec">${prof.specialty}</p>
       ${why ? `<p class="team-help">${why}</p>` : ''}
-      ${on ? this.ultToggleHtml(h) : ''}
-      <div class="tm-peek-btns"><button type="button" data-peek-back>Back</button><button type="button" data-team-page="${h.id}">Hero page</button><button type="button" data-lineup="${h.id}" class="${on ? '' : 'hot'}" ${disabled ? 'disabled' : ''}>${label}</button></div>
+      ${on && stage ? this.ultToggleHtml(h) : ''}
+      <div class="tm-peek-btns"><button type="button" data-peek-back>Back</button><button type="button" data-team-page="${h.id}">Hero page</button>${action}</div>
     </div>`;
   }
 
@@ -944,26 +1084,104 @@ export class UI {
       const tile = (e.target as HTMLElement).closest<HTMLElement>('[data-coll]');
       if (tile) this.openSheet(tile.dataset.coll!);
     });
-    $('team-btn').addEventListener('click', () => {
-      this.teamPeek = null;
-      this.openTeam();
-    });
+    $('team-btn').addEventListener('click', () => this.openTeamOn('stage'));
     $('modal-body').addEventListener('click', (e) => {
       const t = e.target as HTMLElement;
+      const s = this.state;
       const kit = t.closest<HTMLElement>('[data-asc-kit]');
       if (kit) {
         this.showAscendantKit(kit.dataset.ascKit!);
         return;
       }
+      const tabBtn = t.closest<HTMLElement>('[data-team-tab]');
+      if (tabBtn) {
+        this.openTeamOn(tabBtn.dataset.teamTab as TeamTab);
+        return;
+      }
+      const swapOut = t.closest<HTMLElement>('[data-swap-out]');
+      if (swapOut && this.teamSwap) {
+        const inId = this.teamSwap;
+        const outId = swapOut.dataset.swapOut!;
+        const inName = HEROES.find((h) => h.id === inId)!.name;
+        const outName = HEROES.find((h) => h.id === outId)!.name;
+        this.teamSwap = null;
+        if (this.teamTab === 'stage') {
+          const refund = s.swapInLineup(inId, outId);
+          if (refund === null) return this.openTeam();
+          play(refund.gt(0) ? 'coin' : 'unlock');
+          this.scene()?.syncHeroes();
+          this.render();
+          this.openTeam(`${inName} is in for ${outName}.${refund.gt(0) ? ` ${fmt(refund)} gold came back; ${outName}'s Embers stay.` : ''}`);
+        } else {
+          const ids = this.teamIdsOf(this.teamTab).map((id) => (id === outId ? inId : id));
+          if (this.setTeamOf(this.teamTab, ids)) play('unlock');
+          this.openTeam(`${inName} is in for ${outName}.`);
+        }
+        return;
+      }
+      const swap = t.closest<HTMLElement>('[data-swap]');
+      if (swap) {
+        this.teamSwap = swap.dataset.swap!;
+        this.teamPeek = null;
+        this.openTeam();
+        return;
+      }
+      if (t.closest('[data-swap-cancel]')) {
+        this.teamSwap = null;
+        this.openTeam();
+        return;
+      }
       const peek = t.closest<HTMLElement>('[data-peek]');
       if (peek) {
         this.teamPeek = peek.dataset.peek!;
+        this.teamSwap = null;
         this.openTeam();
         return;
       }
       const filter = t.closest<HTMLElement>('[data-filter]');
       if (filter) {
         this.teamFilter = (filter.dataset.filter || null) as Element | null;
+        this.openTeam();
+        return;
+      }
+      if (t.closest('[data-sort]')) {
+        this.teamSort = nextTeamSort(this.teamSort);
+        this.openTeam();
+        return;
+      }
+      if (t.closest('[data-best]')) {
+        const best = s.bestTeamIds(this.teamTab);
+        const now = this.teamIdsOf(this.teamTab);
+        if (best.length === now.length && best.every((id) => now.includes(id))) {
+          this.openTeam('This is already your strongest team.');
+        } else if (this.teamTab === 'stage') {
+          this.teamView = 'best';
+          this.openTeam();
+        } else {
+          if (this.setTeamOf(this.teamTab, best)) play('unlock');
+          this.openTeam('Your strongest heroes are in.');
+        }
+        return;
+      }
+      if (t.closest('[data-best-yes]')) {
+        const refund = s.setLineup(s.bestTeamIds('stage'));
+        this.teamView = 'grid';
+        if (refund === null) return this.openTeam();
+        play(refund.gt(0) ? 'coin' : 'unlock');
+        this.scene()?.syncHeroes();
+        this.render();
+        this.openTeam(`Your strongest heroes are in.${refund.gt(0) ? ` ${fmt(refund)} gold came back; Embers stay.` : ''}`);
+        return;
+      }
+      if (t.closest('[data-ult-open]')) {
+        this.teamView = 'ults';
+        this.teamPeek = null;
+        this.teamSwap = null;
+        this.openTeam();
+        return;
+      }
+      if (t.closest('[data-team-back]')) {
+        this.teamView = 'grid';
         this.openTeam();
         return;
       }
@@ -974,16 +1192,16 @@ export class UI {
       }
       const buyUlt = t.closest<HTMLButtonElement>('button[data-buy-ult]');
       if (buyUlt) {
-        if (!buyUlt.disabled && this.state.buyUltSlot()) {
+        if (!buyUlt.disabled && s.buyUltSlot()) {
           play('unlock');
           this.render();
-          this.openTeam(`Ultimate slot ${this.state.ultSlots} unlocked.`);
+          this.openTeam(`Ultimate slot ${s.ultSlots} unlocked.`);
         }
         return;
       }
       const ult = t.closest<HTMLButtonElement>('button[data-ult]');
       if (ult) {
-        if (!ult.disabled && this.state.setUltSlot(ult.dataset.ult!, !this.state.hasUltSlot(ult.dataset.ult!))) {
+        if (!ult.disabled && s.setUltSlot(ult.dataset.ult!, !s.hasUltSlot(ult.dataset.ult!))) {
           play('unlock');
           this.render();
           this.openTeam();
@@ -992,10 +1210,10 @@ export class UI {
       }
       const buySlot = t.closest<HTMLButtonElement>('button[data-buy-slot]');
       if (buySlot) {
-        if (!buySlot.disabled && this.state.buyTeamSlot()) {
+        if (!buySlot.disabled && s.buyTeamSlot()) {
           play('unlock');
           this.render();
-          this.openTeam(`Team slot ${this.state.teamSlots} unlocked.`);
+          this.openTeam(`Team slot ${s.teamSlots} unlocked.`);
         }
         return;
       }
@@ -1012,13 +1230,20 @@ export class UI {
       const btn = t.closest<HTMLButtonElement>('button[data-lineup]');
       if (!btn || btn.disabled) return;
       const id = btn.dataset.lineup!;
-      const refund = this.state.setInLineup(id, !this.state.inLineup(id));
+      const name = HEROES.find((h) => h.id === id)!.name;
+      if (this.teamTab !== 'stage') {
+        const ids = this.teamIdsOf(this.teamTab);
+        const out = ids.includes(id);
+        if (this.setTeamOf(this.teamTab, out ? ids.filter((x) => x !== id) : [...ids, id])) play('unlock');
+        this.openTeam(out ? `${name} left this team.` : '');
+        return;
+      }
+      const refund = s.setInLineup(id, !s.inLineup(id));
       if (refund === null) return;
       play(refund.gt(0) ? 'coin' : 'unlock');
       this.scene()?.syncHeroes();
       this.render();
-      const name = HEROES.find((h) => h.id === id)!.name;
-      this.openTeam(this.state.inLineup(id) ? '' : `${name} left the team. ${fmt(refund)} gold came back; their Embers stay.`);
+      this.openTeam(s.inLineup(id) ? '' : `${name} left the team. ${fmt(refund)} gold came back; their Embers stay.`);
     });
     for (const btn of $('tabbar').querySelectorAll<HTMLButtonElement>('button')) {
       // Tapping the open tab again closes it, same as the down arrow.
@@ -1708,13 +1933,9 @@ export class UI {
 
   // ---------- Colosseum ----------
 
-  /** Which Colosseum page shows: the rank and three opponents, one opponent before battle, or a team picker. */
-  private pvpView: 'list' | 'foe' | 'team' = 'list';
+  /** Which Colosseum page shows: the rank and three opponents, or one opponent before battle. Teams are picked in Manage Team. */
+  private pvpView: 'list' | 'foe' = 'list';
   private pvpSlot = 0;
-  private pvpPickKind: 'attack' | 'defense' = 'attack';
-  private pvpPickIds: string[] = [];
-  /** The Colosseum page the team picker returns to. */
-  private pvpTeamFrom: 'list' | 'foe' = 'list';
   private pvpForecastKey = '';
   /** The Colosseum server link (real opponents, defense log); null until main.ts sets it. */
   private pvpServer: ColosseumLink | null = null;
@@ -1781,7 +2002,6 @@ export class UI {
       setHtml($('pvp'), '<p>Finding opponents…</p>');
       return;
     }
-    if (this.pvpView === 'team') return setHtml($('pvp'), this.pvpTeamHtml());
     if (this.pvpView === 'foe' && p.picks[this.pvpSlot]) return setHtml($('pvp'), this.pvpFoeHtml(this.pvpSlot));
     this.pvpView = 'list';
     const r = rankIndex(p.trophies);
@@ -1836,18 +2056,6 @@ export class UI {
       <button class="wood-btn levelall" data-pvp="fight" ${can ? '' : 'disabled'}>${s.pvp.tickets > 0 ? 'Battle! (1 ticket)' : 'No tickets left'}</button>`;
   }
 
-  private pvpTeamHtml() {
-    const s = this.state;
-    const owned = HEROES.filter((h) => (s.levels[h.id] ?? 0) > 0).sort((a, b) => s.heroCombatPower(b).cmp(s.heroCombatPower(a)));
-    const picks = owned
-      .map((h) => `<button class="${this.pvpPickIds.includes(h.id) ? 'on' : ''}" data-pvp="pick" data-id="${h.id}">${this.pvpFace(h)}<span>${h.name}</span><small>${fmt(s.heroCombatPower(h))}</small></button>`)
-      .join('');
-    return `<div class="pvp-row"><b>${this.pvpPickKind === 'attack' ? 'Attack' : 'Defense'} team ${this.pvpPickIds.length}/${s.teamSlots}</b><small>CP ${fmt(s.teamCpOf(owned.filter((h) => this.pvpPickIds.includes(h.id))))}</small></div>
-      <small>Pick up to ${s.teamSlots} heroes. They fight at their Ember levels, stars and relics (gold levels don't count).</small>
-      <div class="pvp-pick">${picks}</div>
-      <div class="pvp-row"><button class="wood-btn small" data-pvp="team-cancel">Cancel</button><button class="wood-btn small levelall" data-pvp="team-save" ${this.pvpPickIds.length ? '' : 'disabled'}>Save team</button></div>`;
-  }
-
   private onPvpClick(e: Event) {
     const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-pvp]');
     if (!btn || (btn as HTMLButtonElement).disabled) return;
@@ -1877,25 +2085,8 @@ export class UI {
         s.save();
         break;
       case 'team':
-        this.pvpPickKind = btn.dataset.kind === 'defense' ? 'defense' : 'attack';
-        this.pvpPickIds = (this.pvpPickKind === 'attack' ? s.pvpAttackTeam() : s.pvpDefenseTeam()).map((h) => h.id);
-        this.pvpTeamFrom = this.pvpView === 'foe' ? 'foe' : 'list';
-        this.pvpView = 'team';
-        break;
-      case 'pick': {
-        const id = btn.dataset.id!;
-        if (this.pvpPickIds.includes(id)) this.pvpPickIds = this.pvpPickIds.filter((x) => x !== id);
-        else if (this.pvpPickIds.length < s.teamSlots) this.pvpPickIds.push(id);
-        break;
-      }
-      case 'team-cancel':
-        this.pvpView = this.pvpTeamFrom;
-        break;
-      case 'team-save':
-        s.setPvpTeam(this.pvpPickKind, this.pvpPickIds);
-        if (this.pvpPickKind === 'defense') void this.pvpServer?.report(true);
-        this.pvpView = this.pvpTeamFrom;
-        break;
+        this.openTeamOn(btn.dataset.kind === 'defense' ? 'defense' : 'attack');
+        return;
       case 'fight':
         this.fightPvp(this.pvpSlot);
         return;
