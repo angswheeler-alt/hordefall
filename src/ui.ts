@@ -24,7 +24,7 @@ const TRIAL_HUD_NOTE = 'Your team fights at its Ember levels. Fallen heroes stay
 import type { ColosseumLink } from './colosseumLink';
 import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_QUICK_CP, RANK_DAILY, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies } from './colosseum';
 
-import { setHtml } from './taps';
+import { busyWhile, setHtml } from './taps';
 import { holdToRepeat } from './hold';
 import { sortHeroes, nextTeamSort, TEAM_SORT_LABELS, type TeamSort } from './teamSort';
 
@@ -122,6 +122,8 @@ export class UI {
   private rows: HeroRow[] = [];
   private rkTipTimer = 0;
   private ults: UltButton[] = [];
+  /** A tap happened and nothing has drawn its result yet (see the click listeners in the constructor). */
+  private tapPending = false;
 
   constructor(
     private state: GameState,
@@ -145,6 +147,12 @@ export class UI {
       last = now;
       this.render();
     }, 200);
+    // Show what a tap did right away instead of on the next 200 ms tick: handlers that already
+    // re-rendered clear the flag, the rest get one render after they run.
+    window.addEventListener('click', () => (this.tapPending = true), true);
+    window.addEventListener('click', () => {
+      if (this.tapPending) this.render();
+    });
     this.render();
   }
 
@@ -2117,11 +2125,11 @@ export class UI {
       case 'refresh':
         if (Date.now() >= s.pvp.refreshAt) {
           s.pvp.picks = [];
-          void this.pvpFindOpponents();
+          void busyWhile(btn, this.pvpFindOpponents());
         }
         break;
       case 'board':
-        void this.showPvpBoard();
+        void busyWhile(btn, this.showPvpBoard());
         return;
       case 'buy':
         if (s.buyPvpTicket()) play('unlock');
@@ -2829,6 +2837,7 @@ export class UI {
   }
 
   render() {
+    this.tapPending = false;
     this.renderPvpMeter();
     $('devtools').hidden = !devToolsOn();
     // The Rekindle page stays live: the run keeps going behind it.

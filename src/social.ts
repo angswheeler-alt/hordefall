@@ -6,6 +6,7 @@ import type { GameState } from './state';
 import type { Account } from './account';
 import { faceStyle } from './ui';
 import { HERO_ANIMS } from './heroAnims';
+import { busyWhile } from './taps';
 
 // Profiles, friends and leaderboards. The game reports this player's profile
 // (total Combat Power, best stage, Rekindles, team); everything else is read
@@ -77,7 +78,7 @@ export class Social {
       this.note = '';
       void this.render();
     });
-    $('social-body').addEventListener('click', (e) => void this.onClick(e));
+    $('social-body').addEventListener('click', (e) => void busyWhile((e.target as HTMLElement).closest('button'), this.onClick(e)));
     $('social-body').addEventListener('submit', (e) => {
       e.preventDefault();
       void this.addFriend(e.target as HTMLFormElement);

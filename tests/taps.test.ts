@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RELEASE_MS, setHtml, watchTaps } from '../src/taps';
+import { PRESS_CLASS, PRESS_MIN_MS, RELEASE_MS, busyWhile, setHtml, watchTaps } from '../src/taps';
 
 /** Just enough of a DOM element for setHtml: a parent chain, a dataset and innerHTML. */
 class FakeEl {
@@ -90,5 +90,64 @@ describe('Taps are not lost to re-renders', () => {
     set(list, 'New');
     fire('pointercancel');
     expect(list.innerHTML).toBe('New');
+  });
+
+  it('the touched button shows pressed at once and for at least a moment after a quick tap', () => {
+    const classes = new Set<string>();
+    const button = { disabled: false, classList: { add: (c: string) => classes.add(c), remove: (c: string) => classes.delete(c) } };
+    const icon = { closest: () => button };
+    fire('pointerdown', icon);
+    expect(classes.has(PRESS_CLASS)).toBe(true);
+    fire('pointerup', icon);
+    fire('click', icon);
+    expect(classes.has(PRESS_CLASS)).toBe(true);
+    vi.advanceTimersByTime(PRESS_MIN_MS);
+    expect(classes.has(PRESS_CLASS)).toBe(false);
+  });
+
+  it('a disabled button does not look pressed, and a scroll drops the pressed look', () => {
+    const classes = new Set<string>();
+    const make = (disabled: boolean) => ({ disabled, classList: { add: (c: string) => classes.add(c), remove: (c: string) => classes.delete(c) } });
+    const off = make(true);
+    fire('pointerdown', { closest: () => off });
+    expect(classes.size).toBe(0);
+    const on = make(false);
+    fire('pointerdown', { closest: () => on });
+    expect(classes.has(PRESS_CLASS)).toBe(true);
+    fire('pointercancel');
+    expect(classes.has(PRESS_CLASS)).toBe(false);
+  });
+});
+
+describe('Buttons that wait on the server', () => {
+  const fakeButton = () => {
+    const classes = new Set<string>();
+    const attrs = new Map<string, string>();
+    const el = {
+      classList: { add: (c: string) => classes.add(c), remove: (c: string) => classes.delete(c) },
+      setAttribute: (k: string, v: string) => attrs.set(k, v),
+      removeAttribute: (k: string) => attrs.delete(k),
+    } as unknown as Element;
+    return { el, classes, attrs };
+  };
+
+  it('show busy until the answer comes back', async () => {
+    const { el, classes, attrs } = fakeButton();
+    let finish!: (v: string) => void;
+    const p = busyWhile(el, new Promise<string>((r) => (finish = r)));
+    expect(classes.has('busy')).toBe(true);
+    expect(attrs.get('aria-busy')).toBe('true');
+    finish('ok');
+    expect(await p).toBe('ok');
+    expect(classes.has('busy')).toBe(false);
+    expect(attrs.has('aria-busy')).toBe(false);
+  });
+
+  it('also clear busy when the call fails, and skip work that is already done', async () => {
+    const { el, classes } = fakeButton();
+    await expect(busyWhile(el, Promise.reject(new Error('offline')))).rejects.toThrow('offline');
+    expect(classes.has('busy')).toBe(false);
+    await busyWhile(el, undefined);
+    expect(classes.size).toBe(0);
   });
 });
