@@ -82,7 +82,8 @@ function showSub(panel: HTMLElement, sub: string) {
     b.classList.toggle('on', on);
     b.setAttribute('aria-selected', String(on));
   }
-  for (const pane of panel.querySelectorAll<HTMLElement>('[data-subpane]')) pane.hidden = pane.dataset.subpane !== sub;
+  // A pane can serve several sub-tabs (Social: Friends, Rankings and Profile share one body).
+  for (const pane of panel.querySelectorAll<HTMLElement>('[data-subpane]')) pane.hidden = !pane.dataset.subpane!.split(' ').includes(sub);
 }
 
 interface HeroRow {
@@ -617,17 +618,6 @@ export class UI {
         play('tap');
         showRelicPane(btn.dataset.relicGo!);
         this.render();
-      });
-    }
-    // The Battle tab is a hub of mode cards; each opens its own page with a Back button.
-    // Absolute URLs: a url() inside a CSS variable resolves against the stylesheet, not the page.
-    const bg = (f: string) => `url("${new URL(`bg/${f}`, document.baseURI).href}")`;
-    document.querySelector<HTMLElement>('.mode-card.arena')!.style.setProperty('--art', `${bg('colosseum_far.png')} center 40% / cover, ${bg('colosseum_sky.png')} center / cover`);
-    for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-battle-go]')) {
-      btn.addEventListener('click', () => {
-        for (const pane of document.querySelectorAll<HTMLElement>('[data-battle-pane]')) pane.hidden = pane.dataset.battlePane !== btn.dataset.battleGo;
-        $('panels').scrollTop = 0;
-        this.renderBattle();
       });
     }
     $('relic-shop').addEventListener('click', (e) => {
@@ -1740,7 +1730,6 @@ export class UI {
       if (first) showSub(panel, first.dataset.sub!);
     }
     showRelicPane('mine');
-    for (const pane of document.querySelectorAll<HTMLElement>('[data-battle-pane]')) pane.hidden = pane.dataset.battlePane !== 'hub';
     this.trialEntered = false;
   }
 
@@ -2258,14 +2247,8 @@ export class UI {
     const s = this.state;
     const open = s.openTrials();
     const trialsOn = s.trialsUnlocked();
-    $('hub-tr-tickets').textContent = `${s.tickets}/${TICKET_CAP}${s.boughtTickets ? ` +${s.boughtTickets}` : ''}`;
-    const all = open.length === TRIAL_ROTATION.length ? 'all elements' : open.map(cap).join(', ');
-    $('hub-tr-note').textContent = trialsOn ? (open.length ? `${s.trialEventOn() ? 'x2 crests! ' : ''}Open today: ${all}` : 'None open today') : 'Opens after the stage 50 boss';
-    $('hub-tr-alert').hidden = !(trialsOn && open.length && s.trialTickets() > 0);
-    const pvpOn = s.pvpOpen();
-    $('hub-pvp-tickets').textContent = pvpOn ? `${s.pvp.tickets}/${PVP_TICKET_CAP}` : '-';
-    $('hub-pvp-note').textContent = pvpOn ? `${rankName(rankIndex(s.pvp.trophies))} · ${s.pvp.trophies} trophies` : `Opens at player level ${s.pvpUnlockLevel()}`;
-    $('hub-pvp-alert').hidden = !(pvpOn && s.pvp.tickets > 0);
+    this.subBadge('battle', 'trials', trialsOn && open.length > 0 && s.trialTickets() > 0);
+    this.subBadge('battle', 'arena', s.pvpOpen() && s.pvp.tickets > 0);
   }
 
   /** The Rekindle rewards page: what this Rekindle pays and what it moves forward. */
