@@ -160,24 +160,11 @@
           <div id="stalls"></div>
         </section>
         <section class="panel" data-tab="battle" hidden>
-          <div data-battle-pane="hub">
-            <button class="mode-card trials" data-battle-go="trials">
-              <span class="mode-count"><i class="ticket"></i><b id="hub-tr-tickets"></b></span>
-              <span class="mode-orbs" aria-hidden="true"><i class="mode-orb fire"></i><i class="mode-orb earth"></i><i class="mode-orb water"></i><i class="mode-orb light"></i><i class="mode-orb dark"></i></span>
-              <b class="mode-title">Daily Trials</b>
-              <small id="hub-tr-note" class="mode-note"></small>
-              <i id="hub-tr-alert" class="mode-alert" hidden>!</i>
-            </button>
-            <button class="mode-card arena" data-battle-go="arena">
-              <span class="mode-count"><i class="ticket pvp-ticket"></i><b id="hub-pvp-tickets"></b></span>
-              <svg class="mode-trophy" viewBox="0 0 64 64" aria-hidden="true"><path d="M18 8h28v14c0 9-6 16-14 16s-14-7-14-16z" fill="#ffd34a" stroke="#7a4a00" stroke-width="3"/><path d="M18 14H8c0 9 5 14 12 14M46 14h10c0 9-5 14-12 14" fill="none" stroke="#7a4a00" stroke-width="4"/><path d="M18 14H8c0 9 5 14 12 14M46 14h10c0 9-5 14-12 14" fill="none" stroke="#ffd34a" stroke-width="2"/><rect x="28" y="38" width="8" height="10" fill="#e0a51e" stroke="#7a4a00" stroke-width="3"/><rect x="18" y="48" width="28" height="8" rx="2" fill="#ffd34a" stroke="#7a4a00" stroke-width="3"/><path d="M32 14l4 8h-8z" fill="#fff6c8"/></svg>
-              <b class="mode-title">Colosseum</b>
-              <small id="hub-pvp-note" class="mode-note"></small>
-              <i id="hub-pvp-alert" class="mode-alert" hidden>!</i>
-            </button>
+          <div class="subtabs" role="tablist" aria-label="Battle">
+            <button data-sub="trials" class="on" role="tab">Trials<i class="badge" hidden></i></button>
+            <button data-sub="arena" role="tab">Colosseum<i class="badge" hidden></i></button>
           </div>
-          <div data-battle-pane="trials" hidden>
-            <button class="wood-btn small trial-back" data-battle-go="hub">&#8592; Battle</button>
+          <div data-subpane="trials">
             <div class="panel-head"><h2>Elemental Trials</h2><button id="tr-elements" class="wood-btn small ew-btn">Element wheel</button><span id="tr-tickets" class="trial-tickets"></span></div>
             <div id="tr-list" class="trial-list"></div>
             <div id="tr-detail" class="trial-card" hidden>
@@ -195,8 +182,7 @@
             </div>
             <div id="tr-ess" class="trial-ess trial-ess-bar"></div>
           </div>
-          <div data-battle-pane="arena" hidden>
-            <button class="wood-btn small trial-back" data-battle-go="hub">&#8592; Battle</button>
+          <div data-subpane="arena" hidden>
             <div class="panel-head"><h2>Colosseum</h2><span id="pvp-tickets" class="trial-tickets"></span></div>
             <div id="pvp" class="trial-card pvp"></div>
           </div>
@@ -231,8 +217,18 @@
           </div>
         </section>
         <section class="panel" data-tab="guild" hidden>
-          <div class="panel-head"><h2>Guild</h2></div>
-          <div id="guild-root"></div>
+          <div class="subtabs" role="tablist" aria-label="Social">
+            <button data-sub="guild" class="on" role="tab">Guild</button>
+            <button data-sub="friends" role="tab">Friends</button>
+            <button data-sub="rankings" role="tab">Rankings</button>
+            <button data-sub="me" role="tab">Profile</button>
+          </div>
+          <div data-subpane="guild">
+            <div id="guild-root"></div>
+          </div>
+          <div data-subpane="friends rankings me" hidden>
+            <div id="social-body" class="social-body"></div>
+          </div>
         </section>
       </main>
       <nav id="tabbar" aria-label="Main">
@@ -241,7 +237,7 @@
         <button data-tab="market"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l2-5h14l2 5"/><path d="M3 9h18v2a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0z"/><path d="M5 13v7h14v-7"/></svg><span>Market</span><i class="badge" hidden></i></button>
         <button data-tab="battle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l10 10M4 4h4M4 4v4M20 4L10 14M20 4h-4M20 4v4M7 15l2 2-3 3-2-2zM17 15l-2 2 3 3 2-2z"/></svg><span>Battle</span><i class="badge" hidden></i></button>
         <button data-tab="shop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg><span>Shop</span><i class="badge" hidden></i></button>
-        <button data-tab="guild"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/></svg><span>Guild</span><i class="badge" hidden></i></button>
+        <button data-tab="guild"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/></svg><span>Social</span><i class="badge" hidden></i></button>
       </nav>
     </div>
     <div id="sheet" hidden>
@@ -343,25 +339,10 @@
         <div id="rk-buttons" class="rk-buttons"></div>
       </div>
     </div>
-    <div id="social" hidden>
-      <div class="settings-card social-card" role="dialog" aria-labelledby="social-title">
-        <div class="settings-head"><h2 id="social-title">Profile</h2><button id="social-close" aria-label="Close">&times;</button></div>
-        <div id="social-tabs" class="social-tabs">
-          <button data-sview="me" class="on">Me</button><button data-sview="friends">Friends</button><button data-sview="cp">Top Power</button><button data-sview="stage">Top Stage</button>
-        </div>
-        <div id="social-body" class="social-body"></div>
-      </div>
-    </div>
     <div id="test-banner" hidden><b>TEST MODE</b> · not saved online <button id="test-banner-exit">Exit</button></div>
     <div id="settings" hidden>
       <div class="settings-card" role="dialog" aria-labelledby="settings-title">
         <div class="settings-head"><h2 id="settings-title">Settings</h2><button id="settings-close" aria-label="Close settings">&times;</button></div>
-        <div id="settings-social" class="settings-menu">
-          <button data-open-sview="me"><span class="ico ico-set-profile"></span><span>Profile</span></button>
-          <button data-open-sview="friends"><span class="ico ico-set-friends"></span><span>Friends</span></button>
-          <button data-open-sview="cp"><span class="ico ico-set-top-power"></span><span>Top Power</span></button>
-          <button data-open-sview="stage"><span class="ico ico-set-top-stage"></span><span>Top Stage</span></button>
-        </div>
         <div class="settings-row"><span class="settings-label"><span class="ico ico-set-events"></span>Events</span><button id="events-btn" class="wood-btn small">Calendar</button></div>
         <div class="settings-row"><span class="settings-label"><span class="ico ico-set-sound"></span>Sound</span><button id="mute" class="toggle" aria-label="Sound">Sound</button></div>
         <div class="settings-row vol-row"><span class="settings-label"><span class="ico ico-set-effects"></span>Effects</span><input id="vol-sfx" type="range" min="0" max="100" step="5" aria-label="Sound effects volume" /><output id="vol-sfx-n"></output></div>

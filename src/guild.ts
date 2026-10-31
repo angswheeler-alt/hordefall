@@ -128,7 +128,8 @@ export class Guild {
   }
 
   private visible() {
-    return !document.hidden && !$('guild-root').closest<HTMLElement>('.panel')!.hidden;
+    const root = $('guild-root');
+    return !document.hidden && !root.closest<HTMLElement>('.panel')!.hidden && !root.closest<HTMLElement>('[data-subpane]')!.hidden;
   }
 
   /** Guilds open to signed-in players after their first Rekindle. */

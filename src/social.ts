@@ -46,6 +46,8 @@ export function profilePayload(state: GameState) {
 
 export class Social {
   private view: SView = 'me';
+  /** The leaderboard Rankings shows: Top Power or Top Stage. */
+  private board: 'cp' | 'stage' = 'cp';
   /** A friend whose profile is open, over the Friends or leaderboard list. */
   private viewing: string | null = null;
   private lastReport = '';
@@ -58,24 +60,12 @@ export class Social {
     private state: GameState,
     private account: Account,
   ) {
-    // Profile, Friends and the leaderboards open from the Settings menu, and closing goes back to Settings.
-    $('settings-social').addEventListener('click', (e) => {
-      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-open-sview]');
-      if (!b) return;
-      $('settings').hidden = true;
-      this.open(b.dataset.openSview as SView);
-    });
-    $('social-close').addEventListener('click', () => this.close());
-    $('social').addEventListener('click', (e) => {
-      if (e.target === $('social')) this.close();
-    });
-    $('social-tabs').addEventListener('click', (e) => {
-      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-sview]');
-      if (!b) return;
-      this.view = b.dataset.sview as SView;
-      this.viewing = null;
-      this.note = '';
-      void this.render();
+    // Friends, Rankings and Profile are sub-tabs of the Social tab (next to Guild); they share one body.
+    document.querySelector('.panel[data-tab="guild"] .subtabs')!.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('button[data-sub]');
+      const sub = b?.dataset.sub;
+      if (sub !== 'friends' && sub !== 'rankings' && sub !== 'me') return;
+      this.open(sub === 'rankings' ? this.board : sub);
     });
     $('social-body').addEventListener('click', (e) => void this.onClick(e));
     $('social-body').addEventListener('submit', (e) => {
@@ -94,14 +84,8 @@ export class Social {
     this.view = view;
     this.viewing = null;
     this.note = '';
-    $('social').hidden = false;
     void this.report(true);
     void this.render();
-  }
-
-  private close() {
-    $('social').hidden = true;
-    $('settings').hidden = false;
   }
 
   /** Send this player's profile when it changed (or now and then anyway). */
@@ -121,8 +105,6 @@ export class Social {
   }
 
   private setBody(html: string) {
-    for (const b of $('social-tabs').querySelectorAll<HTMLElement>('[data-sview]')) b.classList.toggle('on', b.dataset.sview === this.view);
-    $('social-title').textContent = this.view === 'me' ? 'Profile' : this.view === 'friends' ? 'Friends' : 'Leaderboards';
     $('social-body').innerHTML = html;
   }
 
@@ -205,16 +187,22 @@ export class Social {
     const list = rows
       .map((r) => `<div class="sp-row${r.is_me ? ' me' : ''}"${r.is_friend ? ` data-view="${r.user_id}" role="button" tabindex="0"` : ''}><span class="rk">${Number(r.rank).toLocaleString()}</span><div class="who"><b>${esc(r.username)}${r.is_me ? ' (you)' : r.is_friend ? ' · friend' : ''}</b><small>${sub(r)}</small></div><span class="val">${val(r)}</span></div>`)
       .join('');
-    this.setBody(`<p>${kind === 'cp' ? 'Highest total Combat Power' : 'Highest stage beaten'}, top 50. Tap a friend to see their profile.</p>${list || '<p>No one on the board yet.</p>'}`);
+    const bar = `<div class="subtabs mini" role="tablist"><button type="button" data-rank="cp" class="${kind === 'cp' ? 'on' : ''}">Top Power</button><button type="button" data-rank="stage" class="${kind === 'stage' ? 'on' : ''}">Top Stage</button></div>`;
+    this.setBody(`${bar}<p>${kind === 'cp' ? 'Highest total Combat Power' : 'Highest stage beaten'}, top 50. Tap a friend to see their profile.</p>${list || '<p>No one on the board yet.</p>'}`);
   }
 
   private async onClick(e: Event) {
     const t = e.target as HTMLElement;
     const db = this.db;
     if (t.closest('[data-signin]')) {
-      $('social').hidden = true;
       this.account.signIn();
       return;
+    }
+    const rank = t.closest<HTMLElement>('[data-rank]');
+    if (rank) {
+      this.board = rank.dataset.rank as 'cp' | 'stage';
+      this.view = this.board;
+      return this.render();
     }
     if (t.closest('[data-back]')) {
       this.viewing = null;
