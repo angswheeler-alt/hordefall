@@ -26,6 +26,7 @@ import {
   stageBoss,
   TRIAL_LEVELS,
   TRIAL_TIME,
+  GUILD_BOSS_SECONDS,
   TRIAL_BOSS_NAMES,
   TRIAL_BOSS_ART,
   TRIAL_BOSS_COOLDOWN,
@@ -48,6 +49,7 @@ import {
   defended,
   trialHp,
   trialDps,
+  guildBossHitAtk,
 } from './formulas';
 import type { GameState } from './state';
 import { play } from './sfx';
@@ -308,6 +310,28 @@ interface TrialFight {
   meter: Map<string, PvpMeterRow>;
   /** The same totals for the boss. */
   foeMeter: PvpMeterRow;
+  /** Set when this is a Guild Boss fight rather than a Trial. */
+  guild?: GuildFight;
+}
+
+/** A live Guild Boss fight: the Guild Boss team against this week's boss, with the guild's shared health left on it. */
+interface GuildFight {
+  ids: Set<string>;
+  level: number;
+  /** Health the boss had in the lane when the fight began. */
+  startHp: Decimal;
+}
+
+/** What a live Guild Boss fight needs to know. */
+export interface GuildBossFightSetup {
+  element: Element;
+  level: number;
+  name: string;
+  /** Heroes in the Guild Boss team (recruited heroes only). */
+  ids: string[];
+  /** The boss's health in the lane: what is left of this level, after research. */
+  hp: Decimal;
+  maxHp: Decimal;
 }
 
 /** One opponent hero in a Colosseum battle, with its stats worked out by GameState. */
@@ -874,9 +898,10 @@ export class BattleScene extends Phaser.Scene {
     return a ? formArtKey(a, this.state.formOf(def.id), (key) => !!HERO_ANIMS[key]) : def.id;
   }
 
-  /** Whether a hero is on the field: the lineup, or the attack team in a Colosseum battle. */
+  /** Whether a hero is on the field: the lineup, or the attack team in a Colosseum battle, or the Guild Boss team. */
   private fights(heroId: string) {
-    return this.pvp ? this.pvp.ids.has(heroId) && (this.state.levels[heroId] ?? 0) > 0 : this.state.inLineup(heroId);
+    const ids = this.pvp?.ids ?? this.trial?.guild?.ids;
+    return ids ? ids.has(heroId) && (this.state.levels[heroId] ?? 0) > 0 : this.state.inLineup(heroId);
   }
 
   /** A hero's fighting level: gold plus Ember levels, or in a Trial or the Colosseum only Ember levels (at least 1). */
@@ -1313,20 +1338,69 @@ export class BattleScene extends Phaser.Scene {
    * killing the boss wins. No respawns, so the team can lose. `onEnd` gets the outcome once.
    */
   startTrial(element: Element, tier: number, onEnd: (won: boolean, seconds: number) => void) {
-    if (this.trial) return;
+    if (this.trial || this.pvp) return;
+    const level = TRIAL_LEVELS[tier - 1];
+    const art = BOSS_ANIMS[TRIAL_BOSS_ART[element]] ? TRIAL_BOSS_ART[element] : BOSS_ANIMS[element] ? element : undefined;
+    this.openBossLane({ element, tier, timeLeft: TRIAL_TIME, fought: 0, hits: 0, done: false, onEnd, meter: new Map(), foeMeter: meterRow('boss') });
+    this.placeBoss({
+      art,
+      element,
+      // Research's Elemental branch makes Trial bosses take more damage, as in the Trials panel's estimate.
+      hp: trialHp(level).div(1 + this.state.researchBonus('elemental')),
+      atk: trialDps(level).times(TRIAL_BOSS_COOLDOWN),
+      label: TRIAL_BOSS_NAMES[element],
+    });
+    this.banner(`${TRIAL_BOSS_NAMES[element].toUpperCase()}\nTRIAL LEVEL ${tier}`, '#ff6680');
+  }
+
+  /**
+   * Start a live Guild Boss fight: like a Trial, but the Guild Boss team fights (Ember levels only) and the boss
+   * carries the guild's shared health. The boss hits for a share of the team's own health (guildBossHitAtk).
+   * `onEnd` gets the health knocked off (in lane terms), whether the level fell, and the seconds fought, once.
+   */
+  startGuildBoss(setup: GuildBossFightSetup, onEnd: (knocked: Decimal, beaten: boolean, seconds: number) => void) {
+    if (this.trial || this.pvp) return;
+    const guild: GuildFight = { ids: new Set(setup.ids), level: setup.level, startHp: setup.hp };
+    const fight: TrialFight = {
+      element: setup.element,
+      tier: setup.level,
+      timeLeft: GUILD_BOSS_SECONDS,
+      fought: 0,
+      hits: 0,
+      done: false,
+      onEnd: (won, seconds) => {
+        const boss = this.enemies.find((e) => e.isBoss);
+        const left = won || !boss ? new Decimal(0) : Decimal.max(0, boss.hp);
+        onEnd(Decimal.max(0, guild.startHp.minus(left)), won, seconds);
+      },
+      meter: new Map(),
+      foeMeter: meterRow('boss'),
+      guild,
+    };
+    this.openBossLane(fight);
+    const alive = this.heroes.filter((h) => h.def);
+    const avg = (f: (h: Unit) => Decimal) => (alive.length ? alive.reduce((t, h) => t.plus(f(h)), new Decimal(0)).div(alive.length) : new Decimal(1));
+    const art = BOSS_ANIMS[setup.element] ? setup.element : BOSS_ANIMS[TRIAL_BOSS_ART[setup.element]] ? TRIAL_BOSS_ART[setup.element] : undefined;
+    const boss = this.placeBoss({ art, element: setup.element, hp: setup.maxHp, atk: guildBossHitAtk(avg((h) => h.maxHp), avg((h) => h.defense), setup.level), label: setup.name });
+    boss.hp = Decimal.min(setup.maxHp, setup.hp);
+    this.drawHpBar(boss);
+    this.banner(`${setup.name.toUpperCase()}\nGUILD BOSS LEVEL ${setup.level}`, '#ff6680');
+  }
+
+  /** Clear the lane for a Trial or Guild Boss fight and bring the fighting heroes back at the blue crystal. */
+  private openBossLane(fight: TrialFight) {
     this.nextStageTimer?.remove();
     this.nextStageTimer = undefined;
     this.clearChests();
-    const trial: TrialFight = { element, tier, timeLeft: TRIAL_TIME, fought: 0, hits: 0, done: false, onEnd, meter: new Map(), foeMeter: meterRow('boss') };
-    this.trial = trial;
+    this.trial = fight;
     for (const p of this.crystalParts) (p as unknown as Phaser.GameObjects.Components.Visible).setVisible(false);
-    // Rebuild the heroes at their Trial levels; they keep their Ultimate cooldowns.
+    // Rebuild the heroes at their Ember levels; they keep their Ultimate cooldowns.
     const ults = new Map(this.heroes.map((h) => [h.def?.id, h.ultReadyAt]));
     for (const h of this.heroes) h.view.destroy();
     this.heroes = [];
     this.syncHeroes();
     for (const h of this.heroes) h.ultReadyAt = ults.get(h.def?.id) ?? 0;
-    for (const h of this.heroes) if (h.def) trial.meter.set(h.def.id, meterRow(h.def.id));
+    for (const h of this.heroes) if (h.def) fight.meter.set(h.def.id, meterRow(h.def.id));
     for (const e of this.enemies) e.view.destroy();
     this.enemies = [];
     for (const z of this.zones) z.view.destroy();
@@ -1343,31 +1417,36 @@ export class BattleScene extends Phaser.Scene {
     this.bossEngaged = false;
     this.cameras.main.scrollX = 0;
     this.drawBackground();
-    const level = TRIAL_LEVELS[tier - 1];
-    const art = BOSS_ANIMS[TRIAL_BOSS_ART[element]] ? TRIAL_BOSS_ART[element] : BOSS_ANIMS[element] ? element : undefined;
+  }
+
+  /** The boss at the far end of the lane, with a short wind-up before its first hit. */
+  private placeBoss(o: { art: string | undefined; element: Element; hp: Decimal; atk: Decimal; label: string }): Unit {
     const boss = this.makeUnit({
       side: 'enemy',
-      texture: art ? `boss-${art}-idle` : 'boss',
-      bossArt: art,
+      texture: o.art ? `boss-${o.art}-idle` : 'boss',
+      bossArt: o.art,
       x: TRIAL_BOSS_X,
-      // Research's Elemental branch makes Trial bosses take more damage, as in the Trials panel's estimate.
-      hp: trialHp(level).div(1 + this.state.researchBonus('elemental')),
-      atk: trialDps(level).times(TRIAL_BOSS_COOLDOWN),
+      hp: o.hp,
+      atk: o.atk,
       // Its blasts reach the back row too, so ranged heroes and healers are never safe.
       range: TRIAL_BOSS_RANGE,
       cooldown: TRIAL_BOSS_COOLDOWN,
       speed: 0,
-      element,
+      element: o.element,
       isBoss: true,
-      label: TRIAL_BOSS_NAMES[element],
+      label: o.label,
     });
-    // A short wind-up before the first hit.
     boss.cooldownLeft = TRIAL_BOSS_COOLDOWN;
     this.enemies.push(boss);
-    this.banner(`${TRIAL_BOSS_NAMES[element].toUpperCase()}\nTRIAL LEVEL ${tier}`, '#ff6680');
     this.cameras.main.shake(400, 0.01);
     play('boss');
     this.state.emit();
+    return boss;
+  }
+
+  /** Whether the live boss fight is the Guild Boss. */
+  inGuildBoss() {
+    return !!this.trial?.guild;
   }
 
   /** Give up the Trial in progress: it counts as a loss (no ticket spent). */
@@ -1390,7 +1469,9 @@ export class BattleScene extends Phaser.Scene {
     if (!t || t.done) return;
     t.done = true;
     this.transitioning = true;
-    this.banner(won ? 'TRIAL CLEARED!' : t.timeLeft <= 0 ? 'TIME UP' : 'DEFEATED', won ? '#ffe066' : '#ff6b6b');
+    const g = t.guild;
+    if (g) this.banner(won ? `LEVEL ${g.level} BEATEN!` : t.timeLeft <= 0 ? 'TIME UP' : 'FIGHT OVER', won ? '#ffe066' : '#ffd27a');
+    else this.banner(won ? 'TRIAL CLEARED!' : t.timeLeft <= 0 ? 'TIME UP' : 'DEFEATED', won ? '#ffe066' : '#ff6b6b');
     play(won ? 'clear' : 'defeat');
     if (won) {
       this.cameras.main.shake(250, 0.012);
@@ -2788,7 +2869,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Trial HUD: the boss and level at the top left, with the time left under it. */
   private drawTrialHud(t: TrialFight) {
-    this.stageText.setText(`Trial Lv ${t.tier} · ${Math.ceil(Math.max(0, t.timeLeft))}s`);
+    this.stageText.setText(`${t.guild ? 'Guild Boss' : 'Trial'} Lv ${t.tier} · ${Math.ceil(Math.max(0, t.timeLeft))}s`);
     this.crystalBar.clear();
     // Lane progress from the blue crystal to the boss at the far end.
     const px = WIDTH - 150;
@@ -2805,7 +2886,7 @@ export class BattleScene extends Phaser.Scene {
     const x = 10;
     this.bossBar.clear();
     this.bossBar.fillStyle(0x000000, 0.7).fillRect(x - 2, 52, w + 4, 10);
-    this.bossBar.fillStyle(t.timeLeft < 10 ? 0xff4c4c : 0xffb84c, 1).fillRect(x, 54, w * Math.max(0, t.timeLeft / TRIAL_TIME), 6);
+    this.bossBar.fillStyle(t.timeLeft < 10 ? 0xff4c4c : 0xffb84c, 1).fillRect(x, 54, w * Math.max(0, t.timeLeft / (t.guild ? GUILD_BOSS_SECONDS : TRIAL_TIME)), 6);
   }
 
   /** Colosseum HUD: time left at the top left and an HP bar over each crystal. */

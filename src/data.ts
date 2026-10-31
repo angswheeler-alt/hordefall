@@ -1196,6 +1196,14 @@ export const GUILD_BOSS_ATTEMPTS = 3;
 export const GUILD_BOSS_FIGHT_GAP_SECONDS = 120;
 export const GUILD_BOSS_REST_MINUTES = 30;
 export const GUILD_BOSS_SECONDS = 30;
+/**
+ * A Guild Boss fight is live in the battle lane (Samuel, 2026-10-31): the Guild Boss team runs at the boss and has
+ * GUILD_BOSS_SECONDS once it reaches it. The boss hits back for a share of the team's average max HP, a bit more each
+ * level; fallen heroes stay down until the fight ends, like a Trial.
+ */
+export const GUILD_BOSS_HIT_SHARE = 0.08;
+export const GUILD_BOSS_HIT_PER_LEVEL = 0.03;
+export const GUILD_BOSS_HIT_LEVEL_CAP = 20;
 /** Rough number of solid attempts a boss is built to take; one such attempt earns the full damage bonus. */
 export const GUILD_BOSS_PAR_ATTEMPTS = 15;
 /** Gold per attempt, in minutes of income. */
