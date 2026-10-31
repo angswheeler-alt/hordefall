@@ -6,7 +6,7 @@ import { BOSS_EVERY, TRIAL_UNLOCK_STAGE, REKINDLE_STAGE } from './data';
 
 /** What the guide can see of the game right now. */
 export interface GuideView {
-  /** The open tab ('home' when nothing is open). */
+  /** The open tab. */
   tab: string;
   /** A hero gained a gold level since this step started. */
   leveled: boolean;
@@ -53,15 +53,15 @@ export const INTRO: GuideStep[] = [
     done: (v) => v.leveled,
   },
   {
-    target: '#home-btn',
+    target: '#tabbar button[data-tab="home"]',
     title: 'Back home',
-    text: 'Tap the arrow (or the open tab again) to close it and go back home.',
+    text: 'Tap Home for daily rewards, goals and your run stats.',
     done: (v) => v.tab === 'home',
   },
   {
-    target: '.objective',
+    target: '#home .subtabs button[data-sub="goals"]',
     title: 'Bosses',
-    text: `A boss waits every ${BOSS_EVERY} stages. Beat them to claim the rewards here. Good luck!`,
+    text: `A boss waits every ${BOSS_EVERY} stages. Beat them and claim the rewards in Goals. Good luck!`,
     button: "Let's go!",
   },
 ];
