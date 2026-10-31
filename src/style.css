@@ -31,7 +31,7 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .ult:disabled { cursor: default; filter: grayscale(0.7) brightness(0.6); }
 .ult .cd { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.8); font-size: 14px; }
 .ult.ready { box-shadow: 0 0 0 2px var(--gold), 0 0 12px var(--gold); }
-#controls { display: flex; gap: 8px; padding: 6px 14px 8px; align-items: center; flex-wrap: wrap; }
+#controls { display: flex; gap: 8px; padding: 10px 14px; align-items: center; flex-wrap: wrap; }
 .spacer { flex: 1; }
 button { font: inherit; background: var(--panel-2); color: var(--text); border: 1px solid #4a3d78; border-radius: 10px; padding: 8px 12px; cursor: pointer; }
 /* Hold-to-level buttons: no double-tap zoom or long-press menu getting in the way of a held finger. */
@@ -548,9 +548,7 @@ i.stone { display: inline-block; width: 12px; height: 12px; background: linear-g
 .team-row.locked.ready { opacity: 1; border-color: var(--gold); }
 
 /* Collection page: every hero, grouped by element */
-.coll-head { display: flex; align-items: center; gap: 8px; margin: 0 4px 8px; }
-.coll-head .spacer, .relic-top .spacer { flex: 1; }
-.coll-head .coll-legend { margin: 0; }
+.coll-head { display: flex; justify-content: flex-end; margin: 0 4px 6px; }
 .coll-head span { margin-left: auto; color: #b0c1e8; font-weight: 700; }
 .coll-legend { margin: 0 0 4px; padding: 6px 10px; border-radius: 6px; background: rgba(0,0,0,.25); color: #ffd58a; font-size: 12px; font-weight: 700; line-height: 1.35; }
 .ct-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 12px 8px; padding: 10px 0 16px; border-bottom: 2px solid rgba(0,0,0,.25); }
@@ -1050,7 +1048,3 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .subtabs.mini button { min-height: 28px; font-size: 12px; padding: 4px; }
 .relic-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 4px 8px; }
 .relic-top .gem-btn { font-size: 13px; padding: 6px 10px; min-height: 32px; }
-
-/* ? button: opens the rules for the page it sits on. */
-.help-btn { flex: none; width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 2px solid #8fa3d6; background: #0e1324; color: #d0daf3; font: inherit; font-size: 14px; font-weight: 900; line-height: 1; cursor: pointer; }
-.help-btn:focus-visible { outline: 2px solid #4fd1e0; outline-offset: 2px; }

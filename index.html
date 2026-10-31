@@ -125,7 +125,7 @@
           <div id="heroes"></div>
           </div>
           <div data-subpane="relics" hidden>
-          <div class="relic-top"><span id="relic-slots" class="trial-tickets"></span><button type="button" class="help-btn" data-help="relics" aria-label="How relics work">?</button><span class="spacer"></span><button id="relic-buyslot" class="gem-btn small">Slot</button></div>
+          <div class="relic-top"><span id="relic-slots" class="trial-tickets"></span><button id="relic-buyslot" class="gem-btn small">Slot</button></div>
           <div class="subtabs mini" role="tablist" aria-label="Relics">
             <button data-relic-go="mine" class="on" role="tab">Mine</button>
             <button data-relic-go="shop" role="tab">Buy</button>
@@ -133,6 +133,7 @@
           </div>
           <div class="relic-bar"><div id="relic-ess" class="trial-ess"></div></div>
           <div data-relic-pane="mine">
+            <p class="market-note">Relics can't be bought with Gems. Buy them in the Relic Shop with Trial Essence, then level them with Essence. Max one at level 20 to open relics with one more star. Equipped relics give their bonus; a set gives its bonus once you own every piece.</p>
             <div id="relics"></div>
             <p id="relics-empty" class="market-note" hidden>You have no relics yet. Tap Buy above.</p>
           </div>
@@ -147,7 +148,8 @@
           </div>
           </div>
           <div data-subpane="collection" hidden>
-            <div class="coll-head"><span id="coll-legend" class="coll-legend"></span><button type="button" class="help-btn" data-help="legendary" aria-label="How Legendary heroes work">?</button><span class="spacer"></span><span id="coll-count"></span></div>
+            <div class="coll-head"><span id="coll-count"></span></div>
+            <p id="coll-legend" class="coll-legend"></p>
             <div id="coll-body" class="coll-body"></div>
           </div>
         </section>
@@ -163,7 +165,7 @@
             <button data-sub="arena" role="tab">Colosseum<i class="badge" hidden></i></button>
           </div>
           <div data-subpane="trials">
-            <div class="panel-head"><span id="tr-tickets" class="trial-tickets"></span><button id="tr-elements" class="wood-btn small ew-btn">Element wheel</button></div>
+            <div class="panel-head"><h2>Elemental Trials</h2><button id="tr-elements" class="wood-btn small ew-btn">Element wheel</button><span id="tr-tickets" class="trial-tickets"></span></div>
             <div id="tr-list" class="trial-list"></div>
             <div id="tr-detail" class="trial-card" hidden>
               <button id="tr-back" class="wood-btn small trial-back">&#8592; All Trials</button>
@@ -181,7 +183,7 @@
             <div id="tr-ess" class="trial-ess trial-ess-bar"></div>
           </div>
           <div data-subpane="arena" hidden>
-            <div class="panel-head"><span id="pvp-tickets" class="trial-tickets"></span></div>
+            <div class="panel-head"><h2>Colosseum</h2><span id="pvp-tickets" class="trial-tickets"></span></div>
             <div id="pvp" class="trial-card pvp"></div>
           </div>
         </section>
