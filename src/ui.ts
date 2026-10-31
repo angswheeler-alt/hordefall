@@ -995,6 +995,7 @@ export class UI {
     $('tr-up').addEventListener('click', () => this.stepTier(1));
     $('tr-fight').addEventListener('click', () => this.fightTrial());
     $('tr-quick').addEventListener('click', () => this.pickQuickCount());
+    $('tr-quickall').addEventListener('click', () => this.confirmQuickAll());
     $('pvp').addEventListener('click', (e) => this.onPvpClick(e));
     $('trial-leave').addEventListener('click', () => {
       const scene = this.scene();
@@ -1897,6 +1898,9 @@ export class UI {
         `<p class="trial-reward">Each win: Essence of the boss's element and <i class="medal"></i> x${medals} crests for random heroes of that element.</p>`;
     }
     setHtml($('tr-ess'), TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}"></i>${fmt(s.essences[e] ?? 0)}</span>`).join(''));
+    const quickPlan = this.trialEntered || s.tickets <= 0 ? [] : s.quickAllPlan();
+    $('tr-quickall').hidden = quickPlan.length === 0;
+    $('tr-quickall').textContent = `Quick all · ${s.tickets} ticket${s.tickets === 1 ? '' : 's'}`;
     if (!this.trialEntered) return;
     const el = this.trialEl();
     const tier = this.currentTier();
@@ -1974,6 +1978,37 @@ export class UI {
     $('modal-body').querySelectorAll<HTMLButtonElement>('[data-quick]').forEach((b) =>
       b.addEventListener('click', () => this.quickTrials(el, tier, Number(b.dataset.quick))),
     );
+  }
+
+  /** Quick all: say which Trials and levels the free tickets go to, then run them. */
+  private confirmQuickAll() {
+    const s = this.state;
+    s.refreshTickets();
+    const plan = s.quickAllPlan();
+    if (!plan.length || s.tickets <= 0) return;
+    const rows = plan.map((p) => `<li><b>${TRIAL_BOSS_NAMES[p.element]}</b><span>Level ${p.tier}</span></li>`).join('');
+    const kept = s.boughtTickets ? ` Your ${s.boughtTickets} bought ticket${s.boughtTickets === 1 ? '' : 's'} stay saved.` : '';
+    this.showModal(
+      'Quick all',
+      `<p>Spend your <b>${s.tickets}</b> free ticket${s.tickets === 1 ? '' : 's'} on Quick Battles, shared in turn between:</p><ul class="chest-odds">${rows}</ul><p>Each Trial uses its highest level you've won fast enough.${kept}</p>`,
+      `Quick all · ${s.tickets}`,
+      () => this.quickAll(),
+      true,
+      'Cancel',
+    );
+  }
+
+  private quickAll() {
+    const runs = this.state.quickAllTrials();
+    if (!runs) return;
+    const total = runs.reduce((n, r) => n + r.result.runs, 0);
+    this.showModal(
+      `Quick all · ${total} win${total === 1 ? '' : 's'}`,
+      runs.map((r) => `<p class="tf-result win">${TRIAL_BOSS_NAMES[r.element]} · Level ${r.tier} x${r.result.runs}</p><p>${this.trialWinText(r.element, r.result)}`).join(''),
+      'Okay',
+    );
+    play('clear');
+    this.render();
   }
 
   private quickTrials(el: Element, tier: number, times: number) {
