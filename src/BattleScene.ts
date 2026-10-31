@@ -2194,6 +2194,8 @@ export class BattleScene extends Phaser.Scene {
     // Drench: drenched enemies take more from Water heroes.
     if (target.side === 'enemy' && target.drenchUntil > this.clock && source?.side === 'hero' && source.element === 'water') amount = amount.times(target.drenchMult);
     if (target.side === 'enemy') amount = amount.times(this.mul('enemyVuln', null));
+    // Slayer's Spear (a guild relic): heroes hit every boss harder.
+    if (target.isBoss && target.side === 'enemy' && source?.side === 'hero') amount = amount.times(this.state.bossDamageMult());
     let toHp = amount;
     if (target.shield.gt(0)) {
       const soaked = Decimal.min(target.shield, amount);

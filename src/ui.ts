@@ -5,6 +5,7 @@ import Decimal from 'break_infinity.js';
 import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
 import { GUILD_BOSS_SECONDS, HEROES, byRarity, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_BULK, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, trialFirstWin, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, elementMultiplier, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicEffect, type GuildRelicDef, type GuildRelicEffect } from './guildRelics';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
@@ -619,6 +620,16 @@ export class UI {
         this.renderBattle();
       });
     }
+    $('guild-relics').addEventListener('click', (e) => {
+      const el = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-grelic]');
+      if (!el || el.disabled) return;
+      const id = el.dataset.grelic!;
+      const ok = el.dataset.act === 'equip' ? this.state.toggleGuildRelic(id) : this.state.upgradeGuildRelic(id);
+      if (!ok) return;
+      if (el.dataset.act !== 'equip') play('unlock');
+      this.scene()?.syncHeroes();
+      this.render();
+    });
     $('relic-shop').addEventListener('click', (e) => {
       const el = e.target as HTMLElement;
       const buy = el.closest<HTMLButtonElement>('[data-buy-relic]');
@@ -730,6 +741,8 @@ export class UI {
           : '<p class="market-note">You own every relic you can get right now.</p>')) + nextStar,
     );
 
+    if (this.renderGuildRelics()) worthALook = true;
+
     for (const sec of this.relicSections) sec.head.hidden = !sec.defs.some(owned);
     for (const h of this.setHeads) {
       const p = s.setPieces(h.id);
@@ -766,6 +779,48 @@ export class UI {
       t.root.classList.toggle('locked', !open);
       t.status.textContent = level ? `Lv ${level}` : open ? 'Not found' : 'Locked';
     }
+    return worthALook;
+  }
+
+  /** "Team ATK x1.25" style text for a guild relic's effects at a level. */
+  private guildRelicText(def: GuildRelicDef, level: number) {
+    const name: Record<GuildRelicEffect, string> = { atk: 'Team ATK', hp: 'Team HP', def: 'Team Defense', speed: 'Attack speed', boss: 'Damage to bosses', guildBoss: 'Guild Boss damage', coins: 'Guild Boss Guild Coins', warsteel: 'Warsteel' };
+    const mult = (v: number) => `x${(1 + v).toFixed(2).replace(/0$/, '').replace(/\.0$/, '')}`;
+    return def.fx
+      .map(([e]) => {
+        const v = guildRelicEffect(def, e, level);
+        return `${name[e]} ${e === 'speed' || e === 'coins' || e === 'warsteel' ? `+${Math.round(v * 100)}%` : mult(v)}`;
+      })
+      .join(' · ');
+  }
+
+  /** The Guild relics pane: Warsteel, slots and the six relics. True when one can be crafted or levelled, or a slot is free. */
+  private renderGuildRelics(): boolean {
+    const s = this.state;
+    let worthALook = false;
+    const owned = GUILD_RELICS.filter((r) => (s.guildRelics[r.id] ?? 0) > 0);
+    const freeSlot = s.guildRelicEquipped.length < GUILD_RELIC_SLOTS;
+    setHtml($('guild-relic-slots'), `<i class="warsteel"></i>${fmt(s.warsteel)} Warsteel · Equipped ${s.guildRelicEquipped.length}/${GUILD_RELIC_SLOTS}`);
+    const rows = GUILD_RELICS.map((def) => {
+      const level = s.guildRelics[def.id] ?? 0;
+      const open = s.guildRelicOpen(def);
+      const cost = s.guildRelicNextCost(def);
+      const on = s.guildRelicEquipped.includes(def.id);
+      const can = open && cost !== null && s.warsteel >= cost;
+      if (can && (on || !level)) worthALook = true;
+      if (level && !on && freeSlot) worthALook = true;
+      const status = !open ? `Opens when a guild relic reaches level ${GUILD_RELIC_TIER2_LEVEL}` : level ? `Lv ${level}/${GUILD_RELIC_MAX_LEVEL}` : 'Not crafted';
+      const eff = level ? `${this.guildRelicText(def, level)}` : `At Lv ${GUILD_RELIC_MAX_LEVEL}: ${this.guildRelicText(def, GUILD_RELIC_MAX_LEVEL)}`;
+      const costHtml = cost === null ? '<span>Max level</span>' : `<span class="${s.warsteel < cost ? 'short' : ''}" title="Warsteel"><i class="warsteel"></i>${fmt(cost)}</span>`;
+      return `<div class="relic guild-relic${on ? ' on' : ''}${level ? '' : ' uncrafted'}${open ? '' : ' locked'}">
+        <div class="relic-art guild" aria-hidden="true"><img class="relic-img" src="${RELIC_ICONS[def.id]}" alt="" draggable="false"></div>
+        <div class="relic-info"><b>${def.name} <small class="tier" style="display:inline">· ${status}</small></b><span class="eff">${eff}</span><small>${def.blurb}</small><div class="relic-cost">${costHtml}</div></div>
+        <div class="relic-btns"><button class="wood-btn small" data-grelic="${def.id}" data-act="up" ${can ? '' : 'disabled'}>${cost === null ? 'Maxed' : level ? 'Upgrade' : 'Craft'}</button>${
+          level ? `<button class="wood-btn small" data-grelic="${def.id}" data-act="equip" ${on || freeSlot ? '' : 'disabled'}>${on ? 'Take off' : 'Equip'}</button>` : ''
+        }</div>
+      </div>`;
+    }).join('');
+    setHtml($('guild-relics'), rows + (owned.length ? '' : '<p class="market-note">Join a guild and fight its Guild Boss (Guild tab) to earn Warsteel. Your first guild relic costs 300.</p>'));
     return worthALook;
   }
 
