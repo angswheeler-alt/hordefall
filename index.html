@@ -109,55 +109,40 @@
           </div>
         </section>
         <section class="panel" data-tab="heroes" hidden>
-          <div class="subtabs" role="tablist" aria-label="Heroes">
-            <button data-sub="team" class="on" role="tab">Team<i class="badge" hidden></i></button>
-            <button data-sub="relics" role="tab">Relics<i class="badge" hidden></i></button>
-            <button data-sub="collection" role="tab">Collection<i class="badge" hidden></i></button>
+          <div class="hero-head">
+            <button id="team-btn" class="wood-btn">Manage<br>Team</button>
+            <button id="evolve-all" class="wood-btn evolve-all" disabled>Evolve all</button>
+            <button id="chest-btn" class="wood-btn chest-btn"><span class="chest-ico" aria-hidden="true"></span>Hero Chest</button>
           </div>
-          <div data-subpane="team">
-          <div class="hero-tools">
-            <button id="team-btn" class="wood-btn small">Edit team</button>
-            <button id="chest-btn" class="wood-btn small chest-btn"><span class="chest-ico" aria-hidden="true"></span>Hero Chest</button>
-            <span class="spacer"></span>
-            <button id="levelall" class="wood-btn small levelall">Level all</button><button id="buyamt" class="wood-btn small">Buy x1</button>
-          </div>
-          <button id="evolve-all" class="wood-btn evolve-all rw-wide" hidden>Evolve all</button>
+          <div class="hero-sub"><button id="collection-btn" class="wood-btn small collection-btn">Collection</button><button id="elements-btn" class="wood-btn small" title="Element wheel">Elements</button><button id="levelall" class="wood-btn small levelall">Level all</button><button id="buyamt" class="wood-btn small">Buy x1</button></div>
           <div id="heroes"></div>
-          </div>
-          <div data-subpane="relics" hidden>
-          <div class="relic-top"><span id="relic-slots" class="trial-tickets"></span><button id="relic-buyslot" class="gem-btn small">Slot</button></div>
-          <div class="subtabs mini" role="tablist" aria-label="Relics">
-            <button data-relic-go="mine" class="on" role="tab">Mine</button>
-            <button data-relic-go="shop" role="tab">Buy</button>
-            <button data-relic-go="all" role="tab">All relics</button>
-          </div>
-          <div class="relic-bar"><div id="relic-ess" class="trial-ess"></div></div>
-          <div data-relic-pane="mine">
-            <p class="market-note">Relics can't be bought with Gems. Buy them in the Relic Shop with Trial Essence, then level them with Essence. Max one at level 20 to open relics with one more star. Equipped relics give their bonus; a set gives its bonus once you own every piece.</p>
-            <div id="relics"></div>
-            <p id="relics-empty" class="market-note" hidden>You have no relics yet. Tap Buy above.</p>
-          </div>
-          <div data-relic-pane="shop" hidden>
-            <div class="hero-sub relic-nav"><button id="relic-new" class="wood-btn small">New relics</button></div>
-            <p class="market-note">Relics you don't own yet, paid for with their Essence. New relics swaps the offers for new ones.</p>
-            <div id="relic-shop"></div>
-          </div>
-          <div data-relic-pane="all" hidden>
-            <p class="market-note">Every relic in the game. Tap one to look at it.</p>
-            <div id="relic-catalog"></div>
-          </div>
-          </div>
-          <div data-subpane="collection" hidden>
-            <div class="coll-head"><span id="coll-count"></span></div>
-            <p id="coll-legend" class="coll-legend"></p>
-            <div id="coll-body" class="coll-body"></div>
-          </div>
+          <p class="heroes-note">Only your team shows here. Unlock and swap heroes in Manage Team, or browse everyone in Collection.</p>
         </section>
         <section class="panel" data-tab="market" hidden>
           <div class="panel-head"><h2>Market Row</h2></div>
           <p class="market-note" id="market-note"></p>
           <div class="hero-sub"><button id="stall-levelall" class="wood-btn small levelall">Level all</button><button id="stall-buyamt" class="wood-btn small">Buy x1</button></div>
           <div id="stalls"></div>
+        </section>
+        <section class="panel" data-tab="relics" hidden>
+          <div class="panel-head"><h2>Relics</h2><span id="relic-slots" class="trial-tickets"></span></div>
+          <div class="relic-bar"><div id="relic-ess" class="trial-ess"></div></div>
+          <div data-relic-pane="mine">
+            <div class="hero-sub relic-nav"><button id="relic-buyslot" class="gem-btn small">Slot</button><button data-relic-go="shop" class="wood-btn small levelall relic-shop-btn">Buy relics</button></div>
+            <p class="market-note">Relics can't be bought with Gems. Buy them in the Relic Shop with Trial Essence, then level them with Essence. Max one at level 20 to open relics with one more star. Equipped relics give their bonus; a set gives its bonus once you own every piece.</p>
+            <div id="relics"></div>
+            <p id="relics-empty" class="market-note" hidden>You have no relics yet. Tap Buy relics.</p>
+          </div>
+          <div data-relic-pane="shop" hidden>
+            <div class="hero-sub relic-nav"><button data-relic-go="mine" class="wood-btn small">← Back</button><button data-relic-go="all" class="wood-btn small">Collection</button><button id="relic-new" class="wood-btn small">New relics</button></div>
+            <p class="market-note">Relics you don't own yet, paid for with their Essence. New relics swaps the offers for new ones.</p>
+            <div id="relic-shop"></div>
+          </div>
+          <div data-relic-pane="all" hidden>
+            <div class="hero-sub relic-nav"><button data-relic-go="shop" class="wood-btn small">← Back</button></div>
+            <p class="market-note">Every relic in the game. Tap one to look at it.</p>
+            <div id="relic-catalog"></div>
+          </div>
         </section>
         <section class="panel" data-tab="battle" hidden>
           <div data-battle-pane="hub">
@@ -239,6 +224,7 @@
         <button data-tab="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8v10H3z"/></svg><span>Home</span><i class="badge" hidden></i></button>
         <button data-tab="heroes"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg><span>Heroes</span><i class="badge" hidden></i></button>
         <button data-tab="market"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l2-5h14l2 5"/><path d="M3 9h18v2a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0z"/><path d="M5 13v7h14v-7"/></svg><span>Market</span><i class="badge" hidden></i></button>
+        <button data-tab="relics"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/></svg><span>Relics</span><i class="badge" hidden></i></button>
         <button data-tab="battle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l10 10M4 4h4M4 4v4M20 4L10 14M20 4h-4M20 4v4M7 15l2 2-3 3-2-2zM17 15l-2 2 3 3 2-2z"/></svg><span>Battle</span><i class="badge" hidden></i></button>
         <button data-tab="shop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg><span>Shop</span><i class="badge" hidden></i></button>
         <button data-tab="guild"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/></svg><span>Guild</span><i class="badge" hidden></i></button>
@@ -303,6 +289,13 @@
           <button id="sheet-awaken" class="hot evolve awaken" hidden>Awaken</button>
           <p id="sheet-awaken-note" class="meta"></p>
         </section>
+      </div>
+    </div>
+    <div id="coll" hidden>
+      <div class="coll-page" role="dialog" aria-modal="true" aria-labelledby="coll-title">
+        <header class="coll-head"><button id="coll-back" class="wood-btn coll-back" aria-label="Back">&#x2190;</button><h2 id="coll-title">Collection</h2><span id="coll-count"></span></header>
+        <p id="coll-legend" class="coll-legend"></p>
+        <div id="coll-body" class="coll-body"></div>
       </div>
     </div>
     <div id="rk" hidden>
