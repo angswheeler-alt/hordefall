@@ -87,8 +87,7 @@ export class ScoutUI {
       const k = SCOUT_KINDS[sl.kind];
       const m = sl.mission;
       if (!m) {
-        const wait = Math.max(0, Math.ceil((sl.readyAt - now) / 1000));
-        return `<div class="sc-card ${sl.kind} empty"><div class="sc-head"><b>${k.name} mission</b></div><small>New mission in ${fmtDuration(wait)}</small></div>`;
+        return `<div class="sc-card ${sl.kind} empty"><div class="sc-head"><b>${k.name} mission</b></div><small>New mission in <span data-sc-end="${sl.readyAt}"></span></small></div>`;
       }
       const head = `<div class="sc-head"><span class="sc-kind">${k.name}</span><b>${m.hours} h · ${m.size} heroes</b><span class="sc-rec"><span class="el-pip ${m.element}"></span>${cap(m.element)} · ${m.type}</span></div>`;
       if (!m.startedAt) {
@@ -96,18 +95,22 @@ export class ScoutUI {
       }
       const faces = m.heroes.map((id) => `<span class="face art sc-face" style="${faceStyle(hero(id))}">${hero(id).name[0]}</span>`).join('');
       const { share } = s.scoutScore(sl.slot, m.heroes);
-      const left = Math.max(0, Math.ceil((missionEndsAt(m) - now) / 1000));
-      const done = left === 0;
+      const done = now >= missionEndsAt(m);
       const reward = rewardChips(scoutReward(m, share));
       return `<div class="sc-card ${sl.kind} ${done ? 'done' : 'running'}">${head}<div class="sc-team">${faces}<small>${Math.round(share * 100)}% score</small></div><div class="sc-reward">${reward}</div>${
         done
           ? `<button type="button" class="hot sc-go" data-sc="claim" data-slot="${sl.slot}">Collect</button>`
-          : `<div class="sc-run"><span class="sc-timer">${fmtDuration(left)} left</span><button type="button" class="wood-btn small" data-sc="recall" data-slot="${sl.slot}">Call back</button></div>`
+          : `<div class="sc-run"><span class="sc-timer"><span data-sc-end="${missionEndsAt(m)}"></span> left</span><button type="button" class="wood-btn small" data-sc="recall" data-slot="${sl.slot}">Call back</button></div>`
       }</div>`;
     });
     const toBonus = SCOUT_BONUS_COMMONS - s.scout.commons;
     const note = s.scout.slots.some((x) => x.slot === 'rb') ? '' : `<p class="sc-note">${toBonus} more Common mission${toBonus === 1 ? '' : 's'} for a bonus Rare mission.</p>`;
     setHtml(board, cards.join('') + note);
+    // Countdowns tick in place, so the cards (and their buttons) are only rebuilt when something changes.
+    for (const el of board.querySelectorAll<HTMLElement>('[data-sc-end]')) {
+      const text = fmtDuration(Math.max(0, Math.ceil((Number(el.dataset.scEnd) - now) / 1000)));
+      if (el.textContent !== text) el.textContent = text;
+    }
   }
 
   private claim(slot: string) {
