@@ -107,7 +107,7 @@ export const TIPS: GuideTip[] = [
     id: 'unlock',
     target: '#team-btn',
     title: 'New hero ready!',
-    text: 'You have the crests to unlock a hero. Tap Manage Team to unlock it and add it to your team.',
+    text: 'You have the crests to unlock a hero. Tap Edit team to unlock it and add it to your team.',
     button: 'Got it',
     when: (v) => v.unlockReady && v.tab === 'heroes',
   },
