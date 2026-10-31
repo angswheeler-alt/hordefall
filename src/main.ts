@@ -12,12 +12,15 @@ import { ColosseumLink } from './colosseumLink';
 import { Tutorial } from './tutorial';
 import { initInstall } from './install';
 import { watchTaps } from './taps';
+import { watchScreenGap } from './screenGap';
 import { colosseumNews, eventNews, defenseNews, type WelcomeSection } from './welcome';
 
 // iOS Safari ignores user-scalable=no, so stop pinch zoom here (double-tap zoom is off via touch-action in the CSS).
 for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
 // Hold off re-rendering whatever is under a finger, so taps aren't lost (src/taps.ts).
 watchTaps(window);
+// Installed iPhone app: cover the empty band under the tab bar (src/screenGap.ts).
+watchScreenGap(window);
 
 const state = new GameState();
 const hadSave = state.load();
