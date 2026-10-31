@@ -12,6 +12,7 @@ import { ColosseumLink } from './colosseumLink';
 import { Tutorial } from './tutorial';
 import { initInstall } from './install';
 import { watchTaps } from './taps';
+import { colosseumNews, eventNews, defenseNews, type WelcomeSection } from './welcome';
 
 // iOS Safari ignores user-scalable=no, so stop pinch zoom here (double-tap zoom is off via touch-action in the CSS).
 for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
@@ -23,6 +24,8 @@ const hadSave = state.load();
 initAudio();
 setMuted(state.muted);
 setVolumes(state.sfxVolume, state.musicVolume);
+// When the game last ran, for the "While you were away" news (src/welcome.ts).
+let awayFrom = state.lastSeen;
 const offline = hadSave ? state.applyOffline((Date.now() - state.lastSeen) / 1000) : null;
 // That time is paid; move the mark now so a quick hide/show can't pay it twice.
 state.lastSeen = Math.max(state.lastSeen, Date.now());
@@ -62,7 +65,17 @@ const ui = new UI(state, scene, {
     return error;
   },
 });
-if (offline) ui.showOffline(offline);
+/** What happened since `from`: Colosseum rewards (paid now) and events that started or ended. */
+const awayNews = (from: number): WelcomeSection[] => [
+  { title: 'Colosseum', lines: colosseumNews(state, Date.now()) },
+  { title: 'Events', lines: eventNews(state, from, Date.now()) },
+];
+/** Seen once Collect is tapped, so the Colosseum page doesn't repeat them. */
+const seenNews = () => {
+  state.pvp.notes = [];
+  state.save();
+};
+if (hadSave) ui.showWelcome(offline, awayNews(awayFrom), seenNews);
 
 // GameState.frozen is set once the page is about to reload with a different save, so nothing overwrites it.
 const save = () => state.save();
@@ -76,12 +89,12 @@ document.addEventListener('visibilitychange', () => {
     return;
   }
   // Saves while hidden leave lastSeen alone, so this is the whole time away.
+  awayFrom = state.lastSeen;
   const report = state.applyOffline((Date.now() - state.lastSeen) / 1000);
   state.lastSeen = Math.max(state.lastSeen, Date.now());
-  if (report) {
-    ui.showOffline(report);
-    scene()?.restart();
-  }
+  if (report) scene()?.restart();
+  ui.showWelcome(report, awayNews(awayFrom), seenNews);
+  void showDefense(awayFrom);
 });
 
 const account = new Account(state, (data) => {
@@ -92,7 +105,22 @@ const account = new Account(state, (data) => {
 account.listeners.push(() => ui.setAdmin(account.isAdmin));
 new Guild(state, account, ui);
 new Social(state, account);
-ui.setPvpServer(new ColosseumLink(state, account));
+const pvpLink = new ColosseumLink(state, account);
+ui.setPvpServer(pvpLink);
+
+/** Fights against this player's defense team since `from`, added to the pop-up once the log loads (signed in only). */
+async function showDefense(from: number) {
+  if (!pvpLink.online || !state.pvpOpen() || Date.now() - from < 60_000) return;
+  const board = await pvpLink.board().catch(() => null);
+  if (board) ui.addWelcomeNews({ title: 'Colosseum defense', lines: defenseNews(board.log, from) });
+}
+// Sign-in finishes after the page opens, so look at the defense log once it has.
+let defenseChecked = !hadSave;
+account.listeners.push(() => {
+  if (defenseChecked || !pvpLink.online) return;
+  defenseChecked = true;
+  void showDefense(awayFrom);
+});
 
 const tutorial = new Tutorial(state);
 document.getElementById('tut-replay')!.addEventListener('click', () => {

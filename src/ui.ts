@@ -11,6 +11,7 @@ import { HERO_ANIMS } from './heroAnims';
 import { setMuted, setVolumes } from './sfx';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES } from './bossAnims';
 import { guildBossElement, utcWeekStart, bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberRefund, emberBulk, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
+import type { WelcomeSection } from './welcome';
 import type { GameState, OfflineReport, SummonDrop, RekindleResult, TrialResult, PvpOpponent } from './state';
 import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, BOOTCAMP, MILESTONE_STEP, milestoneReward, milestoneText, rewardText, type Reward } from './rewards';
 import { rarityOdds, SHOP_HEROES, medalPackCost } from './state';
@@ -1671,7 +1672,7 @@ export class UI {
   }
 
   showModal(title: string, html: string, ok: string, action: (() => void) | null = null, cancel = false, cancelLabel = 'Not yet') {
-    $('modal').classList.remove('team-mode');
+    $('modal').classList.remove('team-mode', 'welcome-mode');
     $('modal-title').textContent = title;
     $('modal-body').innerHTML = html;
     $('modal-ok').textContent = ok;
@@ -2737,9 +2738,51 @@ export class UI {
   }
 
   showOffline(report: OfflineReport) {
-    const stages = report.stages > 0 ? `<br>Your heroes pushed <b>${report.stages}</b> stage${report.stages === 1 ? '' : 's'}${report.bosses > 0 ? ` and beat <b>${report.bosses}</b> boss${report.bosses === 1 ? '' : 'es'}` : ''}.` : '';
-    const market = report.market.gt(0) ? `<br>Market Row made <b>${fmt(report.market)}</b> of that.` : '';
-    this.showModal('Welcome back!', `You were away for ${fmtDuration(report.seconds)}.<br>You earned <b>${fmt(report.gold)}</b> gold.${market}${stages}`, 'Collect');
+    this.showWelcome(report, []);
+  }
+
+  /** Sections shown in the open "Welcome back" pop-up, or null when it isn't open. */
+  private welcome: { report: OfflineReport | null; sections: WelcomeSection[] } | null = null;
+
+  /**
+   * The "Welcome back" pop-up: offline progress plus what happened while away (Colosseum rewards,
+   * defense fights, events). Shows nothing when there is nothing to tell.
+   */
+  showWelcome(report: OfflineReport | null, sections: WelcomeSection[], onCollect: (() => void) | null = null) {
+    const kept = sections.filter((x) => x.lines.length);
+    if (!report && !kept.length) return;
+    this.welcome = { report, sections: kept };
+    this.showModal(report ? 'Welcome back!' : 'While you were away', this.welcomeHtml(), 'Collect', () => {
+      this.welcome = null;
+      onCollect?.();
+    });
+    $('modal').classList.add('welcome-mode');
+  }
+
+  /** Add news that arrived later (e.g. the defense log once signed in): into the open pop-up, or a new one. */
+  addWelcomeNews(section: WelcomeSection) {
+    if (!section.lines.length) return;
+    if (this.welcome && !$('modal').hidden && $('modal').classList.contains('welcome-mode')) {
+      this.welcome.sections.push(section);
+      $('modal-body').innerHTML = this.welcomeHtml();
+      return;
+    }
+    this.showWelcome(null, [section]);
+  }
+
+  private welcomeHtml(): string {
+    const w = this.welcome!;
+    const parts: string[] = [];
+    const report = w.report;
+    if (report) {
+      const stages = report.stages > 0 ? `<br>Your heroes pushed <b>${report.stages}</b> stage${report.stages === 1 ? '' : 's'}${report.bosses > 0 ? ` and beat <b>${report.bosses}</b> boss${report.bosses === 1 ? '' : 'es'}` : ''}.` : '';
+      const market = report.market.gt(0) ? `<br>Market Row made <b>${fmt(report.market)}</b> of that.` : '';
+      parts.push(`<span class="welcome-lead">You were away for ${fmtDuration(report.seconds)}.<br>You earned <b>${fmt(report.gold)}</b> gold.${market}${stages}</span>`);
+    }
+    for (const sec of w.sections) {
+      parts.push(`<span class="welcome-sec"><b class="welcome-head">${sec.title}</b>${sec.lines.map((l) => `<span class="welcome-line">${l}</span>`).join('')}</span>`);
+    }
+    return parts.join('');
   }
 
   render() {
