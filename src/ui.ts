@@ -355,7 +355,7 @@ export class UI {
       const cards = shown
         .map(
           (h) =>
-            `<button type="button" class="tm-card${ids.includes(h.id) ? ' on' : ''}" data-peek="${h.id}" style="--el:${hex(ELEMENT_COLORS[h.element])}">${edgeTag(h)}${face(h)}<b>${h.name}</b>${rarityTag(h)}<small class="tm-type"><i></i>${h.type}</small><small>${level(h)}</small><small class="tm-cp">CP ${fmt(s.heroCombatPower(h))}</small>${starsOf(h)}</button>`,
+            `<button type="button" class="tm-card${ids.includes(h.id) ? ' on' : ''}" data-peek="${h.id}" style="--el:${hex(ELEMENT_COLORS[h.element])}" title="${cap(h.rarity)} ${h.type}">${edgeTag(h)}${face(h)}<b class="tm-name r-${h.rarity}">${h.name}</b><small>${level(h)}</small><small class="tm-cp">CP ${fmt(s.heroCombatPower(h))}</small>${starsOf(h)}</button>`,
         )
         .join('');
       const tools = swapping
