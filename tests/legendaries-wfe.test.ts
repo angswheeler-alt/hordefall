@@ -27,28 +27,28 @@ describe('Water, Fire and Earth Legendaries', () => {
     expect(drenchVuln(sigOf('ashtor'))).toBe(1);
   });
 
-  it('Rising Heat: builds +5% per Heat, erupts at 10 and starts over', () => {
+  it('Rising Heat: builds +6% per Heat, erupts at 8 and starts over', () => {
     const sig = sigOf('ashtor');
     let heat = 0;
     const mults: number[] = [];
-    for (let i = 0; i < 11; i++) {
+    for (let i = 0; i < 9; i++) {
       const step = heatStep(sig, heat);
       mults.push(step.mult);
       heat = step.heat;
     }
     expect(mults[0]).toBe(1);
-    expect(mults[9]).toBeCloseTo(1.45);
-    expect(mults[10]).toBe(4);
+    expect(mults[7]).toBeCloseTo(1.42);
+    expect(mults[8]).toBe(4);
     expect(heat).toBe(0);
-    expect(heatStep(sig, 10, true)).toEqual({ heat: 0, mult: 6, erupt: true });
-    expect(heatStep(sigOf('varuun'), 10)).toEqual({ heat: 0, mult: 1, erupt: false });
+    expect(heatStep(sig, 8, true)).toEqual({ heat: 0, mult: 6, erupt: true });
+    expect(heatStep(sigOf('varuun'), 8)).toEqual({ heat: 0, mult: 1, erupt: false });
   });
 
-  it('Quarry: +8% per arrow up to +80%, keeps half the streak after a kill (all of it at 6★)', () => {
+  it('Quarry: +5% per arrow up to +50%, keeps half the streak after a kill (all of it at 6★)', () => {
     const sig = sigOf('talonra');
     expect(quarryMult(sig, 0)).toBe(1);
-    expect(quarryMult(sig, 5)).toBeCloseTo(1.4);
-    expect(quarryMult(sig, 50)).toBeCloseTo(1.8);
+    expect(quarryMult(sig, 4)).toBeCloseTo(1.2);
+    expect(quarryMult(sig, 50)).toBeCloseTo(1.5);
     expect(quarryCarry(sig, 9)).toBe(4);
     expect(quarryCarry(sig, 9, true)).toBe(9);
     expect(quarryCarry(sigOf('ashtor'), 9)).toBe(0);
