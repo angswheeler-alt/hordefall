@@ -998,6 +998,13 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 @keyframes asc-glow { 50% { box-shadow: 0 0 0 2px #a35bff, 0 0 14px 4px rgba(255,214,107,.75); } }
 @media (prefers-reduced-motion: reduce) { .face[style*="--asc:1"] { animation: none; } }
 
+/* Legendary heroes: a gold-and-orange ring with a slow warm glow on every hero icon (faceStyle() marks them
+   with --leg:1; Collection tiles get .leg). */
+.face[style*="--leg:1"] { position: relative; border-color: #fff1a8 !important; box-shadow: 0 0 0 2px #ff9a1f, 0 0 9px 2px rgba(255,194,61,.75); animation: leg-glow 2.2s ease-in-out infinite; }
+.ct.leg .ct-tile { border-color: #fff1a8; box-shadow: inset 0 0 0 2px #ff9a1f, 0 0 10px rgba(255,194,61,.85); }
+@keyframes leg-glow { 50% { box-shadow: 0 0 0 2px #ffc23d, 0 0 15px 4px rgba(255,140,30,.8); } }
+@media (prefers-reduced-motion: reduce) { .face[style*="--leg:1"] { animation: none; } }
+
 /* Ascendant Chest: the hero's icon is a button that opens their kit. */
 .asc-kit-btn { flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 0; border: 0; background: none; color: var(--gold); font-size: 10px; font-weight: 800; cursor: pointer; }
 .asc-kit-btn .face { width: 48px; height: 48px; border-radius: 10px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; }

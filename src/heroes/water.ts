@@ -1,6 +1,6 @@
 import type { HeroDef } from '../data';
 import type { HeroProfile } from '../profiles';
-import { VS, ULT } from '../heroText';
+import { VS, ULT, ultX } from '../heroText';
 
 /** Water heroes beyond the first five. */
 export const WATER_HEROES: HeroDef[] = [
@@ -113,9 +113,23 @@ export const WATER_HEROES: HeroDef[] = [
     sp1: { name: 'Twin Bubble', text: '20% chance for each attack to cast twice.', effect: { kind: 'doubleStrike', value: 0.2 } },
     sp2: { name: 'Froth', text: 'Splash radius +20%.', effect: { kind: 'splash', value: 1.2 } },
     aura: { name: 'Sea Spray', text: 'Water heroes regenerate 1% of max HP every second.', effect: { kind: 'regen', value: 0.01, team: true, element: 'water' } } },
+  // ---- Legendary ----
+  { id: 'varuun', rarity: 'legendary', name: 'Varuun', element: 'water', type: 'Magician', flying: true, baseAtk: 9.5, baseHp: 58, range: 170, attackCooldown: 1.3, moveSpeed: 105, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, splash: 40, steadfast: true,
+    signature: { kind: 'drench', seconds: 4, slow: 0.8, vuln: 0.15, plusVuln: 0.25 },
+    sigPlus: 'Drenched enemies take 25% more damage from Water heroes instead of 15%.',
+    ult: { kind: 'maelstrom', seconds: 5, plusSeconds: 8, dps: 0.8, freeze: 2 },
+    ultPlus: 'The whirlpool lasts 8 s and freezes every enemy still inside for 2 s as it closes.',
+    bio: 'The Abyssal Leviathan: an ancient winged sea dragon with a crown of white coral, glowing runes down its scales and a pearl that holds the tide.',
+    basic: { name: 'Tide Breath', text: 'Ranged blasts of seawater that splash every enemy near the target.' },
+    ultimate: { name: 'Maelstrom', text: `A whirlpool opens among the enemies for ${ultX(1)} ATK: it pulls regular enemies to its center and deals 0.8x ATK every second to everything inside for 5 s.` },
+    trait: { name: 'Drench', text: `Hits drench enemies for 4 s: they move 20% slower and take 15% more damage from Water heroes. Boss blows never stun it. ${VS.water}` },
+    sp1: { name: 'Riptide Coil', text: 'Every 4th spell is a crashing wave: 2.5x damage to every enemy near the target.', effect: { kind: 'slam', value: 2.5, every: 4 } },
+    sp2: { name: 'Deep Pressure', text: 'Splash radius +25%.', effect: { kind: 'splash', value: 1.25 } },
+    aura: { name: "Sea's Command", text: 'Whole team +20% ATK.', effect: { kind: 'atk', value: 1.2, team: true } } },
 ];
 
 export const WATER_PROFILES: Record<string, HeroProfile> = {
+  varuun: { effectRes: 0.5, aoeDmg: 0.15, crit: 0.15, specialty: 'Abyssal scales: 50% Effect Resistance, +15% splash damage and 15% crit' },
   gaff: { stunChance: 0.2, crit: 0.2, critDmg: 1.2, specialty: 'Swordbill: 20% chance to stun and 20% crit, softer crits (+120%)' },
   barnacle: { stunChance: 0.12, defMult: 4.5, crit: 0.03, specialty: 'Anchor shield: 4.5x Defense and 12% chance to stun, rarely crits (3%)' },
   rime: { freezeChance: 0.1, effectRes: 0.5, atkMult: 0.95, specialty: 'Frost plate: 10% chance to freeze and 50% Effect Resistance, a little less ATK' },

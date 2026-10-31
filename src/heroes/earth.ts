@@ -136,9 +136,23 @@ export const EARTH_HEROES: HeroDef[] = [
     sp1: { name: 'Seed Blast', text: 'Every 3rd spell is a burst of seeds (2x damage).', effect: { kind: 'everyNth', value: 2, every: 3 } },
     sp2: { name: 'Tailwind', text: 'Attacks 15% faster.', effect: { kind: 'attackSpeed', value: 0.85 } },
     aura: { name: 'Spread Seeds', text: 'Earth heroes +10% HP.', effect: { kind: 'hp', value: 1.1, team: true, element: 'earth' } } },
+  // ---- Legendary ----
+  { id: 'talonra', rarity: 'legendary', name: 'Talonra', element: 'earth', type: 'Ranger', flying: true, baseAtk: 7, baseHp: 50, range: 195, attackCooldown: 0.9, moveSpeed: 120, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
+    signature: { kind: 'quarry', perHit: 0.08, max: 0.8, keep: 0.5, plusKeep: 1 },
+    sigPlus: 'When her quarry falls she keeps the whole bonus for the next one.',
+    ult: { kind: 'skyfall', mult: 3, radius: 70, stun: 2, markMult: 1.25, markSeconds: 6 },
+    ultPlus: 'The quake cracks the ground: every enemy hit takes 25% more damage from the whole team for 6 s.',
+    bio: 'The Gryphon Queen: wings of stone and gold feathers, emerald crystals on her shoulders, orbiting runestones and a bow of living wood.',
+    basic: { name: 'Stoneshot', text: 'Long-range stone-tipped arrows at the toughest enemy in reach.' },
+    ultimate: { name: 'Skyfall', text: `She dives on the toughest enemy in reach for ${ultX(3)} ATK; the landing quake hits enemies nearby and stuns regular ones for 2 s.` },
+    trait: { name: 'Quarry', text: `Shoots the toughest enemy in reach. Each arrow in a row at it adds +8% damage, up to +80%, and when it falls she keeps half the bonus for the next one. Boss blows never stun her. ${VS.earth}` },
+    sp1: { name: 'Split Talon', text: 'Each arrow also hits the next 2 enemies behind the target.', effect: { kind: 'pierce', value: 2 } },
+    sp2: { name: 'Gryphon Eye', text: '+15% critical hit chance.', effect: { kind: 'crit', value: 0.15 } },
+    aura: { name: 'Highland Wind', text: 'Whole team deals 20% more damage to bosses.', effect: { kind: 'bossDamage', value: 1.2, team: true } } },
 ];
 
 export const EARTH_PROFILES: Record<string, HeroProfile> = {
+  talonra: { crit: 0.25, effectRes: 0.3, hpMult: 0.95, specialty: 'Gryphon sight: 25% crit and 30% Effect Resistance, a little less HP' },
   thistle: { critDmg: 2.6, dodge: 0, hpMult: 1.05, specialty: 'Cactus hide: +5% HP and crits hit for +260%, but never dodges' },
   buzz: { poisonChance: 0.25, atkMult: 0.9, aoeDmg: 0.1, specialty: 'Venom stinger: 25% chance to poison and +10% splash damage, a little less ATK' },
   bamboo: { dodge: 0.15, critDmg: 2.2, specialty: 'Stag poise: dodges 15% of attacks and crits hit for +220%' },

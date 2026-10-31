@@ -37,10 +37,11 @@ const iconUrls = (files: Record<string, string>) => Object.fromEntries(Object.en
 const STALL_ICONS = iconUrls(import.meta.glob('./assets/stalls/*.png', { eager: true, query: '?url', import: 'default' }));
 const RELIC_ICONS = iconUrls(import.meta.glob('./assets/relics/*.png', { eager: true, query: '?url', import: 'default' }));
 // Heroes still waiting for art show their initial on the element color instead of a picture.
-// Ascendant heroes get --asc:1, which style.css turns into their violet-and-gold ring on every hero icon.
+// Ascendant heroes get --asc:1, which style.css turns into their violet-and-gold ring on every hero icon;
+// Legendaries get --leg:1, a gold-and-orange ring.
 // `art` picks another picture (an Ascendant form's art key).
 export const faceStyle = (def: HeroDef, art = def.id) =>
-  `background-color:${hex(ELEMENT_COLORS[def.element])};--art:${heroArt(art)}${HERO_ANIMS[art] ? '' : ';color:#fff !important;text-shadow:0 1px 0 #000 !important'}${isAscendant(def.id) ? ';--asc:1' : ''}`;
+  `background-color:${hex(ELEMENT_COLORS[def.element])};--art:${heroArt(art)}${HERO_ANIMS[art] ? '' : ';color:#fff !important;text-shadow:0 1px 0 #000 !important'}${isAscendant(def.id) ? ';--asc:1' : def.rarity === 'legendary' ? ';--leg:1' : ''}`;
 const SWORD = '<i class="ico ico-atk" aria-hidden="true"></i>';
 const HEART = '<i class="ico ico-hp" aria-hidden="true"></i>';
 const ULT_ICONS: Record<string, string> = {
@@ -211,7 +212,7 @@ export class UI {
           const pct = need ? Math.min(100, (crests / need) * 100) : 0;
           const stars = recruited ? `<span class="ct-stars">★${(s.stars[h.id] ?? 0) + 1}</span>` : '';
           const foot = maxed ? '<span class="ct-maxed">Maxed</span>' : `<div class="ct-bar"><i style="width:${pct}%"></i></div><span class="ct-count">${crests.toLocaleString()}</span>`;
-          return `<div class="ct${recruited ? '' : ' locked'}${s.canUnlock(h) ? ' ready' : ''}${s.inLineup(h.id) ? ' team' : ''}${isAscendant(h.id) ? ' asc' : ''}"><button type="button" class="ct-tile" data-coll="${h.id}" aria-label="${h.name}" style="--el:${hex(ELEMENT_COLORS[el])}"><span class="ct-art" style="--art:${heroArt(h.id)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span>${stars}<span class="ct-name">${h.name}${rarityTag(h)}</span></button>${foot}</div>`;
+          return `<div class="ct${recruited ? '' : ' locked'}${s.canUnlock(h) ? ' ready' : ''}${s.inLineup(h.id) ? ' team' : ''}${isAscendant(h.id) ? ' asc' : h.rarity === 'legendary' ? ' leg' : ''}"><button type="button" class="ct-tile" data-coll="${h.id}" aria-label="${h.name}" style="--el:${hex(ELEMENT_COLORS[el])}"><span class="ct-art" style="--art:${heroArt(h.id)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span>${stars}<span class="ct-name">${h.name}${rarityTag(h)}</span></button>${foot}</div>`;
         })
         .join('');
       return `<section class="ct-group">${tiles}</section>`;

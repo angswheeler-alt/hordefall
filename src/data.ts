@@ -65,7 +65,14 @@ export type Signature =
   /** Below `below` of max HP (6★: plusBelow): deals `dmg` damage and takes `guard` damage. */
   | { kind: 'torrent'; below: number; plusBelow: number; dmg: number; guard: number }
   /** Every `every`th attack the hero's spirit also hits `targets` other enemies in reach for `mult` damage (6★: plusTargets). */
-  | { kind: 'spirit'; every: number; targets: number; plusTargets: number; mult: number };
+  | { kind: 'spirit'; every: number; targets: number; plusTargets: number; mult: number }
+  // Water, Fire and Earth Legendaries' own Signatures (src/heroes/<element>.ts).
+  /** Hits drench enemies for `seconds`: they move at `slow` speed and take `vuln` more damage from Water heroes (6★: plusVuln). */
+  | { kind: 'drench'; seconds: number; slow: number; vuln: number; plusVuln: number }
+  /** Each attack adds 1 Heat (+perStack ATK each); the attack after `max` Heat is an Eruption: `mult` damage to every enemy near the target (6★: plusMult), sets them Burning, and Heat starts over. */
+  | { kind: 'heat'; perStack: number; max: number; mult: number; plusMult: number }
+  /** Shoots the toughest enemy in reach. Each shot in a row at it adds perHit damage, up to max; when it falls, `keep` of the streak carries to the next one (6★: plusKeep). */
+  | { kind: 'quarry'; perHit: number; max: number; keep: number; plusKeep: number };
 
 /** What a standard hero's Ultimate does on top of the big hit (or full heal), and its 5★ twist. */
 export type UltEffect =
@@ -97,7 +104,14 @@ export type UltEffect =
   /** Pushes regular enemies `push` px back and soaks every enemy hit: `slow` speed for `seconds` (5★: plusSeconds). */
   | { kind: 'hydro'; push: number; slow: number; seconds: number; plusSeconds: number }
   /** Pulls regular enemies hit together at the middle of the blast and holds them for `seconds` (5★: plusSeconds). */
-  | { kind: 'tempest'; seconds: number; plusSeconds: number };
+  | { kind: 'tempest'; seconds: number; plusSeconds: number }
+  // Water, Fire and Earth Legendaries' own Ultimates.
+  /** A whirlpool pulls regular enemies hit together and deals `dps` x ATK per second to everything in it for `seconds` (5★: plusSeconds, and it freezes everything still inside for `freeze` s as it closes). */
+  | { kind: 'maelstrom'; seconds: number; plusSeconds: number; dps: number; freeze: number }
+  /** A dash down the lane: every enemy within `reach` ahead takes the hit and Burns for `burn` x ATK per second for `seconds` (5★: Heat fills up). */
+  | { kind: 'verdict'; reach: number; burn: number; seconds: number }
+  /** A dive on the toughest enemy in reach for `mult` x the hit; regular enemies within `radius` are stunned for `stun` s (5★: everyone hit takes `markMult` damage for `markSeconds`). */
+  | { kind: 'skyfall'; mult: number; radius: number; stun: number; markMult: number; markSeconds: number };
 
 export interface HeroDef {
   id: string;
