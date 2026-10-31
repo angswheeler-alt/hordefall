@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Hordefall Save Recovery</title>
+    <style>
+      [hidden] { display: none !important; }
+      :root { --bg: #1b1530; --panel: #2a2246; --line: #4a3f73; --text: #f4efff; --muted: #b3a8d6; --hot: #ff6680; --ok: #4cd97a; color-scheme: dark; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+      main { max-width: 760px; margin: 0 auto; padding: 16px; }
+      h1 { font-size: 20px; margin: 0 0 12px; }
+      h2 { font-size: 16px; margin: 20px 0 8px; }
+      section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+      input, button { font: inherit; color: var(--text); background: #1f1838; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+      button { cursor: pointer; background: #3b3166; }
+      button.hot { background: var(--hot); border-color: var(--hot); color: #1b1530; font-weight: 700; }
+      form { display: flex; gap: 8px; flex-wrap: wrap; }
+      form input { flex: 1 1 160px; min-width: 0; }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+      th { color: var(--muted); font-weight: 600; }
+      tr.pick { cursor: pointer; }
+      tr.pick:hover, tr.sel { background: #3b3166; }
+      .muted { color: var(--muted); }
+      .note { min-height: 1.3em; margin: 8px 0 0; }
+      .err { color: var(--hot); }
+      .good { color: var(--ok); }
+      pre { max-height: 320px; overflow: auto; background: #120e22; padding: 8px; border-radius: 8px; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+      .wide { overflow-x: auto; }
+      td button { display: block; width: 100%; margin: 2px 0; padding: 4px 8px; font-size: 13px; }
+      td:last-child { width: 1%; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Save Recovery</h1>
+      <section id="login">
+        <p class="muted">Admins only. Sign in with your Hordefall username and password.</p>
+        <form id="login-form">
+          <input id="name" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Username" required />
+          <input id="password" type="password" autocomplete="current-password" placeholder="Password" required />
+          <button class="hot">Sign in</button>
+        </form>
+        <p id="login-note" class="note"></p>
+      </section>
+      <div id="tool" hidden>
+        <section>
+          <form id="search-form">
+            <input id="query" autocapitalize="none" spellcheck="false" placeholder="Search players by username" />
+            <button class="hot">Search</button>
+            <button type="button" id="signout">Sign out</button>
+          </form>
+          <p id="search-note" class="note muted"></p>
+          <div class="wide"><table id="players" hidden><thead><tr><th>Player</th><th>Best stage</th><th>Last cloud save</th></tr></thead><tbody></tbody></table></div>
+        </section>
+        <section id="versions-box" hidden>
+          <h2 id="versions-title"></h2>
+          <div class="wide"><table id="versions"><thead><tr><th>Version</th><th>Best stage</th><th>Stage</th><th>Rekindles</th><th>Saved</th><th></th></tr></thead><tbody></tbody></table></div>
+          <p id="versions-note" class="note"></p>
+          <pre id="save-data" hidden></pre>
+        </section>
+      </div>
+    </main>
+    <script type="module" src="/src/admin.ts"></script>
+  </body>
+</html>

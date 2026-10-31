@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#1b1530" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Hordefall" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="description" content="Idle hero battler: build a team, crush the horde, and keep progressing while you're away." />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/favicon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <title>Hordefall</title>
+  </head>
+  <body>
+    <div id="app">
+      <div id="stagewrap">
+        <div id="game"></div>
+        <div id="ultbar"><div id="ults"></div><button id="autoult" class="toggle glass">Auto ult</button></div>
+        <button id="speed" class="toggle glass">2x</button>
+        <button id="settings-btn" aria-label="Settings" title="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.6 7.6 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.6 7.6 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.6 7.6 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.6 7.6 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button>
+      </div>
+      <div id="trial-hud" hidden>
+        <div><b id="trial-hud-name"></b><small id="trial-hud-note">Your team fights at its Ember levels. Fallen heroes stay down until the Trial ends. Beat the boss before time runs out.</small></div>
+        <button id="trial-leave" class="wood-btn small">Leave</button>
+      </div>
+      <div id="pvp-meter" hidden></div>
+      <div id="wallet">
+        <div class="pill"><span class="gem"></span><b id="gems">0</b></div>
+        <div class="pill" id="embers-stat" hidden><span class="ember"></span><b id="embers">0</b></div>
+        <div class="pill gold-pill"><span class="coin"></span><b id="gold">0</b><small id="gps">0/s</small></div>
+        <button id="home-btn" class="home-btn" aria-label="Close and go home" title="Home" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16l-8 11z"/></svg><i class="badge" hidden></i></button>
+      </div>
+      <div id="controls">
+        <button id="boss" class="hot" hidden>Fight boss</button>
+        <button id="autoboss" class="toggle" hidden title="Try the boss again by itself after a minute of farming">Auto boss</button>
+        <button id="rekindle" class="ember-btn" hidden>Rekindle</button>
+      </div>
+      <main id="panels">
+        <section class="panel" data-tab="home">
+          <div id="home">
+          <div class="home-top">
+            <div class="rw-card home-offline">
+              <h3>Max stage while offline</h3>
+              <b id="home-offline"></b>
+              <small id="home-offline-note"></small>
+            </div>
+            <button id="home-wheel" class="rw-card home-wheel" aria-label="Element wheel"></button>
+          </div>
+          <div class="rw-card objective">
+            <h3>Objective: <span id="ms-goal"></span> <small id="ms-note"></small></h3>
+            <ol id="ms-track" class="ms-track"></ol>
+            <p id="ms-next" class="ms-next"></p>
+            <button id="ms-claim" class="hot rw-wide">Claim</button>
+          </div>
+          <div class="rw-card">
+            <h3>Daily challenges <small id="daily-note"></small></h3>
+            <ul id="daily-list" class="rw-list"></ul>
+            <button class="hot rw-wide claim-all" hidden></button>
+          </div>
+          <div class="rw-card">
+            <h3>Daily login <small>30 days · missed days never reset</small></h3>
+            <div id="login-days" class="login-days"></div>
+            <button id="login-claim" class="hot rw-wide">Claim</button>
+          </div>
+          <div class="rw-card spin-card">
+            <div class="spin-wrap"><div id="spin-wheel" class="spin-wheel"></div><i class="spin-pin" aria-hidden="true"></i></div>
+            <div class="spin-side"><h3>Fortune Wheel</h3><p>One free spin every day.</p><button id="spin-btn" class="hot">Free spin</button></div>
+          </div>
+          <div class="rw-card">
+            <h3>Daily Crest Bundle <small id="bundle-note"></small></h3>
+            <p>Free crests for today's daily challenges. A new bundle every day.</p>
+            <div id="bundle-heroes" class="bundle-heroes"></div>
+            <button id="bundle-claim" class="hot rw-wide">Claim</button>
+          </div>
+          <div class="panel-head"><h2>Run stats</h2></div>
+            <dl class="battle-stats">
+              <dt>Stage</dt><dd id="bt-stage"></dd>
+              <dt>Next boss</dt><dd id="bt-boss"></dd>
+              <dt>Best stage ever</dt><dd id="bt-best"></dd>
+              <dt>Best stage this run</dt><dd id="bt-run"></dd>
+              <dt>Gold per second</dt><dd id="bt-gps"></dd>
+              <dt>Time per stage</dt><dd id="bt-pace"></dd>
+              <dt>Rekindles</dt><dd id="bt-rk"></dd>
+            </dl>
+          </div>
+        </section>
+        <section class="panel" data-tab="heroes" hidden>
+          <div class="hero-head">
+            <button id="team-btn" class="wood-btn">Manage<br>Team</button>
+            <button id="evolve-all" class="wood-btn evolve-all" disabled>Evolve all</button>
+            <button id="chest-btn" class="wood-btn chest-btn"><span class="chest-ico" aria-hidden="true"></span>Hero Chest</button>
+          </div>
+          <div class="hero-sub"><button id="collection-btn" class="wood-btn small collection-btn">Collection</button><button id="elements-btn" class="wood-btn small" title="Element wheel">Elements</button><button id="levelall" class="wood-btn small levelall">Level all</button><button id="buyamt" class="wood-btn small">Buy x1</button></div>
+          <div id="heroes"></div>
+          <p class="heroes-note">Only your team shows here. Unlock and swap heroes in Manage Team, or browse everyone in Collection.</p>
+        </section>
+        <section class="panel" data-tab="market" hidden>
+          <div class="panel-head"><h2>Market Row</h2></div>
+          <p class="market-note" id="market-note"></p>
+          <div class="hero-sub"><button id="stall-levelall" class="wood-btn small levelall">Level all</button><button id="stall-buyamt" class="wood-btn small">Buy x1</button></div>
+          <div id="stalls"></div>
+        </section>
+        <section class="panel" data-tab="relics" hidden>
+          <div class="panel-head"><h2>Relics</h2><span id="relic-slots" class="trial-tickets"></span></div>
+          <div class="relic-bar"><div id="relic-ess" class="trial-ess"></div></div>
+          <div data-relic-pane="mine">
+            <div class="hero-sub relic-nav"><button id="relic-buyslot" class="gem-btn small">Slot</button><button data-relic-go="shop" class="wood-btn small levelall relic-shop-btn">Buy relics</button></div>
+            <p class="market-note">Relics can't be bought with Gems. Buy them in the Relic Shop with Trial Essence, then level them with Essence. Max one at level 20 to open relics with one more star. Equipped relics give their bonus; a set gives its bonus once you own every piece.</p>
+            <div id="relics"></div>
+            <p id="relics-empty" class="market-note" hidden>You have no relics yet. Tap Buy relics.</p>
+          </div>
+          <div data-relic-pane="shop" hidden>
+            <div class="hero-sub relic-nav"><button data-relic-go="mine" class="wood-btn small">← Back</button><button data-relic-go="all" class="wood-btn small">Collection</button><button id="relic-new" class="wood-btn small">New relics</button></div>
+            <p class="market-note">Relics you don't own yet, paid for with their Essence. New relics swaps the offers for new ones.</p>
+            <div id="relic-shop"></div>
+          </div>
+          <div data-relic-pane="all" hidden>
+            <div class="hero-sub relic-nav"><button data-relic-go="shop" class="wood-btn small">← Back</button></div>
+            <p class="market-note">Every relic in the game. Tap one to look at it.</p>
+            <div id="relic-catalog"></div>
+          </div>
+        </section>
+        <section class="panel" data-tab="battle" hidden>
+          <div data-battle-pane="hub">
+            <button class="mode-card trials" data-battle-go="trials">
+              <span class="mode-count"><i class="ticket"></i><b id="hub-tr-tickets"></b></span>
+              <span class="mode-orbs" aria-hidden="true"><i class="mode-orb fire"></i><i class="mode-orb earth"></i><i class="mode-orb water"></i><i class="mode-orb light"></i><i class="mode-orb dark"></i></span>
+              <b class="mode-title">Daily Trials</b>
+              <small id="hub-tr-note" class="mode-note"></small>
+              <i id="hub-tr-alert" class="mode-alert" hidden>!</i>
+            </button>
+            <button class="mode-card arena" data-battle-go="arena">
+              <span class="mode-count"><i class="ticket pvp-ticket"></i><b id="hub-pvp-tickets"></b></span>
+              <svg class="mode-trophy" viewBox="0 0 64 64" aria-hidden="true"><path d="M18 8h28v14c0 9-6 16-14 16s-14-7-14-16z" fill="#ffd34a" stroke="#7a4a00" stroke-width="3"/><path d="M18 14H8c0 9 5 14 12 14M46 14h10c0 9-5 14-12 14" fill="none" stroke="#7a4a00" stroke-width="4"/><path d="M18 14H8c0 9 5 14 12 14M46 14h10c0 9-5 14-12 14" fill="none" stroke="#ffd34a" stroke-width="2"/><rect x="28" y="38" width="8" height="10" fill="#e0a51e" stroke="#7a4a00" stroke-width="3"/><rect x="18" y="48" width="28" height="8" rx="2" fill="#ffd34a" stroke="#7a4a00" stroke-width="3"/><path d="M32 14l4 8h-8z" fill="#fff6c8"/></svg>
+              <b class="mode-title">Colosseum</b>
+              <small id="hub-pvp-note" class="mode-note"></small>
+              <i id="hub-pvp-alert" class="mode-alert" hidden>!</i>
+            </button>
+          </div>
+          <div data-battle-pane="trials" hidden>
+            <button class="wood-btn small trial-back" data-battle-go="hub">&#8592; Battle</button>
+            <div class="panel-head"><h2>Elemental Trials</h2><button id="tr-elements" class="wood-btn small ew-btn">Element wheel</button><span id="tr-tickets" class="trial-tickets"></span></div>
+            <div id="tr-list" class="trial-list"></div>
+            <div id="tr-detail" class="trial-card" hidden>
+              <button id="tr-back" class="wood-btn small trial-back">&#8592; All Trials</button>
+              <div class="trial-boss">
+                <span id="tr-face" class="trial-face"></span>
+                <div><b id="tr-name"></b><small id="tr-info"></small></div>
+              </div>
+              <div id="tr-medals" class="trial-medals"></div>
+              <div class="trial-row">
+                <div class="trial-tier"><button id="tr-down" class="wood-btn small" aria-label="Lower tier">&#8249;</button><span id="tr-tier"></span><button id="tr-up" class="wood-btn small" aria-label="Higher tier">&#8250;</button></div>
+                <div class="trial-btns"><button id="tr-quick" class="wood-btn levelall" hidden>Quick</button><button id="tr-fight" class="wood-btn levelall">Fight</button></div>
+              </div>
+              <p id="tr-odds" class="trial-odds"></p>
+            </div>
+            <div id="tr-ess" class="trial-ess trial-ess-bar"></div>
+          </div>
+          <div data-battle-pane="arena" hidden>
+            <button class="wood-btn small trial-back" data-battle-go="hub">&#8592; Battle</button>
+            <div class="panel-head"><h2>Colosseum</h2><span id="pvp-tickets" class="trial-tickets"></span></div>
+            <div id="pvp" class="trial-card pvp"></div>
+          </div>
+        </section>
+        <section class="panel" data-tab="shop" hidden>
+          <div class="panel-head"><h2>Shop</h2></div>
+          <div id="rewards">
+          <div class="shop-card">
+            <div class="shop-art chest" aria-hidden="true"></div>
+            <div class="shop-text"><b>Hero Chest</b><p>3 drops of Hero Crests. Crests unlock new heroes (10 for a common) and evolve them.</p></div>
+            <button id="summon" class="gem-btn">Hero Chest</button>
+          </div>
+          <div class="rw-card hero-shop">
+            <h3>Hero Shop <small id="hs-note"></small></h3>
+            <div id="hs-featured" class="hs-featured"></div>
+            <div id="hs-offers" class="g-offers"></div>
+            <div class="hs-actions">
+              <button id="hs-refresh" class="gem-btn"></button>
+              <button id="hs-pack" class="gem-btn"></button>
+            </div>
+            <div id="hs-deal" class="hs-deal"></div>
+            <div id="hs-asc" class="hs-deal" hidden></div>
+          </div>
+          <div class="rw-card">
+            <h3>Gem Shop</h3>
+            <ul id="gem-shop" class="rw-list gem-shop">
+              <li><div><b>Hourglass</b><small id="gs-hourglass-note"></small></div><button id="gs-hourglass" class="gem-btn"></button></li>
+              <li><div><b>Gold Boost</b><small id="gs-boost-note"></small></div><button id="gs-boost" class="gem-btn"></button></li>
+              <li><div><b>Trial tickets</b><small id="gs-tickets-note"></small></div><button id="gs-ticket1" class="gem-btn"></button><button id="gs-ticket5" class="gem-btn"></button></li>
+            </ul>
+          </div>
+          <button class="hot rw-wide claim-all" hidden></button>
+          <div class="rw-card">
+            <h3>Recruit Trials <small id="boot-note"></small></h3>
+            <ul id="boot-list" class="rw-list"></ul>
+          </div>
+          <div class="rw-card">
+            <h3>Achievements</h3>
+            <ul id="ach-list" class="rw-list"></ul>
+          </div>
+          </div>
+        </section>
+        <section class="panel" data-tab="guild" hidden>
+          <div class="panel-head"><h2>Guild</h2></div>
+          <div id="guild-root"></div>
+        </section>
+      </main>
+      <nav id="tabbar" aria-label="Main">
+        <button data-tab="heroes"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg><span>Heroes</span><i class="badge" hidden></i></button>
+        <button data-tab="market"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l2-5h14l2 5"/><path d="M3 9h18v2a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0z"/><path d="M5 13v7h14v-7"/></svg><span>Market</span><i class="badge" hidden></i></button>
+        <button data-tab="relics"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/></svg><span>Relics</span><i class="badge" hidden></i></button>
+        <button data-tab="battle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l10 10M4 4h4M4 4v4M20 4L10 14M20 4h-4M20 4v4M7 15l2 2-3 3-2-2zM17 15l-2 2 3 3 2-2z"/></svg><span>Battle</span><i class="badge" hidden></i></button>
+        <button data-tab="shop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg><span>Shop</span><i class="badge" hidden></i></button>
+        <button data-tab="guild"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/></svg><span>Guild</span><i class="badge" hidden></i></button>
+      </nav>
+    </div>
+    <div id="sheet" hidden>
+      <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheet-name">
+        <header class="sheet-head">
+          <button id="sheet-prev" class="icon" aria-label="Previous hero">‹</button>
+          <div id="sheet-face" class="face big"></div>
+          <div class="sheet-title">
+            <h2 id="sheet-name"></h2>
+            <div id="sheet-rarity"></div>
+            <div id="sheet-sub" class="meta"></div>
+            <div id="sheet-stars" class="stars"></div>
+            <div id="sheet-pink" class="stars pink" hidden></div>
+          </div>
+          <button id="sheet-next" class="icon" aria-label="Next hero">›</button>
+          <button id="sheet-close" class="icon close" aria-label="Close">✕</button>
+        </header>
+        <p id="sheet-bio" class="bio"></p>
+        <section class="sheet-section test-tools" id="sheet-test" hidden>
+          <h3>Test mode</h3>
+          <div id="sheet-test-rows"></div>
+        </section>
+        <section class="sheet-stats" id="sheet-stats"></section>
+        <section class="sheet-section">
+          <h3 class="levels-head">Levels <button id="sheet-buyamt" class="buyamt-mini">Buy x1</button></h3>
+          <div class="level-row">
+            <div><b>Gold level</b> <span id="sheet-gold-lvl"></span><div class="meta">Resets when you Rekindle.</div></div>
+            <button id="sheet-gold-up" class="gold-up"><span class="label"></span><span class="cost"></span></button>
+          </div>
+          <div class="level-row">
+            <div><b class="ember-text">Ember level</b> <span id="sheet-ember-lvl"></span><div class="meta">Stays through Rekindle. You have <b id="sheet-embers" class="ember-text"></b> Embers.</div><div id="sheet-ember-note" class="meta"></div><button id="sheet-ember-reset" class="ember-reset" hidden>Reset Embers</button></div>
+            <button id="sheet-ember-up" class="ember-up"><span class="label">Ember +1</span><span class="cost"></span></button>
+          </div>
+        </section>
+        <section class="sheet-section">
+          <h3>Abilities</h3>
+          <ul id="sheet-abilities" class="abilities"></ul>
+        </section>
+        <section class="sheet-section">
+          <h3>Evolution</h3>
+          <div class="crest-row"><span id="sheet-crest-label">Hero Crests</span><span id="sheet-crests"></span></div>
+          <div class="crest-bar"><div id="sheet-crest-fill"></div></div>
+          <button id="sheet-evolve" class="hot evolve" hidden>Evolve</button>
+          <p id="sheet-crest-note" class="meta"></p>
+          <ul id="sheet-unlocks" class="abilities"></ul>
+        </section>
+        <section class="sheet-section" id="sheet-ascend" hidden>
+          <h3>Ascension</h3>
+          <div class="crest-row"><span id="sheet-form-name"></span><span id="sheet-form-next"></span></div>
+          <ul id="sheet-ascend-needs" class="ascend-needs"></ul>
+          <button id="sheet-ascend-btn" class="hot evolve">Ascend</button>
+          <p class="meta">Ascending is permanent. Stars, levels, Embers and pink stars stay as they are.</p>
+          <button id="sheet-asc-kit" type="button" class="wood-btn small">See every form</button>
+        </section>
+        <section class="sheet-section">
+          <h3>Awakening</h3>
+          <div class="crest-row mote-row"><span class="mote-label">Starmotes</span><span id="sheet-starmotes"></span></div>
+          <div class="crest-bar"><div id="sheet-mote-fill"></div></div>
+          <button id="sheet-awaken" class="hot evolve awaken" hidden>Awaken</button>
+          <p id="sheet-awaken-note" class="meta"></p>
+        </section>
+      </div>
+    </div>
+    <div id="coll" hidden>
+      <div class="coll-page" role="dialog" aria-modal="true" aria-labelledby="coll-title">
+        <header class="coll-head"><button id="coll-back" class="wood-btn coll-back" aria-label="Back">&#x2190;</button><h2 id="coll-title">Collection</h2><span id="coll-count"></span></header>
+        <p id="coll-legend" class="coll-legend"></p>
+        <div id="coll-body" class="coll-body"></div>
+      </div>
+    </div>
+    <div id="rk" hidden>
+      <div class="rk-card" role="dialog" aria-modal="true" aria-labelledby="rk-title">
+        <button id="rk-close" class="rk-close" aria-label="Close">&#x2715;</button>
+        <div class="rk-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-5 3-7 0 2 1 3 2 3 0-3-1-5 1-8z"/></svg></div>
+        <h2 id="rk-title">Rekindle rewards</h2>
+        <section>
+          <h3><span>Embers</span><b id="rk-embers" class="ember-text"></b></h3>
+          <dl>
+            <dt>Best stage this run</dt><dd id="rk-stage"></dd>
+            <dt>Stage bonus</dt><dd id="rk-stagebonus"></dd>
+            <dt>Player bonus</dt><dd id="rk-keeperbonus"></dd>
+          </dl>
+        </section>
+        <section>
+          <h3><span>Market Row</span><b></b></h3>
+          <dl>
+            <dt>Stall income</dt><dd id="rk-mr-rev"></dd>
+            <dt>Stall level bonus</dt><dd id="rk-mr-lv"></dd>
+          </dl>
+        </section>
+        <section>
+          <h3><span>Rekindle Wheel</span><b id="rk-road-gems"></b></h3>
+          <div class="rk-road">
+            <div id="rk-road-count" class="rk-road-count"></div>
+            <div id="rk-dots" class="rk-dots"></div>
+          </div>
+          <p id="rk-road-next" class="rk-note"></p>
+        </section>
+        <section class="rk-keeper">
+          <div class="rk-keeper-head"><span>Player level</span><b id="rk-level"></b><span id="rk-nextlvl" class="rk-note"></span></div>
+          <div class="rk-bar"><div id="rk-bar-gain"></div><div id="rk-bar-fill"></div></div>
+          <div class="rk-bar-nums"><span id="rk-bar-now"></span><span id="rk-bar-next"></span></div>
+        </section>
+        <label id="rk-head" class="rk-head" hidden><input id="rk-head-on" type="checkbox" /><span id="rk-head-text"></span></label>
+        <p id="rk-reset-note" class="rk-note">You go back to stage 1 and every hero drops to gold level 1. Embers, Ember levels, stars and Gems stay.</p>
+        <div id="rk-buttons" class="rk-buttons"></div>
+      </div>
+    </div>
+    <div id="social" hidden>
+      <div class="settings-card social-card" role="dialog" aria-labelledby="social-title">
+        <div class="settings-head"><h2 id="social-title">Profile</h2><button id="social-close" aria-label="Close">&times;</button></div>
+        <div id="social-tabs" class="social-tabs">
+          <button data-sview="me" class="on">Me</button><button data-sview="friends">Friends</button><button data-sview="cp">Top Power</button><button data-sview="stage">Top Stage</button>
+        </div>
+        <div id="social-body" class="social-body"></div>
+      </div>
+    </div>
+    <div id="test-banner" hidden><b>TEST MODE</b> · not saved online <button id="test-banner-exit">Exit</button></div>
+    <div id="settings" hidden>
+      <div class="settings-card" role="dialog" aria-labelledby="settings-title">
+        <div class="settings-head"><h2 id="settings-title">Settings</h2><button id="settings-close" aria-label="Close settings">&times;</button></div>
+        <div id="settings-social" class="settings-menu">
+          <button data-open-sview="me"><span class="ico ico-set-profile"></span><span>Profile</span></button>
+          <button data-open-sview="friends"><span class="ico ico-set-friends"></span><span>Friends</span></button>
+          <button data-open-sview="cp"><span class="ico ico-set-top-power"></span><span>Top Power</span></button>
+          <button data-open-sview="stage"><span class="ico ico-set-top-stage"></span><span>Top Stage</span></button>
+        </div>
+        <div class="settings-row"><span class="settings-label"><span class="ico ico-set-events"></span>Events</span><button id="events-btn" class="wood-btn small">Calendar</button></div>
+        <div class="settings-row"><span class="settings-label"><span class="ico ico-set-sound"></span>Sound</span><button id="mute" class="toggle" aria-label="Sound">Sound</button></div>
+        <div class="settings-row vol-row"><span class="settings-label"><span class="ico ico-set-effects"></span>Effects</span><input id="vol-sfx" type="range" min="0" max="100" step="5" aria-label="Sound effects volume" /><output id="vol-sfx-n"></output></div>
+        <div class="settings-row vol-row"><span class="settings-label"><span class="ico ico-set-music"></span>Music</span><input id="vol-music" type="range" min="0" max="100" step="5" aria-label="Music volume" /><output id="vol-music-n"></output></div>
+        <div class="settings-row install-row"><span class="settings-label"><span class="ico ico-set-install"></span>Phone app</span><button id="install-btn" class="wood-btn small">Install</button><small id="install-note" hidden></small></div>
+        <div class="settings-row"><span class="settings-label"><span class="ico ico-set-tutorial"></span>Tutorial</span><button id="tut-replay" class="wood-btn small">Replay</button></div>
+        <div class="settings-row"><span class="settings-label"><span class="ico ico-set-save"></span>Saving</span><small>Progress saves automatically every few seconds. Sign in to back it up online.</small></div>
+        <h3><span class="ico ico-set-account"></span>Account</h3>
+          <div class="acct-card">
+            <p id="acct-status"></p>
+            <div class="acct-actions">
+              <button id="acct-signin" class="wood-btn small" hidden>Sign in / Create account</button>
+              <button id="acct-sync" class="wood-btn small" hidden>Save now</button>
+              <button id="acct-signout" class="wood-btn small" hidden>Sign out</button>
+            </div>
+            <button id="acct-reset" class="wood-btn small danger">Reset account</button>
+          </div>
+        <div id="admin-tools" hidden>
+        <h3><span class="ico ico-set-tools"></span>Admin</h3>
+          <div class="acct-card">
+            <p id="admin-note"></p>
+            <div class="acct-actions">
+              <button id="test-start" class="wood-btn small">Start test mode</button>
+              <button id="test-maxall" class="wood-btn small" hidden>Max every hero</button>
+              <button id="test-exit" class="wood-btn small" hidden>Exit test mode</button>
+            </div>
+          </div>
+        </div>
+        <div id="devtools" hidden>
+        <h3><span class="ico ico-set-tools"></span>Prototype tools</h3>
+          <div id="debug">
+            <button id="sim" class="wood-btn small">Simulate 1h away</button>
+            <button id="freegems" class="wood-btn small">+100 Gems</button>
+            <button id="freemotes" class="wood-btn small">+500 Starmotes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="acct-dialog" class="overlay" hidden>
+      <form id="acct-form" class="card">
+        <h2 id="acct-title"></h2>
+        <div id="acct-body"></div>
+        <button type="button" id="acct-cancel" class="acct-cancel">Cancel</button>
+      </form>
+    </div>
+    <div id="modal" hidden>
+      <div class="card">
+        <h2 id="modal-title">Welcome back!</h2>
+        <p id="modal-body"></p>
+        <div class="modal-actions">
+          <button id="modal-cancel" hidden>Not yet</button>
+          <button id="modal-ok" class="hot">Collect</button>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
