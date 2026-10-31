@@ -57,9 +57,19 @@ const ULT_ICONS: Record<string, string> = {
   dark: '<svg viewBox="0 0 24 24"><path d="M20 15A9 9 0 0 1 9 4a9 9 0 1 0 11 11z"/></svg>',
   light: '<svg viewBox="0 0 24 24"><path d="M12 2l2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5z"/></svg>',
 };
-/** 'home' is the daily panel under the battle; it shows when no tab is open. */
+/** 'home' is the first tab: today's rewards, goals and run stats. */
 const TABS = ['home', 'heroes', 'market', 'relics', 'battle', 'shop', 'guild'] as const;
 type Tab = (typeof TABS)[number];
+
+/** Show one pane of a panel's sub-tab bar ([data-sub] buttons, [data-subpane] panes). */
+function showSub(panel: HTMLElement, sub: string) {
+  for (const b of panel.querySelectorAll<HTMLElement>('.subtabs button[data-sub]')) {
+    const on = b.dataset.sub === sub;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', String(on));
+  }
+  for (const pane of panel.querySelectorAll<HTMLElement>('[data-subpane]')) pane.hidden = pane.dataset.subpane !== sub;
+}
 
 interface HeroRow {
   def: HeroDef;
@@ -1246,13 +1256,27 @@ export class UI {
       this.openTeam(s.inLineup(id) ? '' : `${name} left the team. ${fmt(refund)} gold came back; their Embers stay.`);
     });
     for (const btn of $('tabbar').querySelectorAll<HTMLButtonElement>('button')) {
-      // Tapping the open tab again closes it, same as the down arrow.
       btn.addEventListener('click', () => {
         play('tap');
-        this.setTab(this.tab === btn.dataset.tab ? 'home' : (btn.dataset.tab as Tab));
+        if (this.tab === btn.dataset.tab) {
+          // Tapping the open tab again goes back to its first page, at the top.
+          this.resetSubPages();
+          $('panels').scrollTop = 0;
+          this.render();
+          return;
+        }
+        this.setTab(btn.dataset.tab as Tab);
       });
     }
-    $('home-btn').addEventListener('click', () => this.setTab('home'));
+    // Sub-tab bars (Home: Today / Goals / Stats): show the pane with the same name in that panel.
+    $('panels').addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.subtabs button[data-sub]');
+      if (!btn) return;
+      play('tap');
+      showSub(btn.closest<HTMLElement>('.panel')!, btn.dataset.sub!);
+      $('panels').scrollTop = 0;
+      this.render();
+    });
     $('home-wheel').addEventListener('click', () => this.showModal('Element wheel', `${elementWheelSvg()}<p class="ew-note">${ELEMENT_WHEEL_NOTE}</p>`, 'Got it'));
     setHtml($('home-wheel'), `${elementWheelSvg()}<small>Elements</small>`);
     this.setTab('home');
@@ -1697,7 +1721,6 @@ export class UI {
       btn.classList.toggle('on', on);
       btn.setAttribute('aria-current', on ? 'page' : 'false');
     }
-    $('home-btn').hidden = tab === 'home';
     if (tab === 'home') {
       this.offlineAt = 0;
       this.renderHome();
@@ -1708,9 +1731,19 @@ export class UI {
 
   /** Relics back to the owned list, Battle back to its hub of mode cards (a live fight has its own screen, so it's untouched). */
   private resetSubPages() {
+    for (const panel of $('panels').querySelectorAll<HTMLElement>('.panel')) {
+      const first = panel.querySelector<HTMLElement>('.subtabs button[data-sub]');
+      if (first) showSub(panel, first.dataset.sub!);
+    }
     for (const pane of document.querySelectorAll<HTMLElement>('[data-relic-pane]')) pane.hidden = pane.dataset.relicPane !== 'mine';
     for (const pane of document.querySelectorAll<HTMLElement>('[data-battle-pane]')) pane.hidden = pane.dataset.battlePane !== 'hub';
     this.trialEntered = false;
+  }
+
+  /** Red dot on a sub-tab button, e.g. Home > Goals. */
+  private subBadge(tab: Tab, sub: string, on: boolean) {
+    const b = $('panels').querySelector<HTMLElement>(`.panel[data-tab="${tab}"] .subtabs button[data-sub="${sub}"] .badge`);
+    if (b) b.hidden = !on;
   }
 
   private badge(tab: Tab, on: boolean) {
@@ -2637,14 +2670,13 @@ export class UI {
     $('ms-note').textContent = s.milestone ? `${(s.milestone / MILESTONE_STEP).toLocaleString()} claimed` : '';
     $<HTMLButtonElement>('ms-claim').disabled = ready <= 0;
     $('ms-claim').textContent = ready > 1 ? `Claim ${ready} milestones` : ready === 1 ? 'Claim' : `Best stage ${s.bestStage.toLocaleString()}`;
+    this.renderGoals();
 
   }
 
-  private renderRewards() {
+  /** Home > Goals: Recruit Trials and achievements (the Objective track renders with the rest of Home). */
+  private renderGoals() {
     const s = this.state;
-    const now = Date.now();
-    this.renderGemShop(now);
-    this.renderHeroShop(now);
     const short = (v: number) => (v >= 1e4 ? fmt(v) : v.toLocaleString());
     const bootList = $('boot-list');
     let bootLeft = 0;
@@ -2665,6 +2697,13 @@ export class UI {
       const meta = a.next ? `${short(Math.min(a.value, goal))}/${short(goal)} · ${a.next[1]} Gems · tier ${a.tier + 1}/${a.def.tiers.length}` : 'Every tier claimed';
       this.rewardRow(achList, `ach:${a.def.id}`, text, Math.min(a.value, goal), goal, meta, !a.next ? 'done' : a.ready ? 'claim' : 'wait');
     }
+  }
+
+
+  private renderRewards() {
+    const now = Date.now();
+    this.renderGemShop(now);
+    this.renderHeroShop(now);
   }
 
   showRekindled(r: RekindleResult) {
@@ -2821,7 +2860,9 @@ export class UI {
       btn.hidden = goals.count < 2;
       btn.textContent = `Claim all ${goals.count} rewards · ${goals.gems.toLocaleString()} Gems`;
     }
-    $<HTMLElement>('home-btn').querySelector<HTMLElement>('.badge')!.hidden = !s.homeWaiting();
+    this.badge('home', s.homeWaiting());
+    this.subBadge('home', 'today', s.todayWaiting());
+    this.subBadge('home', 'goals', s.goalsWaiting());
     if (this.tab === 'home') this.renderHome();
     if (this.tab === 'shop') this.renderRewards();
     if (this.tab === 'battle') this.renderBattle();

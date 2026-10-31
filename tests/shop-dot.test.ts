@@ -23,12 +23,22 @@ describe('Shop red dot', () => {
     expect(s.shopWaiting(later)).toBe(false);
   });
 
-  it('lights for a Gem goal to claim', () => {
+  it('leaves Gem goals to the Home tab (Goals), not the Shop', () => {
     const s = fresh();
     s.seeHeroShop(NOW);
     s.reachStage(60);
     expect(s.rewardsWaiting()).toBe(true);
-    expect(s.shopWaiting(NOW)).toBe(true);
+    expect(s.shopWaiting(NOW)).toBe(false);
+    expect(s.goalsWaiting()).toBe(true);
+    expect(s.homeWaiting(NOW)).toBe(true);
+  });
+
+  it('splits the Home dot into Today and Goals', () => {
+    const s = fresh();
+    // A fresh save has today's login and free spin waiting, but no goal yet.
+    expect(s.todayWaiting(NOW)).toBe(true);
+    expect(s.goalsWaiting()).toBe(false);
+    expect(s.homeWaiting(NOW)).toBe(true);
   });
 
   it('keeps the seen set across a save and load', () => {

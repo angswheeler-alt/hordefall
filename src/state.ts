@@ -2590,21 +2590,30 @@ export class GameState {
     return { count, chests, stones, tickets, gold, drops };
   }
 
-  /** True when a daily reward on the home panel is waiting: login, spin, challenges, Medal Bundle or a milestone. */
+  /** The Home tab's red dot: anything on Today or Goals to collect. */
   homeWaiting(now = Date.now()): boolean {
+    return this.todayWaiting(now) || this.goalsWaiting();
+  }
+
+  /** Home > Today: a daily challenge, login day, free spin or Crest Bundle to collect. */
+  todayWaiting(now = Date.now()): boolean {
     return (
       this.loginState(now).ready ||
       this.spinReady(now) ||
-      this.milestonesReady() > 0 ||
       this.medalBundleState(now).ready ||
       this.dailies(now).some((r) => !r.claimed && r.progress >= r.def.goal)
     );
   }
 
-  /** The Shop tab's red dot: a Gem goal to claim, or a Hero Shop set the player hasn't looked at yet. */
+  /** Home > Goals: a Stage Milestone, achievement or Recruit Trial to claim. */
+  goalsWaiting(): boolean {
+    return this.milestonesReady() > 0 || this.rewardsWaiting();
+  }
+
+  /** The Shop tab's red dot: a Hero Shop set the player hasn't looked at yet. Free rewards live on Home. */
   shopWaiting(now = Date.now()): boolean {
     this.heroShopState(now);
-    return this.rewardsWaiting() || this.heroShop.refreshAt !== this.heroShopSeen;
+    return this.heroShop.refreshAt !== this.heroShopSeen;
   }
 
   /** The player opened the Shop: the current Hero Shop set counts as seen. */
@@ -2613,7 +2622,7 @@ export class GameState {
     this.heroShopSeen = this.heroShop.refreshAt;
   }
 
-  /** True when an achievement or Bootcamp goal is waiting (drives the Shop tab badge). */
+  /** True when an achievement or Recruit Trial (Bootcamp) goal is waiting (part of the Home > Goals dot). */
   rewardsWaiting(): boolean {
     return (
       this.achievements().some((a) => a.ready) ||
