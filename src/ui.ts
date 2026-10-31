@@ -18,7 +18,7 @@ import { FORM_RARITIES, MAX_FORM, resolveForm, formArtKey } from './ascendant';
 import { ascendantDef, isAscendant } from './heroes/ascendant';
 import type { BattleScene } from './BattleScene';
 import type { ColosseumLink } from './colosseumLink';
-import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, RANK_DAILY, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies } from './colosseum';
+import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_QUICK_CP, RANK_DAILY, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies } from './colosseum';
 
 import { setHtml } from './taps';
 import { holdToRepeat } from './hold';
@@ -2048,12 +2048,14 @@ export class UI {
     const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
     const forecast = !fc ? '' : fc.won && avg(fc.left[0]) > 0.6 ? ['win', 'Looks winnable.'] : !fc.won && avg(fc.left[1]) > 0.6 ? ['lose', 'Looks tough. Try other elements or a stronger team.'] : ['close', 'Could go either way.'];
     const can = s.canStartPvp(slot);
+    const strong = s.pvpClearlyStronger(slot, fc);
     return `<div class="pvp-row"><button class="wood-btn small" data-pvp="back">‹ Back</button></div>
       <div class="pvp-team"><b>${escHtml(foe.name)} <small>CP ${fmt(new Decimal(foe.cp))}</small></b><span class="faces">${this.pvpFoeFaces(foe)}</span></div>
       <div class="pvp-team"><div class="pvp-row"><b>Your attack team <small>CP ${fmt(mine)}</small></b><button class="wood-btn small" data-pvp="team" data-kind="attack">Change</button></div><span class="faces">${team.map((h) => this.pvpFace(h)).join('')}</span></div>
       ${forecast ? `<small class="pvp-forecast ${forecast[0]}">${forecast[1]}</small>` : ''}
       <small>Your team starts at the blue crystal and theirs at the red one. Fallen fighters come back after 10 seconds. The first crystal destroyed loses. Win: +${PVP_WIN_TROPHIES} trophies and ${PVP_WIN_MOTES} Starmotes. Loss: -${PVP_LOSS_TROPHIES} trophies, ${PVP_LOSS_MOTES} Starmote.</small>
-      <button class="wood-btn levelall" data-pvp="fight" ${can ? '' : 'disabled'}>${s.pvp.tickets > 0 ? 'Battle! (1 ticket)' : 'No tickets left'}</button>`;
+      <button class="wood-btn levelall" data-pvp="fight" ${can ? '' : 'disabled'}>${s.pvp.tickets > 0 ? 'Battle! (1 ticket)' : 'No tickets left'}</button>
+      ${strong ? `<button class="wood-btn levelall" data-pvp="quick" ${can ? '' : 'disabled'} title="Skip the fight and take the win">Quick Battle (1 ticket)</button>` : `<small>Quick Battle opens when your attack team has ${Math.round((PVP_QUICK_CP - 1) * 100)}% more CP than theirs and looks like an easy win.</small>`}`;
   }
 
   private onPvpClick(e: Event) {
@@ -2090,8 +2092,33 @@ export class UI {
       case 'fight':
         this.fightPvp(this.pvpSlot);
         return;
+      case 'quick':
+        this.quickPvp(this.pvpSlot);
+        return;
     }
     this.renderPvp();
+  }
+
+  /** The result line after a Colosseum fight (live or Quick Battle). */
+  private pvpResultHtml(r: ReturnType<GameState['finishPvp']>, quick = false) {
+    if (!r) return '';
+    return `<p class="tf-result ${r.won ? 'win' : 'lose'}">${quick ? 'Quick Battle win!' : r.won ? 'Victory!' : 'Defeat.'} ${r.trophies > 0 ? `+${r.trophies} trophies` : r.trophies < 0 ? `${r.trophies} trophies` : 'No trophies lost'} · +${r.starmotes} Starmote${r.starmotes === 1 ? '' : 's'}${r.firstWin ? ' (first win today +10)' : ''}</p>${r.rankAfter !== r.rankBefore ? `<p>${r.rankAfter > r.rankBefore ? 'Ranked up' : 'Dropped'} to <b>${rankName(r.rankAfter)}</b>!</p>` : ''}`;
+  }
+
+  /** Quick Battle: when the attack team is clearly stronger, skip the fight and take the win. */
+  private quickPvp(slot: number) {
+    const s = this.state;
+    const scene = this.scene();
+    if (scene?.inTrial() || scene?.inPvp()) return;
+    const defender = s.pvp.picks[slot]?.userId;
+    const r = s.quickPvp(slot);
+    if (!r) return;
+    if (defender) void this.pvpServer?.reportFight(defender, true);
+    play('unlock');
+    this.pvpView = 'list';
+    this.pvpForecastKey = '';
+    this.showModal('Colosseum', this.pvpResultHtml(r, true), 'Okay');
+    this.render();
   }
 
   /** Start a live Colosseum battle on the lane. */
@@ -2114,9 +2141,7 @@ export class UI {
       $('trial-leave').textContent = 'Back';
       const r = s.finishPvp(won);
       if (defender) void this.pvpServer?.reportFight(defender, won);
-      const html = !r
-        ? ''
-        : `<p class="tf-result ${r.won ? 'win' : 'lose'}">${r.won ? 'Victory!' : 'Defeat.'} ${r.trophies > 0 ? `+${r.trophies} trophies` : r.trophies < 0 ? `${r.trophies} trophies` : 'No trophies lost'} · +${r.starmotes} Starmote${r.starmotes === 1 ? '' : 's'}${r.firstWin ? ' (first win today +10)' : ''}</p>${r.rankAfter !== r.rankBefore ? `<p>${r.rankAfter > r.rankBefore ? 'Ranked up' : 'Dropped'} to <b>${rankName(r.rankAfter)}</b>!</p>` : ''}`;
+      const html = this.pvpResultHtml(r);
       this.pvpView = 'list';
       window.setTimeout(() => {
         if (scene.inPvp()) this.showModal('Colosseum', html, 'Okay', () => this.endPvpScreen());

@@ -53,6 +53,10 @@ export const PVP_RESPAWN_MULT = 10 / 6;
 /** Each win in a row gives this much more damage on the next attack, up to PVP_STREAK_MAX wins. */
 export const PVP_STREAK_DMG = 0.1;
 export const PVP_STREAK_MAX = 3;
+/** Quick Battle: skip the fight when the attack team has at least this many times the opponent's CP... */
+export const PVP_QUICK_CP = 1.2;
+/** ...and the no-luck forecast wins with the team keeping at least this share of its HP on average. */
+export const PVP_QUICK_HP = 0.6;
 
 /** Sub-rank index (0 = Bronze I, LEGEND = Legend) for a trophy count. */
 export function rankIndex(trophies: number): number {

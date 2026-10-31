@@ -7,7 +7,7 @@ import { RENAMED_HEROES, PLAYABLE_HEROES, RELEASED_HEROES, ASCENDANT_CHEST } fro
 import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills';
 import { isKnight, combatPower, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
-import { PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_TICKET_GEMS, PVP_TICKET_BUYS, PVP_REFRESH_MINUTES, PVP_CP_MIN, PVP_CP_MAX, PVP_REAL_MIN, PVP_REAL_MAX, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_FIRST_WIN_MOTES, PVP_STREAK_DMG, PVP_STREAK_MAX, RANK_PRESSURE, RANK_DAILY, RANK_WEEKLY, rankIndex, rankName, droppedTrophies, seededRandom, ghostName, simulatePvp, type PvpUnit, type PvpResult } from './colosseum';
+import { PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_TICKET_GEMS, PVP_TICKET_BUYS, PVP_REFRESH_MINUTES, PVP_CP_MIN, PVP_CP_MAX, PVP_REAL_MIN, PVP_REAL_MAX, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_FIRST_WIN_MOTES, PVP_STREAK_DMG, PVP_STREAK_MAX, PVP_QUICK_CP, PVP_QUICK_HP, RANK_PRESSURE, RANK_DAILY, RANK_WEEKLY, rankIndex, rankName, droppedTrophies, seededRandom, ghostName, simulatePvp, type PvpUnit, type PvpResult } from './colosseum';
 import { TUTORIAL_DONE, TIP_IDS } from './tutorialSteps';
 import { ascendBlocker, ascendNeeds, clampForm, resolveForm, COUNTERED_BY, type AscendBlocker, type AscendContext, type AscendantDef } from './ascendant';
 import { ascendantDef, isAscendant, ASCENDANT_HEROES } from './heroes/ascendant';
@@ -1332,6 +1332,34 @@ export class GameState {
     const foe = this.pvp.picks[slot];
     if (!foe) return null;
     return simulatePvp(this.pvpAttackTeam().map((h) => this.pvpUnit(h)), this.pvpFoeUnits(foe).map((f) => f.unit), this.pvpStreakBonus());
+  }
+
+  /**
+   * Whether the attack team is clearly stronger than this opponent: at least PVP_QUICK_CP times their CP,
+   * and the no-luck forecast is an easy win (elements count there). Pass a forecast already worked out to skip re-running it.
+   */
+  pvpClearlyStronger(slot: number, forecast?: PvpResult | null): boolean {
+    const foe = this.pvp.picks[slot];
+    if (!foe) return false;
+    const mine = this.teamCpOf(this.pvpAttackTeam());
+    const theirs = new Decimal(foe.cp || 0);
+    if (!theirs.gt(0) || mine.lt(theirs.times(PVP_QUICK_CP))) return false;
+    const fc = forecast === undefined ? this.pvpForecast(slot) : forecast;
+    if (!fc || !fc.won) return false;
+    const left = fc.left[0];
+    return left.reduce((a, b) => a + b, 0) / Math.max(1, left.length) >= PVP_QUICK_HP;
+  }
+
+  /** Whether Quick Battle (skip the fight, paid as a win) is open against this opponent now. */
+  canQuickPvp(slot: number, now = Date.now(), forecast?: PvpResult | null): boolean {
+    return this.canStartPvp(slot, now) && this.pvpClearlyStronger(slot, forecast);
+  }
+
+  /** Quick Battle: spend a ticket and take the win without fighting. Null when it isn't open. */
+  quickPvp(slot: number, now = Date.now(), forecast?: PvpResult | null): PvpFight | null {
+    if (!this.canQuickPvp(slot, now, forecast)) return null;
+    if (!this.startPvp(slot, now)) return null;
+    return this.finishPvp(true, now);
   }
 
   /** Whether the player can start a fight against this opponent now. */
