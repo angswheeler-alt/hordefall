@@ -46,3 +46,32 @@ describe('Auto boss', () => {
     expect(s.bossRetryIn(NOW)).toBe(AUTO_BOSS_SECONDS);
   });
 });
+
+describe('Losing a normal stage', () => {
+  let s: GameState;
+  beforeEach(() => { localStorage.clear(); s = new GameState(); });
+
+  it('drops back a stage to farm after two losses in a row, then tries again later', () => {
+    s.stage = 49;
+    expect(s.loseNormalStage(NOW)).toBe(false);
+    expect(s.stage).toBe(49);
+    expect(s.loseNormalStage(NOW)).toBe(true);
+    expect(s.stage).toBe(48);
+    expect(s.autoAdvance).toBe(false);
+    expect(s.bossRetryIn(NOW)).toBe(AUTO_BOSS_SECONDS);
+    expect(s.retryBossIfDue(NOW + AUTO_BOSS_SECONDS * 1000)).toBe(true);
+    expect(s.autoAdvance).toBe(true);
+  });
+
+  it('counts only losses in a row, and never drops below stage 1', () => {
+    s.stage = 10;
+    s.loseNormalStage(NOW);
+    s.stageLosses = 0; // a clear in between
+    expect(s.loseNormalStage(NOW)).toBe(false);
+    s.stage = 1;
+    s.stageLosses = 0;
+    s.loseNormalStage(NOW);
+    expect(s.loseNormalStage(NOW)).toBe(false);
+    expect(s.stage).toBe(1);
+  });
+});
