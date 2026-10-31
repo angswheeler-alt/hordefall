@@ -125,8 +125,8 @@ account.listeners.push(() => {
 const tutorial = new Tutorial(state);
 document.getElementById('tut-replay')!.addEventListener('click', () => {
   document.getElementById('settings')!.hidden = true;
-  const home = document.querySelector<HTMLElement>('#tabbar button[data-tab="home"]')!;
-  if (!home.classList.contains('on')) home.click();
+  const home = document.getElementById('home-btn')!;
+  if (!home.hidden) home.click();
   tutorial.replay();
 });
 
