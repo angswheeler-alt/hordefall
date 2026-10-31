@@ -147,8 +147,8 @@ export const EARTH_HEROES: HeroDef[] = [
     ultimate: { name: 'Skyfall', text: `She dives on the toughest enemy in reach for ${ultX(3)} ATK; the landing quake hits enemies nearby and stuns regular ones for 2 s.` },
     trait: { name: 'Quarry', text: `Shoots the toughest enemy in reach. Each arrow in a row at it adds +5% damage, up to +50%, and when it falls she keeps half the bonus for the next one. Boss blows never stun her. ${VS.earth}` },
     sp1: { name: 'Split Talon', text: 'Each arrow also hits the next 2 enemies behind the target.', effect: { kind: 'pierce', value: 2 } },
-    sp2: { name: 'Gryphon Eye', text: '+15% critical hit chance.', effect: { kind: 'crit', value: 0.15 } },
-    aura: { name: 'Highland Wind', text: 'Whole team deals 20% more damage to bosses.', effect: { kind: 'bossDamage', value: 1.2, team: true } } },
+    sp2: { name: 'Gryphon Eye', text: '+10% critical hit chance.', effect: { kind: 'crit', value: 0.1 } },
+    aura: { name: 'Highland Wind', text: 'Whole team deals 10% more damage to bosses.', effect: { kind: 'bossDamage', value: 1.1, team: true } } },
 ];
 
 export const EARTH_PROFILES: Record<string, HeroProfile> = {

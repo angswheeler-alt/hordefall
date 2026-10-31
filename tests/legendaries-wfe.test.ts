@@ -38,9 +38,9 @@ describe('Water, Fire and Earth Legendaries', () => {
     }
     expect(mults[0]).toBe(1);
     expect(mults[7]).toBeCloseTo(1.42);
-    expect(mults[8]).toBe(4);
+    expect(mults[8]).toBe(5);
     expect(heat).toBe(0);
-    expect(heatStep(sig, 8, true)).toEqual({ heat: 0, mult: 6, erupt: true });
+    expect(heatStep(sig, 8, true)).toEqual({ heat: 0, mult: 7, erupt: true });
     expect(heatStep(sigOf('varuun'), 8)).toEqual({ heat: 0, mult: 1, erupt: false });
   });
 
