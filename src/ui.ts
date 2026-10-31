@@ -222,7 +222,7 @@ export class UI {
     const elements = [...new Set(shown.map((h) => h.element))];
     const owned = shown.filter((h) => (s.levels[h.id] ?? 0) > 0).length;
     $('coll-count').textContent = `${owned}/${shown.length}`;
-    $('coll-legend').textContent = `Legendary medals: ${s.legendaryMedals.toLocaleString()}. ${LEGENDARY_HOW}`;
+    $('coll-legend').textContent = `Legendary crests: ${s.legendaryMedals.toLocaleString()}`;
     const groups = elements.map((el) => {
       const tiles = byRarity(shown.filter((h) => h.element === el))
         .map((h) => {
@@ -1263,6 +1263,14 @@ export class UI {
         this.setTab(btn.dataset.tab as Tab);
       });
     }
+    // ? buttons: the rules for a page, kept out of the way until asked for.
+    document.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('.help-btn[data-help]');
+      const help = b && HELP[b.dataset.help!];
+      if (!help) return;
+      play('tap');
+      this.showModal(help.title, `<p>${help.text}</p>`, 'Got it');
+    });
     // Sub-tab bars (Home: Today / Goals / Stats): show the pane with the same name in that panel.
     $('panels').addEventListener('click', (e) => {
       const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.subtabs button[data-sub]');
@@ -3016,6 +3024,17 @@ function cap(s: string) {
 
 /** Bold, color-coded rarity label shown under a hero's name. */
 /** How Legendary heroes are earned, shown in the Collection and on their hero page. */
+/** Rules behind the ? buttons. */
+const HELP: Record<string, { title: string; text: string }> = {
+  relics: {
+    title: 'How relics work',
+    text: "Relics can't be bought with Gems. Buy them under Buy with Trial Essence, then level them with Essence. Max one at level 20 to open relics with one more star. Equipped relics give their bonus; a set gives its bonus once you own every piece.",
+  },
+  get legendary() {
+    return { title: 'Legendary heroes', text: LEGENDARY_HOW };
+  },
+};
+
 const LEGENDARY_HOW = `Legendary heroes never drop. A maxed hero (7★, Ascendant heroes 8★) turns every ${LEGENDARY_MEDAL_RATE} extra crests into 1 Legendary crest; spend them on any Legendary hero: ${LEGENDARY_UNLOCK_MEDALS} to unlock, then more for each star.`;
 
 /** "12/30 Crests", or Legendary crests for Legendary heroes. */
