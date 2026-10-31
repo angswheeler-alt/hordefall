@@ -2848,7 +2848,7 @@ export class BattleScene extends Phaser.Scene {
     const stage = this.state.stage;
     const boss = isBossStage(stage);
     // Just the stage number, right of the Rekindle emblem once that shows.
-    this.stageText.setX(this.state.rekindleShown() ? 40 : 10);
+    this.stageText.setX(this.state.rekindleShown() ? 50 : 10);
     this.stageText.setText(`Stage ${stage}`);
 
     const ratio = this.crystal.maxHp.gt(0) ? Math.max(0, this.crystal.hp.div(this.crystal.maxHp).toNumber()) : 0;
