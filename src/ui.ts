@@ -877,7 +877,10 @@ export class UI {
       this.state.speed2x = !this.state.speed2x;
       this.render();
     });
-    $('settings-btn').addEventListener('click', () => ($('settings').hidden = false));
+    $('settings-btn').addEventListener('click', () => {
+      $('settings').hidden = false;
+      $('screen-info').textContent = screenInfo();
+    });
     $('settings-close').addEventListener('click', () => ($('settings').hidden = true));
     $('settings').addEventListener('click', (e) => {
       if (e.target === $('settings')) $('settings').hidden = true;
@@ -3074,3 +3077,25 @@ function statPages(st: HeroStats, level: string, page: number, top: string, cp =
   return `<div class="stat-top"><span>Level <b>${level}</b>${cp ? `<br>CP <b>${cp}</b>` : ''}</span><div class="stat-spec">${top}</div></div><div class="stat-page">${rows}</div>
     <div class="stat-pager"><button data-statpage="-1" aria-label="Previous stats">‹</button><span>${page + 1}/3</span><button data-statpage="1" aria-label="More stats">›</button></div>`;
 }
+
+/** One line of screen measurements in Settings, so phone layout problems can be read off a screenshot. */
+function screenInfo(): string {
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:100dvh;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)';
+  const fixed = document.createElement('div');
+  fixed.style.cssText = 'position:fixed;left:0;bottom:0;width:0;height:0;visibility:hidden;pointer-events:none';
+  document.body.append(probe, fixed);
+  const cs = getComputedStyle(probe);
+  const n = (v: number) => Math.round(v);
+  const nav = navigator as Navigator & { standalone?: boolean };
+  const app = document.getElementById('app')!.getBoundingClientRect();
+  const tab = document.getElementById('tabbar')!.getBoundingClientRect();
+  const text =
+    `Screen ${screen.width}x${screen.height} · window ${n(innerWidth)}x${n(innerHeight)} · dvh ${n(probe.getBoundingClientRect().height - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom))}` +
+    ` · safe ${parseFloat(cs.paddingTop)}/${parseFloat(cs.paddingBottom)} · fixed bottom ${n(fixed.getBoundingClientRect().bottom)}` +
+    ` · app ${n(app.top)}-${n(app.bottom)} · bar ${n(tab.top)}-${n(tab.bottom)} · ${nav.standalone ? 'home-screen app' : 'browser'}`;
+  probe.remove();
+  fixed.remove();
+  return text;
+}
+
