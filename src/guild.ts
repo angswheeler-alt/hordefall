@@ -72,6 +72,8 @@ export class Guild {
   /** Level and weekly rewards this player can claim. */
   private rewards: BossRewards = { kills: [], weekly: [] };
   private fighting = false;
+  /** Heroes being picked for the Guild Boss team, or null when not picking. */
+  private bossPick: string[] | null = null;
   private me: MemberRow | null = null;
   private guild: GuildRow | null = null;
   private members: MemberRow[] = [];
@@ -540,6 +542,19 @@ export class Guild {
       this.render();
     } else if (kind === 'ask') this.pickHero();
     else if (kind === 'fight') void this.fightBoss();
+    else if (kind === 'team') {
+      this.bossPick = this.state.guildBossHeroes().map((h) => h.id);
+      this.render();
+    } else if (kind === 'pick') {
+      const ids = this.bossPick ?? [];
+      if (ids.includes(arg)) this.bossPick = ids.filter((x) => x !== arg);
+      else if (ids.length < this.state.teamSlots) this.bossPick = [...ids, arg];
+      this.render();
+    } else if (kind === 'team-save' || kind === 'team-cancel') {
+      if (kind === 'team-save' && this.bossPick) this.state.setGuildBossTeam(this.bossPick);
+      this.bossPick = null;
+      this.render();
+    }
     else if (kind === 'claim') void this.claimBoss();
     else if (kind === 'quest') void this.claimQuest(arg);
     else if (kind === 'research') {
@@ -674,7 +689,11 @@ export class Guild {
     const top = boss.level - 1;
     const week = guildBossWeekReward(top);
     const mine = this.state.guildBossDamage(boss.element);
-    const team = this.state.trialTeam();
+    if (this.bossPick) {
+      setHtml($('g-boss'), this.bossTeamPicker(boss.element));
+      return;
+    }
+    const team = this.state.guildBossTeam();
     const strong = team.filter((m) => elementMultiplier(m.def.element, boss.element) > 1).length;
     const weak = team.filter((m) => elementMultiplier(m.def.element, boss.element) < 1).length;
     const tip = strong ? `${strong} of your heroes hit${strong === 1 ? 's' : ''} it extra hard.` : weak ? `${weak} of your heroes ${weak === 1 ? 'is' : 'are'} weak against it.` : 'No hero in your team has the element edge.';
@@ -702,12 +721,12 @@ export class Guild {
         <div><b>${GUILD_BOSS_NAMES[boss.element]}</b><small>Level ${boss.level} · ${boss.element} · new boss in ${untilText(reset)}</small></div>
         <div class="g-boss-best"><b>${top}</b><small>beaten</small></div></div>
        <div class="g-boss-bar"><i style="width:${hp.gt(0) ? Math.max(0, Math.min(100, left.div(hp).times(100).toNumber())) : 0}%"></i><span>${fmt(left)} / ${fmt(hp)}</span></div>
-       <p>This week's guild event. The whole guild fights this boss with their Trial teams (Ember levels), as often as they like: one fight every ${GUILD_BOSS_FIGHT_GAP_SECONDS / 60} minutes each. Each time it falls it rests ${GUILD_BOSS_REST_MINUTES} minutes, then comes back one level stronger. ${tip}</p>
+       <p>This week's guild event. The whole guild fights this boss with their Guild Boss teams (Ember levels), as often as they like: one fight every ${GUILD_BOSS_FIGHT_GAP_SECONDS / 60} minutes each. Each time it falls it rests ${GUILD_BOSS_REST_MINUTES} minutes, then comes back one level stronger. ${tip}</p>
        <ul class="g-boss-pay">
          <li><b>First ${GUILD_BOSS_ATTEMPTS} fights a day</b> ${10 + boss.level} to ${2 * (10 + boss.level)} Guild Coins each (about ${coins} for yours) and gold</li>
          <li><b>Each level beaten</b> ${guildBossKillCoins(boss.level)} Guild Coins and Embers${ascHero ? `, plus ${GUILD_BOSS_ASC_CRESTS} ${ascHero.name} crests up to level ${GUILD_BOSS_ASC_LEVELS}` : ''}, for everyone who hit it this week</li>
          <li><b>End of the week</b> ${top ? `${fmt(week.coins)} Guild Coins and ${week.chests} Hero Chest${week.chests === 1 ? '' : 's'} so far (level ${top})` : 'Guild Coins and Hero Chests by the highest level beaten'}, for everyone who hit it</li>
-       </ul>${btn}<small class="g-boss-next">Next week: ${GUILD_BOSS_NAMES[next]} (${next}), starting at level 1</small>`,
+       </ul><div class="g-team"><div class="pvp-row"><b>Your Guild Boss team <small>CP ${fmt(this.state.teamCpOf(team.map((m) => m.def)))}</small></b><button type="button" class="wood-btn small" data-g="team">Change</button></div><span class="faces">${team.map((m) => this.teamFace(m.def)).join('')}</span></div>${btn}<small class="g-boss-next">Next week: ${GUILD_BOSS_NAMES[next]} (${next}), starting at level 1</small>`,
     );
     const r = this.rewards;
     const levelCoins = r.kills.reduce((n, k) => n + guildBossKillCoins(k.level), 0);
@@ -745,6 +764,25 @@ export class Guild {
         ? this.kills.map((k) => `<li><div class="rw-text"><span><b>Level ${k.level}</b></span><small>Final blow by ${esc(k.username)} · ${ago(k.killed_at)} ago</small></div></li>`).join('')
         : '<li><div class="rw-text"><span>No levels beaten yet this week.</span></div></li>',
     );
+  }
+
+  private teamFace(h: HeroDef) {
+    return `<span class="face art" title="${esc(h.name)}" style="${faceStyle(h)};border-color:#${ELEMENT_COLORS[h.element].toString(16).padStart(6, '0')}">${h.name[0]}</span>`;
+  }
+
+  /** Pick up to teamSlots recruited heroes for the Guild Boss, strongest against this boss first. */
+  private bossTeamPicker(element: Element) {
+    const s = this.state;
+    const ids = this.bossPick ?? [];
+    const edge = (h: HeroDef) => elementMultiplier(h.element, element);
+    const owned = HEROES.filter((h) => (s.levels[h.id] ?? 0) > 0).sort((a, b) => edge(b) - edge(a) || s.heroCombatPower(b).cmp(s.heroCombatPower(a)));
+    const picks = owned
+      .map((h) => `<button type="button" class="${ids.includes(h.id) ? 'on' : ''}" data-g="pick:${h.id}">${this.teamFace(h)}<span>${esc(h.name)}</span><small>${edge(h) > 1 ? 'Strong · ' : edge(h) < 1 ? 'Weak · ' : ''}${fmt(s.heroCombatPower(h))}</small></button>`)
+      .join('');
+    return `<div class="g-team"><div class="pvp-row"><b>Guild Boss team ${ids.length}/${s.teamSlots}</b><small>CP ${fmt(s.teamCpOf(owned.filter((h) => ids.includes(h.id))))}</small></div>
+      <p>Pick up to ${s.teamSlots} heroes. This boss is ${element}: heroes marked Strong hit it extra hard. They fight at their Ember levels and stars (gold levels don't count). Your stage team stays as it is.</p>
+      <div class="pvp-pick">${picks}</div>
+      <div class="pvp-row"><button type="button" class="wood-btn small" data-g="team-cancel">Cancel</button><button type="button" class="wood-btn small levelall" data-g="team-save" ${ids.length ? '' : 'disabled'}>Save team</button></div></div>`;
   }
 
   private renderChat() {

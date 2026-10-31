@@ -1712,6 +1712,8 @@ export class UI {
   private pvpSlot = 0;
   private pvpPickKind: 'attack' | 'defense' = 'attack';
   private pvpPickIds: string[] = [];
+  /** The Colosseum page the team picker returns to. */
+  private pvpTeamFrom: 'list' | 'foe' = 'list';
   private pvpForecastKey = '';
   /** The Colosseum server link (real opponents, defense log); null until main.ts sets it. */
   private pvpServer: ColosseumLink | null = null;
@@ -1804,6 +1806,7 @@ export class UI {
       <small>Daily ${RANK_DAILY[r]} · Weekly ${RANK_WEEKLY[r]} Starmotes at this rank. On Monday the weekly reward pays, then you drop to ${rankName(rankIndex(droppedTrophies(p.trophies)))}.</small>
       ${foes}
       <div class="pvp-row"><button class="wood-btn small" data-pvp="board">Leaderboard &amp; log</button><button class="wood-btn small" data-pvp="refresh" ${refreshIn ? 'disabled' : ''}>${refreshIn ? `New opponents in ${Math.floor(refreshIn / 60)}:${String(refreshIn % 60).padStart(2, '0')}` : 'New opponents'}</button>${ticketBtn}</div>
+      <div class="pvp-team"><div class="pvp-row"><b>Attack team <small>CP ${fmt(s.teamCpOf(s.pvpAttackTeam()))}</small></b><button class="wood-btn small" data-pvp="team" data-kind="attack">Edit</button></div><span class="faces">${s.pvpAttackTeam().map((h) => this.pvpFace(h)).join('')}</span><small>You fight with this team. Your stage team stays as it is.</small></div>
       <div class="pvp-team"><div class="pvp-row"><b>Defense team</b><button class="wood-btn small" data-pvp="team" data-kind="defense">Edit</button></div><span class="faces">${s.pvpDefenseTeam().map((h) => this.pvpFace(h)).join('')}</span><small>Other players fight this team. Losing on defense never costs trophies.</small></div>`,
     );
   }
@@ -1875,6 +1878,7 @@ export class UI {
       case 'team':
         this.pvpPickKind = btn.dataset.kind === 'defense' ? 'defense' : 'attack';
         this.pvpPickIds = (this.pvpPickKind === 'attack' ? s.pvpAttackTeam() : s.pvpDefenseTeam()).map((h) => h.id);
+        this.pvpTeamFrom = this.pvpView === 'foe' ? 'foe' : 'list';
         this.pvpView = 'team';
         break;
       case 'pick': {
@@ -1884,12 +1888,12 @@ export class UI {
         break;
       }
       case 'team-cancel':
-        this.pvpView = this.pvpPickKind === 'attack' ? 'foe' : 'list';
+        this.pvpView = this.pvpTeamFrom;
         break;
       case 'team-save':
         s.setPvpTeam(this.pvpPickKind, this.pvpPickIds);
         if (this.pvpPickKind === 'defense') void this.pvpServer?.report(true);
-        this.pvpView = this.pvpPickKind === 'attack' ? 'foe' : 'list';
+        this.pvpView = this.pvpTeamFrom;
         break;
       case 'fight':
         this.fightPvp(this.pvpSlot);
