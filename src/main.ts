@@ -20,7 +20,6 @@ for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev
 watchTaps(window);
 
 const state = new GameState();
-(window as any).__s = state;
 const hadSave = state.load();
 initAudio();
 setMuted(state.muted);
