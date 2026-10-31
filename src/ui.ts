@@ -2864,7 +2864,7 @@ export class UI {
     const bossBtn = $('boss');
     bossBtn.hidden = s.autoAdvance;
     const retryIn = s.bossRetryIn();
-    bossBtn.textContent = `${isBossStage(s.stage + 1) || isBossStage(s.stage) ? 'Fight boss' : 'Resume'}${retryIn === null ? '' : retryIn > 0 ? ` · ${fmtSecs(retryIn)}` : ' · next clear'}`;
+    bossBtn.textContent = `${isBossStage(s.stage + 1) || isBossStage(s.stage) ? 'Fight boss' : 'Challenge boss'}${retryIn === null ? '' : retryIn > 0 ? ` · ${fmtSecs(retryIn)}` : ' · next clear'}`;
     $('autoboss').classList.toggle('on', s.autoBoss);
 
     let heroesBadge = false;
