@@ -875,7 +875,9 @@ export class UI {
       button.innerHTML = `${ULT_ICONS[def.element]}<span class="cd"></span>`;
       button.setAttribute('aria-label', `${def.name} ultimate: ${def.ultimate.name}`);
       button.title = `${def.name}: ${def.ultimate.name} (unlocks at Lv ${ULT_UNLOCK_LEVEL})`;
-      button.addEventListener('click', () => this.scene()?.triggerUlt(def.id));
+      button.addEventListener('click', () => {
+        if (!this.scene()?.triggerUlt(def.id)) this.scene()?.lockedUltHint(def.id);
+      });
       host.appendChild(button);
       this.ults.push({ def, button, cd: button.querySelector('.cd') as HTMLElement });
     }
@@ -2977,7 +2979,10 @@ export class UI {
       if (!scene || !fights) continue;
       const st = scene.getUltState(u.def.id);
       const ready = st.unlocked && st.alive && st.remaining <= 0;
-      u.button.disabled = !ready;
+      // A locked one stays tappable so a tap can say when it unlocks.
+      const locked = st.alive && !st.unlocked;
+      u.button.disabled = !ready && !locked;
+      u.button.classList.toggle('locked', locked);
       u.button.classList.toggle('ready', ready);
       // A fallen hero's button counts down to their revive, even before the Ultimate unlocks.
       u.cd.textContent = !st.alive ? `${Math.ceil(st.reviveIn)}s` : !st.unlocked ? `Lv${ULT_UNLOCK_LEVEL}` : st.remaining > 0 ? `${Math.ceil(st.remaining)}` : '';

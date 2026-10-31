@@ -14,6 +14,10 @@ export interface GuideView {
   ultReady: boolean;
   rekindleButton: boolean;
   bestStage: number;
+  /** Enough Gems for a Hero Chest, and none opened yet. */
+  firstChest: boolean;
+  /** A hero has enough crests to unlock. */
+  unlockReady: boolean;
 }
 
 export interface GuideStep {
@@ -90,6 +94,22 @@ export const TIPS: GuideTip[] = [
     text: 'Tap it to unleash it, or switch on Auto ult to fire them for you.',
     button: 'Got it',
     when: (v) => v.ultReady,
+  },
+  {
+    id: 'chest',
+    target: '#chest-btn',
+    title: 'Open a Hero Chest',
+    text: 'You have Gems for a Hero Chest. Its crests unlock new heroes, and a bigger team clears stages much faster.',
+    button: 'Got it',
+    when: (v) => v.firstChest && v.tab === 'heroes',
+  },
+  {
+    id: 'unlock',
+    target: '#team-btn',
+    title: 'New hero ready!',
+    text: 'You have the crests to unlock a hero. Tap Manage Team to unlock it and add it to your team.',
+    button: 'Got it',
+    when: (v) => v.unlockReady && v.tab === 'heroes',
   },
   {
     id: 'trials',

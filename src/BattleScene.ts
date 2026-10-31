@@ -2390,6 +2390,12 @@ export class BattleScene extends Phaser.Scene {
 
   // ---------- ultimates ----------
 
+  /** A tap on a hero's Ultimate before it unlocks: say when it does. */
+  lockedUltHint(heroId: string) {
+    const s = this.getUltState(heroId);
+    if (s.alive && s.slotted && !s.unlocked && !this.transitioning) this.banner(`ULTIMATE UNLOCKS\nAT HERO LEVEL ${ULT_UNLOCK_LEVEL}`, '#ffd27a');
+  }
+
   getUltState(heroId: string): UltState {
     const h = this.heroes.find((u) => u.def?.id === heroId);
     const level = this.levelOf(heroId);

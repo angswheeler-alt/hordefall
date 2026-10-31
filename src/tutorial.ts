@@ -3,6 +3,7 @@
  * speech bubble. It never blocks the game; taps go through to whatever is underneath.
  */
 import type { GameState } from './state';
+import { HEROES, CHEST_COST } from './data';
 import { INTRO, TUTORIAL_DONE, advanceIntro, pendingTip, type GuideStep, type GuideTip, type GuideView } from './tutorialSteps';
 
 /** Full-screen pages and dialogs; the guide waits while one is open. */
@@ -62,6 +63,8 @@ export class Tutorial {
       ultReady: !!document.querySelector('#ults .ult.ready'),
       rekindleButton: !document.getElementById('rekindle')?.hidden,
       bestStage: this.state.bestStage,
+      firstChest: this.state.stats.summons === 0 && this.state.gems >= CHEST_COST,
+      unlockReady: HEROES.some((h) => this.state.canUnlock(h)),
     };
   }
 
