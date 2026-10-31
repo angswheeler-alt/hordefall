@@ -11,7 +11,7 @@ import type { GameState } from './state';
 import type { Account } from './account';
 import { faceStyle, dropCards, type UI } from './ui';
 import { play } from './sfx';
-import { setHtml } from './taps';
+import { busyWhile, setHtml } from './taps';
 
 // Guilds: browse, create and join; the weekly Guild Boss event; Guild Research; weekly Guild Quests; members and ranks;
 // chat; crest requests and donations for Guild Coins; and a guild shop. The rules are enforced
@@ -576,24 +576,26 @@ export class Guild {
     const el = (e.target as HTMLElement).closest<HTMLElement>('[data-g]');
     if (!el || (el as HTMLButtonElement).disabled) return;
     const [kind, arg] = el.dataset.g!.split(':');
+    // Server calls take a moment; the button pulses until they answer.
+    const run = (work: Promise<unknown>) => void busyWhile(el, work);
     if (kind === 'signin') this.account.signIn();
-    else if (kind === 'retry') void this.refresh();
-    else if (kind === 'join') void this.call('join_guild', { p_guild: arg, p_best_stage: this.state.bestStage });
+    else if (kind === 'retry') run(this.refresh());
+    else if (kind === 'join') run(this.call('join_guild', { p_guild: arg, p_best_stage: this.state.bestStage }));
     else if (kind === 'view') {
       this.view = arg as View;
       this.render();
     } else if (kind === 'ask') this.pickHero();
-    else if (kind === 'fight') void this.fightBoss();
+    else if (kind === 'fight') run(this.fightBoss());
     else if (kind === 'team') this.ui.openTeamOn('guild');
-    else if (kind === 'claim') void this.claimBoss();
-    else if (kind === 'quest') void this.claimQuest(arg);
+    else if (kind === 'claim') run(this.claimBoss());
+    else if (kind === 'quest') run(this.claimQuest(arg));
     else if (kind === 'research') {
       const [branch, amount] = arg.split('/');
-      void this.contribute(branch as ResearchBranch, Number(amount));
-    } else if (kind === 'focus') void this.call('set_guild_research_focus', { p_branch: arg });
+      run(this.contribute(branch as ResearchBranch, Number(amount)));
+    } else if (kind === 'focus') run(this.call('set_guild_research_focus', { p_branch: arg }));
     else if (kind === 'give') {
       const req = this.requests.find((r) => r.id === Number(arg));
-      if (req) void this.donate(req);
+      if (req) run(this.donate(req));
     } else if (kind === 'member') {
       const m = this.members.find((x) => x.user_id === arg);
       if (m) this.memberMenu(m);
