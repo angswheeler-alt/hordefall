@@ -65,8 +65,8 @@ import { respawnTime, reviveIn, stageStartRevives } from './respawn';
 import { chestsAllowed, laneMode } from './chests';
 import { PVP_RESPAWN_MULT } from './colosseum';
 import { HERO_ANIMS } from './heroAnims';
-import { ASCENDANT_HEROES, ascendantDef } from './heroes/ascendant';
-import { formArtKey, chargeOf, chargeStep, chargeDamageMult, CHARGE_AREA, CHARGE_LINE, CHARGE_HASTE_SECONDS, type Charge } from './ascendant';
+import { ASCENDANT_HEROES } from './heroes/ascendant';
+import { chargeOf, chargeStep, chargeDamageMult, CHARGE_AREA, CHARGE_LINE, CHARGE_HASTE_SECONDS, type Charge } from './ascendant';
 import { MOB_ANIMS } from './mobAnims';
 import { MOB_ELEMENTS, MOB_KINDS, pickMob, type MobId } from './mobs';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES, type BossAnim } from './bossAnims';
@@ -894,8 +894,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** The art a hero is drawn with: an Ascendant hero's form art when it has landed, else the hero's own. */
   private heroArt(def: HeroDef): string {
-    const a = ascendantDef(def.id);
-    return a ? formArtKey(a, this.state.formOf(def.id), (key) => !!HERO_ANIMS[key]) : def.id;
+    return this.state.heroArtKey(def.id);
   }
 
   /** Whether a hero is on the field: the lineup, or the attack team in a Colosseum battle, or the Guild Boss team. */

@@ -165,7 +165,7 @@ export class Social {
       const t = p.team?.[i];
       const h = t && HEROES.find((x) => x.id === t.id);
       if (!t || !h) return '<div><span class="face"></span><small>Empty</small></div>';
-      return `<div><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span><b>${esc(h.name)}</b><small>Lv ${Number(t.level).toLocaleString()} · ${'★'.repeat(Math.max(1, Number(t.stars) || 1))}</small><span class="cp">${fmt(new Decimal(t.cp || 0))}</span></div>`;
+      return `<div><span class="face art" style="${faceStyle(h, h.id)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span><b>${esc(h.name)}</b><small>Lv ${Number(t.level).toLocaleString()} · ${'★'.repeat(Math.max(1, Number(t.stars) || 1))}</small><span class="cp">${fmt(new Decimal(t.cp || 0))}</span></div>`;
     }).join('');
     const updated = p.updated_at ? `Updated ${new Date(p.updated_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}.` : 'No profile reported yet.';
     this.setBody(`
