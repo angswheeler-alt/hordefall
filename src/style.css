@@ -31,7 +31,6 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .ult:disabled { cursor: default; filter: grayscale(0.7) brightness(0.6); }
 .ult .cd { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.8); font-size: 14px; }
 .ult.ready { box-shadow: 0 0 0 2px var(--gold), 0 0 12px var(--gold); }
-#controls { display: flex; gap: 8px; padding: 10px 14px; align-items: center; flex-wrap: wrap; }
 .spacer { flex: 1; }
 button { font: inherit; background: var(--panel-2); color: var(--text); border: 1px solid #4a3d78; border-radius: 10px; padding: 8px 12px; cursor: pointer; }
 /* Hold-to-level buttons: no double-tap zoom or long-press menu getting in the way of a held finger. */
@@ -296,9 +295,8 @@ button.glass:disabled { opacity: .7; font-size: 11px; }
 .rk-emblem::before { content: ''; width: 70%; height: 70%; background: url('./assets/ui/ember.png') center / contain no-repeat; image-rendering: pixelated; }
 .rk-emblem.ready { filter: none; animation: rk-glow 1.6s ease-in-out infinite; }
 @keyframes rk-glow { 0%, 100% { box-shadow: 0 0 4px rgba(255,138,61,.6); } 50% { box-shadow: 0 0 14px rgba(255,170,90,1); } }
-.rk-emblem i { position: absolute; left: 0; top: calc(100% + 4px); white-space: nowrap; font-style: normal; font-size: 12px; font-weight: 700; color: #fff; background: rgba(10, 8, 20, .85); border: 1px solid rgba(255,255,255,.3); border-radius: 7px; padding: 3px 7px; pointer-events: none; }
+.rk-emblem i { position: absolute; left: calc(100% + 4px); top: 50%; transform: translateY(-50%); white-space: nowrap; font-style: normal; font-size: 12px; font-weight: 700; color: #fff; background: rgba(10, 8, 20, .85); border: 1px solid rgba(255,255,255,.3); border-radius: 7px; padding: 3px 7px; pointer-events: none; }
 body.in-trial .rk-emblem, body.in-trial #autoboss { display: none !important; }
-#controls:not(:has(> :not([hidden]))) { display: none; }
 #ults .ult { pointer-events: auto; width: 38px; height: 38px; border-radius: 9px; border: 2px solid #0b0f16; background: linear-gradient(160deg, color-mix(in srgb, var(--el) 55%, #fff) 0%, var(--el) 45%, color-mix(in srgb, var(--el) 60%, #000) 100%); box-shadow: inset 0 2px 0 rgba(255,255,255,.55), inset 0 -3px 0 rgba(0,0,0,.25), 0 2px 4px rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; }
 #ults .ult svg { width: 24px; height: 24px; fill: #f3f6fc; stroke: rgba(0,0,0,.35); stroke-width: 1; filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
 #ults .ult:disabled, #ults .ult.locked { filter: none; cursor: default; }
@@ -386,7 +384,7 @@ i.medal { background-image: url('./assets/ui/crest.png'); }
 .trial-ess span { display: inline-flex; align-items: center; gap: 4px; }
 .trial-ess i { width: 12px; height: 12px; border-radius: 50%; background: var(--el); border: 1px solid #000; box-shadow: inset -2px -2px 0 rgba(0,0,0,.3); }
 /* A live Trial takes over the screen: only the lane, the Ultimate buttons and the Trial bar stay. */
-body.in-trial #wallet, body.in-trial #controls, body.in-trial #panels, body.in-trial #tabbar,
+body.in-trial #wallet, body.in-trial #boss, body.in-trial #panels, body.in-trial #tabbar,
 body.in-trial #settings-btn { display: none !important; }
 #trial-hud { display: flex; gap: 10px; align-items: center; padding: 10px 14px; background: linear-gradient(180deg, #3a1e2e, #241327); border-bottom: 3px solid #0c0f18; }
 #trial-hud[hidden] { display: none; }
@@ -715,8 +713,10 @@ div.g-req { margin-bottom: 8px; }
 .team-who .rarity { font-size: 12px; }
 
 /* Pulse the boss button while farming so it is hard to miss */
-#boss:not([hidden]) { animation: boss-pulse 1.4s ease-in-out infinite; }
-@keyframes boss-pulse { 50% { box-shadow: 0 0 0 3px rgba(255,255,255,.35), 0 0 14px var(--hot); transform: scale(1.04); } }
+/* Fight boss / Resume: a flashing button under the stage label at the top left of the battle. */
+#boss { position: absolute; left: calc(6 / 480 * 100%); top: calc(34 / 300 * 100%); z-index: 5; height: 28px; padding: 0 12px; font-size: 13px; border-radius: 9px; }
+#boss:not([hidden]) { animation: boss-flash 1s ease-in-out infinite; }
+@keyframes boss-flash { 50% { box-shadow: 0 0 0 2px rgba(255,255,255,.5), 0 0 14px var(--hot); filter: brightness(1.35); } }
 
 /* Manage Team: team slots on top, a scrolling grid of hero cards, quick stats on tap; Done and ✕ always in view. */
 #modal.team-mode .card { max-width: 440px; display: flex; flex-direction: column; position: relative; padding: 16px 14px; }
