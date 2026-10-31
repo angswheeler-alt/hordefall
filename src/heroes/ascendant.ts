@@ -142,7 +142,7 @@ const zealText = (pct: number, max: number, wave: number) =>
   `Each attack in a row makes her attack ${pct}% faster, up to ${max} times. At 5 in a row her attacks also hit enemies within ${wave} px. Walking resets it.`;
 const ascLight: AscendantDef = {
   base: {
-    ...base, id: 'asc_light', name: 'Valeth', element: 'light', type: 'Ranger', flying: true, baseAtk: 4.6, baseHp: 40, range: 150, attackCooldown: 1.0, moveSpeed: 115,
+    ...base, id: 'asc_light', name: 'Valeth', element: 'light', type: 'Ranger', baseAtk: 4.6, baseHp: 40, range: 150, attackCooldown: 1.0, moveSpeed: 115,
     signature: { kind: 'zeal', perStack: 0.06, max: 5, plusMax: 8, waveAt: 5, wave: 30 },
     sigPlus: 'Zeal stacks up to 8 times.',
     ult: { kind: 'sanctuary', seconds: 2, plusSeconds: 3 },
@@ -157,7 +157,7 @@ const ascLight: AscendantDef = {
   },
   forms: [
     { formName: 'Squire of Dawn', art: 'asc_light', charge: lightC[0] },
-    { formName: 'First Feather', art: 'asc_light_f2', baseAtk: 5.0, baseHp: 42, attackCooldown: 0.95, range: 170, charge: lightC[1],
+    { formName: 'First Feather', art: 'asc_light_f2', flying: true, baseAtk: 5.0, baseHp: 42, attackCooldown: 0.95, range: 170, charge: lightC[1],
       bio: 'Two pairs of wings and a sword wrapped in golden flame.',
       signature: { kind: 'zeal', perStack: 0.07, max: 5, plusMax: 8, waveAt: 5, wave: 30 },
       trait: sig('Zeal', zealText(7, 5, 30), lightC[1], 'light') },
