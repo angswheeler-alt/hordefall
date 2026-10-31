@@ -120,6 +120,7 @@ function bossFace(el: Element, size: number): Partial<CSSStyleDeclaration> {
 
 export class UI {
   private rows: HeroRow[] = [];
+  private rkTipTimer = 0;
   private ults: UltButton[] = [];
 
   constructor(
@@ -995,7 +996,14 @@ export class UI {
       $('modal').hidden = true;
       this.modalAction = null;
     });
-    $('rekindle').addEventListener('click', () => this.openRekindle());
+    $('rk-emblem').addEventListener('click', () => {
+      if (this.state.canRekindle()) return this.openRekindle();
+      const tip = $('rk-emblem-tip');
+      tip.textContent = `Rekindle at stage ${this.state.rekindleStage()}`;
+      tip.hidden = false;
+      clearTimeout(this.rkTipTimer);
+      this.rkTipTimer = window.setTimeout(() => (tip.hidden = true), 2500);
+    });
     $('rk-head-on').addEventListener('change', () => {
       this.state.headStart = $<HTMLInputElement>('rk-head-on').checked;
       this.state.save();
@@ -2833,10 +2841,10 @@ export class UI {
     $<HTMLButtonElement>('chest-btn').disabled = s.gems < CHEST_COST;
     $('embers-stat').hidden = s.embers === 0 && s.rekindles === 0;
     $('embers').textContent = fmt(s.embers);
-    const rk = $<HTMLButtonElement>('rekindle');
-    rk.hidden = s.runBestStage < 100 && s.rekindles === 0;
-    rk.disabled = !s.canRekindle();
-    rk.textContent = s.canRekindle() ? `Rekindle +${fmt(s.pendingEmbers())}` : `Rekindle at stage ${s.rekindleStage()}`;
+    const rk = $<HTMLButtonElement>('rk-emblem');
+    rk.hidden = !s.rekindleShown();
+    rk.classList.toggle('ready', s.canRekindle());
+    rk.title = s.canRekindle() ? `Rekindle for +${fmt(s.pendingEmbers())} Embers` : `Rekindle at stage ${s.rekindleStage()}`;
     const speedUnlocked = s.bestStage >= SPEED_UNLOCK_STAGE;
     const speed = $<HTMLButtonElement>('speed');
     speed.disabled = !speedUnlocked;
@@ -2857,7 +2865,6 @@ export class UI {
     bossBtn.hidden = s.autoAdvance;
     const retryIn = s.bossRetryIn();
     bossBtn.textContent = `${isBossStage(s.stage + 1) || isBossStage(s.stage) ? 'Fight boss' : 'Resume'}${retryIn === null ? '' : retryIn > 0 ? ` · ${fmtSecs(retryIn)}` : ' · next clear'}`;
-    $('autoboss').hidden = s.autoAdvance;
     $('autoboss').classList.toggle('on', s.autoBoss);
 
     let heroesBadge = false;

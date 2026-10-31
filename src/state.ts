@@ -1427,6 +1427,11 @@ export class GameState {
     return Math.max(REKINDLE_STAGE + 1, this.runStartStage > 1 ? this.runStartStage + HEAD_START_MIN_PUSH : 0);
   }
 
+  /** Whether the Rekindle emblem shows at the top left of the battle. */
+  rekindleShown() {
+    return this.runBestStage >= 100 || this.rekindles > 0;
+  }
+
   canRekindle() {
     return this.runBestStage >= this.rekindleStage();
   }

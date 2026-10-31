@@ -61,7 +61,7 @@ export class Tutorial {
       leveled: this.levelSum() > this.levelMark,
       bossButton: !document.getElementById('boss')?.hidden,
       ultReady: !!document.querySelector('#ults .ult.ready'),
-      rekindleButton: !document.getElementById('rekindle')?.hidden,
+      rekindleButton: !document.getElementById('rk-emblem')?.hidden,
       bestStage: this.state.bestStage,
       firstChest: this.state.stats.summons === 0 && this.state.gems >= CHEST_COST,
       unlockReady: HEROES.some((h) => this.state.canUnlock(h)),

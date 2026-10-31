@@ -288,7 +288,16 @@ button.glass { background: rgba(10, 8, 20, .15); border: 1.5px solid rgba(255, 2
 button.glass.on { background: rgba(20, 90, 45, .25); border-color: var(--ok); color: #c8ffd8; }
 button.glass:disabled { opacity: .7; font-size: 11px; }
 /* Top edge, just left of the lane map drawn in BattleScene.drawHud (which starts 156 of 480 game px from the right). */
-#speed { position: absolute; top: 3px; right: calc(156 / 480 * 100% + 6px); z-index: 5; height: 26px; padding: 0 8px; font-size: 12px; }
+#topbtns { position: absolute; top: 3px; right: calc(156 / 480 * 100% + 6px); z-index: 5; display: flex; gap: 6px; }
+#topbtns button.glass { height: 26px; padding: 0 8px; font-size: 12px; }
+/* Rekindle emblem at the top left of the battle; the Phaser stage label sits just right of it. */
+.rk-emblem { position: absolute; left: calc(6 / 480 * 100%); top: 3px; width: calc(28 / 480 * 100%); min-width: 24px; aspect-ratio: 1; padding: 0; border-radius: 50%; z-index: 5; display: grid; place-items: center; cursor: pointer;
+  background: radial-gradient(circle at 40% 35%, #ffb36b, var(--ember) 55%, #435888); border: 2px solid rgba(0, 0, 0, .7); box-shadow: 0 1px 3px rgba(0,0,0,.6); filter: grayscale(.65) brightness(.8); }
+.rk-emblem::before { content: ''; width: 70%; height: 70%; background: url('./assets/ui/ember.png') center / contain no-repeat; image-rendering: pixelated; }
+.rk-emblem.ready { filter: none; animation: rk-glow 1.6s ease-in-out infinite; }
+@keyframes rk-glow { 0%, 100% { box-shadow: 0 0 4px rgba(255,138,61,.6); } 50% { box-shadow: 0 0 14px rgba(255,170,90,1); } }
+.rk-emblem i { position: absolute; left: 0; top: calc(100% + 4px); white-space: nowrap; font-style: normal; font-size: 12px; font-weight: 700; color: #fff; background: rgba(10, 8, 20, .85); border: 1px solid rgba(255,255,255,.3); border-radius: 7px; padding: 3px 7px; pointer-events: none; }
+body.in-trial .rk-emblem, body.in-trial #autoboss { display: none !important; }
 #controls:not(:has(> :not([hidden]))) { display: none; }
 #ults .ult { pointer-events: auto; width: 38px; height: 38px; border-radius: 9px; border: 2px solid #0b0f16; background: linear-gradient(160deg, color-mix(in srgb, var(--el) 55%, #fff) 0%, var(--el) 45%, color-mix(in srgb, var(--el) 60%, #000) 100%); box-shadow: inset 0 2px 0 rgba(255,255,255,.55), inset 0 -3px 0 rgba(0,0,0,.25), 0 2px 4px rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; }
 #ults .ult svg { width: 24px; height: 24px; fill: #f3f6fc; stroke: rgba(0,0,0,.35); stroke-width: 1; filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
