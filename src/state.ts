@@ -14,6 +14,8 @@ import { ascendBlocker, ascendNeeds, clampForm, formArtKey, resolveForm, COUNTER
 import { ascendantDef, isAscendant, ASCENDANT_HEROES } from './heroes/ascendant';
 import { HERO_ANIMS } from './heroAnims';
 import { TEST_MODE, TEST_SAVE_KEY } from './config';
+import { FORGE_MATS, clampWeaponLevel, weaponMult, weaponUpgradeCost, type ForgeCost, type ForgeMat } from './weapons';
+import { SCOUT_KINDS, SCOUT_UNLOCK_LEVEL, WILD_CREST_COST, cleanScout, heroScoutScore, missionEndsAt, newScout, nextHour, refreshBoard, scoutReward, scoutShare, type ScoutReward, type ScoutSlot, type ScoutState } from './scouting';
 
 /** Test mode plays a copy of the save under its own key, so the real one is never written. */
 const SAVE_KEY = TEST_MODE ? TEST_SAVE_KEY : 'hordefall-save-v1';
@@ -317,6 +319,13 @@ export class GameState {
   warsteel = 0;
   guildRelics: Record<string, number> = {};
   guildRelicEquipped: string[] = [];
+  /** Weapons (src/weapons.ts): level per hero, 1 when missing. */
+  weapons: Record<string, number> = {};
+  /** Scouting board (src/scouting.ts) and the weapon materials it pays. */
+  scout: ScoutState = newScout();
+  forge: Record<ForgeMat, number> = { ore: 0, crystal: 0, coreC: 0, coreR: 0, coreE: 0 };
+  /** Wild Crests from Gilded Scouting: crests for any non-Legendary, non-Ascendant hero. */
+  wildCrests = 0;
   /** Earned by giving medals to guildmates; spent in the guild shop. */
   guildCredits = 0;
   /** Guild shop: today's hero offers, Warsteel packs bought today (`pouches`, the old name, kept for saves) and Wild Medals bought this week. */
@@ -411,9 +420,10 @@ export class GameState {
     const hpRelics = (1 + this.relicBonus('hp') + this.relicBonus(`${def.element}Hp`)) * (1 + this.guildRelicBonus('hp'));
     const fx = this.effects();
     const prof = heroProfile(def);
+    const weapon = weaponMult(this.weaponLevel(base.id));
     return {
-      atk: heroAtk(def, level).times(starMult * prof.atkMult * mulEffect(fx, 'atk', def.id) * atkRelics),
-      hp: heroHp(def, level).times(starMult * prof.hpMult * mulEffect(fx, 'hp', def.id) * hpRelics),
+      atk: heroAtk(def, level).times(starMult * prof.atkMult * mulEffect(fx, 'atk', def.id) * atkRelics * weapon),
+      hp: heroHp(def, level).times(starMult * prof.hpMult * mulEffect(fx, 'hp', def.id) * hpRelics * weapon),
       defense: heroDef(def, level).times(starMult * prof.defMult * mulEffect(fx, 'def', def.id) * (1 + this.relicBonus('def') + this.relicBonus(`${def.element}Def`)) * (1 + this.guildRelicBonus('def'))),
     };
   }
@@ -2206,6 +2216,160 @@ export class GameState {
     return dps.times(GUILD_BOSS_SECONDS * (1 + this.guildBossBonus()) * this.bossDamageMult()).floor();
   }
 
+  // ---------- weapons (src/weapons.ts) ----------
+
+  weaponLevel(id: string): number {
+    return clampWeaponLevel(this.weapons[id] ?? 1);
+  }
+
+  /** Materials for the hero's next weapon level, or null at max. */
+  weaponCost(id: string): ForgeCost | null {
+    return weaponUpgradeCost(this.weaponLevel(id));
+  }
+
+  canPay(cost: ForgeCost): boolean {
+    return FORGE_MATS.every((m) => this.forge[m] >= (cost[m] ?? 0));
+  }
+
+  /** Why the weapon can't be upgraded now, or null if it can. */
+  weaponBlock(id: string): string | null {
+    const cost = this.weaponCost(id);
+    if (!cost) return 'Max level';
+    if ((this.levels[id] ?? 0) <= 0) return 'Recruit this hero first';
+    if (!this.canPay(cost)) return 'Not enough materials';
+    return null;
+  }
+
+  upgradeWeapon(id: string): boolean {
+    const cost = this.weaponCost(id);
+    if (!cost || this.weaponBlock(id) !== null) return false;
+    for (const m of FORGE_MATS) this.forge[m] -= cost[m] ?? 0;
+    this.weapons[id] = this.weaponLevel(id) + 1;
+    this.save();
+    return true;
+  }
+
+  // ---------- Scouting (src/scouting.ts) ----------
+
+  scoutOpen(): boolean {
+    return this.keeperLevel() >= SCOUT_UNLOCK_LEVEL;
+  }
+
+  /** The board, with due slots filled. */
+  scoutBoard(now = Date.now()): ScoutSlot[] {
+    if (this.scoutOpen() && refreshBoard(this.scout, now, dayKey(now))) this.save();
+    return this.scout.slots;
+  }
+
+  /** Heroes away on a running mission. */
+  scoutBusy(): Set<string> {
+    const busy = new Set<string>();
+    for (const sl of this.scout.slots) if (sl.mission?.startedAt) for (const h of sl.mission.heroes) busy.add(h);
+    return busy;
+  }
+
+  /** One hero's Team Score for a slot's mission. */
+  scoutHeroScore(slot: string, heroId: string): number {
+    const m = this.scout.slots.find((x) => x.slot === slot)?.mission;
+    const h = HEROES.find((x) => x.id === heroId);
+    if (!m || !h) return 0;
+    const def = this.formDef(h);
+    return heroScoutScore(this.stars[heroId] ?? 0, this.awaken[heroId] ?? 0, this.weaponLevel(heroId), def.type === m.type, def.element === m.element);
+  }
+
+  /** Team Score and reward share for a slot's mission with these heroes. */
+  scoutScore(slot: string, heroIds: string[]): { score: number; target: number; share: number } {
+    const m = this.scout.slots.find((x) => x.slot === slot)?.mission;
+    if (!m) return { score: 0, target: 0, share: 0 };
+    const score = heroIds.slice(0, m.size).reduce((t, id) => t + this.scoutHeroScore(slot, id), 0);
+    return { score, target: SCOUT_KINDS[m.kind].target, share: scoutShare(score, m.kind) };
+  }
+
+  /** Free recruited heroes for a slot, best Team Score first. */
+  scoutCandidates(slot: string): HeroDef[] {
+    const busy = this.scoutBusy();
+    return HEROES.filter((h) => (this.levels[h.id] ?? 0) > 0 && !busy.has(h.id))
+      .map((h) => ({ h, sc: this.scoutHeroScore(slot, h.id) }))
+      .sort((a, b) => b.sc - a.sc || a.h.name.localeCompare(b.h.name))
+      .map((x) => x.h);
+  }
+
+  /** The best free team for a slot. */
+  scoutAutoPick(slot: string): string[] {
+    const m = this.scout.slots.find((x) => x.slot === slot)?.mission;
+    return m ? this.scoutCandidates(slot).slice(0, m.size).map((h) => h.id) : [];
+  }
+
+  startScout(slot: string, heroIds: string[], now = Date.now()): boolean {
+    const sl = this.scout.slots.find((x) => x.slot === slot);
+    const m = sl?.mission;
+    if (!this.scoutOpen() || !m || m.startedAt) return false;
+    const busy = this.scoutBusy();
+    const ids = [...new Set(heroIds)];
+    if (!ids.length || ids.length > m.size) return false;
+    if (ids.some((id) => busy.has(id) || !((this.levels[id] ?? 0) > 0))) return false;
+    m.heroes = ids;
+    m.startedAt = now;
+    this.save();
+    return true;
+  }
+
+  /** Call a running mission back early: the heroes come home and nothing is paid. */
+  recallScout(slot: string): boolean {
+    const m = this.scout.slots.find((x) => x.slot === slot)?.mission;
+    if (!m || !m.startedAt) return false;
+    m.startedAt = 0;
+    m.heroes = [];
+    this.save();
+    return true;
+  }
+
+  scoutDone(slot: string, now = Date.now()): boolean {
+    const m = this.scout.slots.find((x) => x.slot === slot)?.mission;
+    return !!m && m.startedAt > 0 && now >= missionEndsAt(m);
+  }
+
+  /** Finished missions waiting to be collected. */
+  scoutReadyCount(now = Date.now()): number {
+    if (!this.scoutOpen()) return 0;
+    return this.scout.slots.filter((x) => this.scoutDone(x.slot, now)).length;
+  }
+
+  /** Collect a finished mission: pay it, free its heroes, and queue the slot's next mission. */
+  claimScout(slot: string, now = Date.now()): ScoutReward | null {
+    if (!this.scoutDone(slot, now)) return null;
+    const sl = this.scout.slots.find((x) => x.slot === slot)!;
+    const m = sl.mission!;
+    const reward = scoutReward(m, this.scoutScore(slot, m.heroes).share);
+    for (const m2 of FORGE_MATS) this.forge[m2] += reward[m2] ?? 0;
+    this.wildCrests += reward.wild ?? 0;
+    if (m.kind === 'common') this.scout.commons++;
+    this.scout.done++;
+    if (sl.slot === 'rb' || sl.slot === 'g') this.scout.slots = this.scout.slots.filter((x) => x !== sl);
+    else {
+      sl.mission = undefined;
+      sl.readyAt = nextHour(now);
+    }
+    refreshBoard(this.scout, now, dayKey(now));
+    this.save();
+    return reward;
+  }
+
+  /** Wild Crests one crest for this hero costs, or null for heroes they can't go to. */
+  wildCrestCost(heroId: string): number | null {
+    const h = HEROES.find((x) => x.id === heroId);
+    if (!h || isAscendant(h.id) || !(h.rarity in WILD_CREST_COST) || !PLAYABLE_HEROES.includes(h)) return null;
+    return WILD_CREST_COST[h.rarity as keyof typeof WILD_CREST_COST];
+  }
+
+  /** Turn Wild Crests into n crests for a hero. */
+  useWildCrests(heroId: string, n: number): SummonDrop[] | null {
+    const cost = this.wildCrestCost(heroId);
+    if (cost === null || !(n >= 1) || Math.floor(n) !== n || this.wildCrests < cost * n) return null;
+    this.wildCrests -= cost * n;
+    return this.receiveGuildMedals([{ heroId, crests: n }]);
+  }
+
   // ---------- guild relics (src/guildRelics.ts) ----------
 
   /** Total bonus (0.5 = +50%) from equipped guild relics with this effect. */
@@ -2898,6 +3062,10 @@ export class GameState {
       warsteel: this.warsteel,
       guildRelics: this.guildRelics,
       guildRelicEquipped: this.guildRelicEquipped,
+      weapons: this.weapons,
+      scout: this.scout,
+      forge: this.forge,
+      wildCrests: this.wildCrests,
       enhanceStones: this.enhanceStones,
       equipped: this.equipped,
       relicSlots: this.relicSlots,
@@ -3067,6 +3235,14 @@ export class GameState {
       this.guildRelicEquipped = Array.isArray(d.guildRelicEquipped)
         ? [...new Set(d.guildRelicEquipped.filter((id: unknown): id is string => typeof id === 'string' && this.guildRelics[id] > 0))].slice(0, GUILD_RELIC_SLOTS)
         : [];
+      this.weapons = Object.fromEntries(
+        Object.entries(d.weapons ?? {})
+          .filter(([id, lv]) => HEROES.some((h) => h.id === id) && typeof lv === 'number' && lv > 1)
+          .map(([id, lv]) => [id, clampWeaponLevel(lv)]),
+      );
+      this.scout = cleanScout(d.scout, new Set(HEROES.map((h) => h.id)));
+      for (const m of FORGE_MATS) this.forge[m] = Math.max(0, Math.floor(Number(d.forge?.[m]) || 0));
+      this.wildCrests = Math.max(0, Math.floor(Number(d.wildCrests) || 0));
       // Older saves ran relics to level 50 across tiers I-V: keep those levels as Enhances.
       for (const def of RELICS) {
         const lv = this.relics[def.id] ?? 0;

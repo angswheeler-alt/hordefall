@@ -27,6 +27,7 @@ import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_L
 
 import { busyWhile, setHtml } from './taps';
 import { holdToRepeat } from './hold';
+import { ScoutUI } from './scoutUi';
 import { sortHeroes, nextTeamSort, TEAM_SORT_LABELS, type TeamSort } from './teamSort';
 
 /** The teams Manage Team edits: stages, Colosseum attack and defense, and the Guild Boss. */
@@ -137,6 +138,7 @@ export class UI {
   private ults: UltButton[] = [];
   /** A tap happened and nothing has drawn its result yet (see the click listeners in the constructor). */
   private tapPending = false;
+  private scoutUi!: ScoutUI;
 
   constructor(
     private state: GameState,
@@ -149,6 +151,7 @@ export class UI {
     this.bindControls();
     this.buildMarket();
     this.buildRelics();
+    this.scoutUi = new ScoutUI(this.state, this);
     let last = performance.now();
     setInterval(() => {
       const now = performance.now();
@@ -1385,6 +1388,7 @@ export class UI {
         this.render();
       }
     });
+    $('sheet-wild').addEventListener('click', () => this.sheetHero && this.scoutUi.pickWildHero(this.sheetHero));
     $('sheet-close').addEventListener('click', () => this.closeSheet());
     // Hero page tabs: Stats / Skills / Stars (the level buttons stay pinned under them).
     document.querySelector('.sheet-tabs')!.addEventListener('click', (e) => {
@@ -1569,6 +1573,7 @@ export class UI {
     html += row('Pink stars', 'awaken', String(testValue(s, id, 'awaken')), [-1, 1]);
     html += row('Gold level', 'level', fmt(testValue(s, id, 'level')), [-100, -10, 10, 100]);
     html += row('Ember level', 'ember', fmt(testValue(s, id, 'ember')), [-100, -10, 10, 100]);
+    html += row('Weapon level', 'weapon', String(testValue(s, id, 'weapon')), [-1, 1]);
     if (isAscendant(id)) html += row('Form', 'form', cap(FORM_RARITIES[testValue(s, id, 'form')]), [-1, 1]);
     html += '<div class="test-row"><span></span><button class="wood-btn small" data-tmax="1">Max stars and form</button></div>';
     setHtml($('sheet-test-rows'), html);
@@ -1578,7 +1583,7 @@ export class UI {
   /** Which of the three stat pages the hero page shows. */
   private statPage = 0;
   /** Which tab of the hero page is open. */
-  private sheetTab: 'stats' | 'skills' | 'stars' = 'stats';
+  private sheetTab: 'stats' | 'skills' | 'stars' | 'weapon' = 'stats';
 
   private showSheetTab() {
     for (const b of document.querySelectorAll<HTMLElement>('.sheet-tabs [data-stab]')) {
@@ -1690,6 +1695,12 @@ export class UI {
       $('sheet-abilities').dataset.key = `${id}:${ultReady}:${form}`;
     }
     this.renderAscension(id);
+    this.scoutUi.renderWeapon(id);
+    const wild = $<HTMLButtonElement>('sheet-wild');
+    const wildCost = s.wildCrestCost(id);
+    wild.hidden = !(s.wildCrests > 0 && wildCost !== null);
+    wild.textContent = `Use Wild Crests (${s.wildCrests})`;
+    wild.disabled = wildCost === null || s.wildCrests < wildCost;
 
     const next = s.evolveCost(id);
     $('sheet-crest-label').textContent = legendary ? 'Legendary crests' : 'Hero Crests';
@@ -2345,6 +2356,8 @@ export class UI {
     $('hub-pvp-tickets').textContent = pvpOn ? `${s.pvp.tickets}/${PVP_TICKET_CAP}` : '-';
     $('hub-pvp-note').textContent = pvpOn ? `${rankName(rankIndex(s.pvp.trophies))} · ${s.pvp.trophies} trophies` : `Opens at player level ${s.pvpUnlockLevel()}`;
     $('hub-pvp-alert').hidden = !(pvpOn && s.pvp.tickets > 0);
+    this.scoutUi.renderHub();
+    if (!document.querySelector<HTMLElement>('[data-battle-pane="scout"]')!.hidden) this.scoutUi.renderBoard();
   }
 
   /** The Rekindle rewards page: what this Rekindle pays and what it moves forward. */
@@ -3027,7 +3040,7 @@ export class UI {
     this.badge('market', this.renderMarket());
     this.renderRelics(); // no red dot for relic upgrades or free slots (user 2026-10-31)
     this.badge('relics', false);
-    this.badge('battle', s.rekindles > 0 && s.tickets >= TICKET_CAP);
+    this.badge('battle', (s.rekindles > 0 && s.tickets >= TICKET_CAP) || s.scoutReadyCount() > 0);
     this.badge('heroes', heroesBadge || teamReady);
     $('collection-btn').classList.toggle('ready', teamReady);
     if (this.tab === 'shop') s.seeHeroShop();

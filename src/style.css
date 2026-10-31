@@ -1136,7 +1136,7 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .sheet-card > * { flex: none; }
 .sheet-card > .sheet-pane { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 12px; padding-bottom: 4px; }
 .sheet-card > .sheet-pane[hidden] { display: none; }
-.sheet-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.sheet-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .sheet-tabs button { font-weight: 800; font-size: 14px; padding: 8px 6px; border-radius: 10px; border: 2px solid var(--wood-deep); background: linear-gradient(180deg, var(--plank), #222c44); color: #b8c6e8; }
 .sheet-tabs button.on { background: linear-gradient(180deg, #7ee6ee, #1f8fa6); color: #fff; text-shadow: 0 1px 1px #000; }
 .sheet-pane .bio { font-size: 13px; }
@@ -1151,3 +1151,64 @@ i.warsteel, .relic-cost i.warsteel { border: 0; border-radius: 0; display: inlin
 .relic-art.guild { background: radial-gradient(circle at 40% 35%, #6a4a2a, #1a1208); border-color: #c99a4a; }
 .guild-relic.on { border-color: var(--gold); }
 #guild-relic-slots { display: inline-flex; align-items: center; margin-left: auto; }
+
+/* ---------- Scouting and weapons (src/scoutUi.ts) ---------- */
+.mat-ico { display: inline-block; vertical-align: middle; width: 18px; height: 18px; background: center / contain no-repeat; image-rendering: pixelated; flex: none; }
+.mat-ico.ore { background-image: url('./assets/ui/mat-ore.png'); }
+.mat-ico.crystal { background-image: url('./assets/ui/mat-crystal.png'); }
+.mat-ico.core-c { background-image: url('./assets/ui/mat-core-c.png'); }
+.mat-ico.core-r { background-image: url('./assets/ui/mat-core-r.png'); }
+.mat-ico.core-e { background-image: url('./assets/ui/mat-core-e.png'); }
+.mat-ico.wild { background-image: url('./assets/ui/mat-wild.png'); }
+.mode-card.scout { background: radial-gradient(ellipse at 75% 30%, rgba(240,200,90,.3), transparent 50%), linear-gradient(180deg, #2c4a2a, #142616); }
+.mode-card.scout .mode-trophy { filter: drop-shadow(0 0 8px rgba(255,230,150,.6)) drop-shadow(0 2px 0 #131927); }
+.sc-mats { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.mat-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.15); font-weight: 800; font-size: 13px; color: #fff; }
+button.mat-chip.wild-btn { cursor: pointer; border-color: #ffd34a; font: inherit; font-weight: 800; font-size: 13px; }
+button.mat-chip.wild-btn:disabled { opacity: .55; border-color: rgba(255,255,255,.15); }
+.sc-board { display: flex; flex-direction: column; gap: 10px; }
+.sc-card { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 10px; border: 2px solid var(--wood-deep); background: linear-gradient(180deg, var(--plank), #222c44); color: #e4eaf8; }
+.sc-card.rare { border-color: #3b7de0; box-shadow: inset 0 0 0 1px rgba(80,160,255,.35); }
+.sc-card.gilded { border-color: #e0b23b; background: linear-gradient(180deg, #4a3a18, #2a2010); box-shadow: inset 0 0 0 1px rgba(255,210,90,.4); }
+.sc-card.empty { opacity: .7; }
+.sc-card.done { box-shadow: 0 0 0 2px #7ddc8a, 0 0 12px rgba(125,220,138,.5); }
+.sc-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.sc-kind { font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .5px; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,.12); }
+.sc-card.rare .sc-kind { background: #2a5bb0; }
+.sc-card.gilded .sc-kind { background: #b0862a; }
+.sc-rec { margin-left: auto; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
+.el-pip { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(0,0,0,.6); vertical-align: middle; }
+.el-pip.fire { background: #ff5a3a; } .el-pip.earth { background: #5fd04a; } .el-pip.water { background: #3fa8ff; } .el-pip.light { background: #ffd84a; } .el-pip.dark { background: #a24aff; }
+.sc-reward { display: flex; flex-wrap: wrap; gap: 6px; }
+.sc-reward.big { justify-content: center; margin: 6px 0 10px; }
+.sc-reward.big .mat-chip { font-size: 16px; padding: 5px 10px; }
+.sc-reward.big .mat-ico { width: 24px; height: 24px; }
+.sc-team { display: flex; align-items: center; gap: 4px; }
+.sc-team small { margin-left: 6px; color: var(--muted); font-weight: 700; }
+.sc-face { width: 32px; height: 32px; border-radius: 6px; border: 2px solid #000; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; }
+.sc-run { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sc-timer { font-weight: 800; color: #ffd34a; }
+.sc-go { align-self: stretch; padding: 8px; border-radius: 8px; }
+.sc-note { margin: 0; font-size: 12px; color: var(--muted); text-align: center; }
+.sc-want { margin: 0 0 8px; }
+.sc-score { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; font-weight: 800; font-size: 13px; }
+.sc-score .crest-bar > div { height: 100%; background: linear-gradient(90deg, #7ddc8a, #ffd34a); }
+#modal-body h4 { display: flex; align-items: center; gap: 6px; margin: 10px 0 2px; }
+.sc-pick { position: relative; }
+.sc-pick.on { outline: 2px solid #7ddc8a; background: rgba(125,220,138,.15); }
+.sc-tags { display: flex; gap: 2px; min-height: 14px; }
+.sc-match { font-style: normal; font-size: 9px; font-weight: 900; padding: 0 3px; border-radius: 3px; background: #2a5bb0; color: #fff; }
+.sc-match.el { background: #3a8a3a; }
+.sc-team-picks { max-height: none; }
+.wp-top { display: flex; align-items: center; gap: 10px; }
+.wp-top small { display: block; color: var(--muted); }
+.wp-ico { width: 48px; height: 48px; flex: none; background: center / contain no-repeat; image-rendering: pixelated; border-radius: 8px; background-color: rgba(0,0,0,.3); }
+.wp-ico.look-1 { background-image: url('./assets/ui/weapon-1.png'); }
+.wp-ico.look-2 { background-image: url('./assets/ui/weapon-2.png'); }
+.wp-ico.look-3 { background-image: url('./assets/ui/weapon-3.png'); box-shadow: 0 0 10px rgba(255,210,80,.6); }
+.wp-cost { list-style: none; margin: 6px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.wp-cost li { display: flex; align-items: center; gap: 6px; opacity: .75; }
+.wp-cost li b { margin-left: auto; color: #ff8a7a; }
+.wp-cost li.met { opacity: 1; }
+.wp-cost li.met b { color: #7ddc8a; }
+#sheet-wild { margin-top: 6px; }
