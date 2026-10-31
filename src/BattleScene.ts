@@ -69,7 +69,7 @@ import { MOB_ANIMS } from './mobAnims';
 import { MOB_ELEMENTS, MOB_KINDS, pickMob, type MobId } from './mobs';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES, type BossAnim } from './bossAnims';
 import type { EffectKind } from './data';
-import { comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets } from './kits';
+import { comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets, drenchVuln, heatStep, quarryMult, quarryCarry } from './kits';
 import { STAT_BASE, FREEZE_BLAST_RADIUS, BOSS_STUN_CHANCE, BOSS_STUN_SECONDS, type HeroStats } from './stats';
 import { heroProfile } from './profiles';
 import { canReach, pickVictim } from './reach';
@@ -201,6 +201,11 @@ interface Unit {
   maskUsed?: boolean;
   /** Zeal (Signature 'zeal'): attacks in a row. */
   zeal: number;
+  /** Rising Heat (Signature 'heat'): Heat built toward the next Eruption. */
+  heat: number;
+  /** Drench (Signature 'drench'): takes drenchMult damage from Water heroes until drenchUntil. */
+  drenchUntil: number;
+  drenchMult: number;
   /** Sanctuary: takes no damage until this time. */
   guardUntil: number;
   /** Burning (Kindling, Meteor ground): damage per second until burnUntil, from burnBy. */
@@ -249,6 +254,18 @@ interface Unit {
 }
 
 /** Meteor's burning ground. */
+/** Maelstrom: a whirlpool hurting every enemy within POOL_RADIUS of x each second, until `until`. */
+interface Pool {
+  x: number;
+  until: number;
+  dps: Decimal;
+  by: Unit;
+  tick: number;
+  freeze: number;
+  view: Phaser.GameObjects.Arc;
+}
+const POOL_RADIUS = 55;
+
 interface Zone {
   x0: number;
   x1: number;
@@ -346,6 +363,7 @@ export class BattleScene extends Phaser.Scene {
   private heroes: Unit[] = [];
   private enemies: Unit[] = [];
   private zones: Zone[] = [];
+  private pools: Pool[] = [];
   /** Rootcall: until then, every non-Fire hero deals Earth damage. */
   private earthenUntil = 0;
   private crystal = { hp: new Decimal(1), maxHp: new Decimal(1) };
@@ -607,6 +625,7 @@ export class BattleScene extends Phaser.Scene {
     const hpBar = this.add.graphics();
     const parts: Phaser.GameObjects.GameObject[] = [body, hpBar];
     const view = this.add.container(opts.x, y, parts).setDepth(opts.flying ? SKY_DEPTH + y : y);
+    if (opts.def?.rarity === 'legendary') this.legendaryAura(view, body, animDef ? animDef.feet[1] - animDef.headTop : 40);
     // A towering boss's head reaches the top of the screen, so its name sits under the boss timer instead.
     if (opts.label) {
       const name = this.add
@@ -654,6 +673,9 @@ export class BattleScene extends Phaser.Scene {
       streak: 0,
       chargeStacks: 0,
       zeal: 0,
+      heat: 0,
+      drenchUntil: 0,
+      drenchMult: 1,
       guardUntil: 0,
       burnUntil: 0,
       burnDps: new Decimal(0),
@@ -683,6 +705,28 @@ export class BattleScene extends Phaser.Scene {
     };
     this.drawHpBar(unit);
     return unit;
+  }
+
+  /**
+   * Legendary heroes stand out in battle (Samuel, 2026-10-31): a soft gold glow behind them and gold sparkles
+   * rising around them. Looks only.
+   */
+  private legendaryAura(view: Phaser.GameObjects.Container, body: Phaser.GameObjects.Sprite, height: number) {
+    const midY = body.y - height / 2;
+    const glow = this.add.ellipse(0, midY, height * 0.9, height * 1.1, 0xffc23d, 0.18);
+    view.addAt(glow, 0);
+    this.tweens.add({ targets: glow, alpha: 0.32, scaleX: 1.08, scaleY: 1.08, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    const sparkle = this.time.addEvent({
+      delay: 380,
+      loop: true,
+      callback: () => {
+        if (!view.active || !view.visible) return;
+        const dot = this.add.rectangle(Phaser.Math.Between(-height / 3, height / 3), body.y - Phaser.Math.Between(0, height * 0.8), 2, 2, Math.random() < 0.5 ? 0xfff1a8 : 0xffa62b);
+        view.add(dot);
+        this.tweens.add({ targets: dot, y: dot.y - 14, alpha: 0, duration: 900, onComplete: () => dot.destroy() });
+      },
+    });
+    view.once(Phaser.GameObjects.Events.DESTROY, () => sparkle.remove());
   }
 
   /** Switch a frame-animated hero between standing, running and attacking. An attack always restarts. */
@@ -930,6 +974,8 @@ export class BattleScene extends Phaser.Scene {
     this.enemies = [];
     for (const z of this.zones) z.view.destroy();
     this.zones = [];
+    for (const p of this.pools) p.view.destroy();
+    this.pools = [];
     // Fallen heroes sit out their revive timer across a stage clear; a lost stage brings everyone back.
     const lost = this.lostStage;
     this.lostStage = false;
@@ -1130,6 +1176,8 @@ export class BattleScene extends Phaser.Scene {
     this.enemies = [];
     for (const z of this.zones) z.view.destroy();
     this.zones = [];
+    for (const p of this.pools) p.view.destroy();
+    this.pools = [];
     for (const h of this.heroes) {
       h.shield = new Decimal(0);
       h.streakTarget = undefined;
@@ -1283,6 +1331,8 @@ export class BattleScene extends Phaser.Scene {
     this.enemies = [];
     for (const z of this.zones) z.view.destroy();
     this.zones = [];
+    for (const p of this.pools) p.view.destroy();
+    this.pools = [];
     for (const h of this.heroes) {
       h.shield = new Decimal(0);
       h.streakTarget = undefined;
@@ -1734,6 +1784,11 @@ export class BattleScene extends Phaser.Scene {
 
   private heroAttack(h: Unit, target: Unit) {
     const def = h.def!;
+    // Quarry: always shoot the toughest enemy in reach.
+    if (def.signature?.kind === 'quarry') {
+      const toughest = this.foes().filter((e) => e.alive && Math.abs(e.x - h.x) <= h.range && this.reaches(h, e)).sort((a, b) => b.hp.cmp(a.hp))[0];
+      if (toughest) target = toughest;
+    }
     if (def.range > 60) this.shot(h, target.x, target.y, ELEMENT_COLORS[def.element]);
     else this.lunge(h, 1);
     if (h.anim) this.setAnim(h, 'attack');
@@ -1806,7 +1861,9 @@ export class BattleScene extends Phaser.Scene {
     if (h.streakTarget === target) h.streak++;
     else {
       // Riptide Combo+ (6★): after a kill, half the streak carries over.
-      const carry = sig?.kind === 'combo' && this.sigPlus(h) && h.streakTarget && !h.streakTarget.alive ? Math.floor(h.streak * SIG_PLUS.comboCarry) : 0;
+      const fell = !!h.streakTarget && !h.streakTarget.alive;
+      // Quarry: part of the streak carries to the next enemy after a kill.
+      const carry = !fell ? 0 : sig?.kind === 'combo' && this.sigPlus(h) ? Math.floor(h.streak * SIG_PLUS.comboCarry) : quarryCarry(sig, h.streak, this.sigPlus(h));
       h.streakTarget = target;
       h.streak = carry;
     }
@@ -1818,6 +1875,14 @@ export class BattleScene extends Phaser.Scene {
     }
     const beacon = h.beaconUntil > this.clock ? h.beaconMult : 1;
     const torrentDmg = torrentMults(sig, this.hpRatio(h), this.sigPlus(h)).dmg;
+    // Rising Heat: each attack builds Heat; a full bar makes this attack an Eruption.
+    const heat = heatStep(sig, h.heat, this.sigPlus(h));
+    h.heat = heat.heat;
+    if (heat.erupt) {
+      this.floatText(h.x, h.y - 34, 'ERUPTION!', '#ff8a3a', 11);
+      this.sparks(target.x, target.y - 6, 0xff6a2a, 12);
+      this.cameras.main.shake(140, 0.008);
+    }
     let dealt = new Decimal(0);
     for (let i = 0; i < strikes; i++) {
       // Hawkeye: shots at an enemy at full HP always crit. Owl Eyes: shots at flyers always crit.
@@ -1833,8 +1898,9 @@ export class BattleScene extends Phaser.Scene {
       if (slammed) atk = atk.times(slam!.value);
       if (procs(assassin, h.attacks)) atk = atk.times(assassin!.value);
       if (barrage > 1 && sig?.kind === 'barrage') atk = atk.times(sig.mult);
+      atk = atk.times(heat.mult);
       const rolled = procs(snowball, h.attacks);
-      const splash = def.splash ? Math.max(def.splash * (1 + st.aoeRadius), zealWave) : slammed ? SLAM_RADIUS : zealWave;
+      const splash = def.splash ? Math.max(def.splash * (1 + st.aoeRadius), zealWave) : slammed || heat.erupt ? SLAM_RADIUS : zealWave;
       let targets: Unit[];
       if (charged?.boost === 'area') targets = this.enemies.filter((e) => e.alive && Math.abs(e.x - target.x) <= Math.max(splash, CHARGE_AREA));
       else if (charged?.boost === 'pierce') targets = [target, ...this.enemies.filter((e) => e.alive && e !== target && e.x > target.x && e.x - target.x <= CHARGE_LINE)];
@@ -1851,7 +1917,7 @@ export class BattleScene extends Phaser.Scene {
         const mult =
           this.elem(element, t) *
           (t.isBoss ? bossMult : 1) *
-          (t === target ? comboMult(sig, h.streak) : 1) *
+          (t === target ? comboMult(sig, h.streak) * quarryMult(sig, h.streak) : 1) *
           executeMult(sig, t.maxHp.gt(0) ? t.hp.div(t.maxHp).toNumber() : 1, this.sigPlus(h)) *
           (t.burnUntil > this.clock ? vsBurning : 1) *
           (splash ? 1 + st.aoeDmg : 1) *
@@ -1862,6 +1928,7 @@ export class BattleScene extends Phaser.Scene {
         if (t.lockStage === undefined || !bossImmuneTo(t.lockStage, this.dealsAs(h))) dealt = dealt.plus(amount);
         this.damageUnit(t, amount, h, crit);
         if (t.alive) this.applyEffects(h, t, amount, procced);
+        if (t.alive && heat.erupt) this.ignite(t, amount.times(STAT_BASE.burnDps), STAT_BASE.burnSeconds, h);
         if (t.alive && blinded) {
           t.blindUntil = this.clock + BLIND_SECONDS;
           t.blindMiss = blind!.value;
@@ -1899,6 +1966,17 @@ export class BattleScene extends Phaser.Scene {
     if (sig?.kind === 'knockback' && !t.isBoss) {
       t.x = Math.min(t.x + sig.push, ENEMY_CRYSTAL_X - 12);
       this.tweens.add({ targets: t.view, x: t.x, duration: 160, ease: 'Quad.out' });
+    }
+    // Drench: soaked enemies move slower and take more from Water heroes.
+    if (sig?.kind === 'drench') {
+      const soaked = t.drenchUntil > this.clock;
+      if (!soaked) this.floatText(t.x, t.y - 30, 'DRENCHED', '#7fd6ff', 9);
+      t.drenchMult = Math.max(soaked ? t.drenchMult : 1, drenchVuln(sig, this.sigPlus(h)));
+      t.drenchUntil = this.clock + sig.seconds;
+      if (!(t.slowUntil > this.clock && t.slowMult < sig.slow)) {
+        t.slowMult = sig.slow;
+        t.slowUntil = Math.max(t.slowUntil, t.drenchUntil);
+      }
     }
     // Sticky Spores: a chance to slow (Spore Cloud attacks always slow).
     if (sig?.kind === 'slow' && (procced || Math.random() < sig.chance) && !(t.isBoss && t.ccImmuneUntil > this.clock)) {
@@ -1972,6 +2050,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Burning enemies take damage every BURN_TICK; Meteor ground keeps setting walkers alight. */
   private tickBurns(dt: number) {
+    this.tickPools(dt);
     for (const z of this.zones) {
       if (z.until <= this.clock) continue;
       for (const e of this.enemies) if (e.alive && e.x >= z.x0 && e.x <= z.x1) this.ignite(e, z.dps.times(this.elem(z.by.element, e)), 1, z.by);
@@ -2028,6 +2107,8 @@ export class BattleScene extends Phaser.Scene {
     // Sanctuary: no damage at all for a while.
     if (target.side === 'hero' && target.guardUntil > this.clock) return;
     if (target.side === 'enemy' && target.markUntil > this.clock) amount = amount.times(target.markMult);
+    // Drench: drenched enemies take more from Water heroes.
+    if (target.side === 'enemy' && target.drenchUntil > this.clock && source?.side === 'hero' && source.element === 'water') amount = amount.times(target.drenchMult);
     if (target.side === 'enemy') amount = amount.times(this.mul('enemyVuln', null));
     let toHp = amount;
     if (target.shield.gt(0)) {
@@ -2295,6 +2376,50 @@ export class BattleScene extends Phaser.Scene {
       if (!this.bossAlive()) this.damageCrystal(dmg, h);
       return true;
     }
+    if (ult?.kind === 'verdict') {
+      // Kirin's Verdict: a fiery dash down the lane; everyone in reach ahead takes the hit and Burns.
+      const streak = this.add.rectangle(h.x, h.y, 18, 10, 0xff6a2a, 0.75).setDepth(999);
+      this.tweens.add({ targets: streak, x: h.x + ult.reach, scaleX: 6, alpha: 0, duration: 320, onComplete: () => streak.destroy() });
+      this.cameras.main.shake(260, 0.014);
+      for (const e of this.enemies.filter((e) => e.alive && e.x >= h.x - 30 && e.x <= h.x + ult.reach)) {
+        this.sparks(e.x, e.y - 6, 0xff8a3a, 6);
+        this.damageUnit(e, dmg.times(this.elem(this.dealsAs(h), e)), h, e.isBoss);
+        if (e.alive) this.ignite(e, h.atk.times(ult.burn), ult.seconds, h);
+      }
+      if (!this.bossAlive() && ENEMY_CRYSTAL_X - h.x <= ult.reach) this.damageCrystal(dmg, h);
+      // 5★: he lands at full Heat, so his next blow is an Eruption.
+      if (plus && def.signature?.kind === 'heat') {
+        h.heat = def.signature.max;
+        this.floatText(h.x, h.y - 34, 'FULL HEAT', '#ffb36b', 10);
+      }
+      return true;
+    }
+    if (ult?.kind === 'skyfall') {
+      // Skyfall: a dive on the toughest enemy in reach; the quake hits and stuns the enemies around it.
+      const target = this.enemies.filter((e) => e.alive && e.x >= h.x - 30 && e.x <= h.x + Math.max(260, h.range)).sort((a, b) => b.hp.cmp(a.hp))[0];
+      if (target) {
+        const ring = this.add.circle(target.x, target.y, 8, color, 0.5).setDepth(999);
+        this.tweens.add({ targets: ring, radius: ult.radius, alpha: 0, duration: 360, onComplete: () => ring.destroy() });
+        this.sparks(target.x, target.y - 6, color, 12);
+        this.cameras.main.shake(260, 0.016);
+        const hit = this.enemies.filter((e) => e.alive && Math.abs(e.x - target.x) <= ult.radius);
+        if (plus) {
+          for (const e of hit) {
+            e.markMult = Math.max(e.markUntil > this.clock ? e.markMult : 1, ult.markMult);
+            e.markUntil = this.clock + ult.markSeconds;
+          }
+        }
+        this.damageUnit(target, dmg.times(ult.mult * this.elem(this.dealsAs(h), target)), h, true);
+        for (const e of hit) {
+          if (e === target || !e.alive) continue;
+          this.damageUnit(e, dmg.times(this.elem(this.dealsAs(h), e)), h);
+        }
+        for (const e of hit) {
+          if (e.alive && !e.isBoss && this.control(e, ult.stun)) this.floatText(e.x, e.y - 40, 'STUN', '#ffd84a', 9);
+        }
+      }
+      return true;
+    }
     const radius = 170;
     const ring = this.add.circle(h.x + 60, h.y, 10, color, 0.45).setDepth(999);
     this.tweens.add({ targets: ring, radius, alpha: 0, duration: 380, onComplete: () => ring.destroy() });
@@ -2406,9 +2531,39 @@ export class BattleScene extends Phaser.Scene {
         }
         break;
       }
+      case 'maelstrom': {
+        // A whirlpool in the middle of the enemies: pulls regular ones in, then hurts everything inside each second.
+        const pulled = living.filter((e) => !e.isBoss);
+        const mid = living.length ? living.reduce((sum, e) => sum + e.x, 0) / living.length : h.x + 120;
+        for (const e of pulled) {
+          e.x = mid + (e.x - mid) * 0.2;
+          this.tweens.add({ targets: e.view, x: e.x, duration: 300, ease: 'Quad.in' });
+        }
+        const view = this.add.circle(mid, LANE_BOTTOM - 20, POOL_RADIUS, 0x2e86de, 0.3).setDepth(1).setStrokeStyle(2, 0x7fd6ff, 0.8);
+        this.tweens.add({ targets: view, angle: 360, scaleY: 0.35, duration: 900, repeat: -1 });
+        this.pools.push({ x: mid, until: this.clock + (plus ? ult.plusSeconds : ult.seconds), dps: h.atk.times(ult.dps), by: h, tick: 0, freeze: plus ? ult.freeze : 0, view });
+        break;
+      }
       default:
         break;
     }
+  }
+
+  /** Maelstrom pools: hurt every enemy inside once a second; a 5★ pool freezes them as it closes. */
+  private tickPools(dt: number) {
+    for (const p of this.pools) {
+      const inside = this.enemies.filter((e) => e.alive && Math.abs(e.x - p.x) <= POOL_RADIUS);
+      if (p.until <= this.clock) {
+        for (const e of inside) if (p.freeze && this.control(e, p.freeze)) this.floatText(e.x, e.y - 40, 'FROZEN', '#9fdcff', 9);
+        p.view.destroy();
+        continue;
+      }
+      p.tick += dt;
+      if (p.tick < 1) continue;
+      p.tick -= 1;
+      for (const e of inside) this.damageUnit(e, p.dps.times(this.elem(p.by.element, e)), p.by);
+    }
+    this.pools = this.pools.filter((p) => p.until > this.clock);
   }
 
   /** Share of max HP a unit has left. */

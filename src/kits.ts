@@ -92,3 +92,31 @@ export function spiritTargets(sig: Signature | undefined, attacks: number, plus 
   if (sig?.kind !== 'spirit' || attacks % sig.every !== 0) return 0;
   return plus ? sig.plusTargets : sig.targets;
 }
+
+/** Drench (Varuun): damage multiplier a drenched enemy takes from Water heroes. */
+export function drenchVuln(sig: Signature | undefined, plus = false): number {
+  if (sig?.kind !== 'drench') return 1;
+  return 1 + (plus ? sig.plusVuln : sig.vuln);
+}
+
+/**
+ * Rising Heat (Ashtor): one attack at `heat` Heat. Below max it adds +perStack ATK per Heat and builds one more;
+ * at max it is the Eruption (area hit at `mult`), and Heat starts over.
+ */
+export function heatStep(sig: Signature | undefined, heat: number, plus = false): { heat: number; mult: number; erupt: boolean } {
+  if (sig?.kind !== 'heat') return { heat: 0, mult: 1, erupt: false };
+  if (heat >= sig.max) return { heat: 0, mult: plus ? sig.plusMult : sig.mult, erupt: true };
+  return { heat: heat + 1, mult: 1 + sig.perStack * heat, erupt: false };
+}
+
+/** Quarry (Talonra): damage multiplier for the `streak`th shot in a row at one enemy. */
+export function quarryMult(sig: Signature | undefined, streak: number): number {
+  if (sig?.kind !== 'quarry') return 1;
+  return 1 + Math.min(sig.max, sig.perHit * streak);
+}
+
+/** Quarry: how much of the streak carries to the next enemy after the last one fell. */
+export function quarryCarry(sig: Signature | undefined, streak: number, plus = false): number {
+  if (sig?.kind !== 'quarry') return 0;
+  return Math.floor(streak * (plus ? sig.plusKeep : sig.keep));
+}

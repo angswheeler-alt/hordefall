@@ -1,6 +1,6 @@
 import type { HeroDef } from '../data';
 import type { HeroProfile } from '../profiles';
-import { VS, ULT, HEAL_BASIC } from '../heroText';
+import { VS, ULT, HEAL_BASIC, ultX } from '../heroText';
 
 /** Fire heroes beyond the first five. */
 export const FIRE_HEROES: HeroDef[] = [
@@ -126,9 +126,23 @@ export const FIRE_HEROES: HeroDef[] = [
     sp1: { name: 'Spot Fire', text: '20% chance for each attack to cast twice.', effect: { kind: 'doubleStrike', value: 0.2 } },
     sp2: { name: 'Growing Spurt', text: '+15% HP.', effect: { kind: 'hp', value: 1.15 } },
     aura: { name: 'Hatchling Spark', text: 'Fire heroes +5% critical hit chance.', effect: { kind: 'crit', value: 0.05, team: true, element: 'fire' } } },
+  // ---- Legendary ----
+  { id: 'ashtor', rarity: 'legendary', name: 'Ashtor', element: 'fire', type: 'Samurai', baseAtk: 6.5, baseHp: 70, range: 30, attackCooldown: 0.8, moveSpeed: 130, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
+    signature: { kind: 'heat', perStack: 0.06, max: 8, mult: 5, plusMult: 7 },
+    sigPlus: 'Eruptions hit for 7x damage instead of 5x.',
+    ult: { kind: 'verdict', reach: 260, burn: 1, seconds: 5 },
+    ultPlus: 'He lands at full Heat, so his next blow is an Eruption.',
+    bio: 'The Ember Kirin: a dragon-headed warrior with a mane of living flame, obsidian armor cracked with lava, a molten nodachi and a ring of fire at his back.',
+    basic: { name: 'Molten Edge', text: 'Quick, heavy slashes at the nearest enemy ahead.' },
+    ultimate: { name: "Kirin's Verdict", text: `He dashes down the lane, cutting every enemy he passes for ${ultX(1)} ATK; everyone hit Burns for 1x ATK per second for 5 s.` },
+    trait: { name: 'Rising Heat', text: `Each attack adds 1 Heat (+6% ATK each, up to 8). At 8 Heat his next blow is an Eruption: 5x damage to every enemy near the target, setting them all Burning, and Heat starts over. Boss blows never stun him. ${VS.fire}` },
+    sp1: { name: 'Ember Mane', text: '+35% damage to Burning enemies.', effect: { kind: 'vsBurning', value: 1.35 } },
+    sp2: { name: 'Flowing Blade', text: 'Attacks 15% faster, so Heat builds faster too.', effect: { kind: 'attackSpeed', value: 0.85 } },
+    aura: { name: 'Wildfire Banner', text: 'Whole team deals 20% more damage to Burning enemies.', effect: { kind: 'vsBurning', value: 1.2, team: true } } },
 ];
 
 export const FIRE_PROFILES: Record<string, HeroProfile> = {
+  ashtor: { crit: 0.2, hpMult: 1.6, defMult: 2.5, effectRes: 0.3, specialty: 'Kirin hide: 20% crit, +60% HP, 2.5x Defense and 30% Effect Resistance' },
   hibachi: { dodge: 0.14, crit: 0.28, effectRes: 0.04, specialty: 'Panda footwork: dodges 14% of attacks and 28% crit, but only 4% Effect Resistance' },
   sunjo: { stunChance: 0.25, dodge: 0.08, hpMult: 0.9, specialty: 'Cloud rider: 25% chance to stun and dodges 8% of attacks, a little less HP' },
   juggles: { effectRes: 0.4, hpMult: 1.1, crit: 0.04, specialty: 'Jester act: +10% HP and 40% Effect Resistance, rarely crits (4%)' },
