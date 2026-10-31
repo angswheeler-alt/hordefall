@@ -204,8 +204,6 @@ button.link[disabled] { display: none; }
 .wood-btn.small { font-size: 12px; padding: 5px 10px; }
 #acct-reset { margin-top: 10px; }
 .wood-btn.danger { background: linear-gradient(180deg, #a8352b, #6e1d16); color: #e4eaf8; }
-.hero-head { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 8px; align-items: stretch; margin-bottom: 8px; }
-.hero-head .wood-btn { min-height: 50px; font-size: 14px; }
 .chest-btn { display: flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(180deg, #c0392b, #7d1f16); font-size: 15px !important; }
 .chest-ico { width: 32px; height: 32px; background: url('./assets/ui/chest.png') center / contain no-repeat; image-rendering: pixelated; flex: none; }
 .hero-sub { display: flex; justify-content: flex-end; margin-bottom: 8px; }
@@ -233,7 +231,7 @@ button.link[disabled] { display: none; }
 .hero.locked .gold-up { background: linear-gradient(180deg, #7dd0ff, #2d93d6 50%, #1a5f99); border-color: #0b2f4f; }
 .hero.locked .banner { filter: grayscale(.7); }
 /* Tab bar */
-#tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; max-width: 720px; margin: 0 auto; padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, #222c44, var(--wood-deep)); border-top: 3px solid #0c0f18; }
+#tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; max-width: 720px; margin: 0 auto; padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, #222c44, var(--wood-deep)); border-top: 3px solid #0c0f18; }
 #tabbar button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; height: 60px; padding: 4px 2px; background: linear-gradient(180deg, var(--wood-hi), var(--wood)); border: 2px solid #0c0f18; border-radius: 8px; color: #e4eaf8; font-size: 11px; font-weight: 800; text-shadow: 0 1px 1px #000; box-shadow: inset 0 1px 0 rgba(255,255,255,.25); }
 #tabbar button svg { width: 26px; height: 26px; fill: none; stroke: #b8c8ed; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 0 #000); }
 #tabbar button.on { background: linear-gradient(180deg, #7ee6ee, #1f8fa6); transform: translateY(-4px); box-shadow: 0 4px 0 #0c0f18, inset 0 1px 0 rgba(255,255,255,.4); }
@@ -552,20 +550,12 @@ i.stone { display: inline-block; width: 12px; height: 12px; background: linear-g
 .rw-list button { flex: none; min-width: 72px; min-height: 36px; }
 
 /* Heroes tab: only the team is listed */
-.heroes-note { margin: 10px 4px 0; font-size: 12px; color: #b0c1e8; text-align: center; }
-#collection-btn { position: relative; }
-#collection-btn.ready::after { content: ''; position: absolute; top: -5px; right: -3px; width: 14px; height: 14px; border-radius: 50%; background: #e3261c; border: 2px solid #fff; }
 .team-row.locked.ready { opacity: 1; border-color: var(--gold); }
 
 /* Collection page: every hero, grouped by element */
-.hero-sub .collection-btn { margin-right: auto; }
-#coll { position: fixed; inset: 0; z-index: 14; background: var(--wood-lo); background-image: repeating-linear-gradient(0deg, rgba(0,0,0,.08) 0 2px, transparent 2px 28px); overflow-y: auto; }
-.coll-page { max-width: 720px; margin: 0 auto; padding: 12px 12px 24px; }
-.coll-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; position: sticky; top: 0; padding: 4px 0 8px; background: var(--wood-lo); z-index: 1; }
-.coll-head h2 { margin: 0; font-size: 22px; color: #e4eaf8; text-shadow: 0 2px 0 var(--wood-deep); }
+.coll-head { display: flex; justify-content: flex-end; margin: 0 4px 6px; }
 .coll-head span { margin-left: auto; color: #b0c1e8; font-weight: 700; }
 .coll-legend { margin: 0 0 4px; padding: 6px 10px; border-radius: 6px; background: rgba(0,0,0,.25); color: #ffd58a; font-size: 12px; font-weight: 700; line-height: 1.35; }
-.coll-back { width: 64px; height: 40px; font-size: 24px; padding: 0; }
 .ct-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 12px 8px; padding: 10px 0 16px; border-bottom: 2px solid rgba(0,0,0,.25); }
 .ct { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
 .ct-tile { position: relative; width: 100%; aspect-ratio: 1; padding: 0; border-radius: 4px; border: 3px solid #2e3c5d; background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--el) 70%, #fff) 0%, var(--el) 55%, color-mix(in srgb, var(--el) 60%, #000) 100%); overflow: hidden; cursor: pointer; }
@@ -615,7 +605,6 @@ i.stone { display: inline-block; width: 12px; height: 12px; background: linear-g
 #tabbar button[data-tab="home"]::before { background-image: url('./assets/ui/tab-home.png'); }
 #tabbar button[data-tab="heroes"]::before { background-image: url('./assets/ui/tab-heroes.png'); }
 #tabbar button[data-tab="market"]::before { background-image: url('./assets/ui/tab-market.png'); }
-#tabbar button[data-tab="relics"]::before { background-image: url('./assets/ui/tab-relics.png'); }
 #tabbar button[data-tab="battle"]::before { background-image: url('./assets/ui/tab-battle.png'); }
 #tabbar button[data-tab="shop"]::before { background-image: url('./assets/ui/tab-shop.png'); }
 #tabbar button[data-tab="guild"]::before { background-image: url('./assets/ui/tab-guild.png'); }
@@ -1076,3 +1065,16 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .subtabs .badge { position: absolute; top: 4px; right: 8px; width: 10px; height: 10px; border-radius: 50%; background: #e3261c; border: 2px solid #fff; }
 .subtabs .badge[hidden] { display: none; }
 #tabbar button span { white-space: nowrap; }
+
+/* Heroes > Team: one toolbar row above the list. */
+.hero-tools { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+.hero-tools .spacer { flex: 1; }
+.hero-tools .wood-btn.small { font-size: 13px; padding: 7px 10px; min-height: 34px; }
+.hero-tools .chest-btn { gap: 4px; font-size: 13px !important; padding: 3px 10px 3px 6px !important; }
+.hero-tools .chest-ico { width: 24px; height: 24px; }
+#evolve-all { margin: 0 0 8px; min-height: 40px; font-size: 15px; }
+/* A sub-tab bar inside a sub-tab (Relics: Mine / Buy / All relics) is smaller and doesn't stick. */
+.subtabs.mini { position: static; margin: 0 0 8px; border-width: 1px; }
+.subtabs.mini button { min-height: 28px; font-size: 12px; padding: 4px; }
+.relic-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 4px 8px; }
+.relic-top .gem-btn { font-size: 13px; padding: 6px 10px; min-height: 32px; }

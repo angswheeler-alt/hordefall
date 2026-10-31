@@ -59,8 +59,18 @@ const ULT_ICONS: Record<string, string> = {
   light: '<svg viewBox="0 0 24 24"><path d="M12 2l2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5z"/></svg>',
 };
 /** 'home' is the first tab: today's rewards, goals and run stats. */
-const TABS = ['home', 'heroes', 'market', 'relics', 'battle', 'shop', 'guild'] as const;
+const TABS = ['home', 'heroes', 'market', 'battle', 'shop', 'guild'] as const;
 type Tab = (typeof TABS)[number];
+
+/** Relics' own small bar inside Heroes > Relics: Mine / Buy / All relics. */
+function showRelicPane(name: string) {
+  for (const b of document.querySelectorAll<HTMLElement>('button[data-relic-go]')) {
+    const on = b.dataset.relicGo === name;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', String(on));
+  }
+  for (const pane of document.querySelectorAll<HTMLElement>('[data-relic-pane]')) pane.hidden = pane.dataset.relicPane !== name;
+}
 
 /** Show one pane of a panel's sub-tab bar ([data-sub] buttons, [data-subpane] panes). */
 function showSub(panel: HTMLElement, sub: string) {
@@ -196,21 +206,12 @@ export class UI {
     }
   }
 
-  /** Collection page: every hero in element-coloured tiles, grouped by element. */
-  private openCollection() {
-    $('coll').hidden = false;
-    this.renderCollection();
-  }
-
-  private closeCollection() {
-    $('coll').hidden = true;
-  }
-
   /** Heroes the game shows: the released ones, plus any this save already owns. */
   private shownHeroes() {
     return HEROES.filter((h) => RELEASED_HEROES.includes(h.id) || (this.state.levels[h.id] ?? 0) > 0);
   }
 
+  /** Heroes > Collection: every hero in element-coloured tiles, grouped by element. */
   private renderCollection() {
     const s = this.state;
     const shown = this.shownHeroes();
@@ -610,7 +611,8 @@ export class UI {
     }
     for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-relic-go]')) {
       btn.addEventListener('click', () => {
-        for (const pane of document.querySelectorAll<HTMLElement>('[data-relic-pane]')) pane.hidden = pane.dataset.relicPane !== btn.dataset.relicGo;
+        play('tap');
+        showRelicPane(btn.dataset.relicGo!);
         this.render();
       });
     }
@@ -1086,11 +1088,8 @@ export class UI {
       this.render();
     });
     $('chest-btn').addEventListener('click', () => this.confirmChest());
-    $('collection-btn').addEventListener('click', () => this.openCollection());
     const wheel = () => this.showModal('Element wheel', `${elementWheelSvg()}<p class="ew-note">${ELEMENT_WHEEL_NOTE}</p>`, 'Got it');
-    $('elements-btn').addEventListener('click', wheel);
     $('tr-elements').addEventListener('click', wheel);
-    $('coll-back').addEventListener('click', () => this.closeCollection());
     $('coll-body').addEventListener('click', (e) => {
       const tile = (e.target as HTMLElement).closest<HTMLElement>('[data-coll]');
       if (tile) this.openSheet(tile.dataset.coll!);
@@ -1334,7 +1333,6 @@ export class UI {
       } else if (!$('settings').hidden) $('settings-close').click();
       else if (!$('rk').hidden) this.closeRekindle();
       else if (this.sheetHero) this.closeSheet();
-      else if (!$('coll').hidden) this.closeCollection();
     });
     const step = (dir: number) => {
       const shown = this.shownHeroes();
@@ -1736,7 +1734,7 @@ export class UI {
       const first = panel.querySelector<HTMLElement>('.subtabs button[data-sub]');
       if (first) showSub(panel, first.dataset.sub!);
     }
-    for (const pane of document.querySelectorAll<HTMLElement>('[data-relic-pane]')) pane.hidden = pane.dataset.relicPane !== 'mine';
+    showRelicPane('mine');
     for (const pane of document.querySelectorAll<HTMLElement>('[data-battle-pane]')) pane.hidden = pane.dataset.battlePane !== 'hub';
     this.trialEntered = false;
   }
@@ -2829,7 +2827,7 @@ export class UI {
     $('devtools').hidden = !devToolsOn();
     // The Rekindle page stays live: the run keeps going behind it.
     if (!$('rk').hidden) this.renderRekindle();
-    if (!$('coll').hidden) this.renderCollection();
+    if (this.tab === 'heroes' && !document.querySelector<HTMLElement>('[data-subpane="collection"]')!.hidden) this.renderCollection();
     const s = this.state;
     $('gold').textContent = fmt(s.gold);
     $('gps').textContent = `${fmt(new Decimal(s.goldPerSec))}/s`;
@@ -2856,8 +2854,9 @@ export class UI {
     for (const row of document.querySelectorAll<HTMLElement>('.vol-row')) row.classList.toggle('off', s.muted);
     $('autoult').classList.toggle('on', s.autoUlt);
     const evolvable = s.evolvable().length;
-    $<HTMLButtonElement>('evolve-all').disabled = evolvable === 0;
-    $('evolve-all').textContent = evolvable ? `Evolve all (${evolvable})` : 'Evolve all';
+    // Only there when a hero can gain a star, so it reads as news, not as a greyed-out fixture.
+    $('evolve-all').hidden = evolvable === 0;
+    $('evolve-all').textContent = evolvable === 1 ? 'Evolve 1 hero' : `Evolve all (${evolvable})`;
     $<HTMLButtonElement>('levelall').disabled = !HEROES.some((h) => (s.levels[h.id] ?? 0) > 0 && s.inLineup(h.id) && upgradeCost(h, s.levels[h.id], s.levelCostMult()).lte(s.gold));
     $('buyamt').textContent = `Buy ${s.buyAmount === 'max' ? 'max' : `x${s.buyAmount}`}`;
     const bossBtn = $('boss');
@@ -2916,10 +2915,12 @@ export class UI {
     }
 
     this.badge('market', this.renderMarket());
-    this.badge('relics', this.renderRelics());
+    const relicsBadge = this.renderRelics();
     this.badge('battle', s.rekindles > 0 && s.tickets >= TICKET_CAP);
-    this.badge('heroes', heroesBadge || teamReady);
-    $('collection-btn').classList.toggle('ready', teamReady);
+    this.badge('heroes', heroesBadge || teamReady || relicsBadge);
+    this.subBadge('heroes', 'team', heroesBadge);
+    this.subBadge('heroes', 'relics', relicsBadge);
+    this.subBadge('heroes', 'collection', teamReady);
     if (this.tab === 'shop') s.seeHeroShop();
     this.badge('shop', s.shopWaiting());
     const goals = s.goalsReady();
