@@ -195,7 +195,7 @@ button.link[disabled] { display: none; }
 
 /* Duskstone theme for the panels and tab bar: slate-blue stone with brass and teal trim */
 :root { --wood: #324165; --wood-hi: #4b6295; --wood-lo: #1c2539; --wood-deep: #131927; --plank: #283551; --orange: #f39a1e; --orange-lo: #c86a0a; }
-#app { padding-bottom: calc(57px + max(3px, env(safe-area-inset-bottom) - 18px)); }
+#app { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
 #panels { background: var(--wood-lo); background-image: repeating-linear-gradient(0deg, rgba(0,0,0,.08) 0 2px, transparent 2px 28px); padding: 10px 10px 16px; border-top: 3px solid var(--wood-deep); }
 .panel-head { display: flex; align-items: center; justify-content: space-between; margin: 4px 4px 10px; }
 .panel-head h2 { margin: 0; font-size: 18px; color: #d0daf3; text-shadow: 0 2px 0 var(--wood-deep); }
@@ -232,8 +232,8 @@ button.link[disabled] { display: none; }
 .hero.locked .gold-up { background: linear-gradient(180deg, #7dd0ff, #2d93d6 50%, #1a5f99); border-color: #0b2f4f; }
 .hero.locked .banner { filter: grayscale(.7); }
 /* Tab bar */
-#tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; max-width: 720px; margin: 0 auto; padding: 4px 6px max(3px, env(safe-area-inset-bottom) - 18px); background: linear-gradient(180deg, #222c44, var(--wood-deep)); border-top: 3px solid #0c0f18; }
-#tabbar button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 1px; height: 50px; padding: 3px 2px; background: linear-gradient(180deg, var(--wood-hi), var(--wood)); border: 2px solid #0c0f18; border-radius: 8px; color: #e4eaf8; font-size: 11px; font-weight: 800; text-shadow: 0 1px 1px #000; box-shadow: inset 0 1px 0 rgba(255,255,255,.25); }
+#tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; max-width: 720px; margin: 0 auto; padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, #222c44, var(--wood-deep)); border-top: 3px solid #0c0f18; }
+#tabbar button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; height: 60px; padding: 4px 2px; background: linear-gradient(180deg, var(--wood-hi), var(--wood)); border: 2px solid #0c0f18; border-radius: 8px; color: #e4eaf8; font-size: 11px; font-weight: 800; text-shadow: 0 1px 1px #000; box-shadow: inset 0 1px 0 rgba(255,255,255,.25); }
 #tabbar button svg { width: 26px; height: 26px; fill: none; stroke: #b8c8ed; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 0 #000); }
 #tabbar button.on { background: linear-gradient(180deg, #7ee6ee, #1f8fa6); transform: translateY(-4px); box-shadow: 0 4px 0 #0c0f18, inset 0 1px 0 rgba(255,255,255,.4); }
 #tabbar button.on svg { stroke: #fff; }
@@ -616,7 +616,7 @@ i.stone { display: inline-block; width: 12px; height: 12px; background: linear-g
 .ico-set-install { background-image: url('./assets/ui/set-install.png'); }
 .ico-set-tutorial { background-image: url('./assets/ui/set-tutorial.png'); }
 #tabbar button svg, #settings-btn svg, .rk-badge svg { display: none; }
-#tabbar button::before { content: ''; width: 24px; height: 24px; background: center / contain no-repeat; image-rendering: pixelated; filter: drop-shadow(0 1px 0 rgba(0,0,0,.6)); }
+#tabbar button::before { content: ''; width: 28px; height: 28px; background: center / contain no-repeat; image-rendering: pixelated; filter: drop-shadow(0 1px 0 rgba(0,0,0,.6)); }
 #tabbar button[data-tab="heroes"]::before { background-image: url('./assets/ui/tab-heroes.png'); }
 #tabbar button[data-tab="market"]::before { background-image: url('./assets/ui/tab-market.png'); }
 #tabbar button[data-tab="relics"]::before { background-image: url('./assets/ui/tab-relics.png'); }
