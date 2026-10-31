@@ -385,7 +385,7 @@ export class Guild {
       const chests = r.weekly.reduce((n, w) => n + guildBossWeekReward(w.top).chests, 0);
       this.ui.showModal(
         'Guild Boss rewards',
-        `<p>${lines.join(' · ')}</p><p>+${fmt(got.coins)} Guild Coins${got.warsteel ? ` · +${fmt(got.warsteel)} Warsteel` : ''}${got.embers ? ` · +${fmt(got.embers)} Embers` : ''}${chests ? ` · ${chests} Hero Chest${chests === 1 ? '' : 's'}` : ''}${got.ascendant.map((a) => ` · +${a.crests} ${HEROES.find((h) => h.id === a.heroId)?.name ?? a.heroId} crests`).join('')}</p>${dropCards(got.drops)}`,
+        `<p>${lines.join(' · ')}</p><p>+${fmt(got.coins)} Guild Coins${got.warsteel ? ` · +${fmt(got.warsteel)} Warsteel` : ''}${chests ? ` · ${chests} Hero Chest${chests === 1 ? '' : 's'}` : ''}${got.ascendant.map((a) => ` · +${a.crests} ${HEROES.find((h) => h.id === a.heroId)?.name ?? a.heroId} crests`).join('')}</p>${dropCards(got.drops)}`,
         'Collect',
       );
       this.ui.render();
@@ -753,14 +753,14 @@ export class Guild {
        <p>This week's guild event. The whole guild fights this boss with their Guild Boss teams (Ember levels), as often as they like: one fight every ${GUILD_BOSS_FIGHT_GAP_SECONDS / 60} minutes each. Each time it falls it rests ${GUILD_BOSS_REST_MINUTES} minutes, then comes back one level stronger. ${tip}</p>
        <ul class="g-boss-pay">
          <li><b>First ${GUILD_BOSS_ATTEMPTS} fights a day</b> ${10 + boss.level} to ${2 * (10 + boss.level)} Guild Coins and as much Warsteel each (about ${coins} for yours) and gold</li>
-         <li><b>Each level beaten</b> ${guildBossKillCoins(boss.level)} Guild Coins, ${warsteelForKill(boss.level)} Warsteel and Embers${ascHero ? `, plus ${GUILD_BOSS_ASC_CRESTS} ${ascHero.name} crests up to level ${GUILD_BOSS_ASC_LEVELS}` : ''}, for everyone who hit it this week</li>
+         <li><b>Each level beaten</b> ${guildBossKillCoins(boss.level)} Guild Coins and ${warsteelForKill(boss.level)} Warsteel${ascHero ? `, plus ${GUILD_BOSS_ASC_CRESTS} ${ascHero.name} crests up to level ${GUILD_BOSS_ASC_LEVELS}` : ''}, for everyone who hit it this week</li>
          <li><b>End of the week</b> ${top ? `${fmt(week.coins)} Guild Coins, ${fmt(warsteelForWeek(top))} Warsteel and ${week.chests} Hero Chest${week.chests === 1 ? '' : 's'} so far (level ${top})` : 'Guild Coins, Warsteel and Hero Chests by the highest level beaten'}, for everyone who hit it</li>
        </ul><div class="g-team"><div class="pvp-row"><b>Your Guild Boss team <small>CP ${fmt(this.state.teamCpOf(team.map((m) => m.def)))}</small></b><button type="button" class="wood-btn small" data-g="team">Change</button></div><span class="faces">${team.map((m) => this.teamFace(m.def)).join('')}</span></div>${btn}<small class="g-boss-next">Next week: ${GUILD_BOSS_NAMES[next]} (${next}), starting at level 1</small>`,
     );
     const r = this.rewards;
     const levelCoins = r.kills.reduce((n, k) => n + guildBossKillCoins(k.level), 0);
     const parts = [
-      r.kills.length ? `${r.kills.length} level${r.kills.length === 1 ? '' : 's'} beaten · ${fmt(levelCoins)} Guild Coins, Warsteel and Embers` : '',
+      r.kills.length ? `${r.kills.length} level${r.kills.length === 1 ? '' : 's'} beaten · ${fmt(levelCoins)} Guild Coins and Warsteel` : '',
       ...r.weekly.map((w) => { const p = guildBossWeekReward(w.top); return `Last week: level ${w.top} · ${fmt(p.coins)} Guild Coins, ${fmt(warsteelForWeek(w.top))} Warsteel and ${p.chests} Hero Chest${p.chests === 1 ? '' : 's'}`; }),
     ].filter(Boolean);
     setHtml(

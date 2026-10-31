@@ -1217,10 +1217,8 @@ export const GUILD_BOSS_HIT_LEVEL_CAP = 20;
 export const GUILD_BOSS_PAR_ATTEMPTS = 15;
 /** Gold per attempt, in minutes of income. */
 export const GUILD_BOSS_GOLD_MINUTES = 30;
-/** Every level beaten pays each member who hit the boss that week: Guild Coins per level (x (10 + level)) and a share of lifetime Embers. */
+/** Every level beaten pays each member who hit the boss that week: Guild Coins per level (x (10 + level)) (no Embers: guild rewards stay guild-side, Samuel 2026-10-31). */
 export const GUILD_BOSS_KILL_COINS = 3;
-export const GUILD_BOSS_KILL_EMBERS = 0.0025;
-export const GUILD_BOSS_KILL_MIN_EMBERS = 5;
 /** Weekly reward by the highest level beaten: Guild Coins (x (10 + level)) and a Hero Chest per few levels, up to a cap. */
 export const GUILD_BOSS_WEEK_COINS = 10;
 export const GUILD_BOSS_LEVELS_PER_CHEST = 3;
