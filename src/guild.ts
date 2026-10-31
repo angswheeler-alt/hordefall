@@ -3,7 +3,7 @@ import { warsteelForKill, warsteelForWeek } from './guildRelics';
 import { isAscendant } from './heroes/ascendant';
 import {
   HEROES, RELEASED_HEROES, GUILD_MAX_MEMBERS, GUILD_REQUEST_GOAL, GUILD_REQUEST_HOURS, GUILD_REQUEST_OPEN_HOURS, GUILD_DONATE_MAX, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP,
-  GUILD_BOSS_ATTEMPTS, GUILD_BOSS_FIGHT_GAP_SECONDS, GUILD_BOSS_REST_MINUTES, GUILD_BOSS_NAMES, GUILD_BOSS_PAR_ATTEMPTS, ELEMENT_COLORS, elementMultiplier, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, guildResearchPerAttempt, GUILD_WILD_PER_WEEK, GUILD_WILD_COST, GUILD_EMBER_POUCHES_PER_DAY, GUILD_QUESTS, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, GUILD_BOSS_ASC_CRESTS, GUILD_BOSS_ASC_LEVELS,
+  GUILD_BOSS_ATTEMPTS, GUILD_BOSS_FIGHT_GAP_SECONDS, GUILD_BOSS_REST_MINUTES, GUILD_BOSS_NAMES, GUILD_BOSS_PAR_ATTEMPTS, ELEMENT_COLORS, elementMultiplier, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, guildResearchPerAttempt, GUILD_WILD_PER_WEEK, GUILD_WILD_COST, GUILD_WARSTEEL_PACKS_PER_DAY, GUILD_QUESTS, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, GUILD_BOSS_ASC_CRESTS, GUILD_BOSS_ASC_LEVELS,
   type HeroDef, type GuildShopId, type Element, type ResearchBranch,
 } from './data';
 import Decimal from 'break_infinity.js';
@@ -606,7 +606,7 @@ export class Guild {
       if (!got) return;
       play('chest');
       if (got.drops.length) this.ui.showModal('Hero Chest', `${dropCards(got.drops)}Bought with Guild Coins.`, 'Collect');
-      else if (got.embers) this.ui.showModal('Ember pouch', `<p>+${fmt(got.embers)} Embers</p>`, 'Nice');
+      else if (got.warsteel) this.ui.showModal('Warsteel pack', `<p>+${fmt(got.warsteel)} Warsteel</p>`, 'Nice');
       this.ui.render();
       this.render();
     } else if (kind === 'offer') {
@@ -935,7 +935,7 @@ export class Guild {
       $('g-shop'),
       GUILD_SHOP.map((i) => {
         let note = '';
-        if (i.id === 'embers') note = ` · ${Math.max(0, GUILD_EMBER_POUCHES_PER_DAY - shop.pouches)} left today`;
+        if (i.id === 'warsteel') note = ` · ${Math.max(0, GUILD_WARSTEEL_PACKS_PER_DAY - shop.pouches)} left today`;
         if ((i.id === 'banner' || i.id === 'horn') && this.state.boosts[i.id] > now) note = ` · running, ${untilText(this.state.boosts[i.id] - now)} left`;
         return `<li><div class="rw-text"><span><b>${i.name}</b></span><small>${i.text}${note}</small></div><button type="button" class="gem-btn" data-g="buy:${i.id}" ${this.state.guildItemReady(i.id, now) ? '' : 'disabled'}>${i.cost} coins</button></li>`;
       }).join(''),

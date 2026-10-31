@@ -8,6 +8,8 @@ import { mulEffect } from '../src/skills';
 import {
   HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, AURA_EVOLUTIONS, STAR_CRESTS, MAX_STARS, REGULAR_MAX_STARS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOTS_MAX, ULT_SLOT_COSTS,
   TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_MIN_PUSH, ROAD_START, ROAD_STEP, RELICS, RELIC_SETS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, TRIAL_QUICK_TIME, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, TRIAL_ROTATION, PLAYABLE_HEROES, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL, bossWeakness,
+  GUILD_WARSTEEL_PACK,
+  GUILD_SHOP,
 } from '../src/data';
 
 const starter = HEROES.find((h) => h.unlockCost === 0)!;
@@ -1237,12 +1239,17 @@ describe('Guild shop', () => {
     expect(s.wildMedalsLeft(nextWeek)).toBe(20);
   });
 
-  it('Ember pouches are limited per day and boosts stack to two hours', () => {
+  it('Warsteel packs are limited per day, give no Embers, and boosts stack to two hours', () => {
     const s = fresh();
     s.guildCredits = 10_000;
     s.lifetimeEmbers = 5_000;
-    for (let i = 0; i < 3; i++) expect(s.buyGuildItem('embers', day)!.embers).toBeGreaterThanOrEqual(50);
-    expect(s.buyGuildItem('embers', day)).toBeNull();
+    for (let i = 0; i < 3; i++) expect(s.buyGuildItem('warsteel', day)!.warsteel).toBe(GUILD_WARSTEEL_PACK);
+    expect(s.buyGuildItem('warsteel', day)).toBeNull();
+    expect(s.warsteel).toBe(3 * GUILD_WARSTEEL_PACK);
+    expect(s.embers).toBe(0);
+    expect(s.lifetimeEmbers).toBe(5_000);
+    // Nothing in the Guild Shop pays Embers.
+    expect(GUILD_SHOP.some((i) => /ember/i.test(i.id + i.name + i.text))).toBe(false);
     expect(s.boostMult('banner', day)).toBe(1);
     for (let i = 0; i < 4; i++) expect(s.buyGuildItem('banner', day)).not.toBeNull();
     expect(s.buyGuildItem('banner', day)).toBeNull();
