@@ -6,7 +6,7 @@ import {
   type HeroDef, type GuildShopId, type Element, type ResearchBranch,
 } from './data';
 import Decimal from 'break_infinity.js';
-import { fmt, guildBossFightWait, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, guildBossElement, researchPointsFor, researchRank } from './formulas';
+import { fmt, guildBossFightWait, guildBossLane, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, guildBossElement, researchPointsFor, researchRank } from './formulas';
 import type { GameState } from './state';
 import type { Account } from './account';
 import { faceStyle, dropCards, type UI } from './ui';
@@ -287,16 +287,58 @@ export class Guild {
     this.rewards = rewards.data as BossRewards;
   }
 
+  /** When this player may fight next: the boss's rest after a kill, then their own gap between fights. */
+  private fightWait(boss: BossRow) {
+    const uid = this.me!.user_id;
+    const myLast = Math.max(0, ...this.hits.filter((h) => h.user_id === uid && h.created_at).map((h) => Date.parse(h.created_at!)));
+    return guildBossFightWait(boss.rest_until ? Date.parse(boss.rest_until) : null, myLast || null, Date.now());
+  }
+
+  /** Fight the Guild Boss live in the battle lane; the damage goes to the guild when the fight ends. */
   private async fightBoss() {
-    const boss = this.boss;
-    if (!boss || this.fighting) return;
+    if (!this.boss || this.fighting) return;
     this.fighting = true;
     this.render();
+    let started = false;
     try {
-      const damage = this.state.guildBossDamage(boss.element);
+      // Fresh numbers first, so the fight starts from the health really left and a guildmate's kill is seen.
+      await this.fetchBoss();
+      const boss = this.boss;
+      const wait = this.fightWait(boss);
+      if (wait.kind !== 'ready') {
+        this.ui.showModal('Guild Boss', wait.kind === 'resting' ? `<p>The boss was just beaten and is resting. It comes back at level ${boss.level} soon.</p>` : '<p>Catch your breath first: your next fight opens soon.</p>', 'Okay');
+        return;
+      }
+      const lane = guildBossLane(big(boss.hp), big(boss.damage), this.state.researchBonus('elemental'));
+      started = this.ui.startGuildBossFight(
+        { element: boss.element, level: boss.level, name: GUILD_BOSS_NAMES[boss.element], ids: this.state.guildBossHeroes().map((h) => h.id), hp: lane.left, maxHp: lane.hp },
+        (knocked) => {
+          // Let the last blow and the banner play before the result.
+          const damage = lane.damageFor(knocked);
+          window.setTimeout(() => void this.sendBossHit(damage), 1200);
+        },
+      );
+    } catch (e) {
+      this.ui.showModal('Guild Boss', esc(this.message(e)), 'Okay');
+    } finally {
+      if (!started) {
+        this.fighting = false;
+        this.render();
+      }
+    }
+  }
+
+  /** Send a finished fight's damage to the guild and show what it paid. */
+  private async sendBossHit(damage: Decimal) {
+    const back = () => this.ui.endGuildBossFight();
+    try {
+      if (damage.lte(0)) {
+        this.ui.showModal('Guild Boss', '<p>Your team left before landing a hit, so this fight did not count. Try again any time.</p>', 'Okay', back);
+        return;
+      }
       const res = await this.db!.rpc('hit_guild_boss', { p_damage: damage.toString() });
       if (res.error) {
-        this.ui.showModal('Guild Boss', esc(this.message(res.error)), 'Okay');
+        this.ui.showModal('Guild Boss', `<p>${esc(this.message(res.error))}</p><p>This fight's damage did not count.</p>`, 'Okay', back);
         return;
       }
       const r = res.data as { attempt: number; paid?: boolean; level: number; hp: number | string; kills: number; next_level: number };
@@ -306,7 +348,7 @@ export class Guild {
       const pay = paid ? this.state.payGuildBossAttempt(r.level, damage, hp) : null;
       play(r.kills ? 'chest' : 'coin');
       const pct = hp.gt(0) ? damage.div(hp).times(100).toNumber() : 0;
-      const share = pct > 100 ? 'more than its whole health' : `${pct >= 0.1 ? pct.toFixed(1) : '<0.1'}% of its health`;
+      const share = pct >= 100 ? 'all of its health' : `${pct >= 0.1 ? pct.toFixed(1) : '<0.1'}% of its health`;
       const focus = GUILD_RESEARCH.find((b) => b.id === this.guild?.research_focus);
       let html = `<p>Your team dealt <b>${fmt(damage)}</b> damage (${share}).</p>`;
       html += pay
@@ -315,11 +357,13 @@ export class Guild {
       if (r.kills) {
         html += `<p><b>You beat level ${r.level}!</b> It rests for ${GUILD_BOSS_REST_MINUTES} minutes, then comes back at level ${r.next_level} and stronger. Everyone who hit it this week can claim the level rewards.</p>`;
       }
-      this.ui.showModal(paid ? `Rewarded fight ${r.attempt}/${GUILD_BOSS_ATTEMPTS} today` : `Fight ${r.attempt} today`, html, 'Nice');
+      this.ui.showModal(paid ? `Rewarded fight ${r.attempt}/${GUILD_BOSS_ATTEMPTS} today` : `Fight ${r.attempt} today`, html, 'Nice', back);
       this.ui.render();
+    } catch (e) {
+      this.ui.showModal('Guild Boss', `<p>${esc(this.message(e))}</p><p>This fight's damage did not count.</p>`, 'Okay', back);
     } finally {
       this.fighting = false;
-      await this.refresh();
+      await this.refresh().catch(() => undefined);
     }
   }
 
@@ -684,8 +728,7 @@ export class Guild {
     const dayReset = Date.parse(today) + 24 * HOUR - Date.now();
     const coins = guildBossAttemptCoins(boss.level, mine, hp, GUILD_BOSS_PAR_ATTEMPTS);
     const next = guildBossElement(new Date(Date.parse(boss.week) + 7 * 24 * HOUR).toISOString().slice(0, 10));
-    const myLast = Math.max(0, ...this.hits.filter((h) => h.user_id === uid && h.created_at).map((h) => Date.parse(h.created_at!)));
-    const wait = guildBossFightWait(boss.rest_until ? Date.parse(boss.rest_until) : null, myLast || null, Date.now());
+    const wait = this.fightWait(boss);
     const paidLeft = Math.max(0, GUILD_BOSS_ATTEMPTS - used);
     const ascHero = this.state.ascendantChestState(Date.parse(boss.week))?.hero;
     const secs = (ms: number) => (ms >= 60_000 ? untilText(ms) : `${Math.ceil(ms / 1000)}s`);

@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import type { HeroDef, StallDef, Element } from './data';
-import { STALL_MILESTONE, GUILD_BOSS_FIGHT_GAP_SECONDS, GUILD_BOSS_KILL_COINS, GUILD_BOSS_WEEK_COINS, GUILD_BOSS_LEVELS_PER_CHEST, GUILD_BOSS_WEEK_MAX_CHESTS } from './data';
+import { STALL_MILESTONE, GUILD_BOSS_FIGHT_GAP_SECONDS, GUILD_BOSS_KILL_COINS, GUILD_BOSS_WEEK_COINS, GUILD_BOSS_LEVELS_PER_CHEST, GUILD_BOSS_WEEK_MAX_CHESTS, GUILD_BOSS_HIT_SHARE, GUILD_BOSS_HIT_PER_LEVEL, GUILD_BOSS_HIT_LEVEL_CAP } from './data';
 
 // Tuning from an economy sim: the stage 100 boss falls when the lead hero is
 // around level 100 (gold + Ember levels), the first Rekindle (after stage 125)
@@ -265,6 +265,34 @@ export function guildBossKillCoins(level: number): number {
 export function guildBossWeekReward(top: number): { coins: number; chests: number } {
   if (!(top > 0)) return { coins: 0, chests: 0 };
   return { coins: GUILD_BOSS_WEEK_COINS * (10 + top), chests: Math.min(GUILD_BOSS_WEEK_MAX_CHESTS, Math.ceil(top / GUILD_BOSS_LEVELS_PER_CHEST)) };
+}
+
+/**
+ * How hard the Guild Boss hits in a live fight: after the heroes' Defense (`avgDef`, see defended) a hit lands a share
+ * of the team's average max HP (GUILD_BOSS_HIT_SHARE), a little more each level (GUILD_BOSS_HIT_PER_LEVEL, up to
+ * GUILD_BOSS_HIT_LEVEL_CAP). Built on the team's own health so any team can stand a while, and healers and tanks matter.
+ */
+export function guildBossHitAtk(avgMaxHp: Decimal, avgDef: Decimal, level: number): Decimal {
+  const lv = Math.min(GUILD_BOSS_HIT_LEVEL_CAP, Math.max(0, Math.floor(level) - 1));
+  const land = avgMaxHp.times(GUILD_BOSS_HIT_SHARE * (1 + GUILD_BOSS_HIT_PER_LEVEL * lv));
+  if (avgDef.lte(0)) return land;
+  // Undo defended(): hit^2 / (hit + def) = land  =>  hit = (land + sqrt(land^2 + 4 * land * def)) / 2.
+  return land.plus(land.times(land).plus(land.times(avgDef).times(4)).sqrt()).div(2);
+}
+
+/**
+ * The Guild Boss as it stands in the lane: the health left on this level, shrunk by the Elemental Studies research
+ * bonus the same way Trial bosses are (damage counts `1 + bonus` times). `damageFor` turns health knocked off in the
+ * lane back into the damage sent to the guild.
+ */
+export function guildBossLane(hp: Decimal, damage: Decimal, bonus: number): { hp: Decimal; left: Decimal; damageFor: (knocked: Decimal) => Decimal } {
+  const mult = 1 + Math.max(0, bonus);
+  const left = Decimal.max(0, hp.minus(damage));
+  return {
+    hp: hp.div(mult),
+    left: left.div(mult),
+    damageFor: (knocked) => Decimal.min(left, Decimal.max(0, knocked).times(mult)).floor(),
+  };
 }
 
 /** The Monday (UTC) of the week holding `now`, as YYYY-MM-DD: the Guild Boss week. */
