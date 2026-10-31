@@ -1092,6 +1092,7 @@ export class BattleScene extends Phaser.Scene {
     } else {
       this.state.retryBossIfDue();
     }
+    this.state.stageLosses = 0;
     this.state.track('stages');
     const prevBest = this.state.bestStage;
     if (this.state.autoAdvance) this.state.reachStage(this.state.stage + 1);
@@ -1120,6 +1121,8 @@ export class BattleScene extends Phaser.Scene {
       this.state.stage = Math.max(1, stage - 1);
       this.state.autoAdvance = false;
       this.state.startBossRetry();
+    } else if (this.state.loseNormalStage()) {
+      this.time.delayedCall(1400, () => this.banner('Back a stage to farm', '#ffd27a'));
     }
     this.banner(reason, '#ff6b6b');
     if (isBossStage(stage) && !this.state.autoBoss) this.time.delayedCall(1400, () => this.banner('Tap FIGHT BOSS to retry', '#ffd27a'));
