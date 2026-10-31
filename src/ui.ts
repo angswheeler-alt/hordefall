@@ -47,11 +47,20 @@ const heroArt = (id: string) => (HERO_ANIMS[id] ? `url('${new URL(`heroes/${id}.
 const iconUrls = (files: Record<string, string>) => Object.fromEntries(Object.entries(files).map(([f, url]) => [f.split('/').pop()!.slice(0, -4), url]));
 const STALL_ICONS = iconUrls(import.meta.glob('./assets/stalls/*.png', { eager: true, query: '?url', import: 'default' }));
 const RELIC_ICONS = iconUrls(import.meta.glob('./assets/relics/*.png', { eager: true, query: '?url', import: 'default' }));
+/**
+ * The picture key a hero is shown with: an Ascendant hero's current form art, else its own id.
+ * UI sets the resolver at start-up so every face (Collection, team, pickers, popups) follows ascension.
+ */
+let formArt: (id: string) => string = (id) => id;
+export const setFormArt = (fn: (id: string) => string) => {
+  formArt = fn;
+};
+export const heroArtKey = (id: string) => formArt(id);
 // Heroes still waiting for art show their initial on the element color instead of a picture.
 // Ascendant heroes get --asc:1, which style.css turns into their violet-and-gold ring on every hero icon;
 // Legendaries get --leg:1, a gold-and-orange ring.
-// `art` picks another picture (an Ascendant form's art key).
-export const faceStyle = (def: HeroDef, art = def.id) =>
+// `art` picks another picture; by default an Ascendant hero shows its current form's art (see setFormArt).
+export const faceStyle = (def: HeroDef, art = heroArtKey(def.id)) =>
   `background-color:${hex(ELEMENT_COLORS[def.element])};--art:${heroArt(art)}${HERO_ANIMS[art] ? '' : ';color:#fff !important;text-shadow:0 1px 0 #000 !important'}${isAscendant(def.id) ? ';--asc:1' : def.rarity === 'legendary' ? ';--leg:1' : ''}`;
 const SWORD = '<i class="ico ico-atk" aria-hidden="true"></i>';
 const HEART = '<i class="ico ico-hp" aria-hidden="true"></i>';
@@ -77,6 +86,9 @@ interface HeroRow {
   cost: HTMLElement;
   ember: HTMLElement;
   stars: HTMLElement;
+  face: HTMLElement;
+  /** The art key the face was last drawn with, so an Ascendant hero's new form repaints it. */
+  art: string;
 }
 
 interface StallRow {
@@ -131,6 +143,7 @@ export class UI {
     private scene: () => BattleScene | undefined,
     private hooks: { simulateAway: () => void; resetAccount: () => Promise<string | null>; rekindle: (mult: number) => void },
   ) {
+    setFormArt((id) => this.state.heroArtKey(id));
     this.buildHeroes();
     this.buildUlts();
     this.bindControls();
@@ -195,6 +208,8 @@ export class UI {
         cost: root.querySelector('.gold-up .cost') as HTMLElement,
         ember: root.querySelector('.ember-chip') as HTMLElement,
         stars: root.querySelector('.stars-mini') as HTMLElement,
+        face: root.querySelector('.face') as HTMLElement,
+        art: heroArtKey(def.id),
       });
     }
   }
@@ -232,7 +247,7 @@ export class UI {
           const pct = need ? Math.min(100, (crests / need) * 100) : 0;
           const stars = recruited ? `<span class="ct-stars">★${(s.stars[h.id] ?? 0) + 1}</span>` : '';
           const foot = maxed ? '<span class="ct-maxed">Maxed</span>' : `<div class="ct-bar"><i style="width:${pct}%"></i></div><span class="ct-count">${crests.toLocaleString()}</span>`;
-          return `<div class="ct${recruited ? '' : ' locked'}${s.canUnlock(h) ? ' ready' : ''}${s.inLineup(h.id) ? ' team' : ''}${isAscendant(h.id) ? ' asc' : h.rarity === 'legendary' ? ' leg' : ''}"><button type="button" class="ct-tile" data-coll="${h.id}" aria-label="${h.name}" style="--el:${hex(ELEMENT_COLORS[el])}"><span class="ct-art" style="--art:${heroArt(h.id)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span>${stars}<span class="ct-name">${h.name}${rarityTag(h)}</span></button>${foot}</div>`;
+          return `<div class="ct${recruited ? '' : ' locked'}${s.canUnlock(h) ? ' ready' : ''}${s.inLineup(h.id) ? ' team' : ''}${isAscendant(h.id) ? ' asc' : h.rarity === 'legendary' ? ' leg' : ''}"><button type="button" class="ct-tile" data-coll="${h.id}" aria-label="${h.name}" style="--el:${hex(ELEMENT_COLORS[el])}"><span class="ct-art" style="--art:${heroArt(heroArtKey(h.id))}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span>${stars}<span class="ct-name">${h.name}${rarityTag(s.formDef(h))}</span></button>${foot}</div>`;
         })
         .join('');
       return `<section class="ct-group">${tiles}</section>`;
@@ -305,7 +320,7 @@ export class UI {
     const boss = guildBossElement(utcWeekStart(Date.now()));
     const edge = (h: HeroDef) => (tab === 'guild' ? elementMultiplier(h.element, boss) : 1);
     const starsOf = (h: HeroDef) => `<span class="tm-stars">${'★'.repeat(Math.max(1, (s.stars[h.id] ?? 0) + 1))}</span>`;
-    const face = (h: HeroDef, cls = '') => `<span class="face art${cls}" style="${faceStyle(h)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span>`;
+    const face = (h: HeroDef, cls = '') => `<span class="face art${cls}" style="${faceStyle(h)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span>`;
     const slotCost = s.nextTeamSlotCost();
     const slots = Array.from({ length: TEAM_SLOTS_MAX }, (_, i) => {
       const h = team[i];
@@ -416,7 +431,7 @@ export class UI {
       .pvpTeam()
       .map((h) => {
         const has = s.hasUltSlot(h.id);
-        return `<div class="tm-ult-row"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span><span><b>${h.name}</b><small>${has ? 'Ultimate on' : 'Ultimate off'}</small></span><button type="button" class="${has ? '' : 'hot'}" data-ult="${h.id}" ${!has && picksFull ? 'disabled' : ''}>${has ? 'Turn off' : 'Turn on'}</button></div>`;
+        return `<div class="tm-ult-row"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span><span><b>${h.name}</b><small>${has ? 'Ultimate on' : 'Ultimate off'}</small></span><button type="button" class="${has ? '' : 'hot'}" data-ult="${h.id}" ${!has && picksFull ? 'disabled' : ''}>${has ? 'Turn off' : 'Turn on'}</button></div>`;
       })
       .join('');
     return `<div class="tm-ult-list"><p class="team-help">Heroes with their Ultimate on get a button on the battle bar. ${picksFull ? 'All slots are taken: turn one off first, or buy a slot.' : ''}</p>${rows}<div class="tm-peek-btns"><button type="button" data-team-back>Back</button></div></div>`;
@@ -458,7 +473,7 @@ export class UI {
         : `<button type="button" class="hot" data-lineup="${h.id}">Add to team</button>`;
     const why = on && count <= 1 ? 'The team needs at least one hero.' : !on && full ? `The team is full (${s.teamSlots}). Tap Swap in, then pick who they replace.` : '';
     return `<div class="tm-peek" style="--el:${hex(ELEMENT_COLORS[h.element])}">
-      <div class="tm-peek-head"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span>
+      <div class="tm-peek-head"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span>
         <div><b class="tm-peek-name">${h.name}</b> ${rarityTag(h)}<small>${heroTitle(h)} · ${'★'.repeat(Math.max(1, (s.stars[h.id] ?? 0) + 1))}</small>
         <small>Level ${s.heroLevel(h.id).toLocaleString()}${ember ? ` (incl. +${ember.toLocaleString()} Ember)` : ''} · ${on ? 'In team' : 'Benched'}</small></div></div>
       <p class="tm-cp-big">Combat Power <b>${fmt(s.heroCombatPower(h))}</b></p>
@@ -1016,7 +1031,7 @@ export class UI {
       const rows = done
         .map(({ id, from, to }) => {
           const h = HEROES.find((x) => x.id === id)!;
-          return `<li><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span><b>${h.name}</b><span class="stars">${from + 1}★ → ${to + 1}★</span></li>`;
+          return `<li><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span><b>${h.name}</b><span class="stars">${from + 1}★ → ${to + 1}★</span></li>`;
         })
         .join('');
       this.showModal('Evolved!', `${done.length} hero${done.length === 1 ? '' : 'es'} gained stars.<ul class="evo-list">${rows}</ul>`, 'Nice');
@@ -2050,7 +2065,7 @@ export class UI {
     // Pictures of the heroes the crests went to, with how many each got.
     const faces = [...medalCounts].map(([id, n]) => {
       const h = HEROES.find((x) => x.id === id)!;
-      return `<span class="trial-medal"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span><b>${h.name}</b><small>x${n}</small></span>`;
+      return `<span class="trial-medal"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span><b>${h.name}</b><small>x${n}</small></span>`;
     }).join('');
     const fw = result.firstWin;
     const first = fw ? `<p>First win at this level: <b>${fw.chests} Hero Chest${fw.chests === 1 ? '' : 's'}</b> (${fw.drops.reduce((t, d) => t + d.crests, 0)} crests) and <b>${fw.stones} Enhance Stones</b>.</p>` : '';
@@ -2104,7 +2119,9 @@ export class UI {
 
   private pvpFace(h: HeroDef, stars?: number) {
     const st = stars ?? this.state.stars[h.id] ?? 0;
-    return `<span class="face art" title="${h.name} ${st + 1}★" style="${faceStyle(h)};border-color:${hex(ELEMENT_COLORS[h.element])}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span>`;
+    // Another player's hero (stars given) shows its base picture: their Ascendant form isn't known here.
+    const art = stars === undefined ? heroArtKey(h.id) : h.id;
+    return `<span class="face art" title="${h.name} ${st + 1}★" style="${faceStyle(h, art)};border-color:${hex(ELEMENT_COLORS[h.element])}">${HERO_ANIMS[art] ? '' : h.name[0]}</span>`;
   }
 
   private pvpFoeFaces(foe: PvpOpponent) {
@@ -2294,7 +2311,7 @@ export class UI {
         const def = HEROES.find((h) => h.id === r.id);
         if (!def) return '';
         const bars = kinds.map(([k]) => `<div class="pm-bar ${k}"><i style="width:${share(r[k], top[k])}%"></i><span>${fmt(r[k])}</span></div>`).join('');
-        return `<div class="pm-row"><span class="face art" style="${faceStyle(def)}">${HERO_ANIMS[def.id] ? '' : def.name[0]}</span><b>${def.name}</b>${bars}</div>`;
+        return `<div class="pm-row"><span class="face art" style="${faceStyle(def)}">${HERO_ANIMS[heroArtKey(def.id)] ? '' : def.name[0]}</span><b>${def.name}</b>${bars}</div>`;
       })
       .join('');
     const sum = (k: (typeof kinds)[number][0]) => m.mine.reduce((x, r) => x.plus(r[k]), new Decimal(0));
@@ -2585,7 +2602,7 @@ export class UI {
 
   /** The Ascendant Chest's main prize: the hero's icon and crests; tapping the icon shows what the hero can do. */
   private ascendantPrize(h: HeroDef, crests: number): string {
-    return `<button type="button" class="asc-prize" data-asc-kit="${h.id}" aria-label="See what ${h.name} can do"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[h.id] ? '' : h.name[0]}</span><span class="asc-prize-text"><b>+${crests} ${h.name} crests</b><small>Ascendant hero · tap to see what ${h.name} can do</small></span></button>`;
+    return `<button type="button" class="asc-prize" data-asc-kit="${h.id}" aria-label="See what ${h.name} can do"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span><span class="asc-prize-text"><b>+${crests} ${h.name} crests</b><small>Ascendant hero · tap to see what ${h.name} can do</small></span></button>`;
   }
 
   /** An Ascendant hero's kit, form by form: Form I in full, then what each later form changes and what it needs. */
@@ -2964,6 +2981,11 @@ export class UI {
       r.root.hidden = !s.inLineup(r.def.id);
       if (s.canUnlock(r.def)) teamReady = true;
       if (r.root.hidden) continue;
+      const art = heroArtKey(r.def.id);
+      if (art !== r.art) {
+        r.art = art;
+        r.face.setAttribute('style', faceStyle(r.def, art));
+      }
       r.root.classList.toggle('locked', locked);
       // The Heroes tab is the gold upgrade screen, so its level is gold levels only; Ember levels show as the +N badge.
       r.level.textContent = locked ? '' : `Lv ${level}`;

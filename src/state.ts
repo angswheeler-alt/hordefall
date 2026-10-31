@@ -10,8 +10,9 @@ import { isKnight, combatPower, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
 import { PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_TICKET_GEMS, PVP_TICKET_BUYS, PVP_REFRESH_MINUTES, PVP_CP_MIN, PVP_CP_MAX, PVP_REAL_MIN, PVP_REAL_MAX, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_FIRST_WIN_MOTES, PVP_STREAK_DMG, PVP_STREAK_MAX, PVP_QUICK_CP, PVP_QUICK_HP, RANK_PRESSURE, RANK_DAILY, RANK_WEEKLY, rankIndex, rankName, droppedTrophies, seededRandom, ghostName, simulatePvp, type PvpUnit, type PvpResult } from './colosseum';
 import { TUTORIAL_DONE, TIP_IDS } from './tutorialSteps';
-import { ascendBlocker, ascendNeeds, clampForm, resolveForm, COUNTERED_BY, type AscendBlocker, type AscendContext, type AscendantDef } from './ascendant';
+import { ascendBlocker, ascendNeeds, clampForm, formArtKey, resolveForm, COUNTERED_BY, type AscendBlocker, type AscendContext, type AscendantDef } from './ascendant';
 import { ascendantDef, isAscendant, ASCENDANT_HEROES } from './heroes/ascendant';
+import { HERO_ANIMS } from './heroAnims';
 import { TEST_MODE, TEST_SAVE_KEY } from './config';
 
 /** Test mode plays a copy of the save under its own key, so the real one is never written. */
@@ -976,6 +977,15 @@ export class GameState {
   /** An Ascendant hero's form (0 = Common). */
   formOf(id: string): number {
     return clampForm(this.forms[id]);
+  }
+
+  /**
+   * The picture a hero is shown with everywhere (faces and battle): an Ascendant hero's current form art,
+   * falling back to the nearest earlier form whose art has landed; any other hero's own id.
+   */
+  heroArtKey(id: string): string {
+    const a = ascendantDef(id);
+    return a ? formArtKey(a, this.formOf(id), (key) => !!HERO_ANIMS[key]) : id;
   }
 
   /** Why an Ascendant hero can't take its next form yet, or null when it can. */
