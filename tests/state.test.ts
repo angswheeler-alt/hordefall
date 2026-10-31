@@ -1162,14 +1162,15 @@ describe('Guild Boss rewards', () => {
     expect(a.gold.gt(0)).toBe(true);
     s.lifetimeEmbers = 50_000;
     const k = s.payGuildBossRewards([{ week: '2026-10-19', level: 1 }, { week: '2026-10-19', level: 2 }], [], []);
-    expect(k).toMatchObject({ coins: 33 + 36, embers: 125 + 125 });
+    expect(k).toMatchObject({ coins: 33 + 36 });
+    // Beaten levels pay no Embers (guild rewards stay guild-side).
+    expect(s.embers).toBe(0);
+    expect(s.lifetimeEmbers).toBe(50_000);
     expect(k.drops.length).toBe(0);
     const w = s.payGuildBossRewards([], [7], []);
-    expect(w).toMatchObject({ coins: 170, embers: 0 });
+    expect(w).toMatchObject({ coins: 170 });
     expect(w.drops.length).toBe(3 * CHEST_DROPS);
     expect(s.guildCredits).toBe(13 + 69 + 170);
-    s.lifetimeEmbers = 0;
-    expect(s.payGuildBossRewards([{ week: '2026-10-19', level: 1 }], [], []).embers).toBe(5);
   });
 });
 
