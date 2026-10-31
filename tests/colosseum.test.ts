@@ -4,7 +4,7 @@ import { GameState, cleanSnapHero, type PvpCandidate } from '../src/state';
 import { HEROES, AWAKEN_UNLOCK_LEVEL } from '../src/data';
 import { keeperThreshold } from '../src/formulas';
 import {
-  RANK_TROPHIES, RANK_DAILY, RANK_WEEKLY, LEGEND, PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_CP_MIN, PVP_CP_MAX, PVP_LOSS_TROPHIES, PVP_FIRST_WIN_MOTES,
+  RANK_TROPHIES, RANK_DAILY, RANK_WEEKLY, LEGEND, PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_CP_MIN, PVP_CP_MAX, PVP_LOSS_TROPHIES, PVP_FIRST_WIN_MOTES, PVP_QUICK_CP,
   rankIndex, rankName, droppedTrophies, seededRandom, simulatePvp, type PvpUnit,
 } from '../src/colosseum';
 
@@ -152,6 +152,40 @@ describe('Colosseum tickets and fights', () => {
     expect(t.pvp.active).toBe(-1);
     expect(t.pvp.trophies).toBe(50 - PVP_LOSS_TROPHIES);
     expect(t.pvp.tickets).toBe(PVP_TICKET_CAP - 1);
+  });
+
+  it('open Quick Battle only when the attack team is clearly stronger, and pay it as a win', () => {
+    const s = opened();
+    s.rollPvpOpponents(WED);
+    const mine = s.teamCpOf(s.pvpAttackTeam());
+    // An opponent near the player's own power: no Quick Battle.
+    expect(s.pvp.picks.every((p) => new Decimal(p.cp).times(PVP_QUICK_CP).gt(mine))).toBe(true);
+    expect(s.canQuickPvp(0, WED)).toBe(false);
+    expect(s.quickPvp(0, WED)).toBeNull();
+    expect(s.pvp.tickets).toBe(PVP_TICKET_CAP);
+    // A much weaker team (same heroes, a fraction of the power): Quick Battle opens.
+    s.pvp.picks[0] = s.buildGhost('weak', mine.times(0.2));
+    expect(s.canQuickPvp(0, WED)).toBe(true);
+    const r = s.quickPvp(0, WED)!;
+    expect(r.won).toBe(true);
+    expect(r.trophies).toBe(PVP_WIN_TROPHIES);
+    expect(s.pvp.tickets).toBe(PVP_TICKET_CAP - 1);
+    expect(s.pvp.active).toBe(-1);
+    expect(s.skillTeam).toBeNull();
+    expect(s.pvp.streak).toBe(1);
+    expect(s.pvp.picks).toEqual([]);
+  });
+
+  it('keep Quick Battle shut with no tickets, or when the CP edge loses the forecast', () => {
+    const s = opened();
+    s.rollPvpOpponents(WED);
+    const mine = s.teamCpOf(s.pvpAttackTeam());
+    s.pvp.picks[0] = s.buildGhost('weak', mine.times(0.2));
+    expect(s.pvpClearlyStronger(0, { won: false, seconds: 60, hits: [], left: [[1], [1]] })).toBe(false);
+    expect(s.pvpClearlyStronger(0, { won: true, seconds: 60, hits: [], left: [[0.3], [0]] })).toBe(false);
+    s.pvp.tickets = 0;
+    s.pvp.clock = WED;
+    expect(s.canQuickPvp(0, WED)).toBe(false);
   });
 
   it('keep attack and defense teams to recruited heroes', () => {
