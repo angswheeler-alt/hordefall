@@ -342,6 +342,8 @@ export class GameState {
   guildQuestPending = { kills: 0, stages: 0, trials: 0 };
   /** Guild Research ranks of the player's guild, cached from the server (empty outside a guild). */
   guildResearch: Partial<Record<ResearchBranch, number>> = {};
+  /** Heroes picked for the Guild Boss (ids); empty means the lineup. */
+  guildBossPicks: string[] = [];
   /** Legendary medals, made by maxed heroes from extra medals; any Legendary hero spends them to unlock and gain stars. */
   legendaryMedals = 0;
   /** Ascendant heroes' forms (src/ascendant.ts): 0 = Common up to 3 = Legendary. Missing = Common; a form never goes down. */
@@ -2049,10 +2051,30 @@ export class GameState {
     return drops;
   }
 
-  /** Damage one Guild Boss attempt deals: the Trial team (Ember levels) hitting for the whole fight. */
+  /** Heroes that fight the Guild Boss: the saved pick (recruited heroes, at most teamSlots), else the lineup. */
+  guildBossHeroes(): HeroDef[] {
+    const picked = HEROES.filter((h) => this.guildBossPicks.includes(h.id) && (this.levels[h.id] ?? 0) > 0).slice(0, this.teamSlots);
+    return picked.length ? picked : this.pvpTeam();
+  }
+
+  /** The Guild Boss team with its strength (Ember levels and stars, like the Trial team). */
+  guildBossTeam() {
+    return this.guildBossHeroes().map((def) => ({ def, ...this.heroPower(def, Math.max(1, this.emberLevels[def.id] ?? 0)) }));
+  }
+
+  /** Set the Guild Boss team (recruited heroes only, up to teamSlots). */
+  setGuildBossTeam(ids: string[]): boolean {
+    const clean = HEROES.filter((h) => ids.includes(h.id) && (this.levels[h.id] ?? 0) > 0).map((h) => h.id);
+    if (!clean.length || clean.length > this.teamSlots) return false;
+    this.guildBossPicks = clean;
+    this.save();
+    return true;
+  }
+
+  /** Damage one Guild Boss attempt deals: the Guild Boss team (Ember levels) hitting for the whole fight. */
   guildBossDamage(element: Element): Decimal {
     let dps = new Decimal(0);
-    for (const m of this.trialTeam()) dps = dps.plus(m.atk.div(m.def.attackCooldown).times(elementMultiplier(m.def.element, element)));
+    for (const m of this.guildBossTeam()) dps = dps.plus(m.atk.div(m.def.attackCooldown).times(elementMultiplier(m.def.element, element)));
     return dps.times(GUILD_BOSS_SECONDS * (1 + this.researchBonus('elemental'))).floor();
   }
 
@@ -2635,6 +2657,7 @@ export class GameState {
       vouchers: this.vouchers,
       guildCredits: this.guildCredits,
       guildResearch: this.guildResearch,
+      guildBossPicks: this.guildBossPicks,
       achieved: this.achieved,
       bootcamp: this.bootcamp,
       milestone: this.milestone,
@@ -2745,6 +2768,7 @@ export class GameState {
       this.spinDay = String(d.spinDay ?? '');
       this.guildCredits = Math.max(0, Number(d.guildCredits) || 0);
       this.guildResearch = d.guildResearch && typeof d.guildResearch === 'object' ? cleanResearch(d.guildResearch) : {};
+      this.guildBossPicks = Array.isArray(d.guildBossPicks) ? d.guildBossPicks.filter((id: unknown): id is string => typeof id === 'string' && HEROES.some((h) => h.id === id)) : [];
       const shop = d.guildShop;
       if (shop && typeof shop === 'object') {
         const offers = Array.isArray(shop.offers) ? shop.offers.filter((o: GuildOffer) => HEROES.some((h) => h.id === o?.heroId) && Number(o.crests) > 0 && Number(o.cost) > 0) : [];

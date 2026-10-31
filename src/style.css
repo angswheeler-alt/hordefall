@@ -868,6 +868,10 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .pvp-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
 .pvp-pick button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px; background: rgba(0,0,0,.25); border: 2px solid var(--wood-deep); border-radius: 8px; color: #e4eaf8; font-size: 11px; }
 .pvp-pick button.on { border-color: #ffd84a; background: rgba(255,216,74,.18); }
+.g-team { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.g-team .faces { display: flex; gap: 3px; flex-wrap: wrap; }
+.g-team .face { width: 30px; height: 30px; border-radius: 6px; border: 2px solid #000; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; flex: none; }
+.g-team small { color: #98abd9; font-weight: 700; }
 .pvp-forecast.win { color: #9effa8; } .pvp-forecast.close { color: #ffe066; } .pvp-forecast.lose { color: #ff8a8a; }
 .pvp-list { margin: 4px 0 10px; padding-left: 20px; text-align: left; font-size: 13px; max-height: 30vh; overflow: auto; }
 .pvp-list li.me { color: #ffd84a; font-weight: 800; }
