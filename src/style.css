@@ -1152,3 +1152,4 @@ i.warsteel, .relic-cost i.warsteel { border: 0; border-radius: 0; display: inlin
 .guild-relic.on { border-color: var(--gold); }
 #guild-relic-slots { display: inline-flex; align-items: center; margin-left: auto; }
 .tr-quickall { width: 100%; min-height: 40px; margin: 0 0 8px; }
+.wood-btn.ember-all { background: linear-gradient(180deg, #ffb36b, var(--ember) 50%, #a8401a); border-color: #5a1e05; }

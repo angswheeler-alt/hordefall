@@ -1044,6 +1044,14 @@ export class UI {
         this.render();
       }
     });
+    $('emberall').addEventListener('click', () => {
+      const got = this.state.emberAll();
+      if (!got.levels) return;
+      play('unlock');
+      this.scene()?.syncHeroes();
+      this.showModal('Ember all', `<p>Spent <b class="ember-text">${fmt(got.spent)} Embers</b> on <b>${got.levels.toLocaleString()}</b> Ember level${got.levels === 1 ? '' : 's'} across ${got.heroes} hero${got.heroes === 1 ? '' : 'es'}, cheapest first. Reset Embers on a hero's page gives them back.</p>`, 'Okay');
+      this.render();
+    });
     $('sheet-buyamt').addEventListener('click', () => $('buyamt').click());
     $('buyamt').addEventListener('click', () => {
       const order: Array<1 | 10 | 'max'> = [1, 10, 'max'];
@@ -2997,6 +3005,9 @@ export class UI {
     const evolvable = s.evolvable().length;
     $<HTMLButtonElement>('evolve-all').disabled = evolvable === 0;
     $('evolve-all').textContent = evolvable ? `Evolve all (${evolvable})` : 'Evolve all';
+    // Ember all shows once there are Embers to spend at all.
+    $('emberall').hidden = s.rekindles === 0 && s.embers <= 0;
+    $<HTMLButtonElement>('emberall').disabled = !s.canEmberAll();
     $<HTMLButtonElement>('levelall').disabled = !HEROES.some((h) => (s.levels[h.id] ?? 0) > 0 && s.inLineup(h.id) && upgradeCost(h, s.levels[h.id], s.levelCostMult()).lte(s.gold));
     $('buyamt').textContent = `Buy ${s.buyAmount === 'max' ? 'max' : `x${s.buyAmount}`}`;
     const bossBtn = $('boss');
