@@ -121,7 +121,7 @@ export const TIPS: GuideTip[] = [
   },
   {
     id: 'rekindle',
-    target: '#rekindle',
+    target: '#rk-emblem',
     title: 'Rekindle',
     text: `From stage ${REKINDLE_STAGE} you can start a new run for Embers. Embers level heroes for good, so every run goes further.`,
     button: 'Got it',

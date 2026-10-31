@@ -2847,7 +2847,9 @@ export class BattleScene extends Phaser.Scene {
     }
     const stage = this.state.stage;
     const boss = isBossStage(stage);
-    this.stageText.setText(`Stage ${stage}${boss ? ' · BOSS' : this.state.autoAdvance ? '' : ' · Farming'}`);
+    // Just the stage number, right of the Rekindle emblem once that shows.
+    this.stageText.setX(this.state.rekindleShown() ? 40 : 10);
+    this.stageText.setText(`Stage ${stage}`);
 
     const ratio = this.crystal.maxHp.gt(0) ? Math.max(0, this.crystal.hp.div(this.crystal.maxHp).toNumber()) : 0;
     this.crystalBar.clear();
@@ -2878,6 +2880,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Trial HUD: the boss and level at the top left, with the time left under it. */
   private drawTrialHud(t: TrialFight) {
+    this.stageText.setX(10);
     this.stageText.setText(`${t.guild ? 'Guild Boss' : 'Trial'} Lv ${t.tier} · ${Math.ceil(Math.max(0, t.timeLeft))}s`);
     this.crystalBar.clear();
     // Lane progress from the blue crystal to the boss at the far end.
@@ -2900,6 +2903,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Colosseum HUD: time left at the top left and an HP bar over each crystal. */
   private drawPvpHud(p: PvpLive) {
+    this.stageText.setX(10);
     this.stageText.setText(`Colosseum · ${Math.ceil(Math.max(0, p.timeLeft))}s`);
     this.progressBar.clear();
     this.bossBar.clear();

@@ -19,7 +19,11 @@
       <div id="stagewrap">
         <div id="game"></div>
         <div id="ultbar"><div id="ults"></div><button id="autoult" class="toggle glass">Auto ult</button></div>
-        <button id="speed" class="toggle glass">2x</button>
+        <button id="rk-emblem" class="rk-emblem" hidden aria-label="Rekindle" title="Rekindle"><i id="rk-emblem-tip" hidden></i></button>
+        <div id="topbtns">
+          <button id="autoboss" class="toggle glass" title="Try the boss again by itself after a minute of farming">Auto boss</button>
+          <button id="speed" class="toggle glass">2x</button>
+        </div>
         <button id="settings-btn" aria-label="Settings" title="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.6 7.6 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.6 7.6 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.6 7.6 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.6 7.6 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button>
       </div>
       <div id="trial-hud" hidden>
@@ -35,8 +39,6 @@
       </div>
       <div id="controls">
         <button id="boss" class="hot" hidden>Fight boss</button>
-        <button id="autoboss" class="toggle" hidden title="Try the boss again by itself after a minute of farming">Auto boss</button>
-        <button id="rekindle" class="ember-btn" hidden>Rekindle</button>
       </div>
       <main id="panels">
         <section class="panel" data-tab="home">
