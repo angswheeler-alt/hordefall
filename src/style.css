@@ -887,10 +887,6 @@ div.g-req { margin-bottom: 8px; }
 html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 #app { box-sizing: border-box; height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
 #app > * { flex: none; }
-/* Installed iPhone app with a short viewport (src/screenGap.ts): stretch the page and the tab bar down over the empty band. */
-html.screen-gap, html.screen-gap body { height: calc(100% + var(--screen-gap, 0px)); }
-html.screen-gap #app { height: calc(100vh + var(--screen-gap, 0px)); height: calc(100dvh + var(--screen-gap, 0px)); }
-html.screen-gap #tabbar { bottom: calc(-1 * var(--screen-gap, 0px)); }
 #app > #panels { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 /* On short screens (landscape phones, small windows) the lane shrinks so the panels keep room. */
 #stagewrap { width: min(100%, calc(55vh * 1.6)); width: min(100%, calc(55dvh * 1.6)); margin: 0 auto; }
