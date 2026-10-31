@@ -107,7 +107,7 @@
           <div class="panel-head"><h2>Relics</h2><span id="relic-slots" class="trial-tickets"></span></div>
           <div class="relic-bar"><div id="relic-ess" class="trial-ess"></div></div>
           <div data-relic-pane="mine">
-            <div class="hero-sub relic-nav"><button id="relic-buyslot" class="gem-btn small">Slot</button><button data-relic-go="shop" class="wood-btn small levelall relic-shop-btn">Buy relics</button></div>
+            <div class="hero-sub relic-nav"><button id="relic-buyslot" class="gem-btn small">Slot</button><button data-relic-go="guild" class="wood-btn small">Guild relics</button><button data-relic-go="shop" class="wood-btn small levelall relic-shop-btn">Buy relics</button></div>
             <p class="market-note">Relics can't be bought with Gems. Buy them in the Relic Shop with Trial Essence, then level them with Essence. Max one at level 20 to open relics with one more star. Equipped relics give their bonus; a set gives its bonus once you own every piece.</p>
             <div id="relics"></div>
             <p id="relics-empty" class="market-note" hidden>You have no relics yet. Tap Buy relics.</p>
@@ -116,6 +116,11 @@
             <div class="hero-sub relic-nav"><button data-relic-go="mine" class="wood-btn small">← Back</button><button data-relic-go="all" class="wood-btn small">Collection</button><button id="relic-new" class="wood-btn small">New relics</button></div>
             <p class="market-note">Relics you don't own yet, paid for with their Essence. New relics swaps the offers for new ones.</p>
             <div id="relic-shop"></div>
+          </div>
+          <div data-relic-pane="guild" hidden>
+            <div class="hero-sub relic-nav"><button data-relic-go="mine" class="wood-btn small">← Back</button><span id="guild-relic-slots" class="trial-tickets"></span></div>
+            <p class="market-note">Guild relics come only from the Guild Boss. Every Guild Boss fight and level beaten drops Warsteel; craft and level guild relics with it. They have their own 3 slots, and their bonuses multiply on top of your other relics.</p>
+            <div id="guild-relics"></div>
           </div>
           <div data-relic-pane="all" hidden>
             <div class="hero-sub relic-nav"><button data-relic-go="shop" class="wood-btn small">← Back</button></div>
