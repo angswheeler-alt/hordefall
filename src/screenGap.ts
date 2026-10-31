@@ -1,9 +1,8 @@
 /**
  * Installed iPhone app (Add to Home Screen): some iOS versions give the page a viewport that is
  * shorter than the screen, so a band of empty background shows under the bottom tab bar (user
- * report 2026-10-31, gap about the height of the status bar): 100dvh fills the screen but position:
- * fixed anchors to the shorter innerHeight. We detect that band and the CSS pins the tab bar to the
- * bottom of #app instead. Browsers and other phones get 0 and nothing changes.
+ * report 2026-10-31, gap about the height of the status bar). We measure that band and stretch the
+ * page and the tab bar down over it. Browsers and other phones get 0 and nothing changes.
  */
 export function screenGap(screenHeight: number, innerHeight: number, standalone: boolean, portrait: boolean): number {
   if (!standalone || !portrait) return 0;
