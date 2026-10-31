@@ -232,27 +232,26 @@
           <button id="sheet-next" class="icon" aria-label="Next hero">›</button>
           <button id="sheet-close" class="icon close" aria-label="Close">✕</button>
         </header>
-        <p id="sheet-bio" class="bio"></p>
         <section class="sheet-section test-tools" id="sheet-test" hidden>
           <h3>Test mode</h3>
           <div id="sheet-test-rows"></div>
         </section>
+        <nav class="sheet-tabs" role="tablist">
+          <button type="button" role="tab" data-stab="stats" class="on">Stats</button>
+          <button type="button" role="tab" data-stab="skills">Skills</button>
+          <button type="button" role="tab" data-stab="stars">Stars</button>
+        </nav>
+        <div class="sheet-pane" data-pane="stats">
         <section class="sheet-stats" id="sheet-stats"></section>
-        <section class="sheet-section">
-          <h3 class="levels-head">Levels <button id="sheet-buyamt" class="buyamt-mini">Buy x1</button></h3>
-          <div class="level-row">
-            <div><b>Gold level</b> <span id="sheet-gold-lvl"></span><div class="meta">Resets when you Rekindle.</div></div>
-            <button id="sheet-gold-up" class="gold-up"><span class="label"></span><span class="cost"></span></button>
-          </div>
-          <div class="level-row">
-            <div><b class="ember-text">Ember level</b> <span id="sheet-ember-lvl"></span><div class="meta">Stays through Rekindle. You have <b id="sheet-embers" class="ember-text"></b> Embers.</div><div id="sheet-ember-note" class="meta"></div><button id="sheet-ember-reset" class="ember-reset" hidden>Reset Embers</button></div>
-            <button id="sheet-ember-up" class="ember-up"><span class="label">Ember +1</span><span class="cost"></span></button>
-          </div>
-        </section>
+        <p id="sheet-bio" class="bio"></p>
+        </div>
+        <div class="sheet-pane" data-pane="skills" hidden>
         <section class="sheet-section">
           <h3>Abilities</h3>
           <ul id="sheet-abilities" class="abilities"></ul>
         </section>
+        </div>
+        <div class="sheet-pane" data-pane="stars" hidden>
         <section class="sheet-section">
           <h3>Evolution</h3>
           <div class="crest-row"><span id="sheet-crest-label">Hero Crests</span><span id="sheet-crests"></span></div>
@@ -275,6 +274,18 @@
           <div class="crest-bar"><div id="sheet-mote-fill"></div></div>
           <button id="sheet-awaken" class="hot evolve awaken" hidden>Awaken</button>
           <p id="sheet-awaken-note" class="meta"></p>
+        </section>
+        </div>
+        <section class="sheet-section sheet-levels">
+          <h3 class="levels-head">Levels <button id="sheet-buyamt" class="buyamt-mini">Buy x1</button></h3>
+          <div class="level-row">
+            <div><b>Gold level</b> <span id="sheet-gold-lvl"></span><div class="meta">Resets when you Rekindle.</div></div>
+            <button id="sheet-gold-up" class="gold-up"><span class="label"></span><span class="cost"></span></button>
+          </div>
+          <div class="level-row">
+            <div><b class="ember-text">Ember level</b> <span id="sheet-ember-lvl"></span><div class="meta">Stays through Rekindle. You have <b id="sheet-embers" class="ember-text"></b> Embers.</div><div id="sheet-ember-note" class="meta"></div><button id="sheet-ember-reset" class="ember-reset" hidden>Reset Embers</button></div>
+            <button id="sheet-ember-up" class="ember-up"><span class="label">Ember +1</span><span class="cost"></span></button>
+          </div>
         </section>
       </div>
     </div>

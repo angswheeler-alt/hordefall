@@ -1316,6 +1316,13 @@ export class UI {
       }
     });
     $('sheet-close').addEventListener('click', () => this.closeSheet());
+    // Hero page tabs: Stats / Skills / Stars (the level buttons stay pinned under them).
+    document.querySelector('.sheet-tabs')!.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-stab]');
+      if (!btn) return;
+      this.sheetTab = btn.dataset.stab as typeof this.sheetTab;
+      this.showSheetTab();
+    });
     $('sheet-stats').addEventListener('click', (e) => {
       const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-statpage]');
       if (!btn) return;
@@ -1500,6 +1507,17 @@ export class UI {
   private sheetHero: string | null = null;
   /** Which of the three stat pages the hero page shows. */
   private statPage = 0;
+  /** Which tab of the hero page is open. */
+  private sheetTab: 'stats' | 'skills' | 'stars' = 'stats';
+
+  private showSheetTab() {
+    for (const b of document.querySelectorAll<HTMLElement>('.sheet-tabs [data-stab]')) {
+      const on = b.dataset.stab === this.sheetTab;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-selected', String(on));
+    }
+    for (const p of document.querySelectorAll<HTMLElement>('.sheet-pane')) p.hidden = p.dataset.pane !== this.sheetTab;
+  }
 
   openSheet(id: string) {
     this.sheetHero = id;
@@ -1514,6 +1532,7 @@ export class UI {
     $('sheet-sub').textContent = heroTitle(def);
     $('sheet-bio').textContent = def.bio;
     $('sheet').hidden = false;
+    this.showSheetTab();
     this.renderSheet();
   }
 

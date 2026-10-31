@@ -1129,3 +1129,20 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 #modal.team-mode .team-help { font-size: 11px; }
 #modal.team-mode .modal-actions { margin-top: 0; }
 #modal.team-mode .modal-actions button { padding: 8px 28px; font-size: 15px; }
+
+/* Hero page (user 2026-10-31 "work on the hero info"): header, Stats / Skills / Stars tabs, and the level
+   buttons pinned at the bottom; only the open tab scrolls. */
+.sheet-card { height: 92%; overflow: hidden; gap: 8px; padding-top: 12px; }
+.sheet-card > * { flex: none; }
+.sheet-card > .sheet-pane { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 12px; padding-bottom: 4px; }
+.sheet-card > .sheet-pane[hidden] { display: none; }
+.sheet-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.sheet-tabs button { font-weight: 800; font-size: 14px; padding: 8px 6px; border-radius: 10px; border: 2px solid var(--wood-deep); background: linear-gradient(180deg, var(--plank), #222c44); color: #b8c6e8; }
+.sheet-tabs button.on { background: linear-gradient(180deg, #7ee6ee, #1f8fa6); color: #fff; text-shadow: 0 1px 1px #000; }
+.sheet-pane .bio { font-size: 13px; }
+.sheet-levels { border-top: 2px solid #3d3364; padding-top: 6px; }
+.sheet-levels .levels-head { margin-bottom: 2px; }
+.sheet-levels .level-row { padding: 4px 0; border-top: 0; }
+.sheet-levels .level-row .meta { font-size: 11px; line-height: 1.3; }
+.sheet-levels .level-row button { min-height: 46px; }
+.sheet-levels #sheet-ember-note { display: none; }
