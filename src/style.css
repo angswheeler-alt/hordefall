@@ -420,6 +420,9 @@ body.in-trial #settings-btn { display: none !important; }
 .settings-card .ico { width: 20px; height: 20px; }
 .settings-label { display: inline-flex; align-items: center; gap: 8px; flex: none; }
 /* Profile, Friends and the leaderboards sit at the top of Settings as a 2x2 grid of big buttons */
+.settings-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 16px 8px; }
+.settings-menu button { display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 10px; border: 2px solid var(--wood-deep); background: linear-gradient(180deg, var(--plank), #222c44); color: #e4eaf8; font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; box-shadow: 0 2px 0 rgba(0,0,0,.4); text-align: left; }
+.settings-menu button .ico { width: 24px; height: 24px; filter: drop-shadow(0 1px 0 rgba(0,0,0,.6)); }
 .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 16px; }
 .settings-row small { color: var(--muted); text-align: right; max-width: 70%; line-height: 1.4; }
 .settings-card .acct-card { margin: 0 16px 8px; }
@@ -779,7 +782,14 @@ div.g-req { margin-bottom: 8px; }
 .st.cp { color: var(--gold); font-weight: 700; }
 
 /* Profile, friends and leaderboards: person button under the gear, a sheet like Settings */
-.social-body { padding: 0 4px; }
+#social { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 19; padding: 16px; }
+#social[hidden] { display: none; }
+.social-card { display: flex; flex-direction: column; max-height: calc(100dvh - 32px); overflow: hidden; }
+#social-close { background: none; border: 0; color: var(--muted); font-size: 28px; line-height: 1; cursor: pointer; }
+.social-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 0 12px 8px; flex: none; }
+.social-tabs button { font-size: 12px; padding: 7px 2px; border-radius: 8px; }
+.social-tabs button.on { background: var(--hot); color: #1b1530; font-weight: 800; }
+.social-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 12px 12px; }
 .social-body p { color: var(--muted); font-size: 13px; line-height: 1.45; }
 .sp-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 4px 0 8px; }
 .sp-head b { font-size: 18px; }
@@ -906,7 +916,25 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .pm-total.foes { color: #ff9a8a; padding-top: 2px; }
 @media (prefers-reduced-motion: reduce) { .pm-bar i { transition: none; } }
 
-/* ---------- Home tab ---------- */
+/* Battle tab hub: one big card per mode, each opening its own page */
+.mode-card { position: relative; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 2px; width: 100%; min-height: 112px; margin: 0 0 10px; padding: 10px 14px; border: 4px solid var(--wood-deep); border-radius: 10px; box-shadow: inset 0 0 0 2px rgba(255,255,255,.12), 0 3px 0 #0c0f18; overflow: hidden; text-align: left; color: #fff; cursor: pointer; font: inherit; }
+.mode-card:active { transform: translateY(1px); }
+.mode-card.trials { background: radial-gradient(ellipse at 22% 30%, rgba(160,30,60,.35), transparent 45%), linear-gradient(180deg, #2a1a4a, #140d28); }
+.mode-card.arena { background: linear-gradient(90deg, rgba(40,90,200,.55), rgba(0,0,0,.05) 45%, rgba(0,0,0,.05) 55%, rgba(200,40,40,.55)), var(--art, none), #354468; image-rendering: pixelated; }
+.mode-title { position: relative; z-index: 1; font-size: 26px; font-weight: 900; line-height: 1.1; text-shadow: 0 2px 0 #131927, 0 0 3px #131927, 2px 0 0 #131927, -2px 0 0 #131927; }
+.mode-note { position: relative; z-index: 1; font-size: 13px; font-weight: 800; color: #e4eaf8; text-shadow: 0 1px 2px #000, 0 0 2px #000; }
+.mode-count { position: absolute; top: 8px; left: 12px; z-index: 1; display: inline-flex; align-items: center; gap: 6px; font-size: 17px; text-shadow: 0 1px 2px #000, 0 0 2px #000; }
+.mode-count .pvp-ticket { background: linear-gradient(180deg, #ff7b6b, #b3261c); border-color: #4a0a05; }
+.mode-orbs { position: absolute; top: 0; right: 10px; bottom: 0; display: flex; align-items: center; gap: 10px; }
+.mode-orb { width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(0,0,0,.5); background: radial-gradient(circle at 35% 30%, #fff 0 12%, var(--c) 45%, color-mix(in srgb, var(--c) 55%, #000)); box-shadow: 0 0 10px 3px var(--c), 0 0 26px 6px color-mix(in srgb, var(--c) 45%, transparent); }
+.mode-orb.fire { --c: #ff5a3a; } .mode-orb.earth { --c: #5fd04a; } .mode-orb.water { --c: #3fa8ff; } .mode-orb.light { --c: #ffd84a; } .mode-orb.dark { --c: #a24aff; }
+.mode-trophy { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; transform: translate(-50%, -55%); filter: drop-shadow(0 0 10px rgba(255,220,100,.8)) drop-shadow(0 2px 0 #131927); }
+.mode-alert { position: absolute; right: 10px; bottom: 10px; z-index: 1; width: 24px; height: 24px; border-radius: 50%; background: #e3261c; border: 2px solid #fff; color: #fff; font-style: normal; font-weight: 900; font-size: 15px; display: grid; place-items: center; }
+.mode-alert[hidden] { display: none; }
+[data-battle-pane] > .trial-back { margin: 0 4px 8px; }
+@media (max-width: 380px) { .mode-orbs { gap: 6px; } .mode-orb { width: 16px; height: 16px; } .mode-title { font-size: 22px; } }
+
+/* ---------- Home panel (shows under the battle when no tab is open) ---------- */
 .home-top { display: flex; gap: 8px; align-items: stretch; }
 .home-offline { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .home-offline h3 { margin: 0 0 4px; color: var(--orange); font-size: 15px; }
