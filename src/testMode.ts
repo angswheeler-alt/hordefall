@@ -3,6 +3,7 @@ import { MAX_FORM } from './ascendant';
 import { ascendantDef, isAscendant } from './heroes/ascendant';
 import { GameState } from './state';
 import { TEST_MODE_FLAG, TEST_SAVE_KEY } from './config';
+import { WEAPON_MAX_LEVEL } from './weapons';
 
 /**
  * Admin test mode: try heroes at any stars, levels and forms on a copy of the
@@ -12,7 +13,7 @@ import { TEST_MODE_FLAG, TEST_SAVE_KEY } from './config';
  */
 
 /** What the hero page's test controls can change. */
-export type TestField = 'stars' | 'awaken' | 'level' | 'ember' | 'form';
+export type TestField = 'stars' | 'awaken' | 'level' | 'ember' | 'form' | 'weapon';
 
 /** Highest gold or Ember level the test controls go to. */
 export const TEST_LEVEL_MAX = 100000;
@@ -30,6 +31,8 @@ export function testRange(state: GameState, id: string, field: TestField): [numb
       return [0, TEST_LEVEL_MAX];
     case 'form':
       return isAscendant(id) ? [0, MAX_FORM] : [0, 0];
+    case 'weapon':
+      return [1, WEAPON_MAX_LEVEL];
   }
 }
 
@@ -46,6 +49,8 @@ export function testValue(state: GameState, id: string, field: TestField): numbe
       return state.emberLevels[id] ?? 0;
     case 'form':
       return state.formOf(id);
+    case 'weapon':
+      return state.weaponLevel(id);
   }
 }
 
@@ -66,6 +71,7 @@ export function testSet(state: GameState, id: string, field: TestField, value: n
   else if (field === 'awaken') state.awaken[id] = v;
   else if (field === 'level') state.levels[id] = v;
   else if (field === 'ember') state.emberLevels[id] = v;
+  else if (field === 'weapon') state.weapons[id] = v;
   else state.forms[id] = v;
   if (field === 'stars') {
     // Fewer yellow stars hold fewer pink ones.
@@ -82,10 +88,11 @@ export function testAdjust(state: GameState, id: string, field: TestField, delta
   return testSet(state, id, field, testValue(state, id, field) + delta);
 }
 
-/** Top stars, all pink stars and the last form; levels are left alone. */
+/** Top stars, all pink stars, max weapon and the last form; levels are left alone. */
 export function testMaxHero(state: GameState, id: string) {
   testSet(state, id, 'stars', state.maxStars(id));
   testSet(state, id, 'awaken', MAX_AWAKEN);
+  testSet(state, id, 'weapon', WEAPON_MAX_LEVEL);
   if (isAscendant(id)) testSet(state, id, 'form', MAX_FORM);
 }
 
