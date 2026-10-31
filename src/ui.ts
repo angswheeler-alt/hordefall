@@ -4,7 +4,7 @@ import { testAdjust, testMaxAll, testMaxHero, testRange, testRecruit, testValue,
 import Decimal from 'break_infinity.js';
 import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { GUILD_BOSS_SECONDS, HEROES, byRarity, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_BULK, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, trialFirstWin, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, elementMultiplier, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { GUILD_BOSS_SECONDS, HEROES, byRarity, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_BULK, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, trialFirstWin, ESSENCE_NAMES, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, elementMultiplier, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicEffect, type GuildRelicDef, type GuildRelicEffect } from './guildRelics';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
@@ -23,6 +23,7 @@ import type { BattleScene, GuildBossFightSetup } from './BattleScene';
 /** The note under the battle screen's title during a Trial (the HTML default). */
 const TRIAL_HUD_NOTE = 'Your team fights at its Ember levels. Fallen heroes stay down until the Trial ends. Beat the boss before time runs out.';
 import type { ColosseumLink } from './colosseumLink';
+import { OBSERVATORY, OBSERVATORY_RESPEC_GEMS, sigilCost, type ObsBranch } from './observatory';
 import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_QUICK_CP, RANK_DAILY, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies } from './colosseum';
 
 import { busyWhile, setHtml } from './taps';
@@ -1091,6 +1092,37 @@ export class UI {
       this.state.save();
       this.renderRekindle();
     });
+    $('home-obs').addEventListener('click', () => this.openObservatory());
+    $('obs-close').addEventListener('click', () => ($('obs').hidden = true));
+    $('obs').addEventListener('click', (e) => {
+      if (e.target === $('obs')) $('obs').hidden = true;
+    });
+    $('obs-list').addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-obs]');
+      if (!btn || btn.disabled) return;
+      const id = btn.dataset.obs as ObsBranch;
+      const ok = btn.dataset.act === 'buy' ? this.state.buyObservatory(id) : this.state.toggleObservatory(id);
+      if (!ok) return;
+      play(btn.dataset.act === 'buy' ? 'unlock' : 'coin');
+      this.renderObservatory();
+      this.render();
+    });
+    $('obs-respec').addEventListener('click', () => {
+      const s = this.state;
+      this.showModal(
+        'Take back all Sigils?',
+        `<p>Every Sigil comes back out of the Observatory so you can place them again. Costs ${OBSERVATORY_RESPEC_GEMS} Gems (you have ${s.gems.toLocaleString()}).</p>`,
+        `Take back · ${OBSERVATORY_RESPEC_GEMS} Gems`,
+        () => {
+          if (!s.respecObservatory()) return;
+          play('coin');
+          this.renderObservatory();
+          this.render();
+        },
+        s.gems >= OBSERVATORY_RESPEC_GEMS,
+        'Cancel',
+      );
+    });
     $('rk-close').addEventListener('click', () => this.closeRekindle());
     $('rk').addEventListener('click', (e) => {
       if (e.target === $('rk')) this.closeRekindle();
@@ -1411,6 +1443,7 @@ export class UI {
         if (!$<HTMLButtonElement>('modal-ok').disabled) $('modal-ok').click();
       } else if (!$('settings').hidden) $('settings-close').click();
       else if (!$('rk').hidden) this.closeRekindle();
+      else if (!$('obs').hidden) $('obs').hidden = true;
       else if (this.sheetHero) this.closeSheet();
       else if (!$('coll').hidden) this.closeCollection();
     });
@@ -1864,7 +1897,7 @@ export class UI {
     const ss = String(wait % 60).padStart(2, '0');
     const stash = s.boughtTickets ? ` <span class="tr-stash" title="Bought tickets, used after the free ones">+${s.boughtTickets} bought</span>` : '';
     const event = s.trialEventOn() ? ' <span class="tr-event">x2 crests today</span>' : '';
-    setHtml($('tr-tickets'), `<i class="ticket"></i>${s.tickets}/${TICKET_CAP}${stash} ${wait ? `<small>next ${mm}:${ss}</small>` : '<small>(Maxed)</small>'}${event}`);
+    setHtml($('tr-tickets'), `<i class="ticket"></i>${s.tickets}/${s.ticketCap()}${stash} ${wait ? `<small>next ${mm}:${ss}</small>` : '<small>(Maxed)</small>'}${event}`);
     const open = s.openTrials();
     const unlocked = s.trialsUnlocked();
     // A Trial that closed at midnight (or was never open) drops back to the list.
@@ -2372,7 +2405,7 @@ export class UI {
     const s = this.state;
     const open = s.openTrials();
     const trialsOn = s.trialsUnlocked();
-    $('hub-tr-tickets').textContent = `${s.tickets}/${TICKET_CAP}${s.boughtTickets ? ` +${s.boughtTickets}` : ''}`;
+    $('hub-tr-tickets').textContent = `${s.tickets}/${s.ticketCap()}${s.boughtTickets ? ` +${s.boughtTickets}` : ''}`;
     const all = open.length === TRIAL_ROTATION.length ? 'all elements' : open.map(cap).join(', ');
     $('hub-tr-note').textContent = trialsOn ? (open.length ? `${s.trialEventOn() ? 'x2 crests! ' : ''}Open today: ${all}` : 'None open today') : 'Opens after the stage 50 boss';
     $('hub-tr-alert').hidden = !(trialsOn && open.length && s.trialTickets() > 0);
@@ -2393,6 +2426,39 @@ export class UI {
     $('rk').hidden = true;
   }
 
+  private openObservatory() {
+    if (!this.state.observatoryOpen()) return;
+    this.renderObservatory();
+    $('obs').hidden = false;
+  }
+
+  /** The Observatory: five constellations bought with Sigils (observatory.ts). */
+  private renderObservatory() {
+    const s = this.state;
+    const sigils = s.sigils();
+    $('obs-sigils').textContent = sigils.toLocaleString();
+    $('obs-earn').textContent = `You earn 1 Sigil from every Rekindle and every player level (${s.sigilsEarned().toLocaleString()} so far). Each rank costs 1 more Sigil than the last.`;
+    const star = '<svg class="obs-star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.6 6.6L21 9.3l-5 4.4 1.5 6.8L12 17l-5.5 3.5L8 13.7 3 9.3l6.4-.7z"/></svg>';
+    setHtml(
+      $('obs-list'),
+      OBSERVATORY.map((d) => {
+        const rank = s.obsRank(d.id);
+        const off = s.obsOff.includes(d.id);
+        const maxed = rank >= d.max;
+        const cost = sigilCost(rank);
+        const now = rank > 0 ? `<b>${d.text(rank)}</b>${off ? ' (off)' : ''}` : 'Not started';
+        const next = maxed ? 'Fully charted' : `Next: ${d.text(rank + 1)}`;
+        const pips = Array.from({ length: d.max }, (_, i) => `<i class="${i < rank ? 'on' : ''}"></i>`).join('');
+        const buy = maxed ? '' : `<button class="obs-buy" data-obs="${d.id}" data-act="buy" ${sigils < cost ? 'disabled' : ''}>+1 · ${cost} Sigil${cost === 1 ? '' : 's'}</button>`;
+        const toggle = rank > 0 ? `<button class="toggle${off ? '' : ' on'}" data-obs="${d.id}" data-act="toggle">${off ? 'Off' : 'On'}</button>` : '';
+        return `<div class="obs-row${off ? ' off' : ''}${rank ? '' : ' empty'}" style="--c:${d.color}">${star}<div class="obs-name">${d.name}<small>${rank}/${d.max}</small></div><div class="obs-btns">${buy}${toggle}</div><div class="obs-fx">${now}<br>${next}<div class="obs-pips">${pips}</div></div></div>`;
+      }).join(''),
+    );
+    const any = OBSERVATORY.some((d) => s.obsRank(d.id) > 0);
+    $<HTMLButtonElement>('obs-respec').disabled = !any || s.gems < OBSERVATORY_RESPEC_GEMS;
+    $('obs-respec').textContent = `Take back all Sigils · ${OBSERVATORY_RESPEC_GEMS} Gems`;
+  }
+
   private renderRekindle() {
     const s = this.state;
     const base = s.pendingEmbers();
@@ -2401,6 +2467,10 @@ export class UI {
     const stageBonus = emberStageBonus(s.runBestStage, REKINDLE_STAGE);
     $('rk-stagebonus').textContent = `x${stageBonus < 100 ? stageBonus.toFixed(2) : fmt(stageBonus)}`;
     $('rk-keeperbonus').textContent = `x${s.keeperBonus().toFixed(2)}`;
+    const lens = s.obsBonus('embers');
+    $('rk-obs-row').hidden = $('rk-obsbonus').hidden = lens <= 0;
+    $('rk-obsbonus').textContent = `x${(1 + lens).toFixed(2)}`;
+    $('rk-sigils').textContent = `+${1 + s.keeperLevelAfter(base) - s.keeperLevel()}`;
 
     const plus = (r: number) => `+${Math.round(r * 100)}%`;
     $('rk-mr-rev').textContent = `${plus(STALL_REKINDLE_REVENUE * s.rekindles)} → ${plus(STALL_REKINDLE_REVENUE * (s.rekindles + 1))}`;
@@ -2421,7 +2491,7 @@ export class UI {
     const to = keeperThreshold(level);
     const pct = (v: number) => `${Math.max(0, Math.min(100, ((v - from) / (to - from)) * 100))}%`;
     $('rk-level').textContent = String(level);
-    $('rk-nextlvl').textContent = `Lv ${level + 1}: Embers x${(s.keeperBonus() + KEEPER_BONUS_PER_LEVEL).toFixed(2)} + 🎁 ${LEVEL_GIFT_STONES} Enhance Stones`;
+    $('rk-nextlvl').textContent = `Lv ${level + 1}: Embers x${(s.keeperBonus() + KEEPER_BONUS_PER_LEVEL).toFixed(2)} + 🎁 ${LEVEL_GIFT_STONES} Enhance Stones + 1 Sigil`;
     $('rk-bar-fill').style.width = pct(s.lifetimeEmbers);
     $('rk-bar-gain').style.width = pct(s.lifetimeEmbers + base);
     $('rk-bar-now').textContent = `Lifetime Embers: ${fmt(s.lifetimeEmbers)}`;
@@ -2751,7 +2821,7 @@ export class UI {
     gb.disabled = !s.goldBoostReady(now);
     setHtml(gb, `${GOLD_BOOST_GEMS} <span class="gem"></span>`);
     const can = s.ticketsBuyable(now);
-    $('gs-tickets-note').textContent = `${TICKET_GEMS} Gems each into your bought stash (up to ${BOUGHT_TICKET_CAP}), kept apart from the ${TICKET_CAP} free ones. ${s.ticketBuysLeft(now)}/${TICKETS_PER_DAY} left today. Stash: ${s.boughtTickets}.`;
+    $('gs-tickets-note').textContent = `${TICKET_GEMS} Gems each into your bought stash (up to ${BOUGHT_TICKET_CAP}), kept apart from the ${s.ticketCap()} free ones. ${s.ticketBuysLeft(now)}/${TICKETS_PER_DAY} left today. Stash: ${s.boughtTickets}.`;
     for (const n of [1, 5]) {
       const b = $<HTMLButtonElement>(`gs-ticket${n}`);
       b.disabled = can < n;
@@ -2770,6 +2840,13 @@ export class UI {
       this.offlineAt = now;
       $('home-offline').textContent = s.maxOfflineStage().toLocaleString();
       $('home-offline-note').textContent = s.autoAdvance ? `In ${OFFLINE_CAP_HOURS} h away, from stage ${s.stage.toLocaleString()}` : 'Auto-advance is off';
+    }
+
+    const obsOn = s.observatoryOpen();
+    $('home-obs').hidden = !obsOn;
+    if (obsOn) {
+      $('home-obs-sigils').textContent = s.sigils().toLocaleString();
+      $('home-obs-note').textContent = 'Spend Sigils on lasting buffs';
     }
 
     // Run stats sit at the bottom of the home panel.
@@ -2877,9 +2954,13 @@ export class UI {
       ? `<br>The Rekindle Wheel spun ${r.wheel.length} time${r.wheel.length === 1 ? '' : 's'}: ${[...counts].map(([line, n]) => (n > 1 ? `${line} x${n}` : line)).join(', ')}.`
       : '';
     const gift = r.levelsGained > 0 ? `<br>Player level up! Your gift: <b>${r.stones} Enhance Stones</b>.` : '';
+    const sigils = 1 + r.levelsGained;
+    const obs = this.state.rekindles === 1
+      ? `<br><b>The Observatory is open!</b> You got ${sigils} Sigils to place in it. Find it on the home screen.`
+      : `<br>+${sigils} Sigil${sigils === 1 ? '' : 's'} for the Observatory.`;
     this.showModal(
       'Rekindled!',
-      `You earned <b class="ember-text">${fmt(r.embers)} Embers</b>.${wheel}${gift}<br>Tap any hero to spend Embers on Ember levels. Those levels stay through every Rekindle, so each run starts stronger.`,
+      `You earned <b class="ember-text">${fmt(r.embers)} Embers</b>.${wheel}${gift}${obs}<br>Tap any hero to spend Embers on Ember levels. Those levels stay through every Rekindle, so each run starts stronger.`,
       r.start > 1 ? `Start at stage ${r.start.toLocaleString()}` : 'Start the new run',
     );
   }
@@ -2968,6 +3049,7 @@ export class UI {
     $('devtools').hidden = !devToolsOn();
     // The Rekindle page stays live: the run keeps going behind it.
     if (!$('rk').hidden) this.renderRekindle();
+    if (!$('obs').hidden) this.renderObservatory();
     if (!$('coll').hidden) this.renderCollection();
     const s = this.state;
     $('gold').textContent = fmt(s.gold);
@@ -3062,7 +3144,7 @@ export class UI {
     this.badge('market', this.renderMarket());
     this.renderRelics(); // no red dot for relic upgrades or free slots (user 2026-10-31)
     this.badge('relics', false);
-    this.badge('battle', s.rekindles > 0 && s.tickets >= TICKET_CAP);
+    this.badge('battle', s.rekindles > 0 && s.tickets >= s.ticketCap());
     this.badge('heroes', heroesBadge || teamReady);
     $('collection-btn').classList.toggle('ready', teamReady);
     if (this.tab === 'shop') s.seeHeroShop();

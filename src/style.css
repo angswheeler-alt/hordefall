@@ -149,8 +149,8 @@ button.evolve { width: 100%; margin: 4px 0 8px; }
 button.link { background: none; border: none; padding: 4px 0 0; color: var(--ember); font-size: 12px; text-decoration: underline; }
 button.link[disabled] { display: none; }
 
-/* Rekindle rewards page */
-#rk { position: fixed; inset: 0; z-index: 15; background: rgba(8,4,20,.75); display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; }
+/* Rekindle rewards page (the Observatory reuses its card) */
+#rk, #obs { position: fixed; inset: 0; z-index: 15; background: rgba(8,4,20,.75); display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; }
 .rk-card { position: relative; width: 100%; max-width: 420px; margin: auto; background: linear-gradient(180deg, #3a2a5e, var(--panel)); border: 1px solid #5a4890; border-radius: 18px; padding: 44px 18px 18px; }
 .rk-close { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; padding: 0; border-radius: 10px; font-size: 16px; }
 .rk-badge { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); width: 60px; height: 60px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #ffb36b, var(--ember) 55%, #435888); border: 3px solid var(--bg); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 18px rgba(255,138,61,.6); }
@@ -1152,3 +1152,37 @@ i.warsteel, .relic-cost i.warsteel { border: 0; border-radius: 0; display: inlin
 .guild-relic.on { border-color: var(--gold); }
 #guild-relic-slots { display: inline-flex; align-items: center; margin-left: auto; }
 .tr-quickall { width: 100%; min-height: 40px; margin: 0 0 8px; }
+
+/* Observatory (personal star chart) */
+.obs-card { background: radial-gradient(circle at 20% 10%, rgba(255,255,255,.06) 1px, transparent 2px) 0 0/22px 22px, radial-gradient(circle at 70% 60%, rgba(255,255,255,.05) 1px, transparent 2px) 0 0/31px 31px, linear-gradient(180deg, #1c2550, var(--panel)); border-color: #4a5fa8; }
+.obs-badge { background: radial-gradient(circle at 40% 35%, #c9d8ff, #6f8cff 55%, #2a356e); box-shadow: 0 0 18px rgba(120,150,255,.6); }
+.obs-sigils { display: flex; align-items: baseline; gap: 8px; }
+.obs-sigils b { font-size: 28px; color: #c9d8ff; font-variant-numeric: tabular-nums; }
+.obs-sigils span { color: var(--muted); font-size: 13px; }
+.obs-list { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 4px; }
+.obs-row { display: grid; grid-template-columns: 34px 1fr auto; gap: 4px 10px; align-items: center; padding: 10px; border-radius: 12px; background: rgba(10,14,36,.55); border: 1px solid #34407a; }
+.obs-row.off { opacity: .6; }
+.obs-star { width: 34px; height: 34px; grid-row: span 2; }
+.obs-star path { fill: var(--c); filter: drop-shadow(0 0 4px var(--c)); }
+.obs-row.empty .obs-star path { fill: #2a3260; filter: none; stroke: var(--c); stroke-width: 1.2; }
+.obs-name { font-weight: 800; font-size: 14px; display: flex; gap: 6px; align-items: baseline; min-width: 0; }
+.obs-name small { color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
+.obs-fx { font-size: 12px; color: var(--muted); line-height: 1.35; grid-column: 2; }
+.obs-fx b { color: #e4eaf8; font-weight: 700; }
+.obs-pips { display: flex; gap: 2px; margin-top: 3px; }
+.obs-pips i { flex: 1; height: 4px; border-radius: 2px; background: #2a3260; }
+.obs-pips i.on { background: var(--c); }
+.obs-btns { grid-column: 3; grid-row: 1 / span 2; display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+.obs-btns button { font-size: 12px; padding: 6px 10px; white-space: nowrap; }
+.obs-buy { background: #2c3d86; border-color: #6f8cff; color: #e6ecff; font-weight: 800; }
+.obs-respec { width: 100%; margin-top: 10px; }
+.obs-home { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: linear-gradient(180deg, #24306a, #1a2246); border-color: #4a5fa8; }
+.obs-home-star { width: 30px; height: 30px; flex: none; background: radial-gradient(circle, #e6ecff 0 2px, #8aa2ff 3px, transparent 9px), radial-gradient(circle at 80% 20%, #c9d8ff 0 1px, transparent 2px), radial-gradient(circle at 15% 80%, #c9d8ff 0 1px, transparent 2px); border-radius: 50%; }
+.obs-home-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.obs-home-text b { font-size: 16px; }
+.obs-home-text small { color: var(--muted); font-size: 12px; }
+.obs-home-count { display: flex; flex-direction: column; align-items: center; }
+.obs-home-count b { font-size: 20px; color: #c9d8ff; font-variant-numeric: tabular-nums; }
+.obs-home-count small { font-size: 11px; color: var(--muted); }
+.obs-badge::before { display: none; }
+.obs-badge svg { display: block !important; width: 32px; height: 32px; fill: #f4f7ff; filter: drop-shadow(0 0 4px #9fb6ff); }

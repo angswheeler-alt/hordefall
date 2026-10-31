@@ -55,6 +55,11 @@
             <p id="ms-next" class="ms-next"></p>
             <button id="ms-claim" class="hot rw-wide">Claim</button>
           </div>
+          <button id="home-obs" class="rw-card obs-home" hidden>
+            <span class="obs-home-star" aria-hidden="true"></span>
+            <span class="obs-home-text"><b>Observatory</b><small id="home-obs-note"></small></span>
+            <span class="obs-home-count"><b id="home-obs-sigils"></b><small>Sigils</small></span>
+          </button>
           <div class="rw-card">
             <h3>Daily challenges <small id="daily-note"></small></h3>
             <ul id="daily-list" class="rw-list"></ul>
@@ -313,6 +318,8 @@
             <dt>Best stage this run</dt><dd id="rk-stage"></dd>
             <dt>Stage bonus</dt><dd id="rk-stagebonus"></dd>
             <dt>Player bonus</dt><dd id="rk-keeperbonus"></dd>
+            <dt id="rk-obs-row">Ember Lens</dt><dd id="rk-obsbonus"></dd>
+            <dt>Observatory Sigils</dt><dd id="rk-sigils"></dd>
           </dl>
         </section>
         <section>
@@ -338,6 +345,18 @@
         <label id="rk-head" class="rk-head" hidden><input id="rk-head-on" type="checkbox" /><span id="rk-head-text"></span></label>
         <p id="rk-reset-note" class="rk-note">You go back to stage 1 and every hero drops to gold level 1. Embers, Ember levels, stars and Gems stay.</p>
         <div id="rk-buttons" class="rk-buttons"></div>
+      </div>
+    </div>
+    <div id="obs" hidden>
+      <div class="rk-card obs-card" role="dialog" aria-modal="true" aria-labelledby="obs-title">
+        <button id="obs-close" class="rk-close" aria-label="Close">&#x2715;</button>
+        <div class="rk-badge obs-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2l2.6 6.6L21 9.3l-5 4.4 1.5 6.8L12 17l-5.5 3.5L8 13.7 3 9.3l6.4-.7z"/></svg></div>
+        <h2 id="obs-title">Observatory</h2>
+        <div class="obs-sigils"><b id="obs-sigils"></b><span>Sigils to place</span></div>
+        <p id="obs-earn" class="rk-note"></p>
+        <div id="obs-list" class="obs-list"></div>
+        <p class="rk-note">Switch a constellation off any time for free; its Sigils stay in it. Taking every Sigil back out costs Gems.</p>
+        <button id="obs-respec" class="gem-btn obs-respec"></button>
       </div>
     </div>
     <div id="social" hidden>
