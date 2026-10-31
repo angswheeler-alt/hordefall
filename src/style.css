@@ -1092,3 +1092,40 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 /* A tap that waits on the server (guild, friends, Colosseum) pulses until the answer comes back. */
 .busy { pointer-events: none; cursor: progress; animation: busy-pulse .8s ease-in-out infinite alternate; }
 @keyframes busy-pulse { from { opacity: 1; } to { opacity: .55; } }
+
+/* Manage Team, compact (user 2026-10-31 "remodel the manage team section"): a slimmer header, the team as
+   one row of small faces, and smaller hero cards so many more heroes fit on screen. */
+#modal.team-mode { padding-top: max(10px, env(safe-area-inset-top, 0px)); padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
+#modal.team-mode .card { max-width: 520px; padding: 10px 10px 8px; height: 100%; max-height: none; }
+#modal.team-mode h2 { font-size: 18px; margin: 2px 40px 2px; }
+#modal.team-mode .tm-x { top: 6px; right: 6px; width: 30px; height: 30px; font-size: 14px; }
+#modal.team-mode .tm-total { margin: 0 0 6px; font-size: 12px; }
+#modal.team-mode .tm-hint { margin: 0 0 6px; font-size: 11px; }
+#modal.team-mode .tm-slots { display: flex; gap: 4px; overflow-x: auto; margin-bottom: 6px; padding-bottom: 2px; scrollbar-width: none; }
+#modal.team-mode .tm-slots::-webkit-scrollbar { display: none; }
+#modal.team-mode .tm-slot { flex: 0 0 52px; padding: 3px 1px; border-radius: 8px; gap: 1px; }
+#modal.team-mode .tm-slot .face { width: 34px; height: 34px; border-radius: 7px; }
+#modal.team-mode .tm-slot small { font-size: 9px; }
+#modal.team-mode .tm-ult-badge { font-size: 7px; top: 1px; right: 1px; }
+#modal.team-mode .tm-summary { flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; margin: 0 0 4px; font-size: 10px; scrollbar-width: none; }
+#modal.team-mode .tm-summary::-webkit-scrollbar { display: none; }
+#modal.team-mode .tm-ults { margin: 0 0 6px; font-size: 11px; }
+#modal.team-mode .tm-ult-choose, #modal.team-mode .tm-ult-buy { font-size: 11px; padding: 3px 8px; }
+#modal.team-mode .tm-tools { margin-bottom: 6px; }
+#modal.team-mode .tm-tools button { font-size: 12px; padding: 6px 8px; }
+#modal.team-mode .tm-chips { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; margin-bottom: 6px; scrollbar-width: none; }
+#modal.team-mode .tm-chips::-webkit-scrollbar { display: none; }
+#modal.team-mode .tm-chip { flex: none; font-size: 11px; padding: 3px 10px; }
+#modal.team-mode .tm-grid { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 4px; }
+#modal.team-mode .tm-card { padding: 4px 2px 3px; border-radius: 8px; gap: 0; }
+#modal.team-mode .tm-card .face { width: 36px; height: 36px; border-radius: 7px; margin-bottom: 1px; }
+#modal.team-mode .tm-card b.tm-name { font-size: 11px; }
+#modal.team-mode .tm-card b.tm-name.r-rare { color: #5cc4ff !important; }
+#modal.team-mode .tm-card b.tm-name.r-epic { color: #c06bff !important; }
+#modal.team-mode .tm-card b.tm-name.r-legendary { color: #ffa62b !important; }
+#modal.team-mode .tm-card small { font-size: 10px; line-height: 1.25; }
+#modal.team-mode .tm-card.on::after { font-size: 8px; top: 2px; right: 2px; padding: 0 2px; }
+#modal.team-mode .tm-edge { font-size: 8px; }
+#modal.team-mode .team-help { font-size: 11px; }
+#modal.team-mode .modal-actions { margin-top: 0; }
+#modal.team-mode .modal-actions button { padding: 8px 28px; font-size: 15px; }
