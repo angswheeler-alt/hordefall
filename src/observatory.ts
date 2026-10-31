@@ -23,7 +23,7 @@ export interface ObsDef {
 const pct = (v: number) => `${Math.round(v * 1000) / 10}%`;
 
 export const OBSERVATORY: ObsDef[] = [
-  { id: 'embers', name: 'Ember Lens', color: '#5aa8ff', per: 0.05, max: 20, text: (r) => `+${pct(0.05 * r)} Embers from every Rekindle` },
+  { id: 'embers', name: 'Ember Lens', color: '#5aa8ff', per: 0.1, max: 20, text: (r) => `+${pct(0.1 * r)} Embers from every Rekindle` },
   { id: 'speed', name: 'Swift Comet', color: '#6be08a', per: 0.025, max: 10, text: (r) => `+${pct(0.025 * r)} battle speed` },
   { id: 'offline', name: 'Dreaming Moon', color: '#ffd34a', per: 0.05, max: 10, text: (r) => `+${pct(0.05 * r)} offline progress (gold and stages)` },
   { id: 'tickets', name: 'Pilgrim Star', color: '#b77dff', per: 1, max: 10, text: (r) => `+${r} Trial ticket cap` },

@@ -63,7 +63,7 @@ describe('Observatory', () => {
     s.buyObservatory('embers');
     s.buyObservatory('embers');
     expect(before).toBeGreaterThan(100);
-    expect(s.pendingEmbers() / before).toBeCloseTo(1.1, 2);
+    expect(s.pendingEmbers() / before).toBeCloseTo(1.2, 2);
   });
 
   it('Pilgrim Star raises the Trial ticket cap, and refills fill to it', () => {
