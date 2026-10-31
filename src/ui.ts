@@ -2922,7 +2922,8 @@ export class UI {
       const benched = !locked && !s.inLineup(r.def.id);
       r.root.classList.toggle('benched', benched);
       r.ember.textContent = benched ? '· Benched' : canEvolve ? '· Ready to evolve!' : s.embers >= emberCost(emberLevel) ? '· Embers ready' : '';
-      if (!benched && (canEvolve || (s.embers > 0 && s.embers >= emberCost(emberLevel)))) heroesBadge = true;
+      // Red dot only for a free action (user 2026-10-31): Embers to spend no longer light it.
+      if (!benched && canEvolve) heroesBadge = true;
       const { levels, cost } = bulkCost(r.def, level, s.buyAmount, s.gold, s.levelCostMult());
       const shown = levels > 0 ? { levels, cost } : bulkCost(r.def, level, 1, s.gold, s.levelCostMult());
       if (locked) {
@@ -2947,7 +2948,8 @@ export class UI {
     }
 
     this.badge('market', this.renderMarket());
-    this.badge('relics', this.renderRelics());
+    this.renderRelics(); // no red dot for relic upgrades or free slots (user 2026-10-31)
+    this.badge('relics', false);
     this.badge('battle', s.rekindles > 0 && s.tickets >= TICKET_CAP);
     this.badge('heroes', heroesBadge || teamReady);
     $('collection-btn').classList.toggle('ready', teamReady);
