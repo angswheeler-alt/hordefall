@@ -129,6 +129,9 @@ describe('offline earnings', () => {
 
   it('is capped and stops one stage before a boss the team cannot beat', () => {
     const s = fresh();
+    s.levels.brine = 30;
+    expect(s.canClearStage(49)).toBe(true);
+    expect(s.canBeatBoss(50).won).toBe(false);
     s.goldPerSec = 10;
     s.secondsPerStage = 1;
     s.stage = 3;
@@ -146,10 +149,13 @@ describe('offline earnings', () => {
     s.stage = 3;
     expect(s.canBeatBoss(100).won).toBe(true);
     expect(s.canBeatBoss(150).won).toBe(false);
+    expect(s.canClearStage(133)).toBe(true);
+    expect(s.canClearStage(134)).toBe(false);
     const r = s.applyOffline(1e9)!;
     expect(r.bosses).toBe(2);
-    expect(s.stage).toBe(149);
-    expect(r.stages).toBe(146);
+    // Past the stage 100 boss, it stops on the last normal stage the team can clear.
+    expect(s.stage).toBe(133);
+    expect(r.stages).toBe(130);
   });
 
   it('maxOfflineStage shows where a full offline stretch would stop, without moving', () => {
@@ -158,10 +164,35 @@ describe('offline earnings', () => {
     for (const h of HEROES) s.levels[h.id] = team.includes(h) ? 100 : 0;
     s.secondsPerStage = 1;
     s.stage = 3;
-    expect(s.maxOfflineStage()).toBe(149);
+    expect(s.maxOfflineStage()).toBe(133);
     expect(s.stage).toBe(3);
     s.autoAdvance = false;
     expect(s.maxOfflineStage()).toBe(3);
+  });
+
+  it('never pushes a team past a normal stage it cannot clear', () => {
+    const s = fresh();
+    s.secondsPerStage = 1;
+    s.stage = 20;
+    expect(s.canClearStage(21)).toBe(false);
+    const r = s.applyOffline(1e9)!;
+    expect(r.stages).toBe(0);
+    expect(s.stage).toBe(20);
+    s.levels.brine = 20;
+    s.applyOffline(1e9);
+    expect(s.stage).toBeGreaterThan(30);
+    expect(s.stage).toBeLessThan(49);
+    expect(s.canClearStage(s.stage)).toBe(true);
+    expect(s.canClearStage(s.stage + 1)).toBe(false);
+  });
+
+  it('pays at least what the stage pays, even with no recent gold rate', () => {
+    const s = fresh();
+    s.goldPerSec = 0;
+    s.stage = 19;
+    const r = s.applyOffline(3600)!;
+    expect(r.gold.gt(0)).toBe(true);
+    expect(r.gold.toNumber()).toBeCloseTo(s.goldFor(60).toNumber(), 6);
   });
 
   it('does not beat a boss without enough time left, or with a team that is too weak', () => {

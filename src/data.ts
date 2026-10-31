@@ -607,10 +607,19 @@ export const BOSS_EVERY = 50;
 export const BOSS_TIME_LIMIT = 30;
 /** Auto boss: after a boss loss, farm this long, then try the boss again on the next clear. */
 export const AUTO_BOSS_SECONDS = 60;
+/** Losses in a row on a normal stage before the team drops back a stage and farms. */
+export const NORMAL_STAGE_LOSSES = 2;
 /** Offline, a boss falls only if the team's estimate kills it inside this share of the time limit (walk-up, misses). */
 export const OFFLINE_BOSS_TIME_SHARE = 0.8;
 /** Seconds between a boss's hits (matches the battle). */
 export const OFFLINE_BOSS_COOLDOWN = 1.6;
+/** Offline normal-stage check (GameState.canClearStage): the stage's mobs and crystal as this many mob HPs, */
+export const OFFLINE_STAGE_HP = 15;
+/** this many mobs hitting the team at once, each this often (seconds), */
+export const OFFLINE_STAGE_ATTACKERS = 3;
+export const OFFLINE_MOB_COOLDOWN = 1.1;
+/** and the stage must fall within this many seconds. */
+export const OFFLINE_STAGE_TIME = 8;
 /** Seconds a fallen hero waits at the crystal before getting back up (Rattle Back shortens it). */
 export const RESPAWN_SECONDS = 6;
 export const ULT_UNLOCK_LEVEL = 30;
@@ -1196,6 +1205,14 @@ export const GUILD_BOSS_ATTEMPTS = 3;
 export const GUILD_BOSS_FIGHT_GAP_SECONDS = 120;
 export const GUILD_BOSS_REST_MINUTES = 30;
 export const GUILD_BOSS_SECONDS = 30;
+/**
+ * A Guild Boss fight is live in the battle lane (Samuel, 2026-10-31): the Guild Boss team runs at the boss and has
+ * GUILD_BOSS_SECONDS once it reaches it. The boss hits back for a share of the team's average max HP, a bit more each
+ * level; fallen heroes stay down until the fight ends, like a Trial.
+ */
+export const GUILD_BOSS_HIT_SHARE = 0.08;
+export const GUILD_BOSS_HIT_PER_LEVEL = 0.03;
+export const GUILD_BOSS_HIT_LEVEL_CAP = 20;
 /** Rough number of solid attempts a boss is built to take; one such attempt earns the full damage bonus. */
 export const GUILD_BOSS_PAR_ATTEMPTS = 15;
 /** Gold per attempt, in minutes of income. */

@@ -4,7 +4,7 @@ import { testAdjust, testMaxAll, testMaxHero, testRange, testRecruit, testValue,
 import Decimal from 'break_infinity.js';
 import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { HEROES, byRarity, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_BULK, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, trialFirstWin, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, elementMultiplier, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { GUILD_BOSS_SECONDS, HEROES, byRarity, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_BULK, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, trialFirstWin, ESSENCE_NAMES, TICKET_CAP, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, elementMultiplier, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
@@ -17,7 +17,10 @@ import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, BOOTCAMP, MILESTONE_STEP
 import { rarityOdds, SHOP_HEROES, medalPackCost } from './state';
 import { FORM_RARITIES, MAX_FORM, resolveForm, formArtKey } from './ascendant';
 import { ascendantDef, isAscendant } from './heroes/ascendant';
-import type { BattleScene } from './BattleScene';
+import type { BattleScene, GuildBossFightSetup } from './BattleScene';
+
+/** The note under the battle screen's title during a Trial (the HTML default). */
+const TRIAL_HUD_NOTE = 'Your team fights at its Ember levels. Fallen heroes stay down until the Trial ends. Beat the boss before time runs out.';
 import type { ColosseumLink } from './colosseumLink';
 import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_QUICK_CP, RANK_DAILY, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies } from './colosseum';
 
@@ -862,7 +865,9 @@ export class UI {
       button.innerHTML = `${ULT_ICONS[def.element]}<span class="cd"></span>`;
       button.setAttribute('aria-label', `${def.name} ultimate: ${def.ultimate.name}`);
       button.title = `${def.name}: ${def.ultimate.name} (unlocks at Lv ${ULT_UNLOCK_LEVEL})`;
-      button.addEventListener('click', () => this.scene()?.triggerUlt(def.id));
+      button.addEventListener('click', () => {
+        if (!this.scene()?.triggerUlt(def.id)) this.scene()?.lockedUltHint(def.id);
+      });
       host.appendChild(button);
       this.ults.push({ def, button, cd: button.querySelector('.cd') as HTMLElement });
     }
@@ -1928,13 +1933,40 @@ export class UI {
   /** Whether the player left the Trial in progress (shown instead of "Defeated"). */
   private trialLeft = false;
 
-  /** Leave the Trial screen and go back to the run. */
+  /** Leave the Trial (or Guild Boss) screen and go back to the run. */
   private endTrial() {
     const scene = this.scene();
     if (scene?.inTrial()) scene.closeTrial();
     document.body.classList.remove('in-trial');
     $('trial-hud').hidden = true;
+    $('trial-hud-note').textContent = TRIAL_HUD_NOTE;
     this.render();
+  }
+
+  /**
+   * Fight the Guild Boss live on its own screen, like a Trial: the guild sheet closes and the Guild Boss team runs
+   * at the boss. `onEnd` gets the lane health knocked off once the fight stops. False when a fight is already on.
+   */
+  startGuildBossFight(setup: GuildBossFightSetup, onEnd: (knocked: Decimal, beaten: boolean, seconds: number) => void): boolean {
+    const scene = this.scene();
+    if (!scene || scene.inTrial() || scene.inPvp() || !setup.ids.length) return false;
+    this.closeSheet();
+    document.body.classList.add('in-trial');
+    $('trial-hud').hidden = false;
+    $('trial-hud-name').textContent = `${setup.name} · Level ${setup.level} (${cap(setup.element)})`;
+    $('trial-hud-note').textContent = `Your Guild Boss team fights at its Ember levels for ${GUILD_BOSS_SECONDS} seconds once it reaches the boss. Fallen heroes stay down until the fight ends. Every hit counts for the guild; leaving early keeps the damage so far.`;
+    $('trial-leave').textContent = 'Leave';
+    scene.startGuildBoss(setup, (knocked, beaten, seconds) => {
+      $('trial-leave').textContent = 'Back';
+      onEnd(knocked, beaten, seconds);
+      this.render();
+    });
+    return true;
+  }
+
+  /** Back from the Guild Boss screen to the run (after its result). */
+  endGuildBossFight() {
+    if (this.scene()?.inGuildBoss() || document.body.classList.contains('in-trial')) this.endTrial();
   }
 
   /** The reward line (closes the caller's open <p>) and pictures of the heroes the crests went to. */
@@ -2205,7 +2237,7 @@ export class UI {
     if (scene?.inPvp()) scene.closePvp();
     document.body.classList.remove('in-trial');
     $('trial-hud').hidden = true;
-    $('trial-hud-note').textContent = 'Your team fights at its Ember levels. Fallen heroes stay down until the Trial ends. Beat the boss before time runs out.';
+    $('trial-hud-note').textContent = TRIAL_HUD_NOTE;
     this.render();
   }
 
@@ -2930,7 +2962,10 @@ export class UI {
       if (!scene || !fights) continue;
       const st = scene.getUltState(u.def.id);
       const ready = st.unlocked && st.alive && st.remaining <= 0;
-      u.button.disabled = !ready;
+      // A locked one stays tappable so a tap can say when it unlocks.
+      const locked = st.alive && !st.unlocked;
+      u.button.disabled = !ready && !locked;
+      u.button.classList.toggle('locked', locked);
       u.button.classList.toggle('ready', ready);
       // A fallen hero's button counts down to their revive, even before the Ultimate unlocks.
       u.cd.textContent = !st.alive ? `${Math.ceil(st.reviveIn)}s` : !st.unlocked ? `Lv${ULT_UNLOCK_LEVEL}` : st.remaining > 0 ? `${Math.ceil(st.remaining)}` : '';

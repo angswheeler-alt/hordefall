@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { GameState } from '../src/state';
 import { INTRO, TIPS, TIP_IDS, TUTORIAL_DONE, advanceIntro, pendingTip, type GuideView } from '../src/tutorialSteps';
 
-const view = (v: Partial<GuideView> = {}): GuideView => ({ tab: 'home', leveled: false, bossButton: false, ultReady: false, rekindleButton: false, bestStage: 1, ...v });
+const view = (v: Partial<GuideView> = {}): GuideView => ({ tab: 'home', leveled: false, bossButton: false, ultReady: false, rekindleButton: false, bestStage: 1, firstChest: false, unlockReady: false, ...v });
 
 beforeEach(() => localStorage.clear());
 
@@ -61,5 +61,12 @@ describe('First-time guide', () => {
     expect(pendingTip(TUTORIAL_DONE, ['boss'], v)).toBeNull();
     expect(pendingTip(TUTORIAL_DONE, [], view({ bestStage: 51 }))?.id).toBe('trials');
     expect(pendingTip(TUTORIAL_DONE, [], view({ bestStage: 50 }))).toBeNull();
+  });
+
+  it('points a new player at the first Hero Chest, then at unlocking a hero', () => {
+    expect(pendingTip(TUTORIAL_DONE, [], view({ firstChest: true }))).toBeNull();
+    expect(pendingTip(TUTORIAL_DONE, [], view({ firstChest: true, tab: 'heroes' }))?.id).toBe('chest');
+    expect(pendingTip(TUTORIAL_DONE, ['chest'], view({ firstChest: true, tab: 'heroes' }))).toBeNull();
+    expect(pendingTip(TUTORIAL_DONE, ['chest'], view({ unlockReady: true, tab: 'heroes' }))?.id).toBe('unlock');
   });
 });
