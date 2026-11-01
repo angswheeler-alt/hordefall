@@ -53,6 +53,8 @@ export interface HeroStats {
   moveSpeed: StatPair;
   effectRes: StatPair;
   frenzy: StatPair;
+  /** Share of damage dealt healed back (Lifesteal Glyphs), 0.08 = 8%. */
+  lifesteal: number;
   dodge: StatPair;
   stunChance: number;
   /** Bonus to effect length, 0.25 = +25%. */
@@ -107,6 +109,7 @@ export function combatPower(st: HeroStats): Decimal {
     (1 / (1 - Math.min(0.75, chance(st.dodge.value)))) *
     (1 + 0.25 * chance(st.effectRes.value)) *
     (1 + Math.max(0, st.knightShield)) *
+    (1 + Math.max(0, st.lifesteal ?? 0)) *
     (1 + Math.max(0, st.moveSpeed.value) / 1000);
   const dps = st.atk.value.times(Math.max(0, st.attacksPerSec.value) * offense);
   const ehp = st.hp.value.plus(st.def.value.times(20)).times(toughness);

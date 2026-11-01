@@ -46,7 +46,8 @@ export interface ScoutState {
   done: number;
 }
 
-export type ScoutReward = Partial<Record<ForgeMat | 'wild', number>>;
+/** Materials, Wild Crests and Unbinders (for bound Glyphs, src/glyphs.ts). */
+export type ScoutReward = Partial<Record<ForgeMat | 'wild' | 'unbinder', number>>;
 
 export const SCOUT_UNLOCK_LEVEL = 15;
 export const SCOUT_BONUS_COMMONS = 5;
@@ -127,8 +128,8 @@ export function scoutShare(score: number, kind: ScoutKind): number {
 export function fullReward(m: Pick<ScoutMission, 'kind' | 'hours'>): ScoutReward {
   const h = m.hours;
   if (m.kind === 'common') return { ore: 30 * h, crystal: 30 * h, coreC: h };
-  if (m.kind === 'rare') return { ore: 50 * h, crystal: 50 * h, coreC: 2 * h, coreR: Math.round(h / 2), coreE: h >= 6 ? 1 : 0 };
-  return { ore: 40 * h, crystal: 40 * h, wild: GILDED_WILD };
+  if (m.kind === 'rare') return { ore: 50 * h, crystal: 50 * h, coreC: 2 * h, coreR: Math.round(h / 2), coreE: h >= 6 ? 1 : 0, unbinder: 1 };
+  return { ore: 40 * h, crystal: 40 * h, wild: GILDED_WILD, unbinder: 2 };
 }
 
 /** What a mission pays at a share of its target: Ore and Crystal round down, cores and Wild Crests to the nearest. */

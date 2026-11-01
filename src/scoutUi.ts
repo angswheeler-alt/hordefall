@@ -6,7 +6,7 @@ import { HEROES, type HeroDef } from './data';
 import { fmtDuration } from './formulas';
 import type { GameState } from './state';
 import { SCOUT_BONUS_COMMONS, SCOUT_KINDS, SCOUT_MATCH_MULT, SCOUT_UNLOCK_LEVEL, WILD_CREST_COST, fullReward, missionEndsAt, scoutReward, type ScoutReward } from './scouting';
-import { FORGE_MATS, FORGE_MAT_NAMES, WEAPON_LOOK_NAMES, WEAPON_MAX_LEVEL, WEAPON_STAT_STEP, weaponLook, weaponMult, type ForgeMat } from './weapons';
+import { FORGE_MATS, FORGE_MAT_NAMES, WEAPON_GLYPHS, WEAPON_LOOK_NAMES, WEAPON_MAX_LEVEL, WEAPON_STAT_STEP, weaponLook, weaponMult, type ForgeMat } from './weapons';
 import { faceStyle, dropCards } from './ui';
 import { play } from './sfx';
 import { setHtml } from './taps';
@@ -16,13 +16,13 @@ const esc = (text: string) => String(text).replace(/[&<>"']/g, (c) => `&#${c.cha
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const hero = (id: string) => HEROES.find((h) => h.id === id)!;
 
-const MAT_CLASS: Record<ForgeMat | 'wild', string> = { ore: 'ore', crystal: 'crystal', coreC: 'core-c', coreR: 'core-r', coreE: 'core-e', wild: 'wild' };
-const MAT_SHORT: Record<ForgeMat | 'wild', string> = { ore: 'Ore', crystal: 'Crystal', coreC: 'Common Core', coreR: 'Rare Core', coreE: 'Epic Core', wild: 'Wild Crests' };
-export const matIcon = (m: ForgeMat | 'wild') => `<i class="mat-ico ${MAT_CLASS[m]}" aria-hidden="true"></i>`;
+const MAT_CLASS: Record<ForgeMat | 'wild' | 'unbinder', string> = { ore: 'ore', crystal: 'crystal', coreC: 'core-c', coreR: 'core-r', coreE: 'core-e', wild: 'wild', unbinder: 'unbinder' };
+const MAT_SHORT: Record<ForgeMat | 'wild' | 'unbinder', string> = { ore: 'Ore', crystal: 'Crystal', coreC: 'Common Core', coreR: 'Rare Core', coreE: 'Epic Core', wild: 'Wild Crests', unbinder: 'Unbinders' };
+export const matIcon = (m: ForgeMat | 'wild' | 'unbinder') => `<i class="mat-ico ${MAT_CLASS[m]}" aria-hidden="true"></i>`;
 
 /** "120 Ore · 4 Common Cores" style list with icons. */
 export function rewardChips(r: ScoutReward): string {
-  return (Object.entries(r) as Array<[ForgeMat | 'wild', number]>)
+  return (Object.entries(r) as Array<[ForgeMat | 'wild' | 'unbinder', number]>)
     .filter(([, n]) => n > 0)
     .map(([k, n]) => `<span class="mat-chip" title="${MAT_SHORT[k]}">${matIcon(k)}${n.toLocaleString()}</span>`)
     .join('');
@@ -81,7 +81,8 @@ export class ScoutUI {
     setHtml(
       mats,
       FORGE_MATS.map((m) => `<span class="mat-chip" title="${FORGE_MAT_NAMES[m]}">${matIcon(m)}${s.forge[m].toLocaleString()}</span>`).join('') +
-        `<button type="button" class="mat-chip wild-btn" data-sc-wild ${s.wildCrests > 0 ? '' : 'disabled'} title="Wild Crests: tap to use">${matIcon('wild')}${s.wildCrests}</button>`,
+        `<button type="button" class="mat-chip wild-btn" data-sc-wild ${s.wildCrests > 0 ? '' : 'disabled'} title="Wild Crests: tap to use">${matIcon('wild')}${s.wildCrests}</button>` +
+        `<span class="mat-chip" title="Unbinders">${matIcon('unbinder')}${s.unbinders}</span>`,
     );
     const cards = slots.map((sl) => {
       const k = SCOUT_KINDS[sl.kind];
@@ -117,7 +118,7 @@ export class ScoutUI {
     const r = this.state.claimScout(slot);
     if (!r) return;
     play('chest');
-    this.ui.showModal('Mission complete', `<div class="sc-reward big">${rewardChips(r) || 'Nothing this time.'}</div>${r.wild ? '<p>Wild Crests go to any hero you pick: tap them at the top of the Scouting page.</p>' : ''}`, 'Collect');
+    this.ui.showModal('Mission complete', `<div class="sc-reward big">${rewardChips(r) || 'Nothing this time.'}</div>${r.wild ? '<p>Wild Crests go to any hero you pick: tap them at the top of the Scouting page.</p>' : ''}${r.unbinder ? '<p>Unbinders take a bound Glyph out of a weapon safely.</p>' : ''}`, 'Collect');
     this.ui.render();
   }
 
@@ -173,8 +174,8 @@ export class ScoutUI {
       'Scouting',
       `<p>Send teams of heroes on missions. They come back after the mission's hours with weapon materials. Heroes still fight while they're away, but each hero goes on one mission at a time.</p>
        <p><b>Team Score:</b> each hero gives 10 per yellow star, 5 per pink star and 5 per weapon level above 1. A hero of the wanted Type scores x${SCOUT_MATCH_MULT}, and again x${SCOUT_MATCH_MULT} for the wanted element. The score against the mission's target sets how much of the reward you get.</p>
-       <p><b>Board:</b> 3 Common missions (1-4 h) and 1 Rare (4-6 h, the main source of Rare and Epic Forge Cores). A collected mission's slot gets a new one at the next full hour. Every ${SCOUT_BONUS_COMMONS} Commons add a bonus Rare.</p>
-       <p><b>Gilded mission:</b> one a day. It pays Wild Crests, which turn into crests for any hero you pick (Common ${WILD_CREST_COST.common}, Rare ${WILD_CREST_COST.rare}, Epic ${WILD_CREST_COST.epic} per crest). Legendary and Ascendant heroes are left out.</p>`,
+       <p><b>Board:</b> 3 Common missions (1-4 h) and 1 Rare (4-6 h, the main source of Rare and Epic Forge Cores, plus an Unbinder for bound Glyphs). A collected mission's slot gets a new one at the next full hour. Every ${SCOUT_BONUS_COMMONS} Commons add a bonus Rare.</p>
+       <p><b>Gilded mission:</b> one a day. It pays 2 Unbinders and Wild Crests, which turn into crests for any hero you pick (Common ${WILD_CREST_COST.common}, Rare ${WILD_CREST_COST.rare}, Epic ${WILD_CREST_COST.epic} per crest). Legendary and Ascendant heroes are left out.</p>`,
       'Got it',
     );
   }
@@ -240,9 +241,9 @@ export class ScoutUI {
     const html = `
       <h3>Weapon</h3>
       <div class="wp-top"><i class="wp-ico look-${look}" aria-hidden="true"></i><div><b>Level ${lv} / ${WEAPON_MAX_LEVEL}</b><small>${WEAPON_LOOK_NAMES[look]} weapon · ATK and HP ${pct(weaponMult(lv))}</small></div></div>
-      ${cost ? `<p class="meta">Next level: ATK and HP ${pct(weaponMult(lv + 1))}${weaponLook(lv + 1) !== look ? `, and the weapon turns ${WEAPON_LOOK_NAMES[weaponLook(lv + 1)]}` : ''}.</p><ul class="wp-cost">${costRows}</ul>
+      ${cost ? `<p class="meta">Next level: ATK and HP ${pct(weaponMult(lv + 1))}, ${WEAPON_GLYPHS[lv + 1].slots} Glyph slots${WEAPON_GLYPHS[lv + 1].maxStar > WEAPON_GLYPHS[lv].maxStar ? ` holding up to ${WEAPON_GLYPHS[lv + 1].maxStar}★` : ''}${weaponLook(lv + 1) !== look ? `, and the weapon turns ${WEAPON_LOOK_NAMES[weaponLook(lv + 1)]}` : ''}.</p><ul class="wp-cost">${costRows}</ul>
       <button type="button" class="hot evolve" id="sheet-weapon-up" ${block ? 'disabled' : ''}>${block && block !== 'Not enough materials' ? block : `Upgrade to level ${lv + 1}`}</button>` : '<p class="meta">This weapon is at max level.</p>'}
-      <p class="meta">Each weapon level gives ${Math.round((WEAPON_STAT_STEP - 1) * 100)}% more ATK and HP (compounding). Materials come from Scouting on the Battle tab${s.scoutOpen() ? '' : `, which opens at player level ${SCOUT_UNLOCK_LEVEL}`}.</p>`;
+      <p class="meta">Each weapon level gives ${Math.round((WEAPON_STAT_STEP - 1) * 100)}% more ATK and HP (compounding) and opens a Glyph slot. Materials come from Scouting on the Battle tab${s.scoutOpen() ? '' : `, which opens at player level ${SCOUT_UNLOCK_LEVEL}`}.</p>`;
     const host = $('sheet-weapon');
     const key = `${id}:${lv}:${FORGE_MATS.map((m) => s.forge[m]).join(',')}:${s.scoutOpen()}:${block}`;
     if (host.dataset.key === key) return;

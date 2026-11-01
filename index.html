@@ -151,6 +151,12 @@
               <small id="hub-sc-note" class="mode-note"></small>
               <i id="hub-sc-alert" class="mode-alert" hidden>!</i>
             </button>
+            <button class="mode-card rush" data-battle-go="rush">
+              <span class="mode-count"><i class="mat-ico rush-coin"></i><b id="hub-rush-count"></b></span>
+              <svg class="mode-trophy rush-bolt" viewBox="0 0 64 64" aria-hidden="true"><path d="M36 4L12 36h16l-6 24 30-36H34z" fill="#ffd34a" stroke="#7a2a00" stroke-width="3" stroke-linejoin="round"/><path d="M34 12L20 32h10" fill="none" stroke="#fff6c8" stroke-width="3" stroke-linecap="round"/></svg>
+              <b class="mode-title">Rush</b>
+              <small id="hub-rush-note" class="mode-note"></small>
+            </button>
           </div>
           <div data-battle-pane="trials" hidden>
             <button class="wood-btn small trial-back" data-battle-go="hub">&#8592; Battle</button>
@@ -176,6 +182,11 @@
             <div class="panel-head"><h2>Scouting</h2><button id="sc-help" class="wood-btn small">How it works</button></div>
             <div id="sc-mats" class="sc-mats"></div>
             <div id="sc-board" class="sc-board"></div>
+          </div>
+          <div data-battle-pane="rush" hidden>
+            <button class="wood-btn small trial-back" data-battle-go="hub">&#8592; Battle</button>
+            <div class="panel-head"><h2>Rush</h2><button id="rush-help" class="wood-btn small">How it works</button></div>
+            <div id="rush" class="rush"></div>
           </div>
           <div data-battle-pane="arena" hidden>
             <button class="wood-btn small trial-back" data-battle-go="hub">&#8592; Battle</button>
@@ -298,6 +309,7 @@
         </div>
         <div class="sheet-pane" data-pane="weapon" hidden>
         <section class="sheet-section" id="sheet-weapon"></section>
+        <section class="sheet-section" id="sheet-glyphs"></section>
         </div>
         <section class="sheet-section sheet-levels">
           <h3 class="levels-head">Levels <button id="sheet-buyamt" class="buyamt-mini">Buy x1</button></h3>

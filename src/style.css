@@ -1212,3 +1212,87 @@ button.mat-chip.wild-btn:disabled { opacity: .55; border-color: rgba(255,255,255
 .wp-cost li.met { opacity: 1; }
 .wp-cost li.met b { color: #7ddc8a; }
 #sheet-wild { margin-top: 6px; }
+
+/* ---------- Glyphs (src/glyphUi.ts) ---------- */
+.mat-ico.unbinder { background-image: url('./assets/ui/unbinder.png'); }
+.mat-ico.dust { background-image: url('./assets/ui/glyph-dust.png'); }
+.mat-ico.glyph-chest { background-image: url('./assets/ui/glyph-chest.png'); }
+.mat-ico.glyph-grand { background-image: url('./assets/ui/glyph-grand.png'); }
+.mat-ico.rush-coin { background-image: url('./assets/ui/rush-coin.png'); }
+.glyph-ico { display: inline-block; width: 24px; height: 24px; background: center / contain no-repeat; image-rendering: pixelated; flex: none; }
+.glyph-ico.attack { background-image: url('./assets/ui/glyph-attack.png'); }
+.glyph-ico.health { background-image: url('./assets/ui/glyph-health.png'); }
+.glyph-ico.defense { background-image: url('./assets/ui/glyph-defense.png'); }
+.glyph-ico.speed { background-image: url('./assets/ui/glyph-speed.png'); }
+.glyph-ico.crit { background-image: url('./assets/ui/glyph-crit.png'); }
+.glyph-ico.frenzy { background-image: url('./assets/ui/glyph-frenzy.png'); }
+.glyph-ico.lifesteal { background-image: url('./assets/ui/glyph-lifesteal.png'); }
+.glyph-ico.gold { background-image: url('./assets/ui/glyph-gold.png'); }
+.glyph-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 6px; margin: 8px 0; }
+.glyph-grid.bag { max-height: 45vh; overflow-y: auto; }
+.glyph-tile, .glyph-slot { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 56px; padding: 4px 2px; border-radius: 8px; border: 2px solid var(--fam, #556); background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--fam, #556) 35%, transparent), rgba(0,0,0,.35) 70%); color: #fff; font: inherit; cursor: pointer; }
+.glyph-tile:disabled { cursor: default; opacity: 1; }
+.glyph-tile.s5, .glyph-tile.s6 { box-shadow: 0 0 8px color-mix(in srgb, var(--fam) 70%, transparent); }
+.glyph-tile .gt-star { font-size: 11px; font-weight: 800; color: #ffd84a; text-shadow: 0 1px 0 #000; }
+.glyph-tile .gt-lv { position: absolute; top: 2px; right: 4px; font-size: 10px; font-weight: 800; text-shadow: 0 1px 0 #000; }
+.glyph-tile .gt-lock { position: absolute; top: 1px; left: 3px; font-size: 9px; }
+.glyph-tile .gt-main { font-size: 9px; color: var(--muted); }
+.glyph-slot.open { border-style: dashed; border-color: rgba(255,255,255,.35); background: rgba(0,0,0,.25); font-size: 22px; font-weight: 800; color: rgba(255,255,255,.6); }
+.glyph-slot.locked { border-color: rgba(255,255,255,.1); background: rgba(0,0,0,.35); font-size: 10px; color: var(--muted); cursor: default; }
+.glyph-total { font-weight: 700; font-size: 13px; color: #9fe6a8; margin: 4px 0; }
+.glyph-sets { list-style: none; margin: 4px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.glyph-sets li { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; opacity: .7; }
+.glyph-sets li.on { opacity: 1; }
+.glyph-sets li small { color: var(--muted); flex-basis: 100%; padding-left: 30px; }
+.glyph-sets li.on small { color: #9fe6a8; }
+.glyph-filter { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+.glyph-filter .chip { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; padding: 3px 6px; border-radius: 999px; border: 1px solid rgba(255,255,255,.2); background: rgba(0,0,0,.3); color: #fff; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.glyph-filter .chip .glyph-ico { width: 18px; height: 18px; }
+.glyph-filter .chip.on { border-color: #ffd84a; background: rgba(255,216,74,.2); }
+.glyph-head { display: flex; align-items: center; gap: 10px; }
+.glyph-head .glyph-tile { width: 60px; flex: none; }
+.glyph-head small { display: block; color: var(--muted); }
+.glyph-main { font-size: 15px; margin: 8px 0 4px; }
+.glyph-main small { color: var(--muted); }
+.glyph-subs { margin: 0 0 6px; padding-left: 18px; font-size: 13px; }
+.glyph-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.glyph-actions button { flex: 1 1 auto; }
+
+/* ---------- Rush (src/rushUi.ts) ---------- */
+.mode-card.rush { background: radial-gradient(ellipse at 75% 30%, rgba(255,200,60,.35), transparent 55%), linear-gradient(180deg, #5a2a5a, #241030); }
+.mode-card.rush .mode-trophy { filter: drop-shadow(0 0 8px rgba(255,220,100,.7)) drop-shadow(0 2px 0 #131927); }
+.rush { display: flex; flex-direction: column; gap: 8px; }
+.rush-top { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.rush-stat { display: flex; flex-direction: column; align-items: center; padding: 6px 4px; border-radius: 8px; background: rgba(0,0,0,.3); text-align: center; }
+.rush-stat small { font-size: 10px; color: var(--muted); }
+.rush-stat b { font-size: 14px; display: inline-flex; align-items: center; gap: 4px; }
+.rush-streak { display: flex; gap: 2px; margin-top: 2px; }
+.rush-streak i { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.2); }
+.rush-streak i.on { background: #ffd84a; }
+i.ticket.rush-ticket { background: linear-gradient(180deg, #e7a6ff, #8a3ab8); border-color: #3a0a4a; }
+.rush-tiers { background: rgba(0,0,0,.25); border-radius: 8px; padding: 6px 8px; }
+.rush-tiers summary { cursor: pointer; font-weight: 700; font-size: 13px; }
+.rush-tiers summary .crest-bar { margin-top: 4px; }
+.rush-tiers ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.rush-tiers li { display: flex; align-items: center; gap: 8px; font-size: 12px; opacity: .8; }
+.rush-tiers li b { min-width: 44px; }
+.rush-tiers li.done { opacity: .45; text-decoration: line-through; }
+.rush-tiers li.next { opacity: 1; color: #ffd84a; }
+.rush-bracket { display: flex; flex-direction: column; gap: 6px; }
+.rush-foe { display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 10px; border: 2px solid var(--wood-deep); background: linear-gradient(180deg, var(--plank), #222c44); }
+.rush-foe.easy { border-color: #4a8a5a; }
+.rush-foe.hard { border-color: #b3261c; }
+.rush-foe .face { width: 44px; height: 44px; flex: none; border-radius: 8px; border: 2px solid #000; }
+.rush-foe > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.rush-foe small { font-size: 11px; color: var(--muted); }
+.rush-feats { display: flex; flex-wrap: wrap; gap: 4px; }
+.rush-feat { width: 36px; height: 36px; border-radius: 8px; border: 2px solid #ffd84a; }
+.rush-shop { display: flex; flex-direction: column; gap: 6px; }
+.rush-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: rgba(0,0,0,.25); }
+.rush-item > .mat-ico { width: 28px; height: 28px; }
+.rush-item .face { width: 32px; height: 32px; flex: none; border-radius: 6px; border: 2px solid #000; }
+.rush-item > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.rush-item small { font-size: 11px; color: var(--muted); }
+.rush-item button { white-space: nowrap; display: inline-flex; align-items: center; gap: 3px; }
+.rush-plus { color: #ffd84a; }
+.cal-day .cal-rush { font-size: 8px; font-weight: 800; color: #e7a6ff; }

@@ -28,6 +28,8 @@ import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_L
 import { busyWhile, setHtml } from './taps';
 import { holdToRepeat } from './hold';
 import { ScoutUI } from './scoutUi';
+import { GlyphUI } from './glyphUi';
+import { RushUI, rushResultHtml } from './rushUi';
 import { sortHeroes, nextTeamSort, TEAM_SORT_LABELS, type TeamSort } from './teamSort';
 
 /** The teams Manage Team edits: stages, Colosseum attack and defense, and the Guild Boss. */
@@ -139,6 +141,8 @@ export class UI {
   /** A tap happened and nothing has drawn its result yet (see the click listeners in the constructor). */
   private tapPending = false;
   private scoutUi!: ScoutUI;
+  private glyphUi!: GlyphUI;
+  private rushUi!: RushUI;
 
   constructor(
     private state: GameState,
@@ -152,6 +156,9 @@ export class UI {
     this.buildMarket();
     this.buildRelics();
     this.scoutUi = new ScoutUI(this.state, this);
+    this.glyphUi = new GlyphUI(this.state, this);
+    this.rushUi = new RushUI(this.state, this);
+    $('rush-help').addEventListener('click', () => this.rushUi.help());
     let last = performance.now();
     setInterval(() => {
       const now = performance.now();
@@ -1696,6 +1703,7 @@ export class UI {
     }
     this.renderAscension(id);
     this.scoutUi.renderWeapon(id);
+    this.glyphUi.renderSlots(id);
     const wild = $<HTMLButtonElement>('sheet-wild');
     const wildCost = s.wildCrestCost(id);
     wild.hidden = !(s.wildCrests > 0 && wildCost !== null);
@@ -1798,6 +1806,8 @@ export class UI {
   showModal(title: string, html: string, ok: string, action: (() => void) | null = null, cancel = false, cancelLabel = 'Not yet') {
     $('modal').classList.remove('team-mode', 'welcome-mode');
     $('modal-title').textContent = title;
+    // Tap handlers belong to the pop-up that set them.
+    $('modal-body').onclick = null;
     $('modal-body').innerHTML = html;
     $('modal-ok').textContent = ok;
     // A Trial fight disables this while it plays; any new pop-up must be closable.
@@ -2358,6 +2368,37 @@ export class UI {
     $('hub-pvp-alert').hidden = !(pvpOn && s.pvp.tickets > 0);
     this.scoutUi.renderHub();
     if (!document.querySelector<HTMLElement>('[data-battle-pane="scout"]')!.hidden) this.scoutUi.renderBoard();
+    this.rushUi.renderHub();
+    if (!document.querySelector<HTMLElement>('[data-battle-pane="rush"]')!.hidden) this.rushUi.render();
+  }
+
+  /** The Glyph bag (from the Rush page). */
+  openGlyphBag() {
+    this.glyphUi.openBag();
+  }
+
+  /** Start a live Rush fight on the lane: one hero against one. */
+  fightRush(bracket: number, foeIndex: number, heroId: string) {
+    const s = this.state;
+    const scene = this.scene();
+    if (!scene || scene.inTrial() || scene.inPvp() || s.rushBlock(bracket, foeIndex, heroId) !== null) return;
+    const foe = s.startRush(bracket, foeIndex, heroId);
+    if (!foe) return;
+    this.closeSheet();
+    document.body.classList.add('in-trial');
+    $('trial-hud').hidden = false;
+    $('trial-hud-name').textContent = `Rush vs ${foe.name}`;
+    $('trial-hud-note').textContent = 'One hero a side, at Ember levels; melee heroes can hit flyers here. Destroy the red crystal before they destroy yours.';
+    $('trial-leave').textContent = 'Leave';
+    const units = s.pvpFoeUnits(s.rushOpponent(foe)).map((f) => ({ def: f.def, stats: f.stats }));
+    scene.startPvp([heroId], units, 0, (won) => {
+      $('trial-leave').textContent = 'Back';
+      const html = rushResultHtml(s.finishRush(won));
+      window.setTimeout(() => {
+        if (scene.inPvp()) this.showModal('Rush', html, 'Okay', () => this.endPvpScreen());
+      }, 1200);
+      this.render();
+    }, { label: 'Rush', anyReach: true });
   }
 
   /** The Rekindle rewards page: what this Rekindle pays and what it moves forward. */
@@ -2692,7 +2733,7 @@ export class UI {
       const past = d.date + 86_400_000 <= now;
       const dots = d.open.map((e) => `<i style="background:${hex(ELEMENT_COLORS[e])}" title="${cap(e)}"></i>`).join('');
       const cls = `cal-day${past ? ' past' : ''}${date.toDateString() === today ? ' today' : ''}${d.double ? ' double' : ''}`;
-      return `<div class="${cls}"><b>${date.getDate()}</b><span class="cal-dots">${dots}</span>${d.double ? '<span class="cal-x2">x2</span>' : ''}</div>`;
+      return `<div class="${cls}"><b>${date.getDate()}</b><span class="cal-dots">${dots}</span>${d.double ? '<span class="cal-x2">x2</span>' : ''}${d.rush ? '<span class="cal-rush">Rush</span>' : ''}</div>`;
     }).join('');
     const fmtDay = (t: number) => new Date(t).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
     const ev = s.nextTrialEvent(now);
@@ -2706,9 +2747,9 @@ export class UI {
     const legend = TRIAL_ROTATION.map((e) => `<li><i style="background:${hex(ELEMENT_COLORS[e])}"></i>${cap(e)}</li>`).join('');
     this.showModal(
       'Events',
-      `<p>${evLine}. Every other weekend, Trials pay x${TRIAL_EVENT_MEDAL_MULT} crests.</p>
+      `<p>${evLine}. Every other weekend, Trials pay x${TRIAL_EVENT_MEDAL_MULT} crests; Rush runs Thursday to Sunday in the weeks between.</p>
       <div class="cal-grid">${head}${cells}</div>
-      <ul class="cal-legend">${legend}<li><span class="cal-x2">x2</span> double crests</li></ul>
+      <ul class="cal-legend">${legend}<li><span class="cal-x2">x2</span> double crests</li><li><span class="cal-rush">Rush</span> Rush event</li></ul>
       <p>Dots show which Trials are open. Each Trial opens on two weekdays, and every Trial is open on Saturday and Sunday.</p>
       <h3>Limited deals</h3><ul class="cal-list">${deals.join('')}</ul>`,
       'Close',
