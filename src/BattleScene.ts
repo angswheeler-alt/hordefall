@@ -1118,6 +1118,12 @@ export class BattleScene extends Phaser.Scene {
     this.state.track('stages');
     const prevBest = this.state.bestStage;
     if (this.state.autoAdvance) this.state.reachStage(this.state.stage + 1);
+    // Leaping Star (Observatory): sometimes jump one more stage, paying its clear gold.
+    const skipped = this.state.autoAdvance ? this.state.rollStageSkip() : 0;
+    if (skipped) {
+      this.gainGold(stageClearGold(skipped), ENEMY_CRYSTAL_X, LANE_TOP);
+      this.time.delayedCall(700, () => this.banner(`STAGE ${skipped.toLocaleString()} SKIPPED!`, '#ff8a5a'));
+    }
     if (prevBest < SPEED_UNLOCK_STAGE && this.state.bestStage >= SPEED_UNLOCK_STAGE) {
       this.time.delayedCall(1100, () => {
         this.banner('2x SPEED UNLOCKED!', '#7dff9a');
@@ -1525,7 +1531,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   speedMultiplier() {
-    return this.state.speed2x && this.state.bestStage >= SPEED_UNLOCK_STAGE ? 2 : 1;
+    return (this.state.speed2x && this.state.bestStage >= SPEED_UNLOCK_STAGE ? 2 : 1) * this.state.gameSpeedBonus();
   }
 
   private freeze(seconds: number) {

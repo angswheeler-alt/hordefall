@@ -2,12 +2,13 @@ import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, MILESTONE_STEP, milestoneReward, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
 import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_CHEST_GEMS, GOLD_CHEST_GEMS_PER_DAY, GUILD_BOSS_ASC_CRESTS, GUILD_BOSS_ASC_LEVELS, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_DEALS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TRIAL_EVENT_DAYS, TRIAL_EVENT_MEDAL_MULT, TICKET_CRATE, HERO_VOUCHER, MONTHLY_CREST_PACK, ALL_TRIALS_DAYS, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, AUTO_BOSS_SECONDS, NORMAL_STAGE_LOSSES, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, OFFLINE_STAGE_HP, OFFLINE_STAGE_ATTACKERS, OFFLINE_MOB_COOLDOWN, OFFLINE_STAGE_TIME, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, trialFirstWin, STAR_CRESTS, MAX_STARS, REGULAR_MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, RAISED_RARITY_OLD_COST, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_WARSTEEL_PACKS_PER_DAY, GUILD_WARSTEEL_PACK, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, AWAKEN_STARMOTES, MAX_AWAKEN, AWAKEN_STAT_MULT, AWAKEN_UNLOCK_LEVEL, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
 import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicCost, guildRelicEffect, warsteelForFight, warsteelForKill, warsteelForWeek, type GuildRelicDef, type GuildRelicEffect } from './guildRelics';
-import { utcWeekStart, guildBossElement, relicCost, bossHp, bossAtk, enemyHp, enemyAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward } from './formulas';
+import { utcWeekStart, guildBossElement, relicCost, bossHp, bossAtk, enemyHp, enemyAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, isBossStage } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { RENAMED_HEROES, PLAYABLE_HEROES, RELEASED_HEROES, ASCENDANT_CHEST } from './data';
 import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills';
 import { isKnight, combatPower, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
+import { OBSERVATORY, OBSERVATORY_RESPEC_GEMS, obsDef, sigilCost, sigilsSpent, sigilsEarned, cleanObservatory, cleanObsOff, type ObsBranch } from './observatory';
 import { PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_TICKET_GEMS, PVP_TICKET_BUYS, PVP_REFRESH_MINUTES, PVP_CP_MIN, PVP_CP_MAX, PVP_REAL_MIN, PVP_REAL_MAX, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_FIRST_WIN_MOTES, PVP_STREAK_DMG, PVP_STREAK_MAX, PVP_QUICK_CP, PVP_QUICK_HP, RANK_PRESSURE, RANK_DAILY, RANK_WEEKLY, rankIndex, rankName, droppedTrophies, seededRandom, ghostName, simulatePvp, type PvpUnit, type PvpResult } from './colosseum';
 import { TUTORIAL_DONE, TIP_IDS } from './tutorialSteps';
 import { ascendBlocker, ascendNeeds, clampForm, formArtKey, resolveForm, COUNTERED_BY, type AscendBlocker, type AscendContext, type AscendantDef } from './ascendant';
@@ -405,6 +406,10 @@ export class GameState {
   guildQuestPending = { kills: 0, stages: 0, trials: 0 };
   /** Guild Research ranks of the player's guild, cached from the server (empty outside a guild). */
   guildResearch: Partial<Record<ResearchBranch, number>> = {};
+  /** Observatory ranks bought with Sigils (observatory.ts). */
+  observatory: Partial<Record<ObsBranch, number>> = {};
+  /** Constellations the player switched off (their Sigils stay in them). */
+  obsOff: ObsBranch[] = [];
   /** Heroes picked for the Guild Boss (ids); empty means the lineup. */
   guildBossPicks: string[] = [];
   /** Legendary medals, made by maxed heroes from extra medals; any Legendary hero spends them to unlock and gain stars. */
@@ -1692,7 +1697,7 @@ export class GameState {
   /** Use one Trial ticket: refilling ones first, so the bought stash keeps for later. */
   private spendTrialTicket(now = Date.now()) {
     if (this.tickets > 0) {
-      if (this.tickets >= TICKET_CAP) this.ticketClock = now;
+      if (this.tickets >= this.ticketCap()) this.ticketClock = now;
       this.tickets -= 1;
     } else this.boughtTickets = Math.max(0, this.boughtTickets - 1);
   }
@@ -1841,17 +1846,17 @@ export class GameState {
     const period = TICKET_MINUTES * 60000;
     // A clock set back (or a save from a device whose clock runs fast) would freeze regeneration.
     if (this.ticketClock > now) this.ticketClock = now;
-    if (this.tickets >= TICKET_CAP) {
+    if (this.tickets >= this.ticketCap()) {
       this.ticketClock = now;
       return 0;
     }
     const earned = Math.floor((now - this.ticketClock) / period);
     if (earned > 0) {
-      this.tickets = Math.min(TICKET_CAP, this.tickets + earned);
+      this.tickets = Math.min(this.ticketCap(), this.tickets + earned);
       this.ticketClock += earned * period;
-      if (this.tickets >= TICKET_CAP) this.ticketClock = now;
+      if (this.tickets >= this.ticketCap()) this.ticketClock = now;
     }
-    return this.tickets >= TICKET_CAP ? 0 : Math.ceil((this.ticketClock + period - now) / 1000);
+    return this.tickets >= this.ticketCap() ? 0 : Math.ceil((this.ticketClock + period - now) / 1000);
   }
 
   /** Trial strength uses Ember levels and stars only, not gold levels. */
@@ -2055,8 +2060,91 @@ export class GameState {
     return result;
   }
 
+  // ---------- Observatory (observatory.ts, GDD section 8) ----------
+
+  /** Opens after the first Rekindle. */
+  observatoryOpen() {
+    return this.rekindles > 0;
+  }
+
+  sigilsEarned() {
+    return sigilsEarned(this.rekindles, this.keeperLevel());
+  }
+
+  /** Sigils not yet placed in a constellation. */
+  sigils() {
+    const spent = OBSERVATORY.reduce((t, d) => t + sigilsSpent(this.observatory[d.id] ?? 0), 0);
+    return Math.max(0, this.sigilsEarned() - spent);
+  }
+
+  obsRank(id: ObsBranch) {
+    return this.observatory[id] ?? 0;
+  }
+
+  /** A constellation's effect right now: 0 when switched off. */
+  obsBonus(id: ObsBranch) {
+    return this.obsOff.includes(id) ? 0 : obsDef(id).per * this.obsRank(id);
+  }
+
+  /** Raise a constellation one rank with Sigils. */
+  buyObservatory(id: ObsBranch): boolean {
+    const def = obsDef(id);
+    const rank = this.obsRank(id);
+    if (!this.observatoryOpen() || !def || rank >= def.max || this.sigils() < sigilCost(rank)) return false;
+    this.observatory[id] = rank + 1;
+    this.save();
+    return true;
+  }
+
+  /** Switch a constellation's buff off or back on, for free. */
+  toggleObservatory(id: ObsBranch): boolean {
+    if (!obsDef(id) || this.obsRank(id) <= 0) return false;
+    this.obsOff = this.obsOff.includes(id) ? this.obsOff.filter((x) => x !== id) : [...this.obsOff, id];
+    this.tickets = Math.min(this.ticketCap(), this.tickets);
+    this.save();
+    return true;
+  }
+
+  /** Take every Sigil back out of the chart for OBSERVATORY_RESPEC_GEMS Gems. */
+  respecObservatory(): boolean {
+    if (!OBSERVATORY.some((d) => this.obsRank(d.id) > 0) || this.gems < OBSERVATORY_RESPEC_GEMS) return false;
+    this.gems -= OBSERVATORY_RESPEC_GEMS;
+    this.observatory = {};
+    this.obsOff = [];
+    this.tickets = Math.min(this.ticketCap(), this.tickets);
+    this.save();
+    return true;
+  }
+
+  /** Trial tickets that refill over time hold up to this many (Pilgrim Star raises it). */
+  ticketCap() {
+    return TICKET_CAP + this.obsBonus('tickets');
+  }
+
+  /** Battle speed from the Observatory (multiplies 2x). */
+  gameSpeedBonus() {
+    return 1 + this.obsBonus('speed');
+  }
+
+  /**
+   * Leaping Star: right after reaching a new stage, maybe jump one more. Never skips a boss stage.
+   * Returns the skipped stage, or 0.
+   */
+  rollStageSkip(rand = Math.random()): number {
+    const chance = this.obsBonus('skip');
+    if (chance <= 0 || !this.autoAdvance || isBossStage(this.stage) || rand >= chance) return 0;
+    const skipped = this.stage;
+    this.reachStage(skipped + 1);
+    return skipped;
+  }
+
   keeperLevel() {
     return keeperLevel(this.lifetimeEmbers);
+  }
+
+  /** Player level once `extra` more lifetime Embers come in. */
+  keeperLevelAfter(extra: number) {
+    return keeperLevel(this.lifetimeEmbers + extra);
   }
 
   keeperBonus() {
@@ -2064,7 +2152,7 @@ export class GameState {
   }
 
   pendingEmbers() {
-    return Math.floor(emberYield(this.runBestStage, REKINDLE_STAGE, this.keeperBonus()) * (1 + this.relicBonus('embers')));
+    return Math.floor(emberYield(this.runBestStage, REKINDLE_STAGE, this.keeperBonus()) * (1 + this.relicBonus('embers')) * (1 + this.obsBonus('embers')));
   }
 
   /**
@@ -2140,7 +2228,7 @@ export class GameState {
       const prize = weighted(WHEEL_PRIZES.map((p) => [p.prize, p.weight] as [WheelPrize, number]));
       if (prize.kind === 'tickets') {
         this.refreshTickets();
-        this.tickets = Math.min(TICKET_CAP, this.tickets + prize.amount);
+        this.tickets = Math.min(this.ticketCap(), this.tickets + prize.amount);
         lines.push(`${prize.amount} Trial tickets`);
       } else if (prize.kind === 'stones') {
         this.enhanceStones += prize.amount;
@@ -2207,7 +2295,7 @@ export class GameState {
     this.enhanceStones += r.stones ?? 0;
     if (r.tickets) {
       this.refreshTickets();
-      this.tickets = Math.min(TICKET_CAP, this.tickets + r.tickets);
+      this.tickets = Math.min(this.ticketCap(), this.tickets + r.tickets);
     }
     return { gems, gold, drops };
   }
@@ -3051,7 +3139,7 @@ export class GameState {
     if (this.guildCredits < item.cost) return false;
     if (id === 'tickets') {
       this.refreshTickets();
-      return this.tickets < TICKET_CAP;
+      return this.tickets < this.ticketCap();
     }
     if (id === 'warsteel') return this.guildShopState(now).pouches < GUILD_WARSTEEL_PACKS_PER_DAY;
     if (id === 'banner' || id === 'horn') return this.boosts[id] - now < (GUILD_BOOST_MAX_MINUTES - GUILD_BOOST_MINUTES) * 60_000 + 1000;
@@ -3066,7 +3154,7 @@ export class GameState {
     let warsteel = 0;
     if (id === 'chest') drops = this.rollChest();
     else if (id === 'stone') this.enhanceStones += 1;
-    else if (id === 'tickets') this.tickets = Math.min(TICKET_CAP, this.tickets + 5);
+    else if (id === 'tickets') this.tickets = Math.min(this.ticketCap(), this.tickets + 5);
     else if (id === 'warsteel') {
       warsteel = GUILD_WARSTEEL_PACK;
       this.warsteel += warsteel;
@@ -3416,7 +3504,7 @@ export class GameState {
     for (let i = 0; i < chests; i++) drops.push(...this.rollChest());
     this.enhanceStones += stones;
     this.refreshTickets();
-    this.tickets = Math.min(TICKET_CAP, this.tickets + tickets);
+    this.tickets = Math.min(this.ticketCap(), this.tickets + tickets);
     const gold = this.goldFor(minutes);
     this.gold = this.gold.plus(gold);
     this.save();
@@ -3560,6 +3648,8 @@ export class GameState {
       monthlyPack: this.monthlyPack,
       guildCredits: this.guildCredits,
       guildResearch: this.guildResearch,
+      observatory: this.observatory,
+      obsOff: this.obsOff,
       guildBossPicks: this.guildBossPicks,
       achieved: this.achieved,
       bootcamp: this.bootcamp,
@@ -3676,6 +3766,8 @@ export class GameState {
       this.embers = d.embers ?? 0;
       this.emberLevels = { ...this.emberLevels, ...(d.emberLevels ?? {}) };
       this.rekindles = d.rekindles ?? 0;
+      this.observatory = cleanObservatory(d.observatory);
+      this.obsOff = cleanObsOff(d.obsOff);
       this.lifetimeEmbers = d.lifetimeEmbers ?? this.embers;
       this.benched = { ...(d.benched ?? {}) };
       this.stats = { ...this.stats, ...(d.stats ?? {}) };
@@ -3725,7 +3817,7 @@ export class GameState {
       this.achieved = { ...(d.achieved ?? {}) };
       this.bootcamp = [...(d.bootcamp ?? [])];
       this.milestone = d.milestone ?? 0;
-      this.tickets = d.tickets ?? TICKET_CAP;
+      this.tickets = d.tickets ?? this.ticketCap();
       this.ticketClock = d.ticketClock ?? Date.now();
       this.trialBest = { ...(d.trialBest ?? {}) };
       this.trialTimes = {};
@@ -3865,7 +3957,7 @@ export class GameState {
     this.ultSlots = Math.min(ULT_SLOTS_MAX, Math.max(ULT_SLOTS_START, Math.floor(num(this.ultSlots, ULT_SLOTS_START))));
     this.teamSlots = Math.min(TEAM_SLOTS_MAX, Math.max(TEAM_SLOTS_START, Math.floor(num(this.teamSlots, TEAM_SLOTS_START))));
     this.embers = Math.max(0, num(this.embers, 0));
-    this.tickets = Math.min(TICKET_CAP, Math.max(0, Math.floor(num(this.tickets, TICKET_CAP))));
+    this.tickets = Math.min(this.ticketCap(), Math.max(0, Math.floor(num(this.tickets, this.ticketCap()))));
     this.ticketClock = num(this.ticketClock, Date.now());
     this.lastSeen = num(this.lastSeen, Date.now());
     for (const k of STAT_KEYS) this.stats[k] = Math.max(0, num(this.stats[k], 0));
@@ -3961,7 +4053,12 @@ export class GameState {
 
   /** The highest stage a full offline stretch (the 12 h cap) would reach from here. */
   maxOfflineStage(): number {
-    return this.stage + this.offlineReach(OFFLINE_CAP_HOURS * 3600).stages;
+    return this.stage + this.offlineReach(OFFLINE_CAP_HOURS * 3600 * this.offlineSpeed()).stages;
+  }
+
+  /** How much each real second away counts for offline (Dreaming Moon). */
+  offlineSpeed() {
+    return 1 + this.obsBonus('offline');
   }
 
   /**
@@ -3970,8 +4067,10 @@ export class GameState {
    * stages and bosses the team can beat (offlineReach). Capped at 12 hours.
    */
   applyOffline(seconds: number): OfflineReport | null {
-    const capped = Math.min(seconds, OFFLINE_CAP_HOURS * 3600);
-    if (capped < 60) return null;
+    const real = Math.min(seconds, OFFLINE_CAP_HOURS * 3600);
+    if (real < 60) return null;
+    // Dreaming Moon: away time counts for more (the 12 h cap is on real time).
+    const capped = real * this.offlineSpeed();
     const market = this.marketAutoPerSec().times(capped);
     // The recent rate, but never below what the stage pays, so leaving right after opening still earns.
     const gold = this.goldFor(capped / 60).plus(market);
@@ -3981,7 +4080,7 @@ export class GameState {
     const { stages, bosses } = this.offlineReach(capped);
     this.gold = this.gold.plus(gold);
     this.reachStage(start + stages);
-    return { seconds: capped, gold, stages, bosses, market };
+    return { seconds: real, gold, stages, bosses, market };
   }
 }
 
