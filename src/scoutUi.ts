@@ -56,6 +56,7 @@ export class ScoutUI {
       if (!btn || btn.disabled) return;
       const slot = btn.dataset.slot!;
       if (btn.dataset.sc === 'deploy') this.deployAll();
+      else if (btn.dataset.sc === 'collect') this.claimAll();
       else if (btn.dataset.sc === 'send') this.openPicker(slot);
       else if (btn.dataset.sc === 'claim') this.claim(slot);
       else if (btn.dataset.sc === 'recall') this.ui.showModal('Call back?', '<p>The heroes come home now and this mission pays nothing.</p>', 'Call back', () => {
@@ -122,7 +123,9 @@ export class ScoutUI {
     const note = s.scout.slots.some((x) => x.slot === 'rb') ? '' : `<p class="sc-note">${toBonus} more Common mission${toBonus === 1 ? '' : 's'} for a bonus Rare mission.</p>`;
     const waiting = s.scoutWaiting().length;
     const deploy = `<button type="button" class="hot sc-deploy" data-sc="deploy" data-slot="" ${waiting ? '' : 'disabled'}>Deploy all${waiting ? ` (${waiting})` : ''}</button>`;
-    setHtml(board, deploy + cards.join('') + note);
+    const ready = s.scoutReadyCount(now);
+    const collect = `<button type="button" class="hot sc-deploy" data-sc="collect" data-slot="" ${ready ? '' : 'disabled'}>Collect all${ready ? ` (${ready})` : ''}</button>`;
+    setHtml(board, `<div class="sc-actions">${collect}${deploy}</div>` + cards.join('') + note);
     // Countdowns tick in place, so the cards (and their buttons) are only rebuilt when something changes.
     for (const el of board.querySelectorAll<HTMLElement>('[data-sc-end]')) {
       const text = fmtDuration(Math.max(0, Math.ceil((Number(el.dataset.scEnd) - now) / 1000)));
@@ -143,6 +146,19 @@ export class ScoutUI {
         skipped.length ? `<p class="meta">Skipped ${list(skipped)}: no free team meets the rules. Gilded and Rare missions get your best heroes first.</p>` : ''
       }`,
       'OK',
+    );
+    this.ui.render();
+  }
+
+  /** Collect every finished mission at once and show the summed reward. */
+  private claimAll() {
+    const { count, reward: r } = this.state.claimAllScouts();
+    if (!count) return;
+    play('chest');
+    this.ui.showModal(
+      `${count} mission${count > 1 ? 's' : ''} complete`,
+      `<div class="sc-reward big">${rewardChips(r) || 'Nothing this time.'}</div>${r.wild ? '<p>Wild Crests go to any hero you pick: tap them at the top of the Scouting page.</p>' : ''}${r.unbinder ? '<p>Unbinders take a bound Glyph out of a weapon safely.</p>' : ''}${glyphDrops(this.state.lastScoutGlyphs)}`,
+      'Collect',
     );
     this.ui.render();
   }
@@ -212,6 +228,7 @@ export class ScoutUI {
       `<p>Send teams of heroes on missions. They come back after the mission's hours with weapon materials. Heroes still fight while they're away, but each hero goes on one mission at a time.</p>
        <p><b>Team Score:</b> each hero gives 10 per yellow star, 5 per pink star and 5 per weapon level above 1. A hero of the wanted Type scores x${SCOUT_MATCH_MULT}, and again x${SCOUT_MATCH_MULT} for the wanted element. The score against the mission's target sets how much of the reward you get.</p>
        <p><b>Rules:</b> a team must be exactly the mission's size, every hero needs enough yellow stars, Rare and Gilded missions need heroes of their element (Gilded also one of its Type), and the Team Score must reach half the target. Common: ${SCOUT_KINDS.common.size} heroes at ${SCOUT_KINDS.common.minStar}★+. Rare: ${SCOUT_KINDS.rare.size} at ${SCOUT_KINDS.rare.minStar}★+, ${SCOUT_KINDS.rare.needElement} of the element. Gilded: ${SCOUT_KINDS.gilded.size} at ${SCOUT_KINDS.gilded.minStar}★+, ${SCOUT_KINDS.gilded.needElement} of the element and ${SCOUT_KINDS.gilded.needType} of the Type. You likely can't fill every mission, so pick the ones that matter.</p>
+       <p><b>Collect all</b> collects every finished mission at once.</p>
        <p><b>Deploy all</b> sends the best free team to every mission it can, Gilded first, then Rare, then Common, and skips missions no team fits.</p>
        <p><b>Board:</b> 3 Common missions (1-4 h) and 1 Rare (4-6 h, the main source of Rare and Epic Forge Cores, plus an Unbinder and a Glyph Chest). A collected mission's slot gets a new one at the next full hour. Every ${SCOUT_BONUS_COMMONS} Commons add a bonus Rare.</p>
        <p><b>Gilded mission:</b> one a day. It pays a Rare Glyph Chest, 2 Unbinders and Wild Crests, which turn into crests for any hero you pick (Common ${WILD_CREST_COST.common}, Rare ${WILD_CREST_COST.rare}, Epic ${WILD_CREST_COST.epic} per crest). Legendary and Ascendant heroes are left out.</p>`,
