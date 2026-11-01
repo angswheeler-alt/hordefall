@@ -56,8 +56,8 @@ const TYPES = Object.keys(HERO_TYPES) as HeroType[];
 
 export const SCOUT_KINDS: Record<ScoutKind, { name: string; hours: number[]; size: number; target: number }> = {
   common: { name: 'Common', hours: [1, 2, 3, 4], size: 3, target: 90 },
-  rare: { name: 'Rare', hours: [4, 5, 6], size: 4, target: 240 },
-  gilded: { name: 'Gilded', hours: [6], size: 5, target: 450 },
+  rare: { name: 'Rare', hours: [4, 5, 6], size: 4, target: 160 },
+  gilded: { name: 'Gilded', hours: [6], size: 5, target: 250 },
 };
 
 /** Team Score bonus for a hero of the recommended Type, and again for the recommended element. */
