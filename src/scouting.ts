@@ -46,8 +46,8 @@ export interface ScoutState {
   done: number;
 }
 
-/** Materials, Wild Crests and Unbinders (for bound Glyphs, src/glyphs.ts). */
-export type ScoutReward = Partial<Record<ForgeMat | 'wild' | 'unbinder', number>>;
+/** Materials, Wild Crests, Unbinders and Glyph Chests (Rare missions a Glyph Chest, Gilded a Rare Glyph Chest; src/glyphs.ts). */
+export type ScoutReward = Partial<Record<ForgeMat | 'wild' | 'unbinder' | 'glyph' | 'grand', number>>;
 
 export const SCOUT_UNLOCK_LEVEL = 15;
 export const SCOUT_BONUS_COMMONS = 5;
@@ -128,15 +128,16 @@ export function scoutShare(score: number, kind: ScoutKind): number {
 export function fullReward(m: Pick<ScoutMission, 'kind' | 'hours'>): ScoutReward {
   const h = m.hours;
   if (m.kind === 'common') return { ore: 30 * h, crystal: 30 * h, coreC: h };
-  if (m.kind === 'rare') return { ore: 50 * h, crystal: 50 * h, coreC: 2 * h, coreR: Math.round(h / 2), coreE: h >= 6 ? 1 : 0, unbinder: 1 };
-  return { ore: 40 * h, crystal: 40 * h, wild: GILDED_WILD, unbinder: 2 };
+  if (m.kind === 'rare') return { ore: 50 * h, crystal: 50 * h, coreC: 2 * h, coreR: Math.round(h / 2), coreE: h >= 6 ? 1 : 0, unbinder: 1, glyph: 1 };
+  return { ore: 40 * h, crystal: 40 * h, wild: GILDED_WILD, unbinder: 2, grand: 1 };
 }
 
 /** What a mission pays at a share of its target: Ore and Crystal round down, cores and Wild Crests to the nearest. */
 export function scoutReward(m: Pick<ScoutMission, 'kind' | 'hours'>, share: number): ScoutReward {
   const out: ScoutReward = {};
   for (const [k, v] of Object.entries(fullReward(m)) as Array<[keyof ScoutReward, number]>) {
-    const n = k === 'ore' || k === 'crystal' ? Math.floor(v * share) : Math.round(v * share);
+    // Glyph Chests always pay in full; everything else scales with the team's share.
+    const n = k === 'glyph' || k === 'grand' ? v : k === 'ore' || k === 'crystal' ? Math.floor(v * share) : Math.round(v * share);
     if (n > 0) out[k] = n;
   }
   return out;

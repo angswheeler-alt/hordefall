@@ -118,10 +118,10 @@ describe('scouting', () => {
 
   it('pays weapon materials scaled by the Team Score', () => {
     expect(fullReward({ kind: 'common', hours: 4 })).toEqual({ ore: 120, crystal: 120, coreC: 4 });
-    expect(fullReward({ kind: 'rare', hours: 6 })).toEqual({ unbinder: 1, ore: 300, crystal: 300, coreC: 12, coreR: 3, coreE: 1 });
+    expect(fullReward({ kind: 'rare', hours: 6 })).toEqual({ unbinder: 1, glyph: 1, ore: 300, crystal: 300, coreC: 12, coreR: 3, coreE: 1 });
     expect(fullReward({ kind: 'gilded', hours: 6 }).wild).toBe(20);
     expect(scoutReward({ kind: 'common', hours: 4 }, 0.5)).toEqual({ ore: 60, crystal: 60, coreC: 2 });
-    expect(scoutReward({ kind: 'rare', hours: 6 }, 0.4)).toEqual({ ore: 120, crystal: 120, coreC: 5, coreR: 1 });
+    expect(scoutReward({ kind: 'rare', hours: 6 }, 0.4)).toEqual({ glyph: 1, ore: 120, crystal: 120, coreC: 5, coreR: 1 });
   });
 
   it('runs a mission: heroes are busy, it finishes after its hours, collecting pays and queues the next', () => {
@@ -174,8 +174,14 @@ describe('scouting', () => {
     const g = s.scout.slots.find((x) => x.slot === 'g')!;
     expect(s.startScout('g', s.scoutAutoPick('g'), T0)).toBe(true);
     const end = T0 + g.mission!.hours * HOUR;
+    const glyphsBefore = s.glyphs.length;
     const reward = s.claimScout('g', end)!;
     expect(reward.wild).toBeGreaterThan(0);
+    // Gilded pays a Rare Glyph Chest (3-6 stars), opened on collect.
+    expect(reward.grand).toBe(1);
+    expect(s.lastScoutGlyphs.length).toBe(1);
+    expect(s.lastScoutGlyphs[0].glyph!.star).toBeGreaterThanOrEqual(3);
+    expect(s.glyphs.length).toBe(glyphsBefore + 1);
     // Same day: no second Gilded.
     expect(s.scoutBoard(end).some((x) => x.slot === 'g')).toBe(dayKey(end) !== dayKey(T0));
     const common = HEROES.find((h) => h.rarity === 'common' && !isAscendant(h.id))!;

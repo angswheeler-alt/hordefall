@@ -10,19 +10,20 @@ import { FORGE_MATS, FORGE_MAT_NAMES, WEAPON_GLYPHS, WEAPON_LOOK_NAMES, WEAPON_M
 import { faceStyle, dropCards } from './ui';
 import { play } from './sfx';
 import { setHtml } from './taps';
+import { glyphDrops } from './glyphUi';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const esc = (text: string) => String(text).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const hero = (id: string) => HEROES.find((h) => h.id === id)!;
 
-const MAT_CLASS: Record<ForgeMat | 'wild' | 'unbinder', string> = { ore: 'ore', crystal: 'crystal', coreC: 'core-c', coreR: 'core-r', coreE: 'core-e', wild: 'wild', unbinder: 'unbinder' };
-const MAT_SHORT: Record<ForgeMat | 'wild' | 'unbinder', string> = { ore: 'Ore', crystal: 'Crystal', coreC: 'Common Core', coreR: 'Rare Core', coreE: 'Epic Core', wild: 'Wild Crests', unbinder: 'Unbinders' };
-export const matIcon = (m: ForgeMat | 'wild' | 'unbinder') => `<i class="mat-ico ${MAT_CLASS[m]}" aria-hidden="true"></i>`;
+const MAT_CLASS: Record<ForgeMat | 'wild' | 'unbinder' | 'glyph' | 'grand', string> = { ore: 'ore', crystal: 'crystal', coreC: 'core-c', coreR: 'core-r', coreE: 'core-e', wild: 'wild', unbinder: 'unbinder', glyph: 'glyph-chest', grand: 'glyph-grand' };
+const MAT_SHORT: Record<ForgeMat | 'wild' | 'unbinder' | 'glyph' | 'grand', string> = { ore: 'Ore', crystal: 'Crystal', coreC: 'Common Core', coreR: 'Rare Core', coreE: 'Epic Core', wild: 'Wild Crests', unbinder: 'Unbinders', glyph: 'Glyph Chest (1-3★)', grand: 'Rare Glyph Chest (3-6★)' };
+export const matIcon = (m: ForgeMat | 'wild' | 'unbinder' | 'glyph' | 'grand') => `<i class="mat-ico ${MAT_CLASS[m]}" aria-hidden="true"></i>`;
 
 /** "120 Ore · 4 Common Cores" style list with icons. */
 export function rewardChips(r: ScoutReward): string {
-  return (Object.entries(r) as Array<[ForgeMat | 'wild' | 'unbinder', number]>)
+  return (Object.entries(r) as Array<[ForgeMat | 'wild' | 'unbinder' | 'glyph' | 'grand', number]>)
     .filter(([, n]) => n > 0)
     .map(([k, n]) => `<span class="mat-chip" title="${MAT_SHORT[k]}">${matIcon(k)}${n.toLocaleString()}</span>`)
     .join('');
@@ -118,7 +119,7 @@ export class ScoutUI {
     const r = this.state.claimScout(slot);
     if (!r) return;
     play('chest');
-    this.ui.showModal('Mission complete', `<div class="sc-reward big">${rewardChips(r) || 'Nothing this time.'}</div>${r.wild ? '<p>Wild Crests go to any hero you pick: tap them at the top of the Scouting page.</p>' : ''}${r.unbinder ? '<p>Unbinders take a bound Glyph out of a weapon safely.</p>' : ''}`, 'Collect');
+    this.ui.showModal('Mission complete', `<div class="sc-reward big">${rewardChips(r) || 'Nothing this time.'}</div>${r.wild ? '<p>Wild Crests go to any hero you pick: tap them at the top of the Scouting page.</p>' : ''}${r.unbinder ? '<p>Unbinders take a bound Glyph out of a weapon safely.</p>' : ''}${glyphDrops(this.state.lastScoutGlyphs)}`, 'Collect');
     this.ui.render();
   }
 
@@ -174,8 +175,8 @@ export class ScoutUI {
       'Scouting',
       `<p>Send teams of heroes on missions. They come back after the mission's hours with weapon materials. Heroes still fight while they're away, but each hero goes on one mission at a time.</p>
        <p><b>Team Score:</b> each hero gives 10 per yellow star, 5 per pink star and 5 per weapon level above 1. A hero of the wanted Type scores x${SCOUT_MATCH_MULT}, and again x${SCOUT_MATCH_MULT} for the wanted element. The score against the mission's target sets how much of the reward you get.</p>
-       <p><b>Board:</b> 3 Common missions (1-4 h) and 1 Rare (4-6 h, the main source of Rare and Epic Forge Cores, plus an Unbinder for bound Glyphs). A collected mission's slot gets a new one at the next full hour. Every ${SCOUT_BONUS_COMMONS} Commons add a bonus Rare.</p>
-       <p><b>Gilded mission:</b> one a day. It pays 2 Unbinders and Wild Crests, which turn into crests for any hero you pick (Common ${WILD_CREST_COST.common}, Rare ${WILD_CREST_COST.rare}, Epic ${WILD_CREST_COST.epic} per crest). Legendary and Ascendant heroes are left out.</p>`,
+       <p><b>Board:</b> 3 Common missions (1-4 h) and 1 Rare (4-6 h, the main source of Rare and Epic Forge Cores, plus an Unbinder and a Glyph Chest). A collected mission's slot gets a new one at the next full hour. Every ${SCOUT_BONUS_COMMONS} Commons add a bonus Rare.</p>
+       <p><b>Gilded mission:</b> one a day. It pays a Rare Glyph Chest, 2 Unbinders and Wild Crests, which turn into crests for any hero you pick (Common ${WILD_CREST_COST.common}, Rare ${WILD_CREST_COST.rare}, Epic ${WILD_CREST_COST.epic} per crest). Legendary and Ascendant heroes are left out.</p>`,
       'Got it',
     );
   }
