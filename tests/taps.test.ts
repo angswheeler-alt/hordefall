@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PRESS_CLASS, PRESS_MIN_MS, RELEASE_MS, busyWhile, setHtml, watchTaps } from '../src/taps';
+import { PRESSABLE, PRESS_CLASS, PRESS_MIN_MS, RELEASE_MS, busyWhile, setHtml, watchTaps } from '../src/taps';
 
 /** Just enough of a DOM element for setHtml: a parent chain, a dataset and innerHTML. */
 class FakeEl {
@@ -116,6 +116,14 @@ describe('Taps are not lost to re-renders', () => {
     expect(classes.has(PRESS_CLASS)).toBe(true);
     fire('pointercancel');
     expect(classes.has(PRESS_CLASS)).toBe(false);
+  });
+});
+
+describe('What shows a pressed look', () => {
+  it('never a whole panel section: only buttons carry the data-tab match', () => {
+    const parts = PRESSABLE.split(',').map((p) => p.trim());
+    for (const p of parts) expect(p.startsWith('[data-')).toBe(false);
+    expect(parts).toContain('button[data-tab]');
   });
 });
 
