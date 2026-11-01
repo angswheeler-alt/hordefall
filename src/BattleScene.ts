@@ -2489,9 +2489,11 @@ export class BattleScene extends Phaser.Scene {
     }
     if (ult?.kind === 'crescent') {
       // A crescent wave down the whole lane: everything ahead takes `lane` of the hit, bosses `mult` of it.
-      this.ultFx(h, h.x + 20, ENEMY_CRYSTAL_X);
-      const wave = this.add.rectangle(h.x + 20, h.y, 14, 60, color, 0.6).setDepth(999);
-      this.tweens.add({ targets: wave, x: ENEMY_CRYSTAL_X, alpha: 0.15, duration: 420, onComplete: () => wave.destroy() });
+      // The plain shape only stands in for heroes without their own Ultimate picture.
+      if (!this.ultFx(h, h.x + 20, ENEMY_CRYSTAL_X)) {
+        const wave = this.add.rectangle(h.x + 20, h.y, 14, 60, color, 0.6).setDepth(999);
+        this.tweens.add({ targets: wave, x: ENEMY_CRYSTAL_X, alpha: 0.15, duration: 420, onComplete: () => wave.destroy() });
+      }
       this.cameras.main.shake(300, 0.015);
       for (const e of this.enemies.filter((e) => e.alive && e.x >= h.x - 30)) {
         this.damageUnit(e, dmg.times(this.elem(this.dealsAs(h), e) * (e.isBoss ? (plus ? ult.plusMult : ult.mult) : ult.lane)), h, e.isBoss);
@@ -2501,9 +2503,10 @@ export class BattleScene extends Phaser.Scene {
     }
     if (ult?.kind === 'verdict') {
       // Kirin's Verdict: a fiery dash down the lane; everyone in reach ahead takes the hit and Burns.
-      this.ultFx(h, h.x, h.x + ult.reach);
-      const streak = this.add.rectangle(h.x, h.y, 18, 10, 0xff6a2a, 0.75).setDepth(999);
-      this.tweens.add({ targets: streak, x: h.x + ult.reach, scaleX: 6, alpha: 0, duration: 320, onComplete: () => streak.destroy() });
+      if (!this.ultFx(h, h.x, h.x + ult.reach)) {
+        const streak = this.add.rectangle(h.x, h.y, 18, 10, 0xff6a2a, 0.75).setDepth(999);
+        this.tweens.add({ targets: streak, x: h.x + ult.reach, scaleX: 6, alpha: 0, duration: 320, onComplete: () => streak.destroy() });
+      }
       this.cameras.main.shake(260, 0.014);
       for (const e of this.enemies.filter((e) => e.alive && e.x >= h.x - 30 && e.x <= h.x + ult.reach)) {
         this.sparks(e.x, e.y - 6, 0xff8a3a, 6);
@@ -2522,9 +2525,10 @@ export class BattleScene extends Phaser.Scene {
       // Skyfall: a dive on the toughest enemy in reach; the quake hits and stuns the enemies around it.
       const target = this.enemies.filter((e) => e.alive && e.x >= h.x - 30 && e.x <= h.x + Math.max(260, h.range)).sort((a, b) => b.hp.cmp(a.hp))[0];
       if (target) {
-        this.ultFx(h, target.x, target.x, target);
-        const ring = this.add.circle(target.x, target.y, 8, color, 0.5).setDepth(999);
-        this.tweens.add({ targets: ring, radius: ult.radius, alpha: 0, duration: 360, onComplete: () => ring.destroy() });
+        if (!this.ultFx(h, target.x, target.x, target)) {
+          const ring = this.add.circle(target.x, target.y, 8, color, 0.5).setDepth(999);
+          this.tweens.add({ targets: ring, radius: ult.radius, alpha: 0, duration: 360, onComplete: () => ring.destroy() });
+        }
         this.sparks(target.x, target.y - 6, color, 12);
         this.cameras.main.shake(260, 0.016);
         const hit = this.enemies.filter((e) => e.alive && Math.abs(e.x - target.x) <= ult.radius);
@@ -2546,14 +2550,15 @@ export class BattleScene extends Phaser.Scene {
       return true;
     }
     const radius = 170;
-    const ring = this.add.circle(h.x + 60, h.y, 10, color, 0.45).setDepth(999);
-    this.tweens.add({ targets: ring, radius, alpha: 0, duration: 380, onComplete: () => ring.destroy() });
     this.cameras.main.shake(300, 0.015);
     this.cameras.main.flash(120, 255, 255, 255);
     // Heroes built to the hero standard get their own 5★ twist instead of the bigger hit.
     const x0 = h.x - 30, x1 = h.x + radius + 60;
     const hit = this.enemies.filter((e) => e.alive && e.x >= x0 && e.x <= x1);
-    this.ultFx(h, h.x + 30, Math.min(x1, ENEMY_CRYSTAL_X), hit.length ? hit.reduce((a, b) => (b.hp.gt(a.hp) ? b : a)) : undefined);
+    if (!this.ultFx(h, h.x + 30, Math.min(x1, ENEMY_CRYSTAL_X), hit.length ? hit.reduce((a, b) => (b.hp.gt(a.hp) ? b : a)) : undefined)) {
+      const ring = this.add.circle(h.x + 60, h.y, 10, color, 0.45).setDepth(999);
+      this.tweens.add({ targets: ring, radius, alpha: 0, duration: 380, onComplete: () => ring.destroy() });
+    }
     // Marks land before the hit so the Volley itself benefits.
     if (ult?.kind === 'mark') {
       for (const e of hit) {
@@ -2572,11 +2577,11 @@ export class BattleScene extends Phaser.Scene {
    * The hero's own Ultimate picture (src/ultFx.ts), moved by its style over the area x0..x1 (or on `target`).
    * Additive blending turns the picture's black background see-through. Does nothing without a picture.
    */
-  private ultFx(h: Unit, x0: number, x1: number, target?: Unit) {
+  private ultFx(h: Unit, x0: number, x1: number, target?: Unit): boolean {
     const def = h.def;
     const art = def && ULT_FX_ART[def.id];
     const key = def ? `ultfx-${def.id}` : '';
-    if (!def || !art || !this.textures.exists(key)) return;
+    if (!def || !art || !this.textures.exists(key)) return false;
     const style = ultFxStyle(def);
     const size = ULT_FX_HEIGHT[style];
     // Keep the show on screen: the camera trails the front hero, so the area often runs past the right edge.
@@ -2662,7 +2667,7 @@ export class BattleScene extends Phaser.Scene {
           this.tweens.add({ targets: img, alpha: 1, y: img.y - 10, duration: ms(220), onComplete: () => fadeOut(img, 300, 300) });
         }
         break;
-    }
+    }  return true;
   }
 
   /** What a hero-standard Ultimate does after the hit. */
