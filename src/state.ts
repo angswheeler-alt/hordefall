@@ -15,7 +15,7 @@ import { ascendantDef, isAscendant, ASCENDANT_HEROES } from './heroes/ascendant'
 import { HERO_ANIMS } from './heroAnims';
 import { TEST_MODE, TEST_SAVE_KEY } from './config';
 import { FORGE_MATS, WEAPON_GLYPHS, clampWeaponLevel, weaponMult, weaponUpgradeCost, type ForgeCost, type ForgeMat } from './weapons';
-import { GLYPH_BAG_CAP, chestStar, cleanGlyph, emptyTotals, glyphBound, glyphLevelCost, glyphSalvage, glyphTotals, rollGlyph, type Glyph, type GlyphChestKind, type GlyphFamily, type GlyphTotals } from './glyphs';
+import { GLYPH_BAG_CAP, GLYPH_FAMILIES, chestStar, cleanGlyph, emptyTotals, glyphBound, glyphLevelCost, glyphSalvage, glyphTotals, rollGlyph, type Glyph, type GlyphChestKind, type GlyphFamily, type GlyphTotals } from './glyphs';
 import { RUSH_BRACKETS, RUSH_CREST_COINS, RUSH_CREST_LIMIT, RUSH_CREST_PACK, RUSH_DAILY_TICKETS, RUSH_DAYS, RUSH_FEATURED, RUSH_FIGHT_TICKETS, RUSH_FOES, RUSH_FREE_HOURS, RUSH_LOSS_COINS, RUSH_MAX_LEVEL, RUSH_SHOP, RUSH_STREAK_UP, RUSH_TIERS, RUSH_UNLOCK_LEVEL, chestKinds, cleanRush, freeAttacks, inBracket, newRush, rushWinPoints, type RushFoe, type RushReward, type RushShopId, type RushState } from './rush';
 import { SCOUT_KINDS, SCOUT_UNLOCK_LEVEL, WILD_CREST_COST, cleanScout, heroScoutScore, missionEndsAt, newScout, nextHour, refreshBoard, scoutReward, scoutShare, type ScoutReward, type ScoutSlot, type ScoutState } from './scouting';
 
@@ -2366,9 +2366,11 @@ export class GameState {
   }
 
   /** Open Glyph Chests: one Glyph each. */
-  openGlyphChests(kind: GlyphChestKind, n: number): Array<{ glyph?: Glyph; dust?: number }> {
+  openGlyphChests(kind: GlyphChestKind, n: number, family?: GlyphFamily): Array<{ glyph?: Glyph; dust?: number }> {
     const out: Array<{ glyph?: Glyph; dust?: number }> = [];
-    for (let i = 0; i < n; i++) out.push(this.gainGlyph(chestStar(kind, `${kind}:${this.glyphRolls + 1}`)));
+    // A Family chest needs its family; without one it can't be opened.
+    if (kind === 'family' && !family) return out;
+    for (let i = 0; i < n; i++) out.push(this.gainGlyph(chestStar(kind, `${kind}:${this.glyphRolls + 1}`), kind === 'family' ? family : undefined));
     return out;
   }
 
@@ -2666,16 +2668,18 @@ export class GameState {
   }
 
   /** Buy a Rush Shop item with Rush Coins. */
-  buyRushItem(item: RushShopId): RushPaid | null {
+  buyRushItem(item: RushShopId, family?: GlyphFamily): RushPaid | null {
     const def = RUSH_SHOP[item];
     if (!def || !this.rushOpen() || this.rushShopLeft(item) <= 0 || this.rushCoins < def.coins) return null;
+    if (item === 'family' && !(family && GLYPH_FAMILIES.includes(family))) return null;
     this.rushCoins -= def.coins;
     this.rush.bought[item] = (this.rush.bought[item] ?? 0) + 1;
     let paid: RushPaid;
     if (item === 'coreR') {
       this.forge.coreR++;
       paid = { reward: {}, glyphs: [] };
-    } else paid = this.payRush(item === 'glyph' ? { glyph: 1 } : item === 'grand' ? { grand: 1 } : item === 'dust' ? { dust: 200 } : { unbinder: 1 });
+    } else if (item === 'family') paid = { reward: { family: 1 }, glyphs: this.openGlyphChests('family', 1, family) };
+    else paid = this.payRush(item === 'glyph' ? { glyph: 1 } : item === 'grand' ? { grand: 1 } : item === 'dust' ? { dust: 200 } : { unbinder: 1 });
     this.save();
     return paid;
   }

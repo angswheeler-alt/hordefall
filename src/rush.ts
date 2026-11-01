@@ -46,6 +46,8 @@ export const RUSH_FOES = [
 export interface RushReward {
   glyph?: number;
   grand?: number;
+  /** Family Glyph Chests (shop only: the player picks the family when buying). */
+  family?: number;
   dust?: number;
   gems?: number;
   unbinder?: number;
@@ -63,10 +65,11 @@ export const RUSH_TIERS: Array<{ points: number; reward: RushReward }> = [
   { points: 4000, reward: { grand: 3, gems: 60 } },
 ];
 
-export type RushShopId = 'glyph' | 'grand' | 'dust' | 'coreR' | 'unbinder';
+export type RushShopId = 'glyph' | 'grand' | 'family' | 'dust' | 'coreR' | 'unbinder';
 export const RUSH_SHOP: Record<RushShopId, { name: string; coins: number; limit: number; text: string }> = {
-  glyph: { name: 'Glyph Chest', coins: 150, limit: 5, text: 'One 1★ to 4★ Glyph' },
-  grand: { name: 'Grand Glyph Chest', coins: 600, limit: 2, text: 'One 3★ to 6★ Glyph' },
+  glyph: { name: 'Glyph Chest', coins: 150, limit: 5, text: 'One 1★ to 3★ Glyph' },
+  grand: { name: 'Rare Glyph Chest', coins: 600, limit: 2, text: 'One 3★ to 6★ Glyph' },
+  family: { name: 'Family Glyph Chest', coins: 350, limit: 3, text: 'One 2★ to 5★ Glyph of the family you pick' },
   dust: { name: 'Glyph Dust x200', coins: 100, limit: 10, text: 'Levels up Glyphs' },
   coreR: { name: 'Rare Forge Core', coins: 120, limit: 5, text: 'For weapon levels 4 and up' },
   unbinder: { name: 'Unbinder', coins: 200, limit: 3, text: 'Takes a bound Glyph out safely' },

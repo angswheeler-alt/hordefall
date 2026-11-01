@@ -1218,6 +1218,9 @@ button.mat-chip.wild-btn:disabled { opacity: .55; border-color: rgba(255,255,255
 .mat-ico.dust { background-image: url('./assets/ui/glyph-dust.png'); }
 .mat-ico.glyph-chest { background-image: url('./assets/ui/glyph-chest.png'); }
 .mat-ico.glyph-grand { background-image: url('./assets/ui/glyph-grand.png'); }
+.mat-ico.glyph-family { background-image: url('./assets/ui/glyph-family.png'); }
+.rush-item .rush-odds { color: #c9bfe8; }
+button.rush-item.rush-fam { width: 100%; border: 1px solid var(--fam); color: #fff; font: inherit; text-align: left; cursor: pointer; }
 .mat-ico.rush-coin { background-image: url('./assets/ui/rush-coin.png'); }
 .glyph-ico { display: inline-block; width: 24px; height: 24px; background: center / contain no-repeat; image-rendering: pixelated; flex: none; }
 .glyph-ico.attack { background-image: url('./assets/ui/glyph-attack.png'); }
