@@ -261,10 +261,21 @@ export function guildBossKillCoins(level: number): number {
   return GUILD_BOSS_KILL_COINS * (10 + level);
 }
 
-/** The weekly reward when the highest level beaten is `top`: Guild Coins and Hero Chests (none for 0). */
-export function guildBossWeekReward(top: number): { coins: number; chests: number } {
-  if (!(top > 0)) return { coins: 0, chests: 0 };
-  return { coins: GUILD_BOSS_WEEK_COINS * (10 + top), chests: Math.min(GUILD_BOSS_WEEK_MAX_CHESTS, Math.ceil(top / GUILD_BOSS_LEVELS_PER_CHEST)) };
+/**
+ * The weekly reward when the highest level beaten is `top` and the guild beat `beaten` levels that week: Guild Coins by
+ * the top level, Hero Chests by the levels beaten (none for 0). Since weeks start near last week's best
+ * (guildBossStartLevel), chests count the week's own work, not the levels it started past.
+ */
+export function guildBossWeekReward(top: number, beaten = top): { coins: number; chests: number } {
+  if (!(top > 0) || !(beaten > 0)) return { coins: 0, chests: 0 };
+  return { coins: GUILD_BOSS_WEEK_COINS * (10 + top), chests: Math.min(GUILD_BOSS_WEEK_MAX_CHESTS, Math.ceil(beaten / GUILD_BOSS_LEVELS_PER_CHEST)) };
+}
+
+/** Levels below last week's best that a new week's Guild Boss starts at (2026-11-01 balance review). */
+export const GUILD_BOSS_START_BACK = 10;
+/** The level a week's Guild Boss starts at, from last week's highest level beaten (0 = none): that minus GUILD_BOSS_START_BACK, at least 1. Mirrors guild_boss_week in guilds.sql. */
+export function guildBossStartLevel(lastTop: number): number {
+  return Math.max(1, Math.floor(lastTop || 0) - GUILD_BOSS_START_BACK);
 }
 
 /**
