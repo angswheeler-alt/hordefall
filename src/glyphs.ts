@@ -133,12 +133,25 @@ export function rollGlyph(seed: string, star: number, family?: GlyphFamily): Gly
   return { id: seed, family: fam, star: s, level: 0, subs };
 }
 
-/** Glyph Chests: chance of each star (index 0 = 1★). */
-export type GlyphChestKind = 'glyph' | 'grand';
-export const GLYPH_CHESTS: Record<GlyphChestKind, { name: string; odds: number[] }> = {
-  glyph: { name: 'Glyph Chest', odds: [0.35, 0.35, 0.2, 0.1, 0, 0] },
-  grand: { name: 'Grand Glyph Chest', odds: [0, 0, 0.5, 0.3, 0.15, 0.05] },
+/**
+ * Glyph Chests: chance of each star (index 0 = 1★). Three kinds (Samuel, 2026-11-01): a common chest for low stars,
+ * a Rare chest for high stars, and a Family chest where the player picks the family (the stat) first.
+ * ('grand' is the Rare chest's id, kept so saved shop limits still match.)
+ */
+export type GlyphChestKind = 'glyph' | 'grand' | 'family';
+export const GLYPH_CHESTS: Record<GlyphChestKind, { name: string; odds: number[]; text: string }> = {
+  glyph: { name: 'Glyph Chest', odds: [0.45, 0.35, 0.2, 0, 0, 0], text: 'One 1★ to 3★ Glyph, any family' },
+  grand: { name: 'Rare Glyph Chest', odds: [0, 0, 0.45, 0.3, 0.18, 0.07], text: 'One 3★ to 6★ Glyph, any family' },
+  family: { name: 'Family Glyph Chest', odds: [0, 0.3, 0.4, 0.25, 0.05, 0], text: 'One 2★ to 5★ Glyph of the family you pick' },
 };
+
+/** "45% 1★ · 35% 2★ ..." for a chest's odds screen. */
+export function chestOddsText(kind: GlyphChestKind): string {
+  return GLYPH_CHESTS[kind].odds
+    .map((p, i) => (p > 0 ? `${Math.round(p * 100)}% ${i + 1}★` : ''))
+    .filter(Boolean)
+    .join(' · ');
+}
 
 /** The star a chest gives for a seed. */
 export function chestStar(kind: GlyphChestKind, seed: string): number {

@@ -27,7 +27,8 @@ import {
   type RushShopId,
 } from './rush';
 import { faceStyle, dropCards } from './ui';
-import { dustChip, glyphDrops, unbinderChip } from './glyphUi';
+import { dustChip, glyphDrops, glyphIco, unbinderChip } from './glyphUi';
+import { GLYPH_CHESTS, GLYPH_FAMILIES, GLYPH_FAMILY_INFO, GLYPH_STAT_NAMES, chestOddsText, type GlyphChestKind, type GlyphFamily } from './glyphs';
 import { matIcon } from './scoutUi';
 import { play } from './sfx';
 import { setHtml } from './taps';
@@ -50,7 +51,8 @@ interface UiHooks {
 export function rushRewardChips(r: RushReward): string {
   const out: string[] = [];
   if (r.glyph) out.push(`<span class="mat-chip"><i class="mat-ico glyph-chest" aria-hidden="true"></i>${r.glyph}</span>`);
-  if (r.grand) out.push(`<span class="mat-chip"><i class="mat-ico glyph-grand" aria-hidden="true"></i>${r.grand}</span>`);
+  if (r.grand) out.push(`<span class="mat-chip" title="Rare Glyph Chest"><i class="mat-ico glyph-grand" aria-hidden="true"></i>${r.grand}</span>`);
+  if (r.family) out.push(`<span class="mat-chip" title="Family Glyph Chest"><i class="mat-ico glyph-family" aria-hidden="true"></i>${r.family}</span>`);
   if (r.dust) out.push(dustChip(r.dust));
   if (r.unbinder) out.push(unbinderChip(r.unbinder));
   if (r.gems) out.push(`<span class="mat-chip"><span class="gem"></span>${r.gems}</span>`);
@@ -159,8 +161,9 @@ export class RushUI {
       .map((id) => {
         const d = RUSH_SHOP[id];
         const left = s.rushShopLeft(id);
-        const ico = id === 'coreR' ? matIcon('coreR') : `<i class="mat-ico ${id === 'glyph' ? 'glyph-chest' : id === 'grand' ? 'glyph-grand' : id === 'dust' ? 'dust' : 'unbinder'}" aria-hidden="true"></i>`;
-        return `<div class="rush-item">${ico}<div><b>${d.name}</b><small>${d.text} · ${left}/${d.limit} left</small></div><button type="button" class="wood-btn small" data-rs="${id}" ${left > 0 && s.rushCoins >= d.coins ? '' : 'disabled'}>${d.coins} <i class="mat-ico rush-coin"></i></button></div>`;
+        const ico = id === 'coreR' ? matIcon('coreR') : `<i class="mat-ico ${id === 'glyph' ? 'glyph-chest' : id === 'grand' ? 'glyph-grand' : id === 'family' ? 'glyph-family' : id === 'dust' ? 'dust' : 'unbinder'}" aria-hidden="true"></i>`;
+        const odds = id in GLYPH_CHESTS ? `<small class="rush-odds">${chestOddsText(id as GlyphChestKind)}</small>` : '';
+        return `<div class="rush-item">${ico}<div><b>${d.name}</b><small>${d.text} · ${left}/${d.limit} left</small>${odds}</div><button type="button" class="wood-btn small" data-rs="${id}" ${left > 0 && s.rushCoins >= d.coins ? '' : 'disabled'}>${d.coins} <i class="mat-ico rush-coin"></i></button></div>`;
       })
       .join('');
     const crests = on
@@ -188,6 +191,7 @@ export class RushUI {
     }
     if (btn.dataset.rf !== undefined) return this.openPicker(this.pickBracket(), Number(btn.dataset.rf));
     if (btn.dataset.rbag !== undefined) return this.ui.openGlyphBag();
+    if (btn.dataset.rs === 'family') return this.pickFamily();
     if (btn.dataset.rs) {
       const paid = s.buyRushItem(btn.dataset.rs as RushShopId);
       if (!paid) return;
@@ -204,6 +208,30 @@ export class RushUI {
       this.ui.showModal('Rush Shop', dropCards(drops), 'Collect');
       this.ui.render();
     }
+  }
+
+  /** Family Glyph Chest: pick the family (the stat) first, then buy. */
+  private pickFamily() {
+    const s = this.state;
+    const d = RUSH_SHOP.family;
+    const rows = GLYPH_FAMILIES.map((f) => {
+      const info = GLYPH_FAMILY_INFO[f];
+      return `<button type="button" class="rush-item rush-fam" data-fam="${f}" style="--fam:${info.color}">${glyphIco(f)}<div><b style="color:${info.color}">${info.name}</b><small>Main stat: ${GLYPH_STAT_NAMES[info.main]} · Set: ${info.setText}</small></div></button>`;
+    }).join('');
+    this.ui.showModal(
+      d.name,
+      `<p>Pick the family. You get one ${chestOddsText('family')} Glyph of it for ${d.coins} Rush Coins (you have ${s.rushCoins.toLocaleString()}).</p><div class="rush-shop">${rows}</div>`,
+      'Cancel',
+    );
+    $('modal-body').onclick = (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-fam]');
+      if (!b) return;
+      const paid = s.buyRushItem('family', b.dataset.fam as GlyphFamily);
+      if (!paid) return;
+      play('chest');
+      this.ui.showModal(d.name, rushPaidHtml([paid]), 'Collect');
+      this.ui.render();
+    };
   }
 
   /** Pick the hero to send against an opponent. */

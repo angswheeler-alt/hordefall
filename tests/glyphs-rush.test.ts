@@ -71,8 +71,10 @@ describe('glyph rules', () => {
 
   it('chest stars follow the chest', () => {
     for (let i = 0; i < 200; i++) {
-      expect(chestStar('glyph', `a${i}`)).toBeLessThanOrEqual(4);
+      expect(chestStar('glyph', `a${i}`)).toBeLessThanOrEqual(3);
       expect(chestStar('grand', `a${i}`)).toBeGreaterThanOrEqual(3);
+      expect(chestStar('family', `a${i}`)).toBeGreaterThanOrEqual(2);
+      expect(chestStar('family', `a${i}`)).toBeLessThanOrEqual(5);
     }
   });
 
@@ -320,6 +322,12 @@ describe('the Rush event', () => {
     expect(s.buyRushItem('grand')!.glyphs.length).toBe(1);
     expect(s.buyRushItem('grand')).not.toBeNull();
     expect(s.buyRushItem('grand')).toBeNull();
+    // Family chest: the player picks the family, and the Glyph is of that family.
+    expect(s.buyRushItem('family')).toBeNull();
+    const fam = s.buyRushItem('family', 'lifesteal')!;
+    expect(fam.glyphs[0].glyph!.family).toBe('lifesteal');
+    expect(fam.glyphs[0].glyph!.star).toBeGreaterThanOrEqual(2);
+    expect(s.rushShopLeft('family')).toBe(2);
     s.buyRushItem('coreR');
     expect(s.forge.coreR).toBe(1);
     s.buyRushItem('unbinder');
