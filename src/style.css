@@ -1390,3 +1390,18 @@ i.ticket.rush-ticket { background: linear-gradient(180deg, #e7a6ff, #8a3ab8); bo
 .asc-chest-open.el-earth { background-image: url('./assets/ui/asc-chest-earth.png'); }
 .asc-chest-open.el-light { background-image: url('./assets/ui/asc-chest-light.png'); }
 .asc-chest-open.el-dark { background-image: url('./assets/ui/asc-chest-dark.png'); }
+
+/* All chat (src/worldChat.ts) */
+#wchat { position: fixed; inset: 0; z-index: 15; background: rgba(8,4,20,.75); display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; }
+#wchat[hidden] { display: none; }
+.wchat-list { height: 50vh; max-height: 50vh; }
+.wchat-list li { cursor: pointer; }
+.wchat-acts { display: flex; gap: 6px; margin-top: 6px; }
+.wchat-acts button, .wchat-muted button { font-size: 12px; padding: 4px 8px; }
+.wchat-muted { margin-top: 8px; font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.chat-home { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; }
+.chat-home-icon { width: 30px; height: 26px; flex: none; position: relative; background: #4a5fa8; border-radius: 8px; }
+.chat-home-icon::after { content: ''; position: absolute; left: 6px; bottom: -6px; border: 6px solid transparent; border-top-color: #4a5fa8; border-left-color: #4a5fa8; }
+.chat-home-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.chat-home-text b { font-size: 16px; }
+.chat-home-text small { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
