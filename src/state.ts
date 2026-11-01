@@ -18,7 +18,7 @@ import { HERO_ANIMS } from './heroAnims';
 import { TEST_MODE, TEST_SAVE_KEY } from './config';
 import { FORGE_MATS, WEAPON_GLYPHS, clampWeaponLevel, weaponMult, weaponUpgradeCost, type ForgeCost, type ForgeMat } from './weapons';
 import { GLYPH_BAG_CAP, GLYPH_FAMILIES, chestStar, cleanGlyph, emptyTotals, glyphBound, glyphLevelCost, glyphSalvage, glyphTotals, rollGlyph, type Glyph, type GlyphChestKind, type GlyphFamily, type GlyphTotals } from './glyphs';
-import { RUSH_BRACKETS, RUSH_CREST_COINS, RUSH_CREST_LIMIT, RUSH_CREST_PACK, RUSH_DAILY_TICKETS, RUSH_DAYS, RUSH_FEATURED, RUSH_FIGHT_TICKETS, RUSH_FOES, RUSH_FREE_HOURS, RUSH_LOSS_COINS, RUSH_MAX_LEVEL, RUSH_SHOP, RUSH_STREAK_UP, RUSH_TIERS, RUSH_UNLOCK_LEVEL, chestKinds, cleanRush, freeAttacks, inBracket, newRush, rushWinPoints, type RushFoe, type RushReward, type RushShopId, type RushState } from './rush';
+import { RUSH_BRACKETS, RUSH_CREST_COINS, RUSH_CREST_LIMIT, RUSH_CREST_PACK, RUSH_DAILY_TICKETS, RUSH_DAYS, RUSH_FEATURED, RUSH_FIGHT_TICKETS, RUSH_FOES, RUSH_FREE_HEROES, RUSH_FREE_HOURS, RUSH_LOSS_COINS, RUSH_MAX_LEVEL, RUSH_SHOP, RUSH_STREAK_UP, RUSH_TIERS, RUSH_UNLOCK_LEVEL, chestKinds, cleanRush, freeAttacks, inBracket, newRush, rushWinPoints, type RushFoe, type RushReward, type RushShopId, type RushState } from './rush';
 import { SCOUT_KINDS, SCOUT_PRIORITY, SCOUT_UNLOCK_LEVEL, WILD_CREST_COST, cleanScout, pickScoutTeam, scoutProblems, type ScoutCand, heroScoutScore, missionEndsAt, newScout, nextHour, refreshBoard, scoutReward, scoutShare, type ScoutReward, type ScoutSlot, type ScoutState } from './scouting';
 
 /** Test mode plays a copy of the save under its own key, so the real one is never written. */
@@ -2656,8 +2656,15 @@ export class GameState {
       .map((x) => x.h);
   }
 
-  rushFree(heroId: string, now = Date.now()): number {
+  /** Free attacks the hero holds; with a bracket, 0 unless the hero is one of that bracket's RUSH_FREE_HEROES strongest. */
+  rushFree(heroId: string, now = Date.now(), bracket?: number): number {
+    if (bracket !== undefined && !this.rushFreeHeroes(bracket).includes(heroId)) return 0;
     return freeAttacks(this.rush.free[heroId], this.rushPeriod(now));
+  }
+
+  /** The heroes that may use free attacks in a bracket: its RUSH_FREE_HEROES strongest by CP. */
+  rushFreeHeroes(bracket: number): string[] {
+    return this.rushHeroes(bracket).slice(0, RUSH_FREE_HEROES).map((h) => h.id);
   }
 
   /** A bracket's three opponents, rolled when the list is empty (needs a hero that fits the bracket). */
@@ -2696,7 +2703,7 @@ export class GameState {
     if (this.rush.active) return 'A fight is running';
     if (!this.rush.foes[bracket]?.[foe]) return 'No opponent';
     if (!((this.levels[heroId] ?? 0) > 0) || !inBracket(this.stars[heroId] ?? 0, bracket)) return 'Hero not in this bracket';
-    if (this.rushFree(heroId, now) <= 0 && this.rush.tickets < RUSH_FIGHT_TICKETS) return 'Not enough tickets';
+    if (this.rushFree(heroId, now, bracket) <= 0 && this.rush.tickets < RUSH_FIGHT_TICKETS) return 'Not enough tickets';
     return null;
   }
 
@@ -2721,7 +2728,7 @@ export class GameState {
   /** Start a Rush fight: spends a free attack (or tickets) now; leaving counts as a loss. */
   startRush(bracket: number, foe: number, heroId: string, now = Date.now()): RushFoe | null {
     if (this.rushBlock(bracket, foe, heroId, now) !== null) return null;
-    const free = this.rushFree(heroId, now);
+    const free = this.rushFree(heroId, now, bracket);
     if (free > 0) this.rush.free[heroId] = { n: free - 1, p: this.rushPeriod(now) };
     else this.rush.tickets -= RUSH_FIGHT_TICKETS;
     this.rush.active = { bracket, foe, hero: heroId, free: free > 0 };

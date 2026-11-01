@@ -16,6 +16,7 @@ import {
   RUSH_FOES,
   RUSH_FREE_HOURS,
   RUSH_FREE_MAX,
+  RUSH_FREE_HEROES,
   RUSH_SHOP,
   RUSH_START_TICKETS,
   RUSH_STREAK_UP,
@@ -241,7 +242,7 @@ export class RushUI {
     if (!f) return;
     const featured = new Set(s.rushFeatured().map((h) => h.id));
     const tile = (h: HeroDef) => {
-      const free = s.rushFree(h.id);
+      const free = s.rushFree(h.id, Date.now(), bracket);
       const block = s.rushBlock(bracket, foe, h.id);
       return `<button type="button" class="g-pick rush-pick" data-rh="${h.id}" ${block ? 'disabled' : ''}><span class="face art" style="${faceStyle(h)}">${h.name[0]}</span><b>${esc(s.formDef(h).name)}</b><small>${stars(s.stars[h.id] ?? 0)} · CP ${fmt(s.heroCombatPower(h))}</small><small>${free > 0 ? `Free x${free}` : `${RUSH_FIGHT_TICKETS} tickets`}${featured.has(h.id) ? ' · <b class="rush-plus">+20%</b>' : ''}</small></button>`;
     };
@@ -264,7 +265,7 @@ export class RushUI {
     const h = hero(heroId);
     const fc = s.rushForecast(bracket, foe, heroId);
     const quick = s.canQuickRush(bracket, foe, heroId);
-    const free = s.rushFree(heroId);
+    const free = s.rushFree(heroId, Date.now(), bracket);
     const line = fc ? (fc.won ? `Forecast: a win, about ${Math.round(fc.left[0][0] * 100)}% HP left.` : 'Forecast: a loss. Luck, Ultimates and skills can still turn it.') : '';
     this.ui.showModal(
       `${esc(s.formDef(h).name)} vs ${esc(hero(f.hero).name)}`,
@@ -290,7 +291,7 @@ export class RushUI {
       'Rush',
       `<p>A four-day event, Thursday to Sunday, on the weekends without double Trial crests. Your hero fights one other hero in the lane.</p>
        <p><b>Brackets:</b> heroes fight in a bracket by their yellow stars: 1-3★, 3-5★ or 5-7★. Higher brackets pay more points and coins. Each bracket offers an Easy, Even and Hard opponent; harder ones pay more.</p>
-       <p><b>Attacks:</b> every hero starts with a free attack and gets another every ${RUSH_FREE_HOURS} hours (up to ${RUSH_FREE_MAX}). Without one, a fight costs ${RUSH_FIGHT_TICKETS} tickets. You get ${RUSH_START_TICKETS} tickets at the start and ${RUSH_DAILY_TICKETS} more each day.</p>
+       <p><b>Attacks:</b> every hero starts with a free attack and gets another every ${RUSH_FREE_HOURS} hours (up to ${RUSH_FREE_MAX}). Only your ${RUSH_FREE_HEROES} strongest heroes in a bracket can use them there. Without one, a fight costs ${RUSH_FIGHT_TICKETS} tickets. You get ${RUSH_START_TICKETS} tickets at the start and ${RUSH_DAILY_TICKETS} more each day.</p>
        <p><b>Rush level:</b> ${RUSH_STREAK_UP} wins in a row raise it, and each level adds x${0.25} to the points you earn for the rest of the event. A loss resets the streak, not the level.</p>
        <p><b>Featured heroes</b> earn ${Math.round(RUSH_FEATURED_BONUS * 100)}% more points, and their crests are in the Rush Shop.</p>
        <p><b>Rewards:</b> points pass reward tiers with Glyph Chests, Glyph Dust, Unbinders and Gems. Every fight pays Rush Coins for the Rush Shop.</p>`,
