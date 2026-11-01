@@ -346,6 +346,8 @@ export class GameState {
   weapons: Record<string, number> = {};
   /** Scouting board (src/scouting.ts) and the weapon materials it pays. */
   scout: ScoutState = newScout();
+  /** Glyphs the last collected Scouting mission's chests gave (for its pop-up). Not saved. */
+  lastScoutGlyphs: Array<{ glyph?: Glyph; dust?: number }> = [];
   forge: Record<ForgeMat, number> = { ore: 0, crystal: 0, coreC: 0, coreR: 0, coreE: 0 };
   /** Wild Crests from Gilded Scouting: crests for any non-Legendary, non-Ascendant hero. */
   wildCrests = 0;
@@ -2795,6 +2797,7 @@ export class GameState {
     for (const m2 of FORGE_MATS) this.forge[m2] += reward[m2] ?? 0;
     this.wildCrests += reward.wild ?? 0;
     this.unbinders += reward.unbinder ?? 0;
+    this.lastScoutGlyphs = [...this.openGlyphChests('glyph', reward.glyph ?? 0), ...this.openGlyphChests('grand', reward.grand ?? 0)];
     if (m.kind === 'common') this.scout.commons++;
     this.scout.done++;
     if (sl.slot === 'rb' || sl.slot === 'g') this.scout.slots = this.scout.slots.filter((x) => x !== sl);
