@@ -50,6 +50,11 @@ export function eventNews(s: GameState, from: number, to: number): string[] {
     }
   }
 
+  if (s.rushOpen() && s.rushOn(to) && !s.rushOn(from)) {
+    const ev = s.rushWindow(to);
+    lines.push(`<b>Rush</b> has started: one-on-one hero fights for Glyphs until ${WEEKDAY[new Date(ev.end - 1).getDay()]}. Find it on the Battle tab.`);
+  }
+
   if (weekIndex(from) !== weekIndex(to)) {
     const deal = s.dealState(to);
     lines.push(

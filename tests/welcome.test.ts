@@ -7,9 +7,9 @@ import { eventNews, defenseNews, colosseumNews } from '../src/welcome';
 
 // Local dates, so the weekday is the same in every time zone.
 const at = (m: number, d: number, h = 12) => new Date(2026, m - 1, d, h).getTime();
-const FRI = at(10, 23); // the week of a double-crest weekend (Sat 24 + Sun 25 Oct)
-const SAT = at(10, 24);
-const TUE = at(10, 27); // the week after: no event
+const FRI = at(11, 6); // the week of a double-crest weekend (Sat 7 + Sun 8 Nov, the first of the month)
+const SAT = at(11, 7);
+const TUE = at(11, 10); // the week after: no event
 
 let s: GameState;
 beforeEach(() => {

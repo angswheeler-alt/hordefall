@@ -149,11 +149,23 @@
               <small id="hub-pvp-note" class="mode-note"></small>
               <i id="hub-pvp-alert" class="mode-alert" hidden>!</i>
             </button>
+            <button class="mode-card scout" data-battle-go="scout">
+              <span class="mode-count"><i class="mat-ico ore"></i><b id="hub-sc-count"></b></span>
+              <svg class="mode-trophy scout-map" viewBox="0 0 64 64" aria-hidden="true"><path d="M6 14l16-6 20 6 16-6v42l-16 6-20-6-16 6z" fill="#f0d9a0" stroke="#5a3a10" stroke-width="3" stroke-linejoin="round"/><path d="M22 8v42M42 14v42" stroke="#c9a868" stroke-width="2"/><path d="M12 40c6-2 8-10 16-10s10 6 16 2" fill="none" stroke="#b3261c" stroke-width="3" stroke-dasharray="3 3"/><path d="M44 26l8 8M52 26l-8 8" stroke="#b3261c" stroke-width="4" stroke-linecap="round"/></svg>
+              <b class="mode-title">Scouting</b>
+              <small id="hub-sc-note" class="mode-note"></small>
+              <i id="hub-sc-alert" class="mode-alert" hidden>!</i>
+            </button>
+            <button class="mode-card rush" data-battle-go="rush">
+              <span class="mode-count"><i class="mat-ico rush-coin"></i><b id="hub-rush-count"></b></span>
+              <svg class="mode-trophy rush-bolt" viewBox="0 0 64 64" aria-hidden="true"><path d="M36 4L12 36h16l-6 24 30-36H34z" fill="#ffd34a" stroke="#7a2a00" stroke-width="3" stroke-linejoin="round"/><path d="M34 12L20 32h10" fill="none" stroke="#fff6c8" stroke-width="3" stroke-linecap="round"/></svg>
+              <b class="mode-title">Rush</b>
+              <small id="hub-rush-note" class="mode-note"></small>
+            </button>
           </div>
           <div data-battle-pane="trials" hidden>
             <button class="wood-btn small trial-back" data-battle-go="hub">&#8592; Battle</button>
             <div class="panel-head"><h2>Elemental Trials</h2><button id="tr-elements" class="wood-btn small ew-btn">Element wheel</button><span id="tr-tickets" class="trial-tickets"></span></div>
-            <button id="tr-quickall" class="wood-btn levelall tr-quickall" hidden></button>
             <div id="tr-list" class="trial-list"></div>
             <div id="tr-detail" class="trial-card" hidden>
               <button id="tr-back" class="wood-btn small trial-back">&#8592; All Trials</button>
@@ -169,6 +181,17 @@
               <p id="tr-odds" class="trial-odds"></p>
             </div>
             <div id="tr-ess" class="trial-ess trial-ess-bar"></div>
+          </div>
+          <div data-battle-pane="scout" hidden>
+            <button class="wood-btn small trial-back" data-battle-go="hub">&#8592; Battle</button>
+            <div class="panel-head"><h2>Scouting</h2><button id="sc-help" class="wood-btn small">How it works</button></div>
+            <div id="sc-mats" class="sc-mats"></div>
+            <div id="sc-board" class="sc-board"></div>
+          </div>
+          <div data-battle-pane="rush" hidden>
+            <button class="wood-btn small trial-back" data-battle-go="hub">&#8592; Battle</button>
+            <div class="panel-head"><h2>Rush</h2><button id="rush-help" class="wood-btn small">How it works</button></div>
+            <div id="rush" class="rush"></div>
           </div>
           <div data-battle-pane="arena" hidden>
             <button class="wood-btn small trial-back" data-battle-go="hub">&#8592; Battle</button>
@@ -193,6 +216,7 @@
               <button id="hs-pack" class="gem-btn"></button>
             </div>
             <div id="hs-deal" class="hs-deal"></div>
+            <div id="hs-month" class="hs-deal"></div>
             <div id="hs-asc" class="hs-deal" hidden></div>
           </div>
           <div class="rw-card">
@@ -251,6 +275,7 @@
           <button type="button" role="tab" data-stab="stats" class="on">Stats</button>
           <button type="button" role="tab" data-stab="skills">Skills</button>
           <button type="button" role="tab" data-stab="stars">Stars</button>
+          <button type="button" role="tab" data-stab="weapon">Weapon</button>
         </nav>
         <div class="sheet-pane" data-pane="stats">
         <section class="sheet-stats" id="sheet-stats"></section>
@@ -268,6 +293,7 @@
           <div class="crest-row"><span id="sheet-crest-label">Hero Crests</span><span id="sheet-crests"></span></div>
           <div class="crest-bar"><div id="sheet-crest-fill"></div></div>
           <button id="sheet-evolve" class="hot evolve" hidden>Evolve</button>
+          <button id="sheet-wild" type="button" class="wood-btn small" hidden>Use Wild Crests</button>
           <p id="sheet-crest-note" class="meta"></p>
           <ul id="sheet-unlocks" class="abilities"></ul>
         </section>
@@ -286,6 +312,10 @@
           <button id="sheet-awaken" class="hot evolve awaken" hidden>Awaken</button>
           <p id="sheet-awaken-note" class="meta"></p>
         </section>
+        </div>
+        <div class="sheet-pane" data-pane="weapon" hidden>
+        <section class="sheet-section" id="sheet-weapon"></section>
+        <section class="sheet-section" id="sheet-glyphs"></section>
         </div>
         <section class="sheet-section sheet-levels">
           <h3 class="levels-head">Levels <button id="sheet-buyamt" class="buyamt-mini">Buy x1</button></h3>

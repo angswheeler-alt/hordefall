@@ -4,11 +4,11 @@ import { HEROES, TICKET_CAP, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIA
 
 // Local dates, so the weekday is the same in every time zone.
 const at = (m: number, d: number, h = 12) => new Date(2026, m - 1, d, h).getTime();
-const MON = at(10, 19); // a week with a double-medal weekend
-const WED = at(10, 21);
-const SAT = at(10, 24);
-const SUN = at(10, 25);
-const NEXT_SAT = at(10, 31); // the week after: no event
+const MON = at(11, 2); // the week of November's first weekend: double medals
+const WED = at(11, 4);
+const SAT = at(11, 7);
+const SUN = at(11, 8);
+const NEXT_SAT = at(11, 14); // the week after: no event
 
 let s: GameState;
 beforeEach(() => {
@@ -42,14 +42,24 @@ describe('Trial days', () => {
 });
 
 describe('double-medal weekends', () => {
-  it('run Saturday and Sunday every other week', () => {
+  it('run only on the first weekend of each month', () => {
     expect(s.trialEventOn(SAT)).toBe(true);
     expect(s.trialEventOn(SUN)).toBe(true);
-    expect(s.trialEventOn(at(10, 23))).toBe(false);
-    expect(s.trialEventOn(NEXT_SAT)).toBe(false);
-    expect(s.trialEventOn(at(11, 7))).toBe(true);
-    expect(s.nextTrialEvent(WED)).toEqual({ start: at(10, 24, 0), end: at(10, 26, 0) });
-    expect(s.nextTrialEvent(at(10, 27)).start).toBe(at(11, 7, 0));
+    expect(s.trialEventOn(at(11, 6))).toBe(false);
+    expect(s.trialEventOn(at(11, 9))).toBe(false);
+    for (const d of [14, 15, 21, 22, 28, 29]) expect(s.trialEventOn(at(11, d))).toBe(false);
+    // 1 Nov 2026 is a Sunday, but the weekend counts from the first Saturday.
+    expect(s.trialEventOn(at(11, 1))).toBe(false);
+    expect(s.trialEventOn(at(10, 3))).toBe(true);
+    expect(s.trialEventOn(at(10, 4))).toBe(true);
+    expect(s.trialEventOn(at(10, 24))).toBe(false);
+    // 1 Aug 2026 is a Saturday: that weekend counts.
+    expect(s.trialEventOn(at(8, 1))).toBe(true);
+    expect(s.trialEventOn(at(8, 2))).toBe(true);
+    expect(s.trialEventOn(at(8, 8))).toBe(false);
+    expect(s.nextTrialEvent(WED)).toEqual({ start: at(11, 7, 0), end: at(11, 9, 0) });
+    expect(s.nextTrialEvent(at(11, 10))).toEqual({ start: at(12, 5, 0), end: at(12, 7, 0) });
+    expect(s.nextTrialEvent(at(12, 10)).start).toBe(new Date(2027, 0, 2).getTime());
   });
 
   it('pay double Trial medals, Quick Battles too', () => {
@@ -62,11 +72,13 @@ describe('double-medal weekends', () => {
   });
 
   it('show on the calendar', () => {
-    const days = s.calendar(28, MON);
-    expect(days).toHaveLength(28);
-    expect(days.filter((d) => d.double).map((d) => new Date(d.date).getDate())).toEqual([24, 25, 7, 8]);
+    const days = s.calendar(42, MON);
+    expect(days).toHaveLength(42);
+    expect(days.filter((d) => d.double).map((d) => new Date(d.date).getDate())).toEqual([7, 8, 5, 6]);
     expect(days[0].deal).toBe('crate');
     expect(days[7].deal).toBe('voucher');
+    expect(days[14].deal).toBe('voucher');
+    expect(days[28].deal).toBe('crate');
   });
 });
 
@@ -95,7 +107,7 @@ describe('limited deals', () => {
     expect(s.tickets).toBe(TICKET_CAP);
     expect(s.gems).toBe(100_000 - TICKET_CRATE.gems);
     expect(s.buyDeal(SUN)).toBe(false);
-    expect(s.dealState(WED).endsAt).toBe(at(10, 26, 0));
+    expect(s.dealState(WED).endsAt).toBe(at(11, 9, 0));
   });
 
   it('need room in the stash for the crate', () => {
@@ -103,7 +115,7 @@ describe('limited deals', () => {
     expect(s.buyDeal(WED)).toBe(false);
   });
 
-  it('sell a Hero Voucher in the other week, used on any non-Legendary hero', () => {
+  it('sell a Hero Voucher in the other weeks, used on any non-Legendary hero', () => {
     const t = at(10, 28);
     expect(s.dealState(t).kind).toBe('voucher');
     expect(s.buyDeal(t)).toBe(true);

@@ -1,4 +1,5 @@
 import { devToolsOn } from './devAccess';
+import { CLAIM_ROOT, claimOf } from './claims';
 import { TEST_MODE } from './config';
 import { testAdjust, testMaxAll, testMaxHero, testRange, testRecruit, testValue, enterTestMode, exitTestMode, type TestField } from './testMode';
 import Decimal from 'break_infinity.js';
@@ -28,6 +29,10 @@ import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_L
 
 import { busyWhile, setHtml } from './taps';
 import { holdToRepeat } from './hold';
+import { ScoutUI } from './scoutUi';
+import { WILD_CREST_COST } from './scouting';
+import { GlyphUI } from './glyphUi';
+import { RushUI, rushResultHtml } from './rushUi';
 import { sortHeroes, nextTeamSort, TEAM_SORT_LABELS, type TeamSort } from './teamSort';
 
 /** The teams Manage Team edits: stages, Colosseum attack and defense, and the Guild Boss. */
@@ -138,6 +143,9 @@ export class UI {
   private ults: UltButton[] = [];
   /** A tap happened and nothing has drawn its result yet (see the click listeners in the constructor). */
   private tapPending = false;
+  private scoutUi!: ScoutUI;
+  private glyphUi!: GlyphUI;
+  private rushUi!: RushUI;
 
   constructor(
     private state: GameState,
@@ -150,6 +158,10 @@ export class UI {
     this.bindControls();
     this.buildMarket();
     this.buildRelics();
+    this.scoutUi = new ScoutUI(this.state, this);
+    this.glyphUi = new GlyphUI(this.state, this);
+    this.rushUi = new RushUI(this.state, this);
+    $('rush-help').addEventListener('click', () => this.rushUi.help());
     let last = performance.now();
     setInterval(() => {
       const now = performance.now();
@@ -996,7 +1008,6 @@ export class UI {
     $('tr-up').addEventListener('click', () => this.stepTier(1));
     $('tr-fight').addEventListener('click', () => this.fightTrial());
     $('tr-quick').addEventListener('click', () => this.pickQuickCount());
-    $('tr-quickall').addEventListener('click', () => this.confirmQuickAll());
     $('pvp').addEventListener('click', (e) => this.onPvpClick(e));
     $('trial-leave').addEventListener('click', () => {
       const scene = this.scene();
@@ -1162,6 +1173,16 @@ export class UI {
       if (!this.state.buyDeal()) return;
       play('unlock');
       this.showModal(kind === 'crate' ? 'Ticket Crate' : 'Hero Voucher', kind === 'crate' ? `<p>${TICKET_CRATE.tickets} Trial tickets went to your bought stash (${this.state.boughtTickets}/${BOUGHT_TICKET_CAP}). They're used after your free tickets run out.</p>` : '<p>You have a Hero Voucher. Use it now, or keep it for later.</p>', 'Okay');
+      this.render();
+    });
+    $('hs-month').addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-month]');
+      if (!btn || btn.disabled) return;
+      if (btn.dataset.month === 'use') return this.scoutUi.pickWildHero();
+      const m = this.state.monthlyPackState();
+      if (!this.state.buyMonthlyPack()) return;
+      play('unlock');
+      this.showModal('Monthly Crest Pack', `<p>+${m.wild} Wild Crests. Spend them on any heroes you like, now or later: from here, the Scouting page or a hero's page.</p>`, 'Pick heroes', () => this.scoutUi.pickWildHero());
       this.render();
     });
     $('hs-asc').addEventListener('click', (e) => {
@@ -1418,6 +1439,7 @@ export class UI {
         this.render();
       }
     });
+    $('sheet-wild').addEventListener('click', () => this.sheetHero && this.scoutUi.pickWildHero(this.sheetHero));
     $('sheet-close').addEventListener('click', () => this.closeSheet());
     // Hero page tabs: Stats / Skills / Stars (the level buttons stay pinned under them).
     document.querySelector('.sheet-tabs')!.addEventListener('click', (e) => {
@@ -1603,6 +1625,7 @@ export class UI {
     html += row('Pink stars', 'awaken', String(testValue(s, id, 'awaken')), [-1, 1]);
     html += row('Gold level', 'level', fmt(testValue(s, id, 'level')), [-100, -10, 10, 100]);
     html += row('Ember level', 'ember', fmt(testValue(s, id, 'ember')), [-100, -10, 10, 100]);
+    html += row('Weapon level', 'weapon', String(testValue(s, id, 'weapon')), [-1, 1]);
     if (isAscendant(id)) html += row('Form', 'form', cap(FORM_RARITIES[testValue(s, id, 'form')]), [-1, 1]);
     html += '<div class="test-row"><span></span><button class="wood-btn small" data-tmax="1">Max stars and form</button></div>';
     setHtml($('sheet-test-rows'), html);
@@ -1612,7 +1635,7 @@ export class UI {
   /** Which of the three stat pages the hero page shows. */
   private statPage = 0;
   /** Which tab of the hero page is open. */
-  private sheetTab: 'stats' | 'skills' | 'stars' = 'stats';
+  private sheetTab: 'stats' | 'skills' | 'stars' | 'weapon' = 'stats';
 
   private showSheetTab() {
     for (const b of document.querySelectorAll<HTMLElement>('.sheet-tabs [data-stab]')) {
@@ -1724,6 +1747,13 @@ export class UI {
       $('sheet-abilities').dataset.key = `${id}:${ultReady}:${form}`;
     }
     this.renderAscension(id);
+    this.scoutUi.renderWeapon(id);
+    this.glyphUi.renderSlots(id);
+    const wild = $<HTMLButtonElement>('sheet-wild');
+    const wildCost = s.wildCrestCost(id);
+    wild.hidden = !(s.wildCrests > 0 && wildCost !== null);
+    wild.textContent = `Use Wild Crests (${s.wildCrests})`;
+    wild.disabled = wildCost === null || s.wildCrests < wildCost;
 
     const next = s.evolveCost(id);
     $('sheet-crest-label').textContent = legendary ? 'Legendary crests' : 'Hero Crests';
@@ -1821,6 +1851,8 @@ export class UI {
   showModal(title: string, html: string, ok: string, action: (() => void) | null = null, cancel = false, cancelLabel = 'Not yet') {
     $('modal').classList.remove('team-mode', 'welcome-mode');
     $('modal-title').textContent = title;
+    // Tap handlers belong to the pop-up that set them.
+    $('modal-body').onclick = null;
     $('modal-body').innerHTML = html;
     $('modal-ok').textContent = ok;
     // A Trial fight disables this while it plays; any new pop-up must be closable.
@@ -1931,9 +1963,6 @@ export class UI {
         `<p class="trial-reward">Each win: Essence of the boss's element and <i class="medal"></i> x${medals} crests for random heroes of that element.</p>`;
     }
     setHtml($('tr-ess'), TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}"></i>${fmt(s.essences[e] ?? 0)}</span>`).join(''));
-    const quickPlan = this.trialEntered || s.tickets <= 0 ? [] : s.quickAllPlan();
-    $('tr-quickall').hidden = quickPlan.length === 0;
-    $('tr-quickall').textContent = `Quick all · ${s.tickets} ticket${s.tickets === 1 ? '' : 's'}`;
     if (!this.trialEntered) return;
     const el = this.trialEl();
     const tier = this.currentTier();
@@ -2011,37 +2040,6 @@ export class UI {
     $('modal-body').querySelectorAll<HTMLButtonElement>('[data-quick]').forEach((b) =>
       b.addEventListener('click', () => this.quickTrials(el, tier, Number(b.dataset.quick))),
     );
-  }
-
-  /** Quick all: say which Trials and levels the free tickets go to, then run them. */
-  private confirmQuickAll() {
-    const s = this.state;
-    s.refreshTickets();
-    const plan = s.quickAllPlan();
-    if (!plan.length || s.tickets <= 0) return;
-    const rows = plan.map((p) => `<li><b>${TRIAL_BOSS_NAMES[p.element]}</b><span>Level ${p.tier}</span></li>`).join('');
-    const kept = s.boughtTickets ? ` Your ${s.boughtTickets} bought ticket${s.boughtTickets === 1 ? '' : 's'} stay saved.` : '';
-    this.showModal(
-      'Quick all',
-      `<p>Spend your <b>${s.tickets}</b> free ticket${s.tickets === 1 ? '' : 's'} on Quick Battles, shared in turn between:</p><ul class="chest-odds">${rows}</ul><p>Each Trial uses its highest level you've won fast enough.${kept}</p>`,
-      `Quick all · ${s.tickets}`,
-      () => this.quickAll(),
-      true,
-      'Cancel',
-    );
-  }
-
-  private quickAll() {
-    const runs = this.state.quickAllTrials();
-    if (!runs) return;
-    const total = runs.reduce((n, r) => n + r.result.runs, 0);
-    this.showModal(
-      `Quick all · ${total} win${total === 1 ? '' : 's'}`,
-      runs.map((r) => `<p class="tf-result win">${TRIAL_BOSS_NAMES[r.element]} · Level ${r.tier} x${r.result.runs}</p><p>${this.trialWinText(r.element, r.result)}`).join(''),
-      'Okay',
-    );
-    play('clear');
-    this.render();
   }
 
   private quickTrials(el: Element, tier: number, times: number) {
@@ -2413,6 +2411,39 @@ export class UI {
     $('hub-pvp-tickets').textContent = pvpOn ? `${s.pvp.tickets}/${PVP_TICKET_CAP}` : '-';
     $('hub-pvp-note').textContent = pvpOn ? `${rankName(rankIndex(s.pvp.trophies))} · ${s.pvp.trophies} trophies` : `Opens at player level ${s.pvpUnlockLevel()}`;
     $('hub-pvp-alert').hidden = !(pvpOn && s.pvp.tickets > 0);
+    this.scoutUi.renderHub();
+    if (!document.querySelector<HTMLElement>('[data-battle-pane="scout"]')!.hidden) this.scoutUi.renderBoard();
+    this.rushUi.renderHub();
+    if (!document.querySelector<HTMLElement>('[data-battle-pane="rush"]')!.hidden) this.rushUi.render();
+  }
+
+  /** The Glyph bag (from the Rush page). */
+  openGlyphBag() {
+    this.glyphUi.openBag();
+  }
+
+  /** Start a live Rush fight on the lane: one hero against one. */
+  fightRush(bracket: number, foeIndex: number, heroId: string) {
+    const s = this.state;
+    const scene = this.scene();
+    if (!scene || scene.inTrial() || scene.inPvp() || s.rushBlock(bracket, foeIndex, heroId) !== null) return;
+    const foe = s.startRush(bracket, foeIndex, heroId);
+    if (!foe) return;
+    this.closeSheet();
+    document.body.classList.add('in-trial');
+    $('trial-hud').hidden = false;
+    $('trial-hud-name').textContent = `Rush vs ${foe.name}`;
+    $('trial-hud-note').textContent = 'One hero a side, at Ember levels; melee heroes can hit flyers here. Destroy the red crystal before they destroy yours.';
+    $('trial-leave').textContent = 'Leave';
+    const units = s.pvpFoeUnits(s.rushOpponent(foe)).map((f) => ({ def: f.def, stats: f.stats }));
+    scene.startPvp([heroId], units, 0, (won) => {
+      $('trial-leave').textContent = 'Back';
+      const html = rushResultHtml(s.finishRush(won));
+      window.setTimeout(() => {
+        if (scene.inPvp()) this.showModal('Rush', html, 'Okay', () => this.endPvpScreen());
+      }, 1200);
+      this.render();
+    }, { label: 'Rush', anyReach: true });
   }
 
   /** The Rekindle rewards page: what this Rekindle pays and what it moves forward. */
@@ -2573,10 +2604,11 @@ export class UI {
       this.showModal('Stage Milestone', `You claimed ${what}: <b>${paid}${gold}</b>.${dropCards(got.drops)}`, 'Collect');
       this.render();
     });
-    $('rewards').addEventListener('click', (e) => {
-      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-claim]');
-      if (!btn || btn.disabled) return;
-      const [kind, id] = btn.dataset.claim!.split(':');
+    // Daily challenges live on Home, Recruit Trials and achievements in the Shop: listen on the whole panel area.
+    $(CLAIM_ROOT).addEventListener('click', (e) => {
+      const goal = claimOf(e.target);
+      if (!goal) return;
+      const { kind, id } = goal;
       const ok =
         kind === 'daily' ? this.state.claimDaily(id as (typeof DAILIES)[number]['stat']) : kind === 'ach' ? this.state.claimAchievement(id) : this.state.claimBootcamp(id);
       if (ok) {
@@ -2690,6 +2722,12 @@ export class UI {
     const buy = `<button type="button" class="gem-btn" data-deal="buy" ${deal.bought || gems < deal.gems || !crateRoom ? 'disabled' : ''}>${deal.bought ? 'Bought' : `${deal.gems} <span class="gem"></span>`}</button>`;
     const use = s.vouchers > 0 ? `<button type="button" class="wood-btn" data-deal="use">Use Hero Voucher (${s.vouchers})</button>` : '';
     setHtml($('hs-deal'), `<div class="deal-head"><div><span class="deal-tag">Limited deal · ends in ${ends}</span>${what}</div>${buy}</div>${use}`);
+    const month = s.monthlyPackState(now);
+    const mLeft = month.endsAt - now;
+    const mEnds = mLeft >= 86_400_000 ? `${Math.floor(mLeft / 86_400_000)}d ${Math.floor((mLeft % 86_400_000) / 3_600_000)}h` : `${Math.floor(mLeft / 3_600_000)}h ${Math.ceil((mLeft % 3_600_000) / 60_000)}m`;
+    const mBuy = `<button type="button" class="gem-btn" data-month="buy" ${month.bought || gems < month.gems ? 'disabled' : ''}>${month.bought ? 'Bought' : `${month.gems} <span class="gem"></span>`}</button>`;
+    const mUse = s.wildCrests > 0 ? `<button type="button" class="wood-btn" data-month="use">Use Wild Crests (${s.wildCrests})</button>` : '';
+    setHtml($('hs-month'), `<div class="deal-head"><div><span class="deal-tag">Once a month · ${month.bought ? 'new pack' : 'ends'} in ${mEnds}</span><b>Monthly Crest Pack</b><small>${month.wild} Wild Crests for any heroes you pick: up to ${month.wild / WILD_CREST_COST.common} Common, ${month.wild / WILD_CREST_COST.rare} Rare or ${month.wild / WILD_CREST_COST.epic} Epic crests, split however you like.</small></div>${mBuy}</div>${mUse}`);
     // The Ascendant Chest: only while an Ascendant hero that beats this week's Guild Boss is out.
     const asc = s.ascendantChestState(now);
     $('hs-asc').hidden = !asc;
@@ -2769,14 +2807,14 @@ export class UI {
     );
   }
 
-  /** Settings > Events: four weeks of open Trials, double-medal weekends and the weekly deals. */
+  /** Settings > Events: five weeks (always reaching the next monthly x2 weekend) of open Trials, double-medal weekends and the weekly deals. */
   private showCalendar() {
     const s = this.state;
     const now = Date.now();
     const monday = new Date(now);
     monday.setHours(12, 0, 0, 0);
     monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
-    const days = s.calendar(28, monday.getTime());
+    const days = s.calendar(35, monday.getTime());
     const today = new Date(now).toDateString();
     const head = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => `<span class="cal-h">${d}</span>`).join('');
     const cells = days.map((d) => {
@@ -2784,7 +2822,7 @@ export class UI {
       const past = d.date + 86_400_000 <= now;
       const dots = d.open.map((e) => `<i style="background:${hex(ELEMENT_COLORS[e])}" title="${cap(e)}"></i>`).join('');
       const cls = `cal-day${past ? ' past' : ''}${date.toDateString() === today ? ' today' : ''}${d.double ? ' double' : ''}`;
-      return `<div class="${cls}"><b>${date.getDate()}</b><span class="cal-dots">${dots}</span>${d.double ? '<span class="cal-x2">x2</span>' : ''}</div>`;
+      return `<div class="${cls}"><b>${date.getDate()}</b><span class="cal-dots">${dots}</span>${d.double ? '<span class="cal-x2">x2</span>' : ''}${d.rush ? '<span class="cal-rush">Rush</span>' : ''}</div>`;
     }).join('');
     const fmtDay = (t: number) => new Date(t).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
     const ev = s.nextTrialEvent(now);
@@ -2798,9 +2836,9 @@ export class UI {
     const legend = TRIAL_ROTATION.map((e) => `<li><i style="background:${hex(ELEMENT_COLORS[e])}"></i>${cap(e)}</li>`).join('');
     this.showModal(
       'Events',
-      `<p>${evLine}. Every other weekend, Trials pay x${TRIAL_EVENT_MEDAL_MULT} crests.</p>
+      `<p>${evLine}. On the first weekend of every month, Trials pay x${TRIAL_EVENT_MEDAL_MULT} crests; Rush runs Thursday to Sunday in the other weeks.</p>
       <div class="cal-grid">${head}${cells}</div>
-      <ul class="cal-legend">${legend}<li><span class="cal-x2">x2</span> double crests</li></ul>
+      <ul class="cal-legend">${legend}<li><span class="cal-x2">x2</span> double crests</li><li><span class="cal-rush">Rush</span> Rush event</li></ul>
       <p>Dots show which Trials are open. Each Trial opens on two weekdays, and every Trial is open on Saturday and Sunday.</p>
       <h3>Limited deals</h3><ul class="cal-list">${deals.join('')}</ul>`,
       'Close',
@@ -3144,7 +3182,7 @@ export class UI {
     this.badge('market', this.renderMarket());
     this.renderRelics(); // no red dot for relic upgrades or free slots (user 2026-10-31)
     this.badge('relics', false);
-    this.badge('battle', s.rekindles > 0 && s.tickets >= s.ticketCap());
+    this.badge('battle', (s.rekindles > 0 && s.tickets >= s.ticketCap()) || s.scoutReadyCount() > 0);
     this.badge('heroes', heroesBadge || teamReady);
     $('collection-btn').classList.toggle('ready', teamReady);
     if (this.tab === 'shop') s.seeHeroShop();

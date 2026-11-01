@@ -64,6 +64,8 @@ import { marchCap, marchStep } from './movement';
 import { respawnTime, reviveIn, stageStartRevives } from './respawn';
 import { chestsAllowed, laneMode } from './chests';
 import { PVP_RESPAWN_MULT } from './colosseum';
+import { WEAPON_LOOK_COLORS, weaponLook } from './weapons';
+import { ULT_FX_ART, ULT_FX_HEIGHT, ultFxStyle } from './ultFx';
 import { HERO_ANIMS } from './heroAnims';
 import { ASCENDANT_HEROES } from './heroes/ascendant';
 import { chargeOf, chargeStep, chargeDamageMult, CHARGE_AREA, CHARGE_LINE, CHARGE_HASTE_SECONDS, type Charge } from './ascendant';
@@ -353,6 +355,10 @@ interface PvpLive {
   meter: Map<string, PvpMeterRow>;
   /** The same totals for the whole opposing team. */
   foeMeter: PvpMeterRow;
+  /** Name over the lane ("Colosseum", "Rush"). */
+  label: string;
+  /** Rush: one hero a side, so melee heroes can hit flyers too (otherwise a melee hero could never beat a flyer). */
+  anyReach: boolean;
 }
 
 /** One line of the Colosseum battle meter. */
@@ -462,6 +468,8 @@ export class BattleScene extends Phaser.Scene {
         this.load.spritesheet(`mob-${id}-${el}-attack`, `mobs/${id}_${el}_attack.png`, size);
       }
     }
+    // Ultimate pictures (src/ultFx.ts); a row of frames is cut into frames in create().
+    for (const [id, art] of Object.entries(ULT_FX_ART)) this.load.image(`ultfx-${id}`, art.url);
     for (const [id, a] of Object.entries(BOSS_ANIMS)) {
       for (const anim of Object.keys(BOSS_ANIM_FRAMES)) this.load.spritesheet(`boss-${id}-${anim}`, `bosses/${id}_${anim}.png`, { frameWidth: a.frame[0], frameHeight: a.frame[1] });
     }
@@ -469,6 +477,15 @@ export class BattleScene extends Phaser.Scene {
 
   create() {
     this.makeTextures();
+    for (const [id, art] of Object.entries(ULT_FX_ART)) {
+      const key = `ultfx-${id}`;
+      if (art.frames < 2 || !this.textures.exists(key) || this.anims.exists(key)) continue;
+      const tex = this.textures.get(key);
+      const src = tex.getSourceImage() as HTMLImageElement;
+      const w = Math.floor(src.width / art.frames);
+      for (let i = 0; i < art.frames; i++) tex.add(i, 0, i * w, 0, w, src.height);
+      this.anims.create({ key, frames: Array.from({ length: art.frames }, (_, i) => ({ key, frame: i })), frameRate: 14, repeat: -1 });
+    }
     // A later form's standing pose is the first attack frame, as animate.js draws it (fewer files to ship).
     for (const a of ASCENDANT_HEROES) for (const f of a.forms) {
       const anim = f.art && HERO_ANIMS[f.art];
@@ -771,14 +788,20 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  /** A short arc in front of the hero where the blade passed, in the hero's element colour. */
+  /**
+   * A short arc in front of the hero where the blade passed: the inner edge in the weapon look's colour
+   * (Forged, Runed, Mythic: src/weapons.ts), the outer in the hero's element colour.
+   */
   private slashStreak(u: Unit) {
     if (!u.alive) return;
     const cx = u.view.x + 4, cy = u.view.y + FOOT_Y - 28;
     const g = this.add.graphics().setDepth(u.view.depth + 1);
+    const look = u.def ? weaponLook(this.state.weaponLevel(u.def.id)) : 1;
+    const edge = WEAPON_LOOK_COLORS[look];
+    if (look === 3) this.sparks(cx + 18, cy - 6, WEAPON_LOOK_COLORS[3], 3);
     const draw = (alpha: number) => {
       g.clear();
-      g.lineStyle(4, 0xffffff, alpha).beginPath().arc(cx, cy, 21, Phaser.Math.DegToRad(-80), Phaser.Math.DegToRad(30)).strokePath();
+      g.lineStyle(look === 3 ? 5 : 4, edge, alpha).beginPath().arc(cx, cy, 21, Phaser.Math.DegToRad(-80), Phaser.Math.DegToRad(30)).strokePath();
       g.lineStyle(2, ELEMENT_COLORS[u.element], alpha).beginPath().arc(cx, cy, 24, Phaser.Math.DegToRad(-70), Phaser.Math.DegToRad(25)).strokePath();
     };
     draw(0.9);
@@ -1194,12 +1217,12 @@ export class BattleScene extends Phaser.Scene {
    * blue crystal and the opponent's team at the red one. Fallen fighters on both sides get back up after
    * the usual wait; the first crystal destroyed loses. `onEnd` gets the outcome once.
    */
-  startPvp(ids: string[], foes: PvpFoe[], bonus: number, onEnd: (won: boolean) => void) {
+  startPvp(ids: string[], foes: PvpFoe[], bonus: number, onEnd: (won: boolean) => void, opts: { label?: string; anyReach?: boolean } = {}) {
     if (this.trial || this.pvp) return;
     this.nextStageTimer?.remove();
     this.nextStageTimer = undefined;
     this.clearChests();
-    this.pvp = { ids: new Set(ids), bonus, mine: { hp: new Decimal(1), max: new Decimal(1) }, theirs: { hp: new Decimal(1), max: new Decimal(1) }, timeLeft: PVP_LIVE_TIME, done: false, onEnd, meter: new Map(ids.map((id) => [id, meterRow(id)])), foeMeter: meterRow('foes') };
+    this.pvp = { ids: new Set(ids), bonus, mine: { hp: new Decimal(1), max: new Decimal(1) }, theirs: { hp: new Decimal(1), max: new Decimal(1) }, timeLeft: PVP_LIVE_TIME, done: false, onEnd, meter: new Map(ids.map((id) => [id, meterRow(id)])), foeMeter: meterRow('foes'), label: opts.label ?? 'Colosseum', anyReach: !!opts.anyReach };
     const ults = new Map(this.heroes.map((h) => [h.def?.id, h.ultReadyAt]));
     for (const h of this.heroes) h.view.destroy();
     this.heroes = [];
@@ -1719,7 +1742,7 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     // Melee enemies can't reach flying heroes (src/reach.ts); with only flyers left they wait under one.
-    const pick = pickVictim(e, this.heroes.map((u) => ({ x: u.x, alive: u.alive, flying: u.flying, u })));
+    const pick = pickVictim(e, this.heroes.map((u) => ({ x: u.x, alive: u.alive, flying: u.flying && !this.pvp?.anyReach, u })));
     const target = pick.target?.u;
     const dist = target ? Math.abs(e.x - target.x) : Infinity;
     if (target && dist <= e.range) {
@@ -1773,7 +1796,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Whether `a` can hit `t` with a single-target attack (ground melee can't hit flyers). */
   private reaches(a: Unit, t: Unit) {
-    return canReach(a, t);
+    return !!this.pvp?.anyReach || canReach(a, t);
   }
 
   /** Nearest living foe behind hero `h` (further than the usual slack) that is still in its reach. */
@@ -1944,7 +1967,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     const bossMult = this.mul('bossDamage', h);
-    const lifesteal = this.sum('lifesteal', h);
+    const lifesteal = this.sum('lifesteal', h) + (h.stats?.lifesteal ?? 0);
     const sig = def.signature;
     const vsBurning = this.mul('vsBurning', h);
     if (h.streakTarget === target) h.streak++;
@@ -2445,6 +2468,7 @@ export class BattleScene extends Phaser.Scene {
           this.puff(a.x, a.y, 0xfff6a0);
         }
       }
+      this.ultFx(h, h.x, h.x);
       this.cameras.main.flash(200, 255, 245, 180);
       return true;
     }
@@ -2456,6 +2480,7 @@ export class BattleScene extends Phaser.Scene {
       if (target) {
         h.x = Math.max(h.x, target.x - 20);
         h.view.x = h.x;
+        this.ultFx(h, target.x, target.x, target);
         this.sparks(target.x, target.y - 6, color, 10);
         this.cameras.main.shake(200, 0.012);
         this.damageUnit(target, dmg.times((plus ? ult.plusMult : ult.mult) * this.elem(this.dealsAs(h), target)), h, true);
@@ -2464,6 +2489,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (ult?.kind === 'crescent') {
       // A crescent wave down the whole lane: everything ahead takes `lane` of the hit, bosses `mult` of it.
+      this.ultFx(h, h.x + 20, ENEMY_CRYSTAL_X);
       const wave = this.add.rectangle(h.x + 20, h.y, 14, 60, color, 0.6).setDepth(999);
       this.tweens.add({ targets: wave, x: ENEMY_CRYSTAL_X, alpha: 0.15, duration: 420, onComplete: () => wave.destroy() });
       this.cameras.main.shake(300, 0.015);
@@ -2475,6 +2501,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (ult?.kind === 'verdict') {
       // Kirin's Verdict: a fiery dash down the lane; everyone in reach ahead takes the hit and Burns.
+      this.ultFx(h, h.x, h.x + ult.reach);
       const streak = this.add.rectangle(h.x, h.y, 18, 10, 0xff6a2a, 0.75).setDepth(999);
       this.tweens.add({ targets: streak, x: h.x + ult.reach, scaleX: 6, alpha: 0, duration: 320, onComplete: () => streak.destroy() });
       this.cameras.main.shake(260, 0.014);
@@ -2495,6 +2522,7 @@ export class BattleScene extends Phaser.Scene {
       // Skyfall: a dive on the toughest enemy in reach; the quake hits and stuns the enemies around it.
       const target = this.enemies.filter((e) => e.alive && e.x >= h.x - 30 && e.x <= h.x + Math.max(260, h.range)).sort((a, b) => b.hp.cmp(a.hp))[0];
       if (target) {
+        this.ultFx(h, target.x, target.x, target);
         const ring = this.add.circle(target.x, target.y, 8, color, 0.5).setDepth(999);
         this.tweens.add({ targets: ring, radius: ult.radius, alpha: 0, duration: 360, onComplete: () => ring.destroy() });
         this.sparks(target.x, target.y - 6, color, 12);
@@ -2525,6 +2553,7 @@ export class BattleScene extends Phaser.Scene {
     // Heroes built to the hero standard get their own 5★ twist instead of the bigger hit.
     const x0 = h.x - 30, x1 = h.x + radius + 60;
     const hit = this.enemies.filter((e) => e.alive && e.x >= x0 && e.x <= x1);
+    this.ultFx(h, h.x + 30, Math.min(x1, ENEMY_CRYSTAL_X), hit.length ? hit.reduce((a, b) => (b.hp.gt(a.hp) ? b : a)) : undefined);
     // Marks land before the hit so the Volley itself benefits.
     if (ult?.kind === 'mark') {
       for (const e of hit) {
@@ -2537,6 +2566,103 @@ export class BattleScene extends Phaser.Scene {
     if (!this.bossAlive() && ENEMY_CRYSTAL_X - h.x <= radius + 60) this.damageCrystal(dmg, h);
     if (ult) this.ultExtras(h, ult, hit, plus, x0, x1, dmg);
     return true;
+  }
+
+  /**
+   * The hero's own Ultimate picture (src/ultFx.ts), moved by its style over the area x0..x1 (or on `target`).
+   * Additive blending turns the picture's black background see-through. Does nothing without a picture.
+   */
+  private ultFx(h: Unit, x0: number, x1: number, target?: Unit) {
+    const def = h.def;
+    const art = def && ULT_FX_ART[def.id];
+    const key = def ? `ultfx-${def.id}` : '';
+    if (!def || !art || !this.textures.exists(key)) return;
+    const style = ultFxStyle(def);
+    const size = ULT_FX_HEIGHT[style];
+    // Keep the show on screen: the camera trails the front hero, so the area often runs past the right edge.
+    const view = this.cameras.main.worldView;
+    const clampX = (x: number) => Phaser.Math.Clamp(x, view.x + 30, view.right - 40);
+    x0 = clampX(x0);
+    x1 = Math.max(x0, clampX(x1));
+    const ground = (LANE_TOP + LANE_BOTTOM) / 2 + FOOT_Y;
+    const mid = (x0 + x1) / 2;
+    const ms = (n: number) => n / this.speedMultiplier();
+    const make = (x: number, y: number, height: number) => {
+      const img = this.add.sprite(x, y, key).setDepth(998).setBlendMode(Phaser.BlendModes.ADD);
+      if (art.frames > 1) img.play(key);
+      img.setScale(height / img.height);
+      return img;
+    };
+    const fadeOut = (img: Phaser.GameObjects.Sprite, delay: number, duration = 260) =>
+      this.tweens.add({ targets: img, alpha: 0, delay: ms(delay), duration: ms(duration), onComplete: () => img.destroy() });
+    switch (style) {
+      case 'drop': {
+        const img = make(mid, ground - 200, size).setOrigin(0.5, 1);
+        const sc = img.scale;
+        this.tweens.add({ targets: img, y: ground + 8, duration: ms(260), ease: 'Quad.easeIn', onComplete: () => {
+          this.tweens.add({ targets: img, scale: sc * 1.15, duration: ms(120) });
+          fadeOut(img, 160, 300);
+        } });
+        break;
+      }
+      case 'rain': {
+        const count = 8;
+        for (let i = 0; i < count; i++) {
+          const x = x0 + ((x1 - x0) * (i + 0.5)) / count + Phaser.Math.Between(-10, 10);
+          const y = ground - Phaser.Math.Between(-10, 30);
+          const img = make(x - 40, y - 160, size).setOrigin(0.5, 1).setAlpha(0);
+          this.tweens.add({ targets: img, x, y, alpha: 1, delay: ms(i * 45), duration: ms(230), ease: 'Quad.easeIn', onComplete: () => fadeOut(img, 60, 200) });
+        }
+        break;
+      }
+      case 'sweep':
+      case 'dash': {
+        const img = make(x0, ground - (style === 'dash' ? 26 : 10), size).setOrigin(0.5, 1).setAlpha(0.95);
+        if (style === 'dash') img.setScale(img.scale * 1.6, img.scale);
+        this.tweens.add({ targets: img, x: x1, duration: ms(style === 'dash' ? 260 : 460), ease: 'Sine.easeOut', onComplete: () => fadeOut(img, 0, 200) });
+        break;
+      }
+      case 'rise': {
+        const count = 5;
+        for (let i = 0; i < count; i++) {
+          const x = x0 + ((x1 - x0) * (i + 0.5)) / count;
+          const img = make(x, ground + Phaser.Math.Between(-6, 6), size).setOrigin(0.5, 1);
+          const sc = img.scale;
+          img.setScale(sc, 0.05);
+          this.tweens.add({ targets: img, scaleY: sc, delay: ms(i * 50), duration: ms(160), ease: 'Back.easeOut', onComplete: () => fadeOut(img, 220, 240) });
+        }
+        break;
+      }
+      case 'beam': {
+        const img = make(mid, ground + 10, size).setOrigin(0.5, 1);
+        const sc = img.scale;
+        img.setScale(sc * 0.1, sc);
+        this.tweens.add({ targets: img, scaleX: sc, duration: ms(140), ease: 'Quad.easeOut', onComplete: () => fadeOut(img, 260, 300) });
+        break;
+      }
+      case 'strike': {
+        const tx = target?.x ?? mid, ty = (target?.y ?? ground - FOOT_Y) - 4;
+        const img = make(tx, ty, size);
+        const sc = img.scale;
+        img.setScale(sc * 0.4);
+        this.tweens.add({ targets: img, scale: sc * 1.15, duration: ms(180), ease: 'Back.easeOut', onComplete: () => fadeOut(img, 120, 260) });
+        break;
+      }
+      case 'vortex': {
+        const img = make(mid, ground - size / 3, size);
+        const sc = img.scale;
+        img.setScale(sc * 0.3);
+        this.tweens.add({ targets: img, scale: sc, angle: 540, duration: ms(700), ease: 'Sine.easeOut', onComplete: () => fadeOut(img, 0, 260) });
+        break;
+      }
+      case 'aura':
+        for (const a of this.heroes) {
+          if (!a.alive) continue;
+          const img = make(a.x, a.y + FOOT_Y, size).setOrigin(0.5, 1).setAlpha(0);
+          this.tweens.add({ targets: img, alpha: 1, y: img.y - 10, duration: ms(220), onComplete: () => fadeOut(img, 300, 300) });
+        }
+        break;
+    }
   }
 
   /** What a hero-standard Ultimate does after the hit. */
@@ -2911,7 +3037,7 @@ export class BattleScene extends Phaser.Scene {
   /** Colosseum HUD: time left at the top left and an HP bar over each crystal. */
   private drawPvpHud(p: PvpLive) {
     this.stageText.setX(10);
-    this.stageText.setText(`Colosseum · ${Math.ceil(Math.max(0, p.timeLeft))}s`);
+    this.stageText.setText(`${p.label} · ${Math.ceil(Math.max(0, p.timeLeft))}s`);
     this.progressBar.clear();
     this.bossBar.clear();
     const bar = (x: number, c: { hp: Decimal; max: Decimal }, color: number) => {

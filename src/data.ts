@@ -909,18 +909,21 @@ export const TICKETS_PER_DAY = 10;
 export const BOUGHT_TICKET_CAP = 100;
 
 /**
- * Events (Samuel, 2026-10-21): every TRIAL_EVENT_EVERY weeks, Saturday and Sunday pay double Trial
- * medals. Limited Gem deals alternate weeks: the Ticket Crate in the week of a double-medal weekend
- * (tickets to save for it), the Hero Voucher in the other week (medals for a hero picked when it is
- * used, fewer for rarer heroes). Each deal can be bought once while it's up. Test prices.
+ * Events (Samuel, 2026-10-21; monthly since 2026-11-01): the first weekend of each month (its first
+ * Saturday and the Sunday after) pays double Trial medals. Limited Gem deals: the Ticket Crate in the
+ * week of the double-medal weekend (tickets to save for it), the Hero Voucher in every other week
+ * (medals for a hero picked when it is used, fewer for rarer heroes). Each deal can be bought once
+ * while it's up. Test prices.
  */
-export const TRIAL_EVENT_EVERY = 2;
-/** weekIndex() % TRIAL_EVENT_EVERY on an event week (the week of 19 Oct 2026 is one). */
-export const TRIAL_EVENT_PHASE = 1;
 export const TRIAL_EVENT_DAYS = [6, 0];
 export const TRIAL_EVENT_MEDAL_MULT = 2;
 export const TICKET_CRATE = { tickets: 30, gems: 200 } as const;
 export const HERO_VOUCHER = { gems: 500, medals: { common: 200, rare: 100, epic: 60 } } as const;
+/**
+ * Monthly Crest Pack (Samuel, 2026-11-01): once each calendar month (local time), Gems for Wild Crests the player
+ * spends on any heroes they pick (Common 1, Rare 2, Epic 4 Wild per crest, src/scouting.ts). Test price.
+ */
+export const MONTHLY_CREST_PACK = { gems: 1000, wild: 500 } as const;
 
 /** Elemental Trials (GDD 11.1): each element's dungeon opens on set days (Samuel's schedule). */
 export const TRIAL_ROTATION: Element[] = ['water', 'earth', 'fire', 'light', 'dark'];
