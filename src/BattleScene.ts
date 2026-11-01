@@ -1049,7 +1049,6 @@ export class BattleScene extends Phaser.Scene {
       this.spawnEnemy(true);
       const weak = bossWeakness(stage);
       this.banner(`${stageBoss(stage).name.toUpperCase()}${weak ? (isElementBossStage(stage) ? `\nONLY ${weak.toUpperCase()} CAN HURT IT` : `\nWEAK TO ${weak.toUpperCase()}`) : ''}`, '#ff6680');
-      this.cameras.main.shake(400, 0.01);
       play('boss');
     }
     for (let g = 0; g < START_GROUPS; g++) {
@@ -1132,7 +1131,6 @@ export class BattleScene extends Phaser.Scene {
     }
     this.tweens.add({ targets: this.crystalView, scale: 1.6, alpha: 0, duration: 400 });
     this.shatter(ENEMY_CRYSTAL_X, LANE_TOP + 26, 0xd04a8a);
-    this.cameras.main.shake(250, 0.012);
     this.freeze(0.12);
     play('clear');
     this.banner(isBossStage(stage) ? 'BOSS DOWN!' : 'STAGE CLEAR', '#ffe066');
@@ -1298,7 +1296,6 @@ export class BattleScene extends Phaser.Scene {
     this.banner(won ? 'VICTORY!' : 'DEFEAT', won ? '#ffe066' : '#ff6b6b');
     play(won ? 'clear' : 'defeat');
     if (won) {
-      this.cameras.main.shake(250, 0.012);
       this.freeze(0.12);
     }
     p.onEnd(won);
@@ -1469,7 +1466,6 @@ export class BattleScene extends Phaser.Scene {
     });
     boss.cooldownLeft = TRIAL_BOSS_COOLDOWN;
     this.enemies.push(boss);
-    this.cameras.main.shake(400, 0.01);
     play('boss');
     this.state.emit();
     return boss;
@@ -1505,7 +1501,6 @@ export class BattleScene extends Phaser.Scene {
     else this.banner(won ? 'TRIAL CLEARED!' : t.timeLeft <= 0 ? 'TIME UP' : 'DEFEATED', won ? '#ffe066' : '#ff6b6b');
     play(won ? 'clear' : 'defeat');
     if (won) {
-      this.cameras.main.shake(250, 0.012);
       this.freeze(0.12);
     }
     t.onEnd(won, Math.round(t.fought * 10) / 10);
@@ -1521,7 +1516,6 @@ export class BattleScene extends Phaser.Scene {
       const full = e.atk;
       e.atk = full.times(TRIAL_SLAM_SHARE);
       this.floatText(e.x, e.y - 60, 'SLAM!', '#ff9a6b', 16);
-      this.cameras.main.shake(200, 0.01);
       this.shatter(target.x, target.y, ELEMENT_COLORS[e.element]);
       for (const h of this.heroes) if (h.alive && h !== target) this.enemyHits(e, h);
       e.atk = full;
@@ -1993,7 +1987,6 @@ export class BattleScene extends Phaser.Scene {
     if (heat.erupt) {
       this.floatText(h.x, h.y - 34, 'ERUPTION!', '#ff8a3a', 11);
       this.sparks(target.x, target.y - 6, 0xff6a2a, 12);
-      this.cameras.main.shake(140, 0.008);
     }
     let dealt = new Decimal(0);
     for (let i = 0; i < strikes; i++) {
@@ -2261,14 +2254,12 @@ export class BattleScene extends Phaser.Scene {
     this.sparks(target.x - 6, target.y - 4, color, crit ? 9 : 4);
     if (crit) {
       this.floatText(target.x, target.y - 34, `${fmt(amount)}!`, '#ffe14a', 18);
-      this.cameras.main.shake(90, 0.006);
       this.freeze(0.05);
       play('crit');
     } else {
       this.floatText(target.x + Phaser.Math.Between(-6, 6), target.y - 26, fmt(amount), '#ffffff', 11);
       play('hit');
     }
-    if (target.isBoss) this.cameras.main.shake(60, 0.003);
     // Melee hits shove regular enemies back a step.
     if (!target.isBoss && source?.def && source.def.range <= 60) {
       target.x = Math.min(target.x + (crit ? 16 : 6), ENEMY_CRYSTAL_X - 12);
@@ -2349,7 +2340,6 @@ export class BattleScene extends Phaser.Scene {
       this.flyCoins(u.x, u.y, u.isBoss ? 12 : 2);
       play('kill');
       if (u.isBoss) {
-        this.cameras.main.shake(500, 0.02);
         this.cameras.main.flash(150, 255, 255, 255);
         this.freeze(0.25);
       }
@@ -2482,7 +2472,6 @@ export class BattleScene extends Phaser.Scene {
         h.view.x = h.x;
         this.ultFx(h, target.x, target.x, target);
         this.sparks(target.x, target.y - 6, color, 10);
-        this.cameras.main.shake(200, 0.012);
         this.damageUnit(target, dmg.times((plus ? ult.plusMult : ult.mult) * this.elem(this.dealsAs(h), target)), h, true);
       }
       return true;
@@ -2494,7 +2483,6 @@ export class BattleScene extends Phaser.Scene {
         const wave = this.add.rectangle(h.x + 20, h.y, 14, 60, color, 0.6).setDepth(999);
         this.tweens.add({ targets: wave, x: ENEMY_CRYSTAL_X, alpha: 0.15, duration: 420, onComplete: () => wave.destroy() });
       }
-      this.cameras.main.shake(300, 0.015);
       for (const e of this.enemies.filter((e) => e.alive && e.x >= h.x - 30)) {
         this.damageUnit(e, dmg.times(this.elem(this.dealsAs(h), e) * (e.isBoss ? (plus ? ult.plusMult : ult.mult) : ult.lane)), h, e.isBoss);
       }
@@ -2507,7 +2495,6 @@ export class BattleScene extends Phaser.Scene {
         const streak = this.add.rectangle(h.x, h.y, 18, 10, 0xff6a2a, 0.75).setDepth(999);
         this.tweens.add({ targets: streak, x: h.x + ult.reach, scaleX: 6, alpha: 0, duration: 320, onComplete: () => streak.destroy() });
       }
-      this.cameras.main.shake(260, 0.014);
       for (const e of this.enemies.filter((e) => e.alive && e.x >= h.x - 30 && e.x <= h.x + ult.reach)) {
         this.sparks(e.x, e.y - 6, 0xff8a3a, 6);
         this.damageUnit(e, dmg.times(this.elem(this.dealsAs(h), e)), h, e.isBoss);
@@ -2530,7 +2517,6 @@ export class BattleScene extends Phaser.Scene {
           this.tweens.add({ targets: ring, radius: ult.radius, alpha: 0, duration: 360, onComplete: () => ring.destroy() });
         }
         this.sparks(target.x, target.y - 6, color, 12);
-        this.cameras.main.shake(260, 0.016);
         const hit = this.enemies.filter((e) => e.alive && Math.abs(e.x - target.x) <= ult.radius);
         if (plus) {
           for (const e of hit) {
@@ -2550,7 +2536,6 @@ export class BattleScene extends Phaser.Scene {
       return true;
     }
     const radius = 170;
-    this.cameras.main.shake(300, 0.015);
     this.cameras.main.flash(120, 255, 255, 255);
     // Heroes built to the hero standard get their own 5★ twist instead of the bigger hit.
     const x0 = h.x - 30, x1 = h.x + radius + 60;
@@ -2693,7 +2678,6 @@ export class BattleScene extends Phaser.Scene {
         if (plus) {
           this.time.delayedCall(600 / this.speedMultiplier(), () => {
             if (this.transitioning) return;
-            this.cameras.main.shake(200, 0.01);
             for (const e of this.enemies) if (e.alive && e.x >= x0 && e.x <= x1) this.damageUnit(e, dmg.times(ult.second * this.elem(h.element, e)), h);
           });
         }
