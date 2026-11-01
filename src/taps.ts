@@ -13,8 +13,11 @@ type Listen = Pick<EventTarget, 'addEventListener'>;
 export const PRESS_CLASS = 'pressing';
 /** A quick tap still shows its pressed look for at least this long. */
 export const PRESS_MIN_MS = 90;
-/** What counts as a button for the pressed look. */
-const PRESSABLE = 'button, [role="button"], a[href], label, summary, [data-g], [data-pvp], [data-tab]';
+/**
+ * What counts as a button for the pressed look. Tab buttons only: the panel sections also carry
+ * data-tab, and matching them made the whole lower panel shrink on any tap inside it.
+ */
+export const PRESSABLE = 'button, [role="button"], a[href], label, summary, button[data-g], button[data-pvp], button[data-tab]';
 
 type Pressable = { classList: Pick<DOMTokenList, 'add' | 'remove'> };
 let pressed: Pressable | null = null;
