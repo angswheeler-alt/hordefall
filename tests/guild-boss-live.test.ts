@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import Decimal from 'break_infinity.js';
-import { guildBossHitAtk, guildBossLane, defended } from '../src/formulas';
+import { guildBossHitAtk, guildBossLane, defended, GUILD_BOSS_KILL_MARGIN } from '../src/formulas';
 import { GUILD_BOSS_HIT_SHARE, GUILD_BOSS_HIT_PER_LEVEL, GUILD_BOSS_HIT_LEVEL_CAP } from '../src/data';
 
 describe('Guild Boss live fight', () => {
@@ -22,8 +22,8 @@ describe('Guild Boss live fight', () => {
     const lane = guildBossLane(new Decimal(1000), new Decimal(400), 0.25);
     expect(lane.hp.toNumber()).toBeCloseTo(800);
     expect(lane.left.toNumber()).toBeCloseTo(480);
-    // Knocking off all the lane health sends exactly what was left to the guild.
-    expect(lane.damageFor(lane.left).toNumber()).toBe(600);
+    // Knocking off all the lane health sends what was left plus a tiny overshoot, so the guild surely sees the kill.
+    expect(lane.damageFor(lane.left).toNumber()).toBe(601);
     expect(lane.damageFor(new Decimal(100)).toNumber()).toBe(125);
     expect(lane.damageFor(new Decimal(-5)).toNumber()).toBe(0);
   });
@@ -32,7 +32,41 @@ describe('Guild Boss live fight', () => {
     const lane = guildBossLane(new Decimal(5000), new Decimal(0), 0);
     expect(lane.left.toNumber()).toBe(5000);
     expect(lane.damageFor(new Decimal(1234.7)).toNumber()).toBe(1234);
-    // An already-beaten boss has nothing left to take.
-    expect(guildBossLane(new Decimal(100), new Decimal(150), 0).left.toNumber()).toBe(0);
+    // A boss the game rounds to "beaten" still shows a sliver, so the next fight can finish it.
+    const crumb = guildBossLane(new Decimal(100), new Decimal(150), 0);
+    expect(crumb.left.toNumber()).toBeCloseTo(100 * GUILD_BOSS_KILL_MARGIN);
+    expect(crumb.damageFor(crumb.left).toNumber()).toBe(1);
+  });
+
+  // The server keeps the boss health exactly; the game's numbers keep ~16 digits. Read a sent damage string exactly.
+  const exact = (s: string) => {
+    const [m, e = '0'] = s.split('e');
+    const [int, frac = ''] = m.split('.');
+    const shift = Number(e) - frac.length;
+    const digits = BigInt(int + frac);
+    return shift >= 0 ? digits * 10n ** BigInt(shift) : digits / 10n ** BigInt(-shift);
+  };
+
+  it('a killing blow beats the exact server health on every level, even after earlier fights', () => {
+    for (let level = 2; level <= 120; level += 2) {
+      const hp = 432000n * BigInt(level) * 2n ** BigInt(1.5 * level); // guild_boss_hp for even levels
+      for (const part of [0, 1, 3, 7, 13]) {
+        // Some earlier fights took `part` sixteenths, stored exactly by the server.
+        const done = (hp * BigInt(part)) / 16n + 12345n;
+        const lane = guildBossLane(new Decimal(Number(hp)), new Decimal(Number(done)), 0.4);
+        const sent = exact(lane.damageFor(lane.left).toString());
+        expect(done + sent >= hp, `level ${level}, ${part}/16 done`).toBe(true);
+        // and it doesn't overshoot by more than a crumb
+        expect(sent - (hp - done) < hp / 100000n).toBe(true);
+      }
+    }
+  });
+
+  it('a boss left with a crumb by older games can be finished', () => {
+    const hp = 432000n * 52n * 2n ** 78n;
+    const done = hp - 10n ** 12n; // the server's few-trillion crumb, invisible next to ~6.8e30
+    const lane = guildBossLane(new Decimal(Number(hp)), new Decimal(Number(done)), 0);
+    expect(lane.left.gt(0)).toBe(true);
+    expect(done + exact(lane.damageFor(lane.left).toString()) >= hp).toBe(true);
   });
 });
