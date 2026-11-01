@@ -357,3 +357,27 @@ describe('the Rush event', () => {
     expect(u.rushCoins).toBe(42);
   });
 });
+
+describe('Rush free attacks only for a bracket\'s strongest heroes (2026-11-01)', () => {
+  it('heroes past the top RUSH_FREE_HEROES of a bracket pay tickets there', async () => {
+    const { RUSH_FREE_HEROES } = await import('../src/rush');
+    const s = veteran();
+    const t = at(10, 29, 1);
+    s.rushSync(t);
+    s.rushFoes(0, t);
+    const order = s.rushHeroes(0);
+    expect(order.length).toBeGreaterThan(RUSH_FREE_HEROES);
+    expect(s.rushFreeHeroes(0)).toEqual(order.slice(0, RUSH_FREE_HEROES).map((h) => h.id));
+    const top = order[0];
+    const low = order[RUSH_FREE_HEROES];
+    expect(s.rushFree(top.id, t, 0)).toBe(1);
+    expect(s.rushFree(low.id, t, 0)).toBe(0);
+    expect(s.startRush(0, 0, low.id, t)).not.toBeNull();
+    expect(s.rush.tickets).toBe(RUSH_START_TICKETS - RUSH_FIGHT_TICKETS);
+    s.finishRush(false);
+  });
+
+  it('the top reward tier takes 9,000 points', () => {
+    expect(RUSH_TIERS.map((x) => x.points)).toEqual([50, 150, 300, 600, 2500, 4000, 6000, 9000]);
+  });
+});

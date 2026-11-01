@@ -5,7 +5,8 @@
  * - One hero against one hero. Three brackets by the hero's yellow stars: 1-3★, 3-5★, 5-7★ (a 3★ or 5★ hero
  *   fits two). Each bracket offers three opponents; nothing says which are real players and which are made up.
  * - A fight costs RUSH_FIGHT_TICKETS tickets, or one of the hero's free attacks: every hero starts the event with
- *   one, and gets one more every RUSH_FREE_HOURS hours, holding up to RUSH_FREE_MAX.
+ *   one, and gets one more every RUSH_FREE_HOURS hours, holding up to RUSH_FREE_MAX. Only a bracket's
+ *   RUSH_FREE_HEROES strongest heroes may use free attacks there.
  * - Tickets: RUSH_START_TICKETS at the start, RUSH_DAILY_TICKETS more each new day of the event.
  * - Wins pay points; RUSH_STREAK_UP wins in a row raise the Rush level (its multiplier stays for the event).
  *   The nine featured heroes earn RUSH_FEATURED_BONUS more. Points pass reward tiers (paid at once).
@@ -21,6 +22,8 @@ export const RUSH_DAILY_TICKETS = 40;
 export const RUSH_FIGHT_TICKETS = 5;
 export const RUSH_FREE_HOURS = 6;
 export const RUSH_FREE_MAX = 2;
+/** Only a bracket's strongest heroes (by CP) use free attacks there (2026-11-01 balance review: free attacks for every hero made ~1,000 fights an event). */
+export const RUSH_FREE_HEROES = 5;
 export const RUSH_FEATURED = 9;
 export const RUSH_FEATURED_BONUS = 0.2;
 export const RUSH_STREAK_UP = 4;
@@ -59,10 +62,10 @@ export const RUSH_TIERS: Array<{ points: number; reward: RushReward }> = [
   { points: 150, reward: { dust: 300 } },
   { points: 300, reward: { glyph: 2, gems: 20 } },
   { points: 600, reward: { grand: 1 } },
-  { points: 1000, reward: { gems: 30, dust: 500 } },
-  { points: 1600, reward: { grand: 2 } },
-  { points: 2500, reward: { gems: 40, unbinder: 1 } },
-  { points: 4000, reward: { grand: 3, gems: 60 } },
+  { points: 2500, reward: { gems: 30, dust: 500 } },
+  { points: 4000, reward: { grand: 2 } },
+  { points: 6000, reward: { gems: 40, unbinder: 1 } },
+  { points: 9000, reward: { grand: 3, gems: 60 } },
 ];
 
 export type RushShopId = 'glyph' | 'grand' | 'family' | 'dust' | 'coreR' | 'unbinder';
