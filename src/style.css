@@ -941,7 +941,7 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 /* Battle tab hub: one big card per mode, each opening its own page */
 .mode-card { position: relative; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 2px; width: 100%; min-height: 112px; margin: 0 0 10px; padding: 10px 14px; border: 4px solid var(--wood-deep); border-radius: 10px; box-shadow: inset 0 0 0 2px rgba(255,255,255,.12), 0 3px 0 #0c0f18; overflow: hidden; text-align: left; color: #fff; cursor: pointer; font: inherit; }
 .mode-card:active { transform: translateY(1px); }
-.mode-card.trials { background: radial-gradient(ellipse at 22% 30%, rgba(160,30,60,.35), transparent 45%), linear-gradient(180deg, #2a1a4a, #140d28); }
+.mode-card.trials { background: linear-gradient(90deg, rgba(20,10,40,.8), rgba(20,10,40,.15) 55%), var(--art, none), #2a1a4a; image-rendering: pixelated; }
 .mode-card.arena { background: linear-gradient(90deg, rgba(40,90,200,.55), rgba(0,0,0,.05) 45%, rgba(0,0,0,.05) 55%, rgba(200,40,40,.55)), var(--art, none), #354468; image-rendering: pixelated; }
 .mode-title { position: relative; z-index: 1; font-size: 26px; font-weight: 900; line-height: 1.1; text-shadow: 0 2px 0 #131927, 0 0 3px #131927, 2px 0 0 #131927, -2px 0 0 #131927; }
 .mode-note { position: relative; z-index: 1; font-size: 13px; font-weight: 800; color: #e4eaf8; text-shadow: 0 1px 2px #000, 0 0 2px #000; }
@@ -1160,7 +1160,7 @@ i.warsteel, .relic-cost i.warsteel { border: 0; border-radius: 0; display: inlin
 .mat-ico.core-r { background-image: url('./assets/ui/mat-core-r.png'); }
 .mat-ico.core-e { background-image: url('./assets/ui/mat-core-e.png'); }
 .mat-ico.wild { background-image: url('./assets/ui/mat-wild.png'); }
-.mode-card.scout { background: radial-gradient(ellipse at 75% 30%, rgba(240,200,90,.3), transparent 50%), linear-gradient(180deg, #2c4a2a, #142616); }
+.mode-card.scout { background: linear-gradient(90deg, rgba(10,30,20,.8), rgba(10,30,20,.1) 55%), var(--art, none), #2c4a2a; image-rendering: pixelated; }
 .mode-card.scout .mode-trophy { filter: drop-shadow(0 0 8px rgba(255,230,150,.6)) drop-shadow(0 2px 0 #131927); }
 .sc-mats { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
 .mat-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.15); font-weight: 800; font-size: 13px; color: #fff; }
@@ -1267,7 +1267,7 @@ button.rush-item.rush-fam { width: 100%; border: 1px solid var(--fam); color: #f
 .glyph-actions button { flex: 1 1 auto; }
 
 /* ---------- Rush (src/rushUi.ts) ---------- */
-.mode-card.rush { background: radial-gradient(ellipse at 75% 30%, rgba(255,200,60,.35), transparent 55%), linear-gradient(180deg, #5a2a5a, #241030); }
+.mode-card.rush { background: linear-gradient(90deg, rgba(36,16,48,.8), rgba(36,16,48,.15) 55%), var(--art, none), #5a2a5a; image-rendering: pixelated; }
 .mode-card.rush .mode-trophy { filter: drop-shadow(0 0 8px rgba(255,220,100,.7)) drop-shadow(0 2px 0 #131927); }
 .rush { display: flex; flex-direction: column; gap: 8px; }
 .rush-top { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }

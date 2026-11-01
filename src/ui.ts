@@ -649,7 +649,10 @@ export class UI {
     // The Battle tab is a hub of mode cards; each opens its own page with a Back button.
     // Absolute URLs: a url() inside a CSS variable resolves against the stylesheet, not the page.
     const bg = (f: string) => `url("${new URL(`bg/${f}`, document.baseURI).href}")`;
-    document.querySelector<HTMLElement>('.mode-card.arena')!.style.setProperty('--art', `${bg('colosseum_far.png')} center 40% / cover, ${bg('colosseum_sky.png')} center / cover`);
+    const scene = (name: string, y = '40%') => `${bg(`${name}_far.png`)} center ${y} / cover, ${bg(`${name}_sky.png`)} center / cover`;
+    // Every mode card shows a battle backdrop that suits it, like the Colosseum's.
+    const cardArt: Record<string, string> = { arena: scene('colosseum'), trials: scene('hollowmoon'), scout: scene('tidecoast'), rush: scene('stormcrag') };
+    for (const [mode, art] of Object.entries(cardArt)) document.querySelector<HTMLElement>(`.mode-card.${mode}`)?.style.setProperty('--art', art);
     for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-battle-go]')) {
       btn.addEventListener('click', () => {
         for (const pane of document.querySelectorAll<HTMLElement>('[data-battle-pane]')) pane.hidden = pane.dataset.battlePane !== btn.dataset.battleGo;
