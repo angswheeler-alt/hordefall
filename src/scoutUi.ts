@@ -5,7 +5,7 @@
 import { HEROES, type HeroDef } from './data';
 import { fmtDuration } from './formulas';
 import type { GameState } from './state';
-import { SCOUT_BONUS_COMMONS, SCOUT_KINDS, SCOUT_MATCH_MULT, SCOUT_UNLOCK_LEVEL, WILD_CREST_COST, fullReward, missionEndsAt, scoutReward, type ScoutReward } from './scouting';
+import { SCOUT_BONUS_COMMONS, SCOUT_KINDS, SCOUT_MATCH_MULT, SCOUT_UNLOCK_LEVEL, WILD_CREST_COST, fullReward, missionEndsAt, scoutReward, type ScoutMission, type ScoutReward } from './scouting';
 import { FORGE_MATS, FORGE_MAT_NAMES, WEAPON_GLYPHS, WEAPON_LOOK_NAMES, WEAPON_MAX_LEVEL, WEAPON_STAT_STEP, weaponLook, weaponMult, type ForgeMat } from './weapons';
 import { faceStyle, dropCards } from './ui';
 import { play } from './sfx';
@@ -20,6 +20,15 @@ const hero = (id: string) => HEROES.find((h) => h.id === id)!;
 const MAT_CLASS: Record<ForgeMat | 'wild' | 'unbinder' | 'glyph' | 'grand', string> = { ore: 'ore', crystal: 'crystal', coreC: 'core-c', coreR: 'core-r', coreE: 'core-e', wild: 'wild', unbinder: 'unbinder', glyph: 'glyph-chest', grand: 'glyph-grand' };
 const MAT_SHORT: Record<ForgeMat | 'wild' | 'unbinder' | 'glyph' | 'grand', string> = { ore: 'Ore', crystal: 'Crystal', coreC: 'Common Core', coreR: 'Rare Core', coreE: 'Epic Core', wild: 'Wild Crests', unbinder: 'Unbinders', glyph: 'Glyph Chest (1-3★)', grand: 'Rare Glyph Chest (3-6★)' };
 export const matIcon = (m: ForgeMat | 'wild' | 'unbinder' | 'glyph' | 'grand') => `<i class="mat-ico ${MAT_CLASS[m]}" aria-hidden="true"></i>`;
+
+/** A mission's rules as chips: team size, lowest stars, element and Type counts, lowest Team Score. */
+export function needsLine(m: ScoutMission): string {
+  const chips = [`${m.size} heroes`, `all ${m.minStar}★+`];
+  if (m.needElement) chips.push(`${m.needElement} ${cap(m.element)}`);
+  if (m.needType) chips.push(`${m.needType} ${m.type}`);
+  chips.push(`Score ${m.minScore}+`);
+  return chips.map((c) => `<span class="sc-need">${c}</span>`).join('');
+}
 
 /** "120 Ore · 4 Common Cores" style list with icons. */
 export function rewardChips(r: ScoutReward): string {
@@ -44,7 +53,8 @@ export class ScoutUI {
       const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-sc]');
       if (!btn || btn.disabled) return;
       const slot = btn.dataset.slot!;
-      if (btn.dataset.sc === 'send') this.openPicker(slot);
+      if (btn.dataset.sc === 'deploy') this.deployAll();
+      else if (btn.dataset.sc === 'send') this.openPicker(slot);
       else if (btn.dataset.sc === 'claim') this.claim(slot);
       else if (btn.dataset.sc === 'recall') this.ui.showModal('Call back?', '<p>The heroes come home now and this mission pays nothing.</p>', 'Call back', () => {
         this.state.recallScout(slot);
@@ -93,7 +103,8 @@ export class ScoutUI {
       }
       const head = `<div class="sc-head"><span class="sc-kind">${k.name}</span><b>${m.hours} h · ${m.size} heroes</b><span class="sc-rec"><span class="el-pip ${m.element}"></span>${cap(m.element)} · ${m.type}</span></div>`;
       if (!m.startedAt) {
-        return `<div class="sc-card ${sl.kind}">${head}<div class="sc-reward">${rewardChips(fullReward(m))}</div><button type="button" class="hot sc-go" data-sc="send" data-slot="${sl.slot}">Send heroes</button></div>`;
+        const canGo = !s.scoutProblems(sl.slot, s.scoutAutoPick(sl.slot)).length;
+        return `<div class="sc-card ${sl.kind}">${head}<div class="sc-needs">${needsLine(m)}</div><div class="sc-reward">${rewardChips(fullReward(m))}</div><button type="button" class="${canGo ? 'hot' : 'wood-btn'} sc-go" data-sc="send" data-slot="${sl.slot}">${canGo ? 'Send heroes' : 'Send heroes (no team fits yet)'}</button></div>`;
       }
       const faces = m.heroes.map((id) => `<span class="face art sc-face" style="${faceStyle(hero(id))}">${hero(id).name[0]}</span>`).join('');
       const { share } = s.scoutScore(sl.slot, m.heroes);
@@ -107,12 +118,31 @@ export class ScoutUI {
     });
     const toBonus = SCOUT_BONUS_COMMONS - s.scout.commons;
     const note = s.scout.slots.some((x) => x.slot === 'rb') ? '' : `<p class="sc-note">${toBonus} more Common mission${toBonus === 1 ? '' : 's'} for a bonus Rare mission.</p>`;
-    setHtml(board, cards.join('') + note);
+    const waiting = s.scoutWaiting().length;
+    const deploy = `<button type="button" class="hot sc-deploy" data-sc="deploy" data-slot="" ${waiting ? '' : 'disabled'}>Deploy all${waiting ? ` (${waiting})` : ''}</button>`;
+    setHtml(board, deploy + cards.join('') + note);
     // Countdowns tick in place, so the cards (and their buttons) are only rebuilt when something changes.
     for (const el of board.querySelectorAll<HTMLElement>('[data-sc-end]')) {
       const text = fmtDuration(Math.max(0, Math.ceil((Number(el.dataset.scEnd) - now) / 1000)));
       if (el.textContent !== text) el.textContent = text;
     }
+  }
+
+  /** Send the best team to every mission that one fits, most valuable first. */
+  private deployAll() {
+    const s = this.state;
+    const kindName = (slot: string) => SCOUT_KINDS[s.scout.slots.find((x) => x.slot === slot)?.kind ?? 'common'].name;
+    const { sent, skipped } = s.deployAllScouts();
+    if (sent.length) play('unlock');
+    const list = (xs: string[]) => xs.map(kindName).join(', ');
+    this.ui.showModal(
+      'Deploy all',
+      `<p>${sent.length ? `Sent ${sent.length} mission${sent.length > 1 ? 's' : ''}: ${list(sent)}.` : 'No mission could be sent.'}</p>${
+        skipped.length ? `<p class="meta">Skipped ${list(skipped)}: no free team meets the rules. Gilded and Rare missions get your best heroes first.</p>` : ''
+      }`,
+      'OK',
+    );
+    this.ui.render();
   }
 
   private claim(slot: string) {
@@ -152,22 +182,26 @@ export class ScoutUI {
     const m = s.scout.slots.find((x) => x.slot === slot)?.mission;
     if (!m) return;
     const { score, target, share } = s.scoutScore(slot, this.picks);
+    const problems = s.scoutProblems(slot, this.picks);
     const tile = (h: HeroDef, picked: boolean) => {
       const def = s.formDef(h);
-      const tags = `${def.type === m.type ? '<i class="sc-match">Type</i>' : ''}${def.element === m.element ? '<i class="sc-match el">Element</i>' : ''}`;
+      const low = (s.stars[h.id] ?? 0) + 1 < m.minStar;
+      const tags = `${low ? `<i class="sc-match low">Under ${m.minStar}★</i>` : ''}${def.type === m.type ? '<i class="sc-match">Type</i>' : ''}${def.element === m.element ? '<i class="sc-match el">Element</i>' : ''}`;
       return `<button type="button" class="g-pick sc-pick${picked ? ' on' : ''}" data-scpick="${h.id}"><span class="face art" style="${faceStyle(h)}">${h.name[0]}</span><b>${esc(def.name)}</b><small>${s.scoutHeroScore(slot, h.id)} pts</small><span class="sc-tags">${tags}</span></button>`;
     };
     const free = s.scoutCandidates(slot).filter((h) => !this.picks.includes(h.id));
     const team = this.picks.map((id) => tile(hero(id), true)).join('') || '<small class="meta">Tap heroes below to add them.</small>';
     $('modal-body').innerHTML = `
-      <p class="sc-want">Wants: <b>${m.type}</b> and <span class="el-pip ${m.element}"></span><b>${cap(m.element)}</b> heroes (x${SCOUT_MATCH_MULT} score each). ${m.hours} hours, up to ${m.size} heroes.</p>
+      <p class="sc-want">Wants: <b>${m.type}</b> and <span class="el-pip ${m.element}"></span><b>${cap(m.element)}</b> heroes (x${SCOUT_MATCH_MULT} score each). ${m.hours} hours.</p>
+      <div class="sc-needs">${needsLine(m)}</div>
       <div class="sc-score"><div class="crest-bar"><div style="width:${Math.min(100, (score / target) * 100)}%"></div></div><span>Team Score ${score} / ${target} · pays ${Math.round(share * 100)}%</span></div>
       <div class="sc-reward">${rewardChips(scoutReward(m, share))}</div>
+      ${problems.length ? `<ul class="sc-problems">${problems.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}
       <h4>Team (${this.picks.length}/${m.size}) <button type="button" class="wood-btn small" data-scpick="__auto">Best team</button> <button type="button" class="wood-btn small" data-scpick="__clear">Clear</button></h4>
       <div class="g-picks sc-team-picks">${team}</div>
       <h4>Free heroes</h4>
       <div class="g-picks">${free.map((h) => tile(h, false)).join('') || '<small class="meta">Every hero is out scouting.</small>'}</div>`;
-    $<HTMLButtonElement>('modal-ok').disabled = this.picks.length === 0;
+    $<HTMLButtonElement>('modal-ok').disabled = problems.length > 0;
   }
 
   private help() {
@@ -175,6 +209,8 @@ export class ScoutUI {
       'Scouting',
       `<p>Send teams of heroes on missions. They come back after the mission's hours with weapon materials. Heroes still fight while they're away, but each hero goes on one mission at a time.</p>
        <p><b>Team Score:</b> each hero gives 10 per yellow star, 5 per pink star and 5 per weapon level above 1. A hero of the wanted Type scores x${SCOUT_MATCH_MULT}, and again x${SCOUT_MATCH_MULT} for the wanted element. The score against the mission's target sets how much of the reward you get.</p>
+       <p><b>Rules:</b> a team must be exactly the mission's size, every hero needs enough yellow stars, Rare and Gilded missions need heroes of their element (Gilded also one of its Type), and the Team Score must reach half the target. Common: ${SCOUT_KINDS.common.size} heroes at ${SCOUT_KINDS.common.minStar}★+. Rare: ${SCOUT_KINDS.rare.size} at ${SCOUT_KINDS.rare.minStar}★+, ${SCOUT_KINDS.rare.needElement} of the element. Gilded: ${SCOUT_KINDS.gilded.size} at ${SCOUT_KINDS.gilded.minStar}★+, ${SCOUT_KINDS.gilded.needElement} of the element and ${SCOUT_KINDS.gilded.needType} of the Type. You likely can't fill every mission, so pick the ones that matter.</p>
+       <p><b>Deploy all</b> sends the best free team to every mission it can, Gilded first, then Rare, then Common, and skips missions no team fits.</p>
        <p><b>Board:</b> 3 Common missions (1-4 h) and 1 Rare (4-6 h, the main source of Rare and Epic Forge Cores, plus an Unbinder and a Glyph Chest). A collected mission's slot gets a new one at the next full hour. Every ${SCOUT_BONUS_COMMONS} Commons add a bonus Rare.</p>
        <p><b>Gilded mission:</b> one a day. It pays a Rare Glyph Chest, 2 Unbinders and Wild Crests, which turn into crests for any hero you pick (Common ${WILD_CREST_COST.common}, Rare ${WILD_CREST_COST.rare}, Epic ${WILD_CREST_COST.epic} per crest). Legendary and Ascendant heroes are left out.</p>`,
       'Got it',

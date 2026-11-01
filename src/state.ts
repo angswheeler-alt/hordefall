@@ -17,7 +17,7 @@ import { TEST_MODE, TEST_SAVE_KEY } from './config';
 import { FORGE_MATS, WEAPON_GLYPHS, clampWeaponLevel, weaponMult, weaponUpgradeCost, type ForgeCost, type ForgeMat } from './weapons';
 import { GLYPH_BAG_CAP, GLYPH_FAMILIES, chestStar, cleanGlyph, emptyTotals, glyphBound, glyphLevelCost, glyphSalvage, glyphTotals, rollGlyph, type Glyph, type GlyphChestKind, type GlyphFamily, type GlyphTotals } from './glyphs';
 import { RUSH_BRACKETS, RUSH_CREST_COINS, RUSH_CREST_LIMIT, RUSH_CREST_PACK, RUSH_DAILY_TICKETS, RUSH_DAYS, RUSH_FEATURED, RUSH_FIGHT_TICKETS, RUSH_FOES, RUSH_FREE_HOURS, RUSH_LOSS_COINS, RUSH_MAX_LEVEL, RUSH_SHOP, RUSH_STREAK_UP, RUSH_TIERS, RUSH_UNLOCK_LEVEL, chestKinds, cleanRush, freeAttacks, inBracket, newRush, rushWinPoints, type RushFoe, type RushReward, type RushShopId, type RushState } from './rush';
-import { SCOUT_KINDS, SCOUT_UNLOCK_LEVEL, WILD_CREST_COST, cleanScout, heroScoutScore, missionEndsAt, newScout, nextHour, refreshBoard, scoutReward, scoutShare, type ScoutReward, type ScoutSlot, type ScoutState } from './scouting';
+import { SCOUT_KINDS, SCOUT_PRIORITY, SCOUT_UNLOCK_LEVEL, WILD_CREST_COST, cleanScout, pickScoutTeam, scoutProblems, type ScoutCand, heroScoutScore, missionEndsAt, newScout, nextHour, refreshBoard, scoutReward, scoutShare, type ScoutReward, type ScoutSlot, type ScoutState } from './scouting';
 
 /** Test mode plays a copy of the save under its own key, so the real one is never written. */
 const SAVE_KEY = TEST_MODE ? TEST_SAVE_KEY : 'hordefall-save-v1';
@@ -2781,10 +2781,52 @@ export class GameState {
       .map((x) => x.h);
   }
 
-  /** The best free team for a slot. */
+  /** A hero as the mission rules see them (src/scouting.ts). */
+  private scoutCand(slot: string, id: string): ScoutCand | null {
+    const h = HEROES.find((x) => x.id === id);
+    if (!h) return null;
+    const def = this.formDef(h);
+    return { id, stars: this.stars[id] ?? 0, type: def.type, element: def.element, score: this.scoutHeroScore(slot, id) };
+  }
+
+  /** The best free team for a slot that meets its rules where it can (check scoutProblems). */
   scoutAutoPick(slot: string): string[] {
     const m = this.scout.slots.find((x) => x.slot === slot)?.mission;
-    return m ? this.scoutCandidates(slot).slice(0, m.size).map((h) => h.id) : [];
+    if (!m) return [];
+    const cands = this.scoutCandidates(slot).map((h) => this.scoutCand(slot, h.id)!);
+    return pickScoutTeam(m, cands);
+  }
+
+  /** Why these heroes can't go on a slot's mission; empty when they can. */
+  scoutProblems(slot: string, heroIds: string[]): string[] {
+    const m = this.scout.slots.find((x) => x.slot === slot)?.mission;
+    if (!m) return ['No mission'];
+    return scoutProblems(m, [...new Set(heroIds)].map((id) => this.scoutCand(slot, id)).filter((c): c is ScoutCand => !!c));
+  }
+
+  /** Missions waiting for a team, most valuable first (Gilded, Rare, Common; longer first). */
+  scoutWaiting(): ScoutSlot[] {
+    return this.scout.slots
+      .filter((x) => x.mission && !x.mission.startedAt)
+      .sort((a, b) => SCOUT_PRIORITY[a.kind] - SCOUT_PRIORITY[b.kind] || b.mission!.hours - a.mission!.hours);
+  }
+
+  /**
+   * Deploy all: send the best free team to every waiting mission, most valuable first, so the strongest heroes go
+   * where they pay most. Missions no free team can meet are skipped.
+   */
+  deployAllScouts(now = Date.now()): { sent: string[]; skipped: string[] } {
+    const sent: string[] = [];
+    const skipped: string[] = [];
+    if (!this.scoutOpen()) return { sent, skipped };
+    refreshBoard(this.scout, now, dayKey(now));
+    for (const sl of this.scoutWaiting()) {
+      const team = this.scoutAutoPick(sl.slot);
+      if (this.scoutProblems(sl.slot, team).length || !this.startScout(sl.slot, team, now)) skipped.push(sl.slot);
+      else sent.push(sl.slot);
+    }
+    this.save();
+    return { sent, skipped };
   }
 
   startScout(slot: string, heroIds: string[], now = Date.now()): boolean {
@@ -2793,8 +2835,8 @@ export class GameState {
     if (!this.scoutOpen() || !m || m.startedAt) return false;
     const busy = this.scoutBusy();
     const ids = [...new Set(heroIds)];
-    if (!ids.length || ids.length > m.size) return false;
     if (ids.some((id) => busy.has(id) || !((this.levels[id] ?? 0) > 0))) return false;
+    if (this.scoutProblems(slot, ids).length) return false;
     m.heroes = ids;
     m.startedAt = now;
     this.save();

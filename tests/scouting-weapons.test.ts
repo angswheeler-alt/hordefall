@@ -18,11 +18,14 @@ function fresh() {
   return new GameState();
 }
 
-/** A state with Scouting open and every hero recruited. */
-function scouter() {
+/** A state with Scouting open and every hero recruited at 5★ (enough for every mission's rules). */
+function scouter(stars = 4) {
   const s = fresh();
   s.lifetimeEmbers = keeperThreshold(SCOUT_UNLOCK_LEVEL - 1);
-  for (const h of HEROES) s.levels[h.id] = 1;
+  for (const h of HEROES) {
+    s.levels[h.id] = 1;
+    s.stars[h.id] = stars;
+  }
   return s;
 }
 
@@ -95,7 +98,8 @@ describe('scouting', () => {
     for (let i = 0; i < 50; i++) {
       const m = rollMission('common', `c0:${i}`);
       expect(SCOUT_KINDS.common.hours).toContain(m.hours);
-      expect(m.size).toBe(3);
+      expect(m.size).toBe(4);
+      expect(m.minStar).toBe(2);
     }
   });
 
@@ -112,7 +116,7 @@ describe('scouting', () => {
     expect(heroScoutScore(2, 0, 1, true, false)).toBe(45);
     expect(heroScoutScore(2, 0, 1, true, true)).toBe(68);
     expect(heroScoutScore(3, 2, 5, false, false)).toBe(70);
-    expect(scoutShare(45, 'common')).toBe(0.5);
+    expect(scoutShare(60, 'common')).toBe(0.5);
     expect(scoutShare(500, 'common')).toBe(1);
   });
 
@@ -128,7 +132,7 @@ describe('scouting', () => {
     const s = scouter();
     s.scoutBoard(T0);
     const team = s.scoutAutoPick('c0');
-    expect(team.length).toBe(3);
+    expect(team.length).toBe(4);
     expect(s.startScout('c0', team, T0)).toBe(true);
     expect([...s.scoutBusy()].sort()).toEqual([...team].sort());
     // A busy hero can't go on a second mission.
