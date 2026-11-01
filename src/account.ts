@@ -15,6 +15,14 @@ const escape = (text: string) => text.replace(/[&<>"]/g, (c) => `&#${c.charCodeA
 /** 3-20 letters, numbers or underscores; case doesn't matter. */
 const USERNAME_RULE = /^[a-z0-9_]{3,20}$/;
 
+/** What a link from a password reset email left in the address: a working link, an expired one, or neither. */
+export function recoveryFromHash(hash: string): 'link' | 'expired' | null {
+  const p = new URLSearchParams(hash.replace(/^#/, ''));
+  if (p.get('type') === 'recovery' && p.get('access_token')) return 'link';
+  if (p.get('error_code') === 'otp_expired' || (p.get('error') === 'access_denied' && /expired|invalid/i.test(p.get('error_description') ?? ''))) return 'expired';
+  return null;
+}
+
 const loginFor = (username: string) => `${username}@${USERNAME_DOMAIN}`;
 
 const usernameOf = (user: User) => (user.user_metadata?.username as string | undefined) ?? user.email?.split('@')[0] ?? 'player';
@@ -79,6 +87,12 @@ export class Account {
   private paused = false;
   /** The cloud save's progress as last seen; an upload that would lower it asks first. */
   private cloudProgress: Progress | null = null;
+  /** What the shared account dialog's form does when submitted. */
+  private formMode: 'signin' | 'email' | 'forgot' | 'newpass' = 'signin';
+  /** A password reset link opened this page ('link'), or an expired one did ('expired'). */
+  private recovery: 'link' | 'expired' | null = recoveryFromHash(location.hash);
+  /** The signed-in player's recovery email: undefined until asked, null when none. */
+  private recoveryEmail: string | null | undefined = undefined;
   /** Told when the signed-in player may have changed (the guild panel listens). */
   readonly listeners: Array<() => void> = [];
 
@@ -115,7 +129,16 @@ export class Account {
     $('acct-cancel').addEventListener('click', () => this.closeDialog());
     $('acct-form').addEventListener('submit', (e) => {
       e.preventDefault();
-      void this.submit((e as SubmitEvent).submitter?.id === 'acct-create');
+      if (this.formMode === 'email') void this.saveEmail();
+      else if (this.formMode === 'forgot') void this.sendReset();
+      else if (this.formMode === 'newpass') void this.saveNewPassword();
+      else void this.submit((e as SubmitEvent).submitter?.id === 'acct-create');
+    });
+    $('acct-email').addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('#acct-email-btn')) this.openEmail();
+    });
+    $('acct-body').addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('#acct-forgot')) this.openForgot();
     });
     if (TEST_MODE) {
       // Test mode plays a copy of the save: nothing goes online, so no client at all.
@@ -152,7 +175,122 @@ export class Account {
     this.user = data.session?.user ?? null;
     this.render();
     void this.checkAdmin();
+    void this.fetchEmail();
+    if (this.recovery) {
+      // The reset link's details stay out of the address bar (and out of bookmarks).
+      history.replaceState(null, '', location.pathname + location.search);
+      if (this.recovery === 'link' && this.user) this.openNewPassword();
+      else this.openDialog('Reset link expired', '<p>That reset link has expired or was already used. Ask for a new one from Sign in > Forgot password.</p>', true);
+      this.recovery = null;
+    }
     if (this.user) await this.pull('start');
+  }
+
+  // ---------- password reset emails (supabase/recovery.sql + functions/password-reset) ----------
+
+  private async fetchEmail() {
+    this.recoveryEmail = undefined;
+    if (!this.db || !this.user) return this.renderEmail();
+    const { data, error } = await this.db.from('account_emails').select('email').eq('user_id', this.user.id).maybeSingle();
+    // A server without recovery.sql just shows nothing.
+    this.recoveryEmail = error ? undefined : ((data as { email: string } | null)?.email ?? null);
+    this.renderEmail();
+  }
+
+  private renderEmail() {
+    const box = $('acct-email');
+    box.hidden = !this.user || this.recoveryEmail === undefined;
+    if (box.hidden) return;
+    box.innerHTML = this.recoveryEmail
+      ? `Reset emails go to <b>${escape(this.recoveryEmail)}</b>. <button type="button" id="acct-email-btn" class="link-btn">Change</button>`
+      : `Add an email so you can reset a forgotten password. <button type="button" id="acct-email-btn" class="link-btn">Add email</button>`;
+  }
+
+  private openEmail() {
+    this.formMode = 'email';
+    this.openDialog(
+      'Email for password resets',
+      `<p>We only use it to send a link when you forget your password. Leave it empty to remove it.</p>
+       <input id="acct-email-input" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="you@example.com" maxlength="254" value="${escape(this.recoveryEmail ?? '')}">
+       <p id="acct-note" class="acct-note"></p>
+       <div class="modal-actions"><button type="submit" class="hot">Save</button></div>`,
+      true,
+    );
+    $<HTMLInputElement>('acct-email-input').focus();
+  }
+
+  private async saveEmail() {
+    const email = $<HTMLInputElement>('acct-email-input').value.trim();
+    const note = $('acct-note');
+    note.textContent = 'Saving…';
+    const { error } = await this.db!.rpc('set_recovery_email', { p_email: email });
+    if (error) {
+      note.textContent = /does not exist|schema cache|42883/i.test(error.message) ? 'Reset emails aren\'t set up on the server yet.' : error.message;
+      return;
+    }
+    this.recoveryEmail = email ? email.toLowerCase() : null;
+    this.renderEmail();
+    this.closeDialog();
+  }
+
+  private openForgot() {
+    const typed = document.querySelector<HTMLInputElement>('#acct-name')?.value.trim() ?? '';
+    this.formMode = 'forgot';
+    this.openDialog(
+      'Forgot your password?',
+      `<p>If you added an email to your account, we'll send it a link to pick a new password.</p>
+       <input id="acct-name" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Username" maxlength="20" required value="${escape(typed)}">
+       <p id="acct-note" class="acct-note"></p>
+       <div class="modal-actions"><button type="submit" class="hot">Send reset link</button></div>`,
+      true,
+    );
+    $<HTMLInputElement>('acct-name').focus();
+  }
+
+  private async sendReset() {
+    const username = $<HTMLInputElement>('acct-name').value.trim().toLowerCase();
+    const note = $('acct-note');
+    if (!USERNAME_RULE.test(username)) {
+      note.textContent = 'Usernames are 3-20 letters, numbers or underscores.';
+      return;
+    }
+    note.textContent = 'Sending…';
+    const { data, error } = await this.db!.functions.invoke('password-reset', { body: { username } });
+    if (error || (data as { error?: string } | null)?.error) {
+      note.textContent = (data as { error?: string } | null)?.error ?? 'Password reset emails aren\'t working right now. Try again later.';
+      return;
+    }
+    note.textContent = 'If that account has an email, a reset link is on its way. Check your spam folder too.';
+  }
+
+  private openNewPassword() {
+    this.formMode = 'newpass';
+    this.openDialog(
+      'Pick a new password',
+      `<p>You're signed in as ${escape(usernameOf(this.user!))}. Choose a new password for next time.</p>
+       <input id="acct-password" type="password" autocomplete="new-password" placeholder="New password (6+ characters)" minlength="6" required>
+       <p id="acct-note" class="acct-note"></p>
+       <div class="modal-actions"><button type="submit" class="hot">Save password</button></div>`,
+      true,
+    );
+    $<HTMLInputElement>('acct-password').focus();
+  }
+
+  private async saveNewPassword() {
+    const password = $<HTMLInputElement>('acct-password').value;
+    const note = $('acct-note');
+    if (password.length < 6) {
+      note.textContent = 'Passwords need at least 6 characters.';
+      return;
+    }
+    note.textContent = 'Saving…';
+    const { error } = await this.db!.auth.updateUser({ password });
+    if (error) {
+      note.textContent = friendlyError(error.message);
+      return;
+    }
+    this.closeDialog();
+    this.openDialog('Password changed', '<p>Your new password is saved. Use it next time you sign in.</p>', true);
   }
 
   /** The cloud revision this device's save was last synced with (null: never synced). */
@@ -507,6 +645,7 @@ export class Account {
     this.closeDialog();
     this.render();
     void this.checkAdmin();
+    void this.fetchEmail();
     await this.pull('signin');
     // Shown once, right after the account is made; later sign-ins never see it.
     if (create && !this.choosing) this.showAlphaNotice();
@@ -527,17 +666,20 @@ export class Account {
     await this.db?.auth.signOut();
     this.user = null;
     setAdmin(false);
+    this.recoveryEmail = undefined;
     this.render();
   }
 
   private openSignIn() {
+    this.formMode = 'signin';
     this.openDialog(
       'Save your progress online',
-      `<p>Pick a username and password to keep your progress safe and play on any device. There's no email, so keep your password somewhere safe.</p>
+      `<p>Pick a username and password to keep your progress safe and play on any device. Add an email later in Settings so you can reset a forgotten password.</p>
        <input id="acct-name" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Username" maxlength="20" required>
        <input id="acct-password" type="password" autocomplete="current-password" placeholder="Password (6+ characters)" minlength="6" required>
        <p id="acct-note" class="acct-note"></p>
-       <div class="modal-actions"><button type="submit" id="acct-create">Create account</button><button type="submit" id="acct-login" class="hot">Sign in</button></div>`,
+       <div class="modal-actions"><button type="submit" id="acct-create">Create account</button><button type="submit" id="acct-login" class="hot">Sign in</button></div>
+       <button type="button" id="acct-forgot" class="link-btn">Forgot password?</button>`,
       true,
     );
     $<HTMLInputElement>('acct-name').focus();
@@ -580,6 +722,7 @@ export class Account {
     $('acct-reset').hidden = TEST_MODE;
     $('acct-signout').hidden = !signedIn;
     $('acct-sync').hidden = !signedIn;
+    this.renderEmail();
     for (const listener of this.listeners) listener();
   }
 }
