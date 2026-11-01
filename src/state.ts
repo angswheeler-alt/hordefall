@@ -3087,24 +3087,26 @@ export class GameState {
    * Guild Boss rewards the server let this player claim: for each level beaten, Guild Coins and a
    * share of lifetime Embers; for each finished week, Guild Coins and Hero Chests by the highest level beaten.
    */
-  payGuildBossRewards(kills: Array<{ week: string; level: number }>, weeks: number[], pool: AscendantDef[] = releasedAscendants()): { coins: number; warsteel: number; drops: SummonDrop[]; ascendant: Array<{ heroId: string; crests: number }> } {
+  payGuildBossRewards(kills: Array<{ week: string; level: number; n?: number }>, weeks: Array<number | { top: number; beaten?: number }>, pool: AscendantDef[] = releasedAscendants()): { coins: number; warsteel: number; drops: SummonDrop[]; ascendant: Array<{ heroId: string; crests: number }> } {
     let coins = 0;
     let warsteel = 0;
     const drops: SummonDrop[] = [];
     const ascendant: Array<{ heroId: string; crests: number }> = [];
-    for (const { week, level } of kills) {
+    for (const { week, level, n } of kills) {
       coins += guildBossKillCoins(level);
       warsteel += warsteelForKill(level);
-      // The server pays each level once, so the first GUILD_BOSS_ASC_LEVELS levels cap the week's Ascendant crests.
-      const hero = level <= GUILD_BOSS_ASC_LEVELS ? ascendantOfWeek(week, pool) : undefined;
+      // The server pays each level once, so the first GUILD_BOSS_ASC_LEVELS levels beaten in a week cap its Ascendant crests.
+      // `n` is the level's place in the week (1 = the level the week started at); older servers send only the level.
+      const hero = (n ?? level) <= GUILD_BOSS_ASC_LEVELS ? ascendantOfWeek(week, pool) : undefined;
       if (!hero) continue;
       this.addCrests(hero.id, GUILD_BOSS_ASC_CRESTS);
       const row = ascendant.find((a) => a.heroId === hero.id);
       if (row) row.crests += GUILD_BOSS_ASC_CRESTS;
       else ascendant.push({ heroId: hero.id, crests: GUILD_BOSS_ASC_CRESTS });
     }
-    for (const top of weeks) {
-      const r = guildBossWeekReward(top);
+    for (const w of weeks) {
+      const top = typeof w === 'number' ? w : w.top;
+      const r = guildBossWeekReward(top, typeof w === 'number' ? top : w.beaten ?? top);
       coins += r.coins;
       warsteel += warsteelForWeek(top);
       for (let i = 0; i < r.chests; i++) drops.push(...this.rollChest());

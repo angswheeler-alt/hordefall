@@ -28,3 +28,41 @@ describe('Guild Boss week', () => {
     expect(guildBossElement('2026-10-26')).toBe('light');
   });
 });
+
+describe('Guild Boss weeks start near last week\'s best (2026-11-01)', () => {
+  it('starts 10 levels below last week\'s best, never below 1', async () => {
+    const { guildBossStartLevel } = await import('../src/formulas');
+    expect(guildBossStartLevel(0)).toBe(1);
+    expect(guildBossStartLevel(8)).toBe(1);
+    expect(guildBossStartLevel(11)).toBe(1);
+    expect(guildBossStartLevel(12)).toBe(2);
+    expect(guildBossStartLevel(115)).toBe(105);
+  });
+
+  it('weekly chests count levels beaten that week, coins the top level', async () => {
+    const { guildBossWeekReward } = await import('../src/formulas');
+    expect(guildBossWeekReward(115, 6)).toEqual({ coins: 1250, chests: 2 });
+    expect(guildBossWeekReward(115, 0)).toEqual({ coins: 0, chests: 0 });
+    expect(guildBossWeekReward(30)).toEqual({ coins: 400, chests: 10 });
+  });
+
+  it('Ascendant crests follow the level\'s place in the week, not its number', async () => {
+    const { GameState } = await import('../src/state');
+    const { GUILD_BOSS_ASC_CRESTS } = await import('../src/data');
+    const s = new GameState();
+    const got = s.payGuildBossRewards([{ week: '2026-10-19', level: 101, n: 1 }, { week: '2026-10-19', level: 120, n: 20 }, { week: '2026-10-19', level: 121, n: 21 }], []);
+    expect(got.ascendant.reduce((t, a) => t + a.crests, 0)).toBe(2 * GUILD_BOSS_ASC_CRESTS);
+    const old = s.payGuildBossRewards([{ week: '2026-10-19', level: 21 }], []);
+    expect(old.ascendant.length).toBe(0);
+  });
+});
+
+describe('guilds.sql starts the week near last week\'s best', () => {
+  it('guild_boss_week sets level and start_level from last week, and rewards send n and beaten', () => {
+    const fn = sql.slice(sql.indexOf('create or replace function public.guild_boss_week()'));
+    expect(fn).toContain("coalesce(max(b.level) - 1, 0) - 10");
+    expect(fn).toContain('values (g, wk, public.guild_boss_element(wk), start, start, public.guild_boss_hp(start))');
+    expect(sql).toContain("'n', k.level - b.start_level + 1");
+    expect(sql).toContain("'beaten', b.level - b.start_level");
+  });
+});

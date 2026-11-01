@@ -357,14 +357,21 @@ language sql immutable as $$
   select (array['water', 'fire', 'earth', 'light', 'dark'])[1 + (((p_week - date '2025-12-29') / 7) % 5 + 5) % 5]
 $$;
 
+-- The level a week's boss starts at (2026-11-01 balance review): last week's highest level
+-- beaten minus 10, at least 1, so every week is a real fight instead of a walk through
+-- easy levels (src/formulas.ts mirrors this as guildBossStartLevel).
+alter table public.guild_boss_weeks add column if not exists start_level integer not null default 1;
+
 -- This week's boss for the caller's guild, made on the first look of the week.
 create or replace function public.guild_boss_week() returns public.guild_boss_weeks
 language plpgsql security definer set search_path = public as $$
-declare g uuid := public.my_guild(); wk date := date_trunc('week', now() at time zone 'utc')::date; row guild_boss_weeks;
+declare g uuid := public.my_guild(); wk date := date_trunc('week', now() at time zone 'utc')::date; row guild_boss_weeks; start integer;
 begin
   if g is null then raise exception 'Join a guild first.'; end if;
-  insert into guild_boss_weeks (guild_id, week, element, hp)
-    values (g, wk, public.guild_boss_element(wk), public.guild_boss_hp(1))
+  select greatest(1, coalesce(max(b.level) - 1, 0) - 10) into start from guild_boss_weeks b where b.guild_id = g and b.week = wk - 7;
+  start := coalesce(start, 1);
+  insert into guild_boss_weeks (guild_id, week, element, level, start_level, hp)
+    values (g, wk, public.guild_boss_element(wk), start, start, public.guild_boss_hp(start))
     on conflict (guild_id, week) do nothing;
   select * into row from guild_boss_weeks where guild_id = g and week = wk;
   return row;
@@ -384,12 +391,12 @@ begin
       where guild_id = g and user_id = auth.uid() and day >= wk - 7
   )
   select json_build_object(
-    'kills', (select coalesce(json_agg(json_build_object('week', k.week, 'level', k.level) order by k.week, k.level), '[]'::json)
-      from guild_boss_kills k join hit_weeks h on h.week = k.week
+    'kills', (select coalesce(json_agg(json_build_object('week', k.week, 'level', k.level, 'n', k.level - b.start_level + 1) order by k.week, k.level), '[]'::json)
+      from guild_boss_kills k join hit_weeks h on h.week = k.week join guild_boss_weeks b on b.guild_id = k.guild_id and b.week = k.week
       where k.guild_id = g and not exists (select 1 from guild_boss_kill_claims c where c.guild_id = g and c.week = k.week and c.level = k.level and c.user_id = auth.uid())),
-    'weekly', (select coalesce(json_agg(json_build_object('week', b.week, 'top', b.level - 1)), '[]'::json)
+    'weekly', (select coalesce(json_agg(json_build_object('week', b.week, 'top', b.level - 1, 'beaten', b.level - b.start_level)), '[]'::json)
       from guild_boss_weeks b join hit_weeks h on h.week = b.week
-      where b.guild_id = g and b.week = wk - 7 and b.level > 1
+      where b.guild_id = g and b.week = wk - 7 and b.level > b.start_level
         and not exists (select 1 from guild_boss_week_claims c where c.guild_id = g and c.week = b.week and c.user_id = auth.uid()))
   ) into result;
   return result;
@@ -406,12 +413,13 @@ begin
     insert into guild_boss_kill_claims (guild_id, week, level, user_id)
       select g, (x ->> 'week')::date, (x ->> 'level')::integer, auth.uid() from json_array_elements(r -> 'kills') x
       on conflict do nothing returning week, level
-  ) select coalesce(json_agg(json_build_object('week', week, 'level', level) order by week, level), '[]'::json) into kills from ins;
+  ) select coalesce(json_agg(json_build_object('week', i.week, 'level', i.level, 'n', i.level - b.start_level + 1) order by i.week, i.level), '[]'::json) into kills
+      from ins i join guild_boss_weeks b on b.guild_id = g and b.week = i.week;
   with ins as (
     insert into guild_boss_week_claims (guild_id, week, user_id)
       select g, (x ->> 'week')::date, auth.uid() from json_array_elements(r -> 'weekly') x
       on conflict do nothing returning week
-  ) select coalesce(json_agg(json_build_object('week', i.week, 'top', b.level - 1)), '[]'::json) into weekly
+  ) select coalesce(json_agg(json_build_object('week', i.week, 'top', b.level - 1, 'beaten', b.level - b.start_level)), '[]'::json) into weekly
       from ins i join guild_boss_weeks b on b.guild_id = g and b.week = i.week;
   return json_build_object('kills', kills, 'weekly', weekly);
 end $$;
