@@ -1,6 +1,6 @@
 /**
  * The Observatory (GDD section 8): a personal star chart that opens after the first Rekindle.
- * Sigils come from Rekindles (1 each) and player levels (1 per level past 1), so older saves get
+ * Sigils come from Rekindles (1 each) and player levels (1 per SIGIL_LEVEL_STEP levels past 1), so older saves get
  * theirs at once. Sigils buy ranks in five constellations, each a small permanent buff. A
  * constellation can be switched off for free (its Sigils stay in it); taking every Sigil back
  * costs OBSERVATORY_RESPEC_GEMS. Never pays Gems.
@@ -36,19 +36,26 @@ export function obsDef(id: ObsBranch): ObsDef {
   return OBSERVATORY.find((d) => d.id === id)!;
 }
 
+/**
+ * Rank N costs SIGIL_COST_STEP x N Sigils, and player levels pay 1 Sigil per SIGIL_LEVEL_STEP levels
+ * (Samuel, 2026-11-01: maxed too fast at 1x and 1 per level; a full chart is now 1,290 Sigils).
+ */
+export const SIGIL_COST_STEP = 3;
+export const SIGIL_LEVEL_STEP = 3;
+
 /** Sigils to raise a constellation from `rank` to `rank + 1`. */
 export function sigilCost(rank: number): number {
-  return rank + 1;
+  return SIGIL_COST_STEP * (rank + 1);
 }
 
 /** Sigils spent to reach `rank` from 0. */
 export function sigilsSpent(rank: number): number {
-  return (rank * (rank + 1)) / 2;
+  return (SIGIL_COST_STEP * rank * (rank + 1)) / 2;
 }
 
-/** Sigils earned so far: one per Rekindle and one per player level past 1. */
+/** Sigils earned so far: one per Rekindle and one per SIGIL_LEVEL_STEP player levels past 1. */
 export function sigilsEarned(rekindles: number, playerLevel: number): number {
-  return Math.max(0, Math.floor(rekindles)) + Math.max(0, Math.floor(playerLevel) - 1);
+  return Math.max(0, Math.floor(rekindles)) + Math.floor(Math.max(0, Math.floor(playerLevel) - 1) / SIGIL_LEVEL_STEP);
 }
 
 /** Ranks from a save, kept to known constellations and their caps. */
