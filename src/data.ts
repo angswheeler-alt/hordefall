@@ -765,8 +765,10 @@ export const START_GEMS = 60;
 export const GOLD_CHEST_GEMS = 5;
 export const GOLD_CHEST_GEMS_PER_DAY = 150;
 export const CHEST_COST = 30;
-/** The bulk button on the Hero Chest pop-up opens this many at once. */
+/** A bulk Hero Chest buy used by tests; the pop-up itself has an amount slider up to CHEST_SLIDER_MAX. */
 export const CHEST_BULK = 10;
+/** The Hero Chest amount slider goes up to this many chests at once (Samuel, 2026-11-01: a slider, not fixed amounts). */
+export const CHEST_SLIDER_MAX = 100;
 export const CHEST_DROPS = 3;
 /**
  * Hero Chest odds. Each drop first picks a rarity by weight (Legendary never

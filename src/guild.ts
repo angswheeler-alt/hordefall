@@ -13,6 +13,7 @@ import type { Account } from './account';
 import { faceStyle, dropCards, type UI } from './ui';
 import { play } from './sfx';
 import { busyWhile, setHtml } from './taps';
+import { amountSliderHtml, bindAmountSlider } from './amountSlider';
 
 // Guilds: browse, create and join; the weekly Guild Boss event; Guild Research; weekly Guild Quests; members and ranks;
 // chat; crest requests and donations for Guild Coins; and a guild shop. The rules are enforced
@@ -518,22 +519,30 @@ export class Guild {
   private wildAmount(h: HeroDef) {
     const cost = this.state.wildMedalCost(h.id)!;
     const most = Math.min(this.state.wildMedalsLeft(), Math.floor(this.state.guildCredits / cost));
-    const amounts = [...new Set([1, 5, most].filter((n) => n >= 1 && n <= most))].sort((a, b) => a - b);
+    if (most < 1) {
+      this.ui.showModal(`Crests for ${esc(h.name)}`, `<p>${cost} Guild Coins each. You have ${this.state.guildCredits.toLocaleString()}.</p><p>None left to buy this week, or not enough Guild Coins.</p>`, 'Okay');
+      return;
+    }
+    let read = () => 1;
     this.ui.showModal(
       `Crests for ${esc(h.name)}`,
-      `<p>${cost} Guild Coins each.</p><div class="g-wild-amounts">${amounts.map((n) => `<button type="button" class="gem-btn" data-n="${n}">${n === most && n > 5 ? 'Max ' : ''}x${n}<small>${(n * cost).toLocaleString()} coins</small></button>`).join('')}</div>`,
-      'Cancel',
-    );
-    $('modal-body').querySelectorAll<HTMLButtonElement>('[data-n]').forEach((btn) =>
-      btn.addEventListener('click', () => {
-        const drops = this.state.buyWildMedals(h.id, Number(btn.dataset.n));
+      `<p>${cost} Guild Coins each. You have ${this.state.guildCredits.toLocaleString()}.</p>${amountSliderHtml(most, Math.min(most, 5), 'Crests')}`,
+      'Buy',
+      () => {
+        const drops = this.state.buyWildMedals(h.id, read());
         if (!drops) return;
         play('chest');
         this.ui.showModal('Wild Crests', `${dropCards(drops)}Bought with Guild Coins.`, 'Collect');
         this.ui.render();
         this.render();
-      }),
+      },
+      true,
+      'Cancel',
     );
+    read = bindAmountSlider($('modal-body'), (n, line) => {
+      line.textContent = `${n} crest${n > 1 ? 's' : ''} for ${(n * cost).toLocaleString()} Guild Coins`;
+      $('modal-ok').textContent = `Buy · ${(n * cost).toLocaleString()} coins`;
+    });
   }
 
   private memberMenu(m: MemberRow) {

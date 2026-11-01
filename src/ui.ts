@@ -5,7 +5,7 @@ import { testAdjust, testMaxAll, testMaxHero, testRange, testRecruit, testValue,
 import Decimal from 'break_infinity.js';
 import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { GUILD_BOSS_SECONDS, HEROES, byRarity, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_BULK, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, trialFirstWin, ESSENCE_NAMES, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, elementMultiplier, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { GUILD_BOSS_SECONDS, HEROES, byRarity, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_SLIDER_MAX, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, trialFirstWin, ESSENCE_NAMES, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, elementMultiplier, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicEffect, type GuildRelicDef, type GuildRelicEffect } from './guildRelics';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
@@ -27,6 +27,7 @@ import type { ColosseumLink } from './colosseumLink';
 import { OBSERVATORY, OBSERVATORY_RESPEC_GEMS, sigilCost, type ObsBranch } from './observatory';
 import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_QUICK_CP, RANK_DAILY, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies } from './colosseum';
 
+import { BUY_AMOUNT_LIMIT, amountSliderHtml, bindAmountSlider, buyAmountLabel, buyAmountToSlider, sliderToBuyAmount, type BuyAmount } from './amountSlider';
 import { busyWhile, setHtml } from './taps';
 import { holdToRepeat } from './hold';
 import { ScoutUI } from './scoutUi';
@@ -942,7 +943,7 @@ export class UI {
       r.button.disabled = shown.cost.gt(s.gold);
     }
     $<HTMLButtonElement>('stall-levelall').disabled = !STALLS.some((d) => stallUpgradeCost(d, s.stalls[d.id].level, s.stallCostMult()).lte(s.gold));
-    $('stall-buyamt').textContent = `Buy ${s.stallBuyAmount === 'max' ? 'max' : `x${s.stallBuyAmount}`}`;
+    $('stall-buyamt').textContent = buyAmountLabel(s.stallBuyAmount);
     return anyReady;
   }
 
@@ -1057,22 +1058,18 @@ export class UI {
       }
     });
     $('sheet-buyamt').addEventListener('click', () => $('buyamt').click());
-    $('buyamt').addEventListener('click', () => {
-      const order: Array<1 | 10 | 'max'> = [1, 10, 'max'];
-      this.state.buyAmount = order[(order.indexOf(this.state.buyAmount) + 1) % order.length];
-      this.render();
-    });
+    $('buyamt').addEventListener('click', () =>
+      this.pickBuyAmount('Hero levels', this.state.buyAmount, (v) => (this.state.buyAmount = v)),
+    );
     $('stall-levelall').addEventListener('click', () => {
       if (this.state.levelAllStalls() > 0) {
         play('unlock');
         this.render();
       }
     });
-    $('stall-buyamt').addEventListener('click', () => {
-      const order: Array<1 | 10 | 'max'> = [1, 10, 'max'];
-      this.state.stallBuyAmount = order[(order.indexOf(this.state.stallBuyAmount) + 1) % order.length];
-      this.render();
-    });
+    $('stall-buyamt').addEventListener('click', () =>
+      this.pickBuyAmount('Stall levels', this.state.stallBuyAmount, (v) => (this.state.stallBuyAmount = v)),
+    );
     // Test shortcuts stay out of regular players' hands: dev builds, or a ?dev link signed in as an admin.
     $('devtools').hidden = !devToolsOn();
     $('sim').addEventListener('click', () => {
@@ -1524,18 +1521,59 @@ export class UI {
         <div class="chest-heroes">${faces}</div>
         <ul class="chest-odds">${odds}</ul>
         <p class="chest-wallet">You have <b>${s.gems}</b> Gems${afford ? '' : `. You need ${CHEST_COST - s.gems} more.`}</p>
-        ${s.gems >= CHEST_COST * CHEST_BULK ? `<button type="button" class="gem-btn chest-bulk">Open ${CHEST_BULK} · ${CHEST_COST * CHEST_BULK} Gems</button>` : ''}</div>`,
+        ${this.chestSliderHtml(1)}</div>`,
       afford ? `Buy · ${CHEST_COST} Gems` : 'Okay',
-      afford ? () => this.summon() : null,
+      afford ? () => this.summon(this.chestAmount()) : null,
       afford,
       'Cancel',
     );
-    this.bindChestBulk();
+    this.bindChestSlider();
   }
 
-  /** The "Open 10" button inside a Hero Chest pop-up. */
-  private bindChestBulk() {
-    $('modal-body').querySelector('.chest-bulk')?.addEventListener('click', () => this.summon(CHEST_BULK));
+  /**
+   * How many levels each Level button buys: a slider from 1 to BUY_AMOUNT_LIMIT, with Max as its last
+   * stop (and a button). It applies as it moves; the Level buttons and Hold to level up use it.
+   */
+  private pickBuyAmount(what: string, now: BuyAmount, set: (v: BuyAmount) => void) {
+    this.showModal(
+      'Buy amount',
+      `<p>${what} bought per tap of Level. Max buys all the gold pays for.</p>${amountSliderHtml(BUY_AMOUNT_LIMIT + 1, buyAmountToSlider(now), 'Levels per tap', 'Max')}`,
+      'Done',
+    );
+    bindAmountSlider(
+      $('modal-body'),
+      (n, line) => {
+        const v = sliderToBuyAmount(n);
+        set(v);
+        line.textContent = buyAmountLabel(v);
+        this.render();
+      },
+      (n) => (sliderToBuyAmount(n) === 'max' ? 'Max' : `x${n}`),
+    );
+  }
+
+  /** Most Hero Chests one tap opens: what the Gems pay for, up to CHEST_SLIDER_MAX. */
+  private chestMost(): number {
+    return Math.min(CHEST_SLIDER_MAX, Math.floor(this.state.gems / CHEST_COST));
+  }
+
+  /** How many Hero Chests the pop-up's slider is set to (1 without a slider). */
+  private chestAmount: () => number = () => 1;
+
+  /** The amount slider in a Hero Chest pop-up, when the Gems pay for more than one. */
+  private chestSliderHtml(start: number): string {
+    const most = this.chestMost();
+    return most >= 2 ? `<div class="chest-amount">${amountSliderHtml(most, start, 'Hero Chests')}</div>` : '';
+  }
+
+  private bindChestSlider() {
+    this.chestAmount = () => 1;
+    const box = $('modal-body').querySelector<HTMLElement>('.chest-amount');
+    if (!box) return;
+    this.chestAmount = bindAmountSlider(box, (n, line) => {
+      line.textContent = '';
+      $('modal-ok').textContent = n > 1 ? `Open ${n} · ${CHEST_COST * n} Gems` : `Open · ${CHEST_COST} Gems`;
+    });
   }
 
   private summon(times = 1) {
@@ -1551,18 +1589,16 @@ export class UI {
     const cards = dropCards(drops);
     const gems = this.state.gems;
     const canAgain = gems >= CHEST_COST;
-    // After opening 10, the main button opens 10 more while the Gems last.
-    const again = times > 1 && gems >= CHEST_COST * times ? times : 1;
-    const bulk = again === 1 && gems >= CHEST_COST * CHEST_BULK ? `<button type="button" class="gem-btn chest-bulk">Open ${CHEST_BULK} · ${CHEST_COST * CHEST_BULK} Gems</button>` : '';
+    // The slider starts on the amount just opened, so opening that many again is one tap.
     this.showModal(
       times > 1 ? `${times} Hero Chests` : 'Hero Chest',
-      `${cards}<p>Tap a hero to evolve them when their Crest bar is full.</p>${bulk}`,
-      canAgain ? (again > 1 ? `Open ${again} more (${CHEST_COST * again} Gems)` : `Open another (${CHEST_COST} Gems)`) : 'Done',
-      canAgain ? () => this.summon(again) : null,
+      `${cards}<p>Tap a hero to evolve them when their Crest bar is full.</p>${this.chestSliderHtml(times)}`,
+      canAgain ? `Open another (${CHEST_COST} Gems)` : 'Done',
+      canAgain ? () => this.summon(this.chestAmount()) : null,
       canAgain,
       'Done',
     );
-    this.bindChestBulk();
+    this.bindChestSlider();
   }
 
   // ---------- hero page ----------
@@ -1725,7 +1761,7 @@ export class UI {
     (emberBtn.querySelector('.label') as HTMLElement).textContent = `Ember +${eShown.levels}`;
     (emberBtn.querySelector('.cost') as HTMLElement).textContent = `${fmt(eShown.cost)} Ember${eShown.cost === 1 ? '' : 's'}`;
     emberBtn.disabled = eShown.cost > s.embers;
-    $('sheet-buyamt').textContent = `Buy ${s.buyAmount === 'max' ? 'max' : `x${s.buyAmount}`}`;
+    $('sheet-buyamt').textContent = buyAmountLabel(s.buyAmount);
     $('sheet-ember-note').textContent = 'Ember levels stay on this hero through Rekindle and out of the team, and count in Trials and PvP. Only a reset takes them off.';
     $('sheet-ember-reset').hidden = ember <= 0;
     emberBtn.title = s.rekindles === 0 ? `Earn Embers by Rekindling after stage ${REKINDLE_STAGE}` : '';
@@ -3118,7 +3154,7 @@ export class UI {
     $<HTMLButtonElement>('evolve-all').disabled = evolvable === 0;
     $('evolve-all').textContent = evolvable ? `Evolve all (${evolvable})` : 'Evolve all';
     $<HTMLButtonElement>('levelall').disabled = !HEROES.some((h) => (s.levels[h.id] ?? 0) > 0 && s.inLineup(h.id) && upgradeCost(h, s.levels[h.id], s.levelCostMult()).lte(s.gold));
-    $('buyamt').textContent = `Buy ${s.buyAmount === 'max' ? 'max' : `x${s.buyAmount}`}`;
+    $('buyamt').textContent = buyAmountLabel(s.buyAmount);
     const bossBtn = $('boss');
     bossBtn.hidden = s.autoAdvance;
     const retryIn = s.bossRetryIn();

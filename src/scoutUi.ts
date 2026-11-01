@@ -11,6 +11,7 @@ import { weaponArtUrl } from './weaponArt';
 import { faceStyle, dropCards } from './ui';
 import { play } from './sfx';
 import { setHtml } from './taps';
+import { amountSliderHtml, bindAmountSlider } from './amountSlider';
 import { glyphDrops } from './glyphUi';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -242,21 +243,29 @@ export class ScoutUI {
     const cost = s.wildCrestCost(h.id);
     if (cost === null) return;
     const most = Math.floor(s.wildCrests / cost);
-    const amounts = [...new Set([1, 5, 10, most].filter((n) => n >= 1 && n <= most))].sort((a, b) => a - b);
+    if (most < 1) {
+      this.ui.showModal(`Crests for ${esc(h.name)}`, `<p>${cost} Wild Crest${cost > 1 ? 's' : ''} per crest. You have ${s.wildCrests}.</p><p>Not enough Wild Crests.</p>`, 'Okay');
+      return;
+    }
+    let read = () => 1;
     this.ui.showModal(
       `Crests for ${esc(h.name)}`,
-      `<p>${cost} Wild Crest${cost > 1 ? 's' : ''} per crest. You have ${s.wildCrests}.</p><div class="g-wild-amounts">${amounts.map((n) => `<button type="button" class="gem-btn" data-wn="${n}">${n === most && n > 10 ? 'Max ' : ''}x${n}<small>${n * cost} Wild</small></button>`).join('') || 'Not enough Wild Crests.'}</div>`,
+      `<p>${cost} Wild Crest${cost > 1 ? 's' : ''} per crest. You have ${s.wildCrests}.</p>${amountSliderHtml(most, Math.min(most, 10), 'Crests')}`,
+      'Use',
+      () => {
+        const drops = s.useWildCrests(h.id, read());
+        if (!drops) return;
+        play('chest');
+        this.ui.showModal('Wild Crests', `${dropCards(drops)}`, 'Collect');
+        this.ui.render();
+      },
+      true,
       'Cancel',
     );
-    $('modal-body').onclick = (e) => {
-      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-wn]');
-      if (!btn) return;
-      const drops = s.useWildCrests(h.id, Number(btn.dataset.wn));
-      if (!drops) return;
-      play('chest');
-      this.ui.showModal('Wild Crests', `${dropCards(drops)}`, 'Collect');
-      this.ui.render();
-    };
+    read = bindAmountSlider($('modal-body'), (n, line) => {
+      line.textContent = `${n} crest${n > 1 ? 's' : ''} for ${n * cost} Wild Crests`;
+      $('modal-ok').textContent = `Use ${n * cost} Wild`;
+    });
   }
 
   /** The hero page's Weapon tab. */
