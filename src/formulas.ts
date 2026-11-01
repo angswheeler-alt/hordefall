@@ -287,13 +287,24 @@ export function guildBossHitAtk(avgMaxHp: Decimal, avgDef: Decimal, level: numbe
  */
 export function guildBossLane(hp: Decimal, damage: Decimal, bonus: number): { hp: Decimal; left: Decimal; damageFor: (knocked: Decimal) => Decimal } {
   const mult = 1 + Math.max(0, bonus);
-  const left = Decimal.max(0, hp.minus(damage));
+  // Past level ~35 the boss has more digits than the game's numbers keep, so "health - damage" can round to a bit
+  // less than the server's exact figure. Keep a sliver standing (the server always has some left on a living boss)
+  // and make a killing blow overshoot by that sliver, so the server sees the kill instead of a crumb left over.
+  const margin = hp.times(GUILD_BOSS_KILL_MARGIN);
+  const left = Decimal.max(margin, hp.minus(damage));
   return {
     hp: hp.div(mult),
     left: left.div(mult),
-    damageFor: (knocked) => Decimal.min(left, Decimal.max(0, knocked).times(mult)).floor(),
+    damageFor: (knocked) => {
+      const dealt = Decimal.max(0, knocked).times(mult);
+      if (dealt.gt(0) && dealt.gte(left.times(1 - GUILD_BOSS_KILL_MARGIN))) return left.plus(margin).ceil();
+      return Decimal.min(left, dealt).floor();
+    },
   };
 }
+
+/** Share of the Guild Boss's health a killing blow overshoots by, to beat number rounding on high levels. */
+export const GUILD_BOSS_KILL_MARGIN = 1e-6;
 
 /** The Monday (UTC) of the week holding `now`, as YYYY-MM-DD: the Guild Boss week. */
 export function utcWeekStart(now: number): string {
