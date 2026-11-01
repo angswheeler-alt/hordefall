@@ -221,11 +221,14 @@ describe('rush rules', () => {
 describe('the Rush event', () => {
   it('runs Thursday to Sunday on weeks without the double Trial weekend', () => {
     const s = veteran();
-    // 24-25 Oct 2026 is a double-crest weekend, so 29 Oct - 1 Nov is a Rush.
-    expect(s.rushOn(at(10, 22))).toBe(false);
+    // 7-8 Nov 2026 is the double-crest weekend, so that week has no Rush; the weeks around it do.
+    expect(s.rushOn(at(11, 5))).toBe(false);
+    expect(s.rushOn(at(11, 7))).toBe(false);
+    expect(s.rushOn(at(10, 22))).toBe(true);
     expect([28, 29, 30, 31].map((d) => s.rushOn(at(10, d)))).toEqual([false, true, true, true]);
     expect(s.rushOn(at(11, 1))).toBe(true);
     expect(s.rushOn(at(11, 2))).toBe(false);
+    expect([19, 26].map((d) => s.rushOn(at(11, d)))).toEqual([true, true]);
     const w = s.rushWindow(at(11, 3));
     expect(w.start).toBe(new Date(2026, 10, 12).getTime());
     expect(w.end).toBe(new Date(2026, 10, 16).getTime());
