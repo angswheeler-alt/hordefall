@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { GameState } from '../src/state';
 import { HEROES, type Element, type HeroType } from '../src/data';
 import { keeperThreshold } from '../src/formulas';
-import { SCOUT_KINDS, SCOUT_UNLOCK_LEVEL, pickScoutTeam, rollMission, scoutProblems, type ScoutCand, type ScoutMission } from '../src/scouting';
+import { SCOUT_KINDS, SCOUT_UNLOCK_LEVEL, pickScoutTeam, rollMission, scoutProblems, scoutReward, type ScoutCand, type ScoutMission } from '../src/scouting';
 
 const T0 = Date.UTC(2026, 10, 2, 9, 30);
 
@@ -114,6 +114,54 @@ describe('Deploy all', () => {
     // The 2 heroes left over can't fill a 4-hero Common.
     expect(sent).toEqual(['g']);
     expect(skipped.sort()).toEqual(['c0', 'c1', 'c2', 'r0']);
+  });
+});
+
+describe('Collect all', () => {
+  it('collects every finished mission at once, sums the rewards and leaves running ones alone', () => {
+    const s = scouter();
+    for (const h of HEROES) {
+      s.levels[h.id] = 1;
+      s.stars[h.id] = 4;
+    }
+    s.deployAllScouts(T0);
+    const HOUR = 3600 * 1000;
+    // Nothing is back yet.
+    expect(s.claimAllScouts(T0).count).toBe(0);
+    const ends = s.scout.slots.map((x) => x.mission!.startedAt + x.mission!.hours * HOUR);
+    const at = Math.max(...ends);
+    // A twin state collects one by one; the sums must match.
+    const twin = JSON.parse(JSON.stringify(s.scout));
+    const expected: Record<string, number> = {};
+    for (const sl of s.scout.slots) {
+      const r = scoutReward(sl.mission!, s.scoutScore(sl.slot, sl.mission!.heroes).share);
+      for (const [k, v] of Object.entries(r)) expected[k] = (expected[k] ?? 0) + (v as number);
+    }
+    const before = s.wildCrests;
+    const { count, reward } = s.claimAllScouts(at);
+    expect(count).toBe(twin.slots.length);
+    expect(reward).toEqual(expected);
+    expect(s.forge.ore).toBe(expected.ore);
+    expect(s.wildCrests - before).toBe(expected.wild ?? 0);
+    expect(s.scoutReadyCount(at)).toBe(0);
+    expect(s.scoutBusy().size).toBe(0);
+    // Every Glyph chest opened shows up in the summary.
+    expect(s.lastScoutGlyphs.length).toBe((expected.glyph ?? 0) + (expected.grand ?? 0));
+  });
+
+  it('only collects the missions that are done', () => {
+    const s = scouter();
+    for (const h of HEROES) {
+      s.levels[h.id] = 1;
+      s.stars[h.id] = 4;
+    }
+    s.deployAllScouts(T0);
+    const HOUR = 3600 * 1000;
+    const ends = s.scout.slots.map((x) => x.mission!.startedAt + x.mission!.hours * HOUR).sort((a, b) => a - b);
+    const at = ends[0];
+    const done = ends.filter((e) => e <= at).length;
+    expect(s.claimAllScouts(at).count).toBe(done);
+    expect(s.scout.slots.filter((x) => x.mission?.startedAt).length).toBeGreaterThan(0);
   });
 });
 
