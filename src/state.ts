@@ -1,3 +1,4 @@
+import { normalizeBuyAmount, type BuyAmount } from './amountSlider';
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, MILESTONE_STEP, milestoneReward, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
 import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_CHEST_GEMS, GOLD_CHEST_GEMS_PER_DAY, GUILD_BOSS_ASC_CRESTS, GUILD_BOSS_ASC_LEVELS, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_DEALS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TRIAL_EVENT_DAYS, TRIAL_EVENT_MEDAL_MULT, TICKET_CRATE, HERO_VOUCHER, MONTHLY_CREST_PACK, ALL_TRIALS_DAYS, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, AUTO_BOSS_SECONDS, NORMAL_STAGE_LOSSES, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, OFFLINE_STAGE_HP, OFFLINE_STAGE_ATTACKERS, OFFLINE_MOB_COOLDOWN, OFFLINE_STAGE_TIME, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, trialFirstWin, STAR_CRESTS, MAX_STARS, REGULAR_MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, RAISED_RARITY_OLD_COST, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_WARSTEEL_PACKS_PER_DAY, GUILD_WARSTEEL_PACK, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, AWAKEN_STARMOTES, MAX_AWAKEN, AWAKEN_STAT_MULT, AWAKEN_UNLOCK_LEVEL, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
@@ -332,7 +333,7 @@ export class GameState {
   /** First-time guide: the intro step the player is on (TUTORIAL_DONE once finished or skipped), and the one-off tips already shown. */
   tutorialStep = 0;
   tipsSeen: string[] = [];
-  buyAmount: 1 | 10 | 'max' = 1;
+  buyAmount: BuyAmount = 1;
   /** Relic levels (0 = not crafted), Enhances done per relic, equipped relic ids, owned slots and Enhance Stones. */
   relics: Record<string, number> = {};
   relicEnhance: Record<string, number> = {};
@@ -422,7 +423,7 @@ export class GameState {
    */
   private unknownFields: SaveData = {};
   /** Market Row's own buy amount, separate from the heroes'. */
-  stallBuyAmount: 1 | 10 | 'max' = 1;
+  stallBuyAmount: BuyAmount = 1;
   /** Smoothed gold per second and seconds per stage, used for offline earnings. */
   goldPerSec = 0;
   secondsPerStage = 20;
@@ -2191,7 +2192,7 @@ export class GameState {
   }
 
   /** Buy `count` Ember levels (or as many as the Embers pay for); all or nothing for x1 / x10. */
-  buyEmbers(id: string, count: 1 | 10 | 'max'): number {
+  buyEmbers(id: string, count: BuyAmount): number {
     const level = this.emberLevels[id] ?? 0;
     const { levels, cost } = emberBulk(level, count, this.embers);
     if (levels <= 0 || cost > this.embers) return 0;
@@ -3844,8 +3845,8 @@ export class GameState {
       // Saves from before the guide existed belong to players who already know the game: no intro, no tips.
       this.tutorialStep = typeof d.tutorialStep === 'number' ? d.tutorialStep : TUTORIAL_DONE;
       this.tipsSeen = Array.isArray(d.tipsSeen) ? d.tipsSeen.filter((t: unknown) => typeof t === 'string') : d.tutorialStep === undefined ? [...TIP_IDS] : [];
-      this.buyAmount = d.buyAmount ?? 1;
-      this.stallBuyAmount = d.stallBuyAmount ?? 1;
+      this.buyAmount = normalizeBuyAmount(d.buyAmount);
+      this.stallBuyAmount = normalizeBuyAmount(d.stallBuyAmount);
       // Relics no longer in the game (the list changed) are dropped.
       this.relics = Object.fromEntries(Object.entries(d.relics ?? {}).filter(([id]) => RELICS.some((r) => r.id === id))) as Record<string, number>;
       this.relicEnhance = { ...(d.relicEnhance ?? {}) };
