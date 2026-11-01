@@ -588,6 +588,11 @@ describe('live trial fights', () => {
     for (let i = 27; i < TRIAL_LEVELS.length; i++) expect(TRIAL_LEVELS[i].req![1]).toBeGreaterThan(TRIAL_LEVELS[i - 1].req![1]);
   });
 
+  it('Trial levels 26-30 ramp gently after level 25 (2026-11-01 balance review)', () => {
+    expect(TRIAL_LEVELS.slice(24, 31).map((l) => l.req![1])).toEqual([2850, 3300, 3700, 4100, 4500, 4900, 6300]);
+    for (let i = 1; i < TRIAL_LEVELS.length; i++) expect(TRIAL_LEVELS[i].difficulty).toBeGreaterThan(TRIAL_LEVELS[i - 1].difficulty);
+  });
+
   it("can't skip ahead or play without a ticket", () => {
     const { s, element } = ready();
     expect(s.canStartTrial(element, 3)).toBe(false);

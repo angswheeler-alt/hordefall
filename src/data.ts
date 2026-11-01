@@ -946,14 +946,15 @@ export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
  * the team needs) and `req` is [heroes, Ember level] needed to enter.
  */
 export interface TrialLevel { essence: number; difficulty: number; req: [number, number] | null }
-const TRIAL_DIFFICULTY = [1, 10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 950, 1100, 1300, 1500, 1700, 2000, 2300, 2600, 2900, 3200, 3600,
+const TRIAL_DIFFICULTY = [1, 10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 950, 1100, 1300, 1500, 1700, 2000, 2300, 2600, 2900, 3200, 3500,
   // Samuel (2026-10-22): higher levels so the top one takes years, not months (players reached 24 of 26 by day 90).
-  4000, 4300, 4700, 5200, 5700, 6200, 6800, 7400, 8100, 8800, 9600, 10500, 11500, 12600];
+  // 2026-11-01 balance review: levels 26-30 ramp gently from level 25, so there is no three-month gap after it.
+  3850, 4200, 4600, 5000, 5700, 6200, 6800, 7400, 8100, 8800, 9600, 10500, 11500, 12600];
 const TRIAL_REQS: ([number, number] | null)[] = [
   null, null, null, null, null, null, null, null, null,
   [2, 100], [2, 200], [2, 300], [2, 400], [2, 500], [3, 600], [3, 750], [3, 850], [3, 1050], [3, 1250],
-  [4, 1450], [4, 1700], [4, 2000], [4, 2300], [4, 2600], [5, 2850], [5, 4000],
-  [5, 4400], [5, 4800], [5, 5250], [5, 5750], [5, 6300], [5, 6900], [5, 7550], [5, 8250], [5, 9000], [5, 9800], [5, 10700], [5, 11700], [5, 12800], [5, 14000],
+  [4, 1450], [4, 1700], [4, 2000], [4, 2300], [4, 2600], [5, 2850], [5, 3300],
+  [5, 3700], [5, 4100], [5, 4500], [5, 4900], [5, 6300], [5, 6900], [5, 7550], [5, 8250], [5, 9000], [5, 9800], [5, 10700], [5, 11700], [5, 12800], [5, 14000],
 ];
 /** Essence doubles each level up to level 26, then grows x1.5 a level: by then relics are mostly bought and Essence piles up. */
 export const TRIAL_ESSENCE_DOUBLING_LEVELS = 26;
