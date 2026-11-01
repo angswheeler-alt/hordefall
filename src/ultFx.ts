@@ -1,5 +1,5 @@
 /**
- * Ultimate effect art (2026-11-01). Every hero's Ultimate can have its own picture: src/assets/ultfx/<heroId>.png,
+ * Ultimate effect art (2026-11-01). Every hero's Ultimate can have its own picture: src/assets/ultfx/<heroId>.jpg (or .png),
  * drawn by the user in Grok on a pure black background and played with additive blending, so black turns
  * see-through. A picture can also be a row of N same-sized frames named <heroId>-f<N>.png.
  * The battle moves the picture by the Ultimate's style (ultFxStyle) and keeps the old rings and flashes as well.
@@ -27,6 +27,10 @@ export const ULT_FX_HEIGHT: Record<UltFxStyle, number> = { drop: 96, rain: 34, s
 
 /** Hand-picked styles where the words of the Ultimate would pick a worse one. */
 const OVERRIDE: Record<string, UltFxStyle> = {
+  // Matched to the user's pictures (2026-11-01): the picture decides how it moves.
+  hex: 'vortex', magmabrute: 'rise', sol: 'beam', vesper: 'sweep', juggles: 'strike', scorch: 'beam', pyrrhus: 'rise',
+  halo: 'drop', cyclo: 'beam', gizmo: 'strike', thundrum: 'strike', shade: 'sweep', vex: 'strike', flit: 'beam',
+  bonebrute: 'rise', brasha: 'vortex', kestra: 'drop',
   ripple: 'rain',
   undine: 'sweep',
   halden: 'beam',
@@ -61,14 +65,14 @@ export interface UltFxArt {
   frames: number;
 }
 
-/** Parse an asset file name: "<id>.png" or "<id>-f<N>.png". */
+/** Parse an asset file name: "<id>.jpg" or "<id>-f<N>.jpg" (or .png). */
 export function parseUltFxFile(path: string): { id: string; frames: number } | null {
-  const m = /\/([a-z0-9_]+?)(?:-f(\d+))?\.png$/.exec(path);
+  const m = /\/([a-z0-9_]+?)(?:-f(\d+))?\.(?:png|jpg)$/.exec(path);
   if (!m) return null;
   return { id: m[1], frames: Math.max(1, Number(m[2] ?? 1)) };
 }
 
-const files = import.meta.glob('./assets/ultfx/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+const files = import.meta.glob('./assets/ultfx/*.{png,jpg}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 export const ULT_FX_ART: Record<string, UltFxArt> = {};
 for (const [path, url] of Object.entries(files)) {
   const f = parseUltFxFile(path);

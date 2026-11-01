@@ -2167,7 +2167,7 @@ export class UI {
     // Pictures of the heroes the crests went to, with how many each got.
     const faces = [...medalCounts].map(([id, n]) => {
       const h = HEROES.find((x) => x.id === id)!;
-      return `<span class="trial-medal"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span><b>${h.name}</b><small>x${n}</small></span>`;
+      return `<span class="trial-medal">${crestFace(h, `<span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span>`)}<b>${h.name}</b><small>x${n}</small></span>`;
     }).join('');
     const fw = result.firstWin;
     const first = fw ? `<p>First win at this level: <b>${fw.chests} Hero Chest${fw.chests === 1 ? '' : 's'}</b> (${fw.drops.reduce((t, d) => t + d.crests, 0)} crests) and <b>${fw.stones} Enhance Stones</b>.</p>` : '';
@@ -2781,7 +2781,7 @@ export class UI {
 
   /** The Ascendant Chest's main prize: the hero's icon and crests; tapping the icon shows what the hero can do. */
   private ascendantPrize(h: HeroDef, crests: number): string {
-    return `<button type="button" class="asc-prize" data-asc-kit="${h.id}" aria-label="See what ${h.name} can do"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span><span class="asc-prize-text"><b>+${crests} ${h.name} crests</b><small>Ascendant hero · tap to see what ${h.name} can do</small></span></button>`;
+    return `<div class="asc-chest-open el-${h.element}" aria-hidden="true"></div><button type="button" class="asc-prize" data-asc-kit="${h.id}" aria-label="See what ${h.name} can do"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span><span class="asc-prize-text"><b>+${crests} ${h.name} crests</b><small>Ascendant hero · tap to see what ${h.name} can do</small></span></button>`;
   }
 
   /** An Ascendant hero's kit, form by form: Form I in full, then what each later form changes and what it needs. */
@@ -3260,6 +3260,14 @@ export class UI {
 }
 
 /** Hero Chest drops as cards, one per hero (repeat drops for a hero are added together). */
+/**
+ * A hero's crest: the hero's face inside its rarity's medal frame (the user's art, 2026-11-01). `inner` is the
+ * face element; the frame image and the window it sits in come from CSS (.crest-face.r-<rarity>).
+ */
+export function crestFace(def: HeroDef, inner: string): string {
+  return `<span class="crest-face r-${isAscendant(def.id) ? 'ascendant' : def.rarity}">${inner}</span>`;
+}
+
 export function dropCards(drops: SummonDrop[]): string {
   if (!drops.length) return '';
   const merged = new Map<string, SummonDrop>();
@@ -3272,7 +3280,7 @@ export function dropCards(drops: SummonDrop[]): string {
     .sort((a, b) => Number(b.isNew) - Number(a.isNew))
     .map((d) => {
       const def = HEROES.find((h) => h.id === d.heroId)!;
-      return `<div class="drop"><div class="face art" style="${faceStyle(def)}">${def.name[0]}</div><b>${def.name}</b>${d.isNew ? '<span class="new">READY TO UNLOCK</span>' : ''}<span class="crest">+${d.crests} Crests</span></div>`;
+      return `<div class="drop">${crestFace(def, `<div class="face art" style="${faceStyle(def)}">${def.name[0]}</div>`)}<b>${def.name}</b>${d.isNew ? '<span class="new">READY TO UNLOCK</span>' : ''}<span class="crest">+${d.crests} Crests</span></div>`;
     })
     .join('');
   return `<div class="summon-grid${merged.size > 9 ? ' many' : ''}">${cards}</div>`;

@@ -1359,3 +1359,30 @@ i.ticket.rush-ticket { background: linear-gradient(180deg, #e7a6ff, #8a3ab8); bo
 #modal .amt .amt-cost { margin: 2px 0 0; font-size: 13px; }
 #modal .amt .amt-cost:empty { display: none; }
 .chest-amount { margin-top: 6px; }
+
+/* ---------- The user's item art (2026-11-01): big pictures scaled down, so smooth scaling, not pixelated ---------- */
+.coin, .ember, .gem, .chest-ico, .shop-art.chest, .chest-art, .rk-emblem::before, .rk-badge::before, .hero .gold-up .cost::before, .stall .gold-up .cost::before,
+.trial-ess i[class^="ess-"], .relic-cost i[class^="ess-"], .mat-ico, i.medal, .ico-hp { image-rendering: auto; }
+.hero.locked .gold-up .cost::before, .level-row .gold-up.unlock .cost::before, .summon-grid .crest::before, .crest-row > span:first-child::before, .ct-count::before, .team-row .crest-ct::before { image-rendering: auto; }
+.chest-art { background-image: url('./assets/ui/chest-open.png'); }
+.shop-art.chest { background-size: 48px; }
+/* A hero's crest: face in the rarity frame's window (window centre and radius measured on the 128 px frames). */
+.crest-face { position: relative; display: block; width: 64px; height: 64px; flex: none; --cx: 63; --cy: 48; --r: 31; }
+.crest-face.r-rare { --cx: 64; --cy: 50; --r: 32; }
+.crest-face.r-epic { --cx: 64; --cy: 53; --r: 27; }
+.crest-face.r-legendary { --cx: 63; --cy: 50; --r: 22; }
+.crest-face.r-ascendant { --cx: 63; --cy: 59; --r: 25; }
+.crest-face > .face { position: absolute !important; left: calc((var(--cx) - var(--r)) / 128 * 100%); top: calc((var(--cy) - var(--r)) / 128 * 100%); width: calc(var(--r) * 2 / 128 * 100%) !important; height: calc(var(--r) * 2 / 128 * 100%) !important; border: 0 !important; border-radius: 50% !important; box-shadow: none !important; font-size: 13px; }
+.crest-face::after { content: ''; position: absolute; inset: 0; background: url('./assets/ui/crest-common.png') center / contain no-repeat; pointer-events: none; filter: drop-shadow(0 2px 0 rgba(0,0,0,.35)); }
+.crest-face.r-rare::after { background-image: url('./assets/ui/crest-rare.png'); }
+.crest-face.r-epic::after { background-image: url('./assets/ui/crest-epic.png'); }
+.crest-face.r-legendary::after { background-image: url('./assets/ui/crest-legendary.png'); }
+.crest-face.r-ascendant::after { background-image: url('./assets/ui/crest-ascendant.png'); }
+.trial-medal .crest-face { width: 72px; height: 72px; }
+/* Ascendant Chest result: that element's chest, open. */
+.asc-chest-open { width: 96px; height: 96px; margin: 0 auto 4px; background: center / contain no-repeat; filter: drop-shadow(0 0 12px rgba(255,216,74,.45)); }
+.asc-chest-open.el-fire { background-image: url('./assets/ui/asc-chest-fire.png'); }
+.asc-chest-open.el-water { background-image: url('./assets/ui/asc-chest-water.png'); }
+.asc-chest-open.el-earth { background-image: url('./assets/ui/asc-chest-earth.png'); }
+.asc-chest-open.el-light { background-image: url('./assets/ui/asc-chest-light.png'); }
+.asc-chest-open.el-dark { background-image: url('./assets/ui/asc-chest-dark.png'); }
