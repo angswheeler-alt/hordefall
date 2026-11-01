@@ -7,7 +7,7 @@ import {
   type HeroDef, type GuildShopId, type Element, type ResearchBranch,
 } from './data';
 import Decimal from 'break_infinity.js';
-import { fmt, guildBossFightWait, guildBossLane, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, guildBossElement, guildBossStartLevel, researchPointsFor, researchRank } from './formulas';
+import { fmt, parseAmount, guildBossFightWait, guildBossLane, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, guildBossElement, guildBossStartLevel, researchPointsFor, researchRank } from './formulas';
 import type { GameState } from './state';
 import type { Account } from './account';
 import { faceStyle, dropCards, type UI } from './ui';
@@ -30,7 +30,9 @@ const QUEST_REPORT_SECONDS = 60;
 const RESEARCH_GIFTS = [100, 1000];
 
 type Role = 'leader' | 'officer' | 'member';
-interface GuildRow { id: string; name: string; description: string; min_stage: number; created_at: string; research_focus?: ResearchBranch; guild_members?: Array<{ count: number }> }
+type JoinMode = 'open' | 'apply';
+interface GuildRow { id: string; name: string; description: string; min_stage: number; join_mode?: JoinMode; min_cp?: string; min_cp_log?: number; created_at: string; research_focus?: ResearchBranch; guild_members?: Array<{ count: number }> }
+interface ApplicationRow { guild_id: string; user_id: string; username: string; best_stage: number; cp: string; cp_log: number; created_at: string }
 interface MemberRow { user_id: string; guild_id: string; username: string; role: Role; best_stage: number; joined_at: string }
 interface MessageRow { id: number; user_id: string; username: string; body: string; created_at: string }
 interface BossRow { guild_id: string; week: string; level: number; start_level?: number; element: Element; hp: number | string; damage: number | string; rest_until?: string | null }
@@ -63,6 +65,30 @@ const untilText = (ms: number) => {
   return mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`;
 };
 
+/** Small slack so a minimum typed as "1M" lets in exactly 1M after the log10 round trip. */
+const CP_SLACK = 1e-9;
+
+/** What the Join button on a guild in the list says and does. */
+export function joinButton(
+  g: Pick<GuildRow, 'min_stage' | 'join_mode' | 'min_cp_log'>,
+  members: number,
+  me: { bestStage: number; cpLog: number; applied: boolean },
+): { label: string; act: 'join' | 'apply' | 'unapply' | null } {
+  if (me.applied) return { label: 'Cancel', act: 'unapply' };
+  if (members >= GUILD_MAX_MEMBERS) return { label: 'Full', act: null };
+  if (me.bestStage < g.min_stage) return { label: 'Too early', act: null };
+  if (me.cpLog + CP_SLACK < (g.min_cp_log ?? 0)) return { label: 'Need CP', act: null };
+  return g.join_mode === 'apply' ? { label: 'Apply', act: 'apply' } : { label: 'Join', act: 'join' };
+}
+
+/** The join rules as one short line: "Open · stage 500+ · 1.50M CP+". */
+export function joinRules(g: Pick<GuildRow, 'min_stage' | 'join_mode' | 'min_cp' | 'min_cp_log'>): string {
+  const parts = [g.join_mode === 'apply' ? 'Apply to join' : 'Open'];
+  if (g.min_stage) parts.push(`stage ${g.min_stage.toLocaleString()}+`);
+  if ((g.min_cp_log ?? 0) > 0 && g.min_cp) parts.push(`${fmt(new Decimal(g.min_cp))} CP+`);
+  return parts.join(' · ');
+}
+
 export class Guild {
   private mode: 'off' | 'browse' | 'home' | null = null;
   private view: View = 'boss';
@@ -88,6 +114,10 @@ export class Guild {
   /** When this player last asked for crests. */
   private lastAsk = 0;
   private list: GuildRow[] = [];
+  /** This player's open applications (while not in a guild). */
+  private myApps: ApplicationRow[] = [];
+  /** Applications to this guild (leader and officers only). */
+  private guildApps: ApplicationRow[] = [];
   private busy = false;
   private lastUser: string | null | undefined = undefined;
   private lastFetch = 0;
@@ -174,9 +204,16 @@ export class Guild {
       // Counts made outside a guild don't carry into the next one.
       this.state.guildQuestPending = { kills: 0, stages: 0, trials: 0 };
       if (this.state.setGuildResearch({})) this.ui.render();
-      const res = await db.from('guilds').select('*, guild_members(count)').order('created_at', { ascending: false }).limit(50);
+      const [res, apps] = await Promise.all([
+        db.from('guilds').select('*, guild_members(count)').order('created_at', { ascending: false }).limit(50),
+        db.from('guild_applications').select('*').eq('user_id', uid),
+      ]);
       if (res.error) throw res.error;
-      this.list = (res.data as GuildRow[]).sort((a, b) => count(b) - count(a));
+      if (apps.error) throw apps.error;
+      this.myApps = apps.data as ApplicationRow[];
+      const applied = new Set(this.myApps.map((a) => a.guild_id));
+      // Guilds you applied to first, then the biggest.
+      this.list = (res.data as GuildRow[]).sort((a, b) => Number(applied.has(b.id)) - Number(applied.has(a.id)) || count(b) - count(a));
       return;
     }
     const gid = this.me.guild_id;
@@ -191,6 +228,11 @@ export class Guild {
       db.from('guild_research').select('branch, points').eq('guild_id', gid),
     ]);
     for (const r of [g, members, messages, requests, last, research]) if (r.error) throw r.error;
+    if (this.me.role !== 'member') {
+      const apps = await db.from('guild_applications').select('*').eq('guild_id', gid).order('created_at');
+      if (apps.error) throw apps.error;
+      this.guildApps = apps.data as ApplicationRow[];
+    } else this.guildApps = [];
     this.setResearch(research.data as Array<{ branch: ResearchBranch; points: number | string }>);
     this.guild = g.data as GuildRow;
     this.members = (members.data as MemberRow[]).sort((a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role] || b.best_stage - a.best_stage);
@@ -428,13 +470,35 @@ export class Guild {
 
   // ---------- actions ----------
 
+  /** The join rules from a create or settings form, or null (with a message shown) when the CP minimum can't be read. */
+  private rulesFrom(data: FormData) {
+    const cp = parseAmount(String(data.get('cp') ?? ''));
+    if (!cp) {
+      this.ui.showModal('Guild', 'Type the minimum Combat Power as a number, like 250, 1.5M or 3.2Sx. Leave it empty for no minimum.', 'Okay');
+      return null;
+    }
+    return {
+      p_min_stage: Number(data.get('min') ?? 0) || 0,
+      p_join_mode: data.get('mode') === 'apply' ? 'apply' : 'open',
+      p_min_cp: cp.toString(),
+      p_min_cp_log: cp.gt(1) ? Math.max(0, cp.log10()) : 0,
+    };
+  }
+
+  private myCp() {
+    const cp = this.state.totalCombatPower();
+    return { cp: cp.toString(), cpLog: cp.gt(1) ? Math.max(0, cp.log10()) : 0 };
+  }
+
   private async create(form: HTMLFormElement) {
     const data = new FormData(form);
+    const rules = this.rulesFrom(data);
+    if (!rules) return;
     await this.call('create_guild', {
       p_name: String(data.get('name') ?? ''),
       p_description: String(data.get('description') ?? ''),
-      p_min_stage: Number(data.get('min') ?? 0) || 0,
       p_best_stage: this.state.bestStage,
+      ...rules,
     });
   }
 
@@ -454,7 +518,9 @@ export class Guild {
 
   private async edit(form: HTMLFormElement) {
     const data = new FormData(form);
-    await this.call('update_guild', { p_description: String(data.get('description') ?? ''), p_min_stage: Number(data.get('min') ?? 0) || 0 });
+    const rules = this.rulesFrom(data);
+    if (!rules) return;
+    await this.call('update_guild', { p_description: String(data.get('description') ?? ''), ...rules });
   }
 
   private async donate(req: RequestRow) {
@@ -590,7 +656,12 @@ export class Guild {
     const run = (work: Promise<unknown>) => void busyWhile(el, work);
     if (kind === 'signin') this.account.signIn();
     else if (kind === 'retry') run(this.refresh());
-    else if (kind === 'join') run(this.call('join_guild', { p_guild: arg, p_best_stage: this.state.bestStage }));
+    else if (kind === 'join') run(this.call('join_guild', { p_guild: arg, p_best_stage: this.state.bestStage, p_cp_log: this.myCp().cpLog }));
+    else if (kind === 'apply') {
+      const { cp, cpLog } = this.myCp();
+      run(this.call('apply_guild', { p_guild: arg, p_best_stage: this.state.bestStage, p_cp: cp, p_cp_log: cpLog }));
+    } else if (kind === 'unapply') run(this.call('cancel_guild_application', { p_guild: arg }));
+    else if (kind === 'accept' || kind === 'decline') run(this.call('answer_guild_application', { p_user: arg, p_accept: kind === 'accept' }));
     else if (kind === 'view') {
       this.view = arg as View;
       this.render();
@@ -652,7 +723,9 @@ export class Guild {
       <form id="g-create" class="g-form">
         <input name="name" maxlength="24" minlength="3" required placeholder="Guild name" autocomplete="off">
         <input name="description" maxlength="140" placeholder="A line about your guild (optional)" autocomplete="off">
-        <label>Minimum stage to join <input name="min" type="number" min="0" step="50" value="0"></label>
+        <label>Who can join <select name="mode"><option value="open" selected>Open: anyone who qualifies</option><option value="apply">Apply: leader or officers accept</option></select></label>
+        <label>Minimum stage <input name="min" type="number" min="0" step="50" value="0"></label>
+        <label>Minimum Combat Power <input name="cp" inputmode="decimal" autocomplete="off" placeholder="none (e.g. 1.5M)" value=""></label>
         <button type="submit" class="hot rw-wide">Create guild</button>
       </form></div>
       <div class="rw-card"><h3>Join a guild <small id="g-list-note"></small></h3><ul id="g-list" class="rw-list"></ul></div>`;
@@ -666,9 +739,9 @@ export class Guild {
         ? this.list
             .map((g) => {
               const n = count(g);
-              const full = n >= GUILD_MAX_MEMBERS;
-              const low = this.state.bestStage < g.min_stage;
-              return `<li><div class="rw-text"><span><b>${esc(g.name)}</b></span><small>${n}/${GUILD_MAX_MEMBERS} members${g.min_stage ? ` · stage ${g.min_stage.toLocaleString()}+` : ''}${g.description ? ` · ${esc(g.description)}` : ''}</small></div><button type="button" class="gem-btn" data-g="join:${g.id}" ${full || low ? 'disabled' : ''}>${full ? 'Full' : low ? 'Too early' : 'Join'}</button></li>`;
+              const applied = this.myApps.some((a) => a.guild_id === g.id);
+              const btn = joinButton(g, n, { bestStage: this.state.bestStage, cpLog: this.myCp().cpLog, applied });
+              return `<li><div class="rw-text"><span><b>${esc(g.name)}</b>${applied ? ' <small>· you applied</small>' : ''}</span><small>${n}/${GUILD_MAX_MEMBERS} members · ${joinRules(g)}${g.description ? ` · ${esc(g.description)}` : ''}</small></div><button type="button" class="${btn.act === 'unapply' ? 'wood-btn' : 'gem-btn'}" ${btn.act ? `data-g="${btn.act}:${g.id}"` : 'disabled'}>${btn.label}</button></li>`;
             })
             .join('')
         : '<li><div class="rw-text"><span>No guilds yet. Start the first one!</span></div></li>',
@@ -685,7 +758,11 @@ export class Guild {
     $('g-name').innerHTML = `${esc(g.name)} <small>${this.members.length}/${GUILD_MAX_MEMBERS} · ${this.state.guildCredits.toLocaleString()} Guild Coins</small>`;
     $('g-desc').textContent = g.description || (this.error ? '' : 'No description yet.');
     if (this.error) $('g-desc').textContent = this.error;
-    for (const b of $('guild-root').querySelectorAll<HTMLButtonElement>('[data-view]')) b.classList.toggle('on', b.dataset.view === this.view);
+    for (const b of $('guild-root').querySelectorAll<HTMLButtonElement>('.g-tabs [data-view]')) {
+      b.classList.toggle('on', b.dataset.view === this.view);
+      // Leader and officers see waiting applications on the Members tab.
+      if (b.dataset.view === 'members') b.textContent = this.guildApps.length ? `Members (${this.guildApps.length})` : 'Members';
+    }
     const view = $('g-view');
     if (view.dataset.view !== this.view) {
       view.dataset.view = this.view;
@@ -693,7 +770,7 @@ export class Guild {
         this.view === 'chat'
           ? `<div class="rw-card"><ul id="g-chat-list" class="g-chat"></ul><form id="g-chat" class="g-chat-form"><input maxlength="200" placeholder="Say something" autocomplete="off"><button type="submit" class="hot">Send</button></form></div>`
           : this.view === 'members'
-            ? `<div class="rw-card"><ul id="g-members" class="rw-list"></ul></div><div id="g-edit-box"></div><button type="button" class="wood-btn rw-wide" data-g="leave">Leave guild</button>`
+            ? `<div id="g-apps"></div><div class="rw-card"><ul id="g-members" class="rw-list"></ul></div><div id="g-edit-box"></div><button type="button" class="wood-btn rw-wide" data-g="leave">Leave guild</button>`
             : this.view === 'shop'
               ? `<div class="rw-card"><h3>Today's heroes <small id="g-credits"></small></h3><p id="g-offers-note"></p><div id="g-offers" class="g-offers"></div></div>
                  <div class="rw-card"><h3>Wild Crests <small id="g-wild-note"></small></h3><p>Crests for any hero you pick: Common ${GUILD_WILD_COST.common}, Rare ${GUILD_WILD_COST.rare}, Epic ${GUILD_WILD_COST.epic} coins each.</p><button type="button" class="gem-btn rw-wide" data-g="wild" id="g-wild">Pick a hero</button></div>
@@ -706,7 +783,7 @@ export class Guild {
                 ? `<div id="g-claims"></div><div class="rw-card g-boss" id="g-boss"></div><div class="rw-card"><h3>This week's damage <small id="g-board-note"></small></h3><ul id="g-board" class="rw-list"></ul></div><div class="rw-card"><h3>Levels beaten</h3><ul id="g-kills" class="rw-list"></ul></div>`
                 : `<div class="rw-card"><h3>Your request <small id="g-ask-note"></small></h3><div id="g-mine"></div></div><div class="rw-card"><h3>Guildmates' requests</h3><ul id="g-requests" class="rw-list"></ul></div>`;
       if (this.view === 'members' && this.me!.role !== 'member') {
-        $('g-edit-box').innerHTML = `<div class="rw-card"><h3>Guild settings</h3><form id="g-edit" class="g-form"><input name="description" maxlength="140" placeholder="A line about your guild" value="${esc(g.description)}"><label>Minimum stage to join <input name="min" type="number" min="0" step="50" value="${g.min_stage}"></label><button type="submit" class="rw-wide">Save</button></form></div>`;
+        $('g-edit-box').innerHTML = `<div class="rw-card"><h3>Guild settings</h3><form id="g-edit" class="g-form"><input name="description" maxlength="140" placeholder="A line about your guild" value="${esc(g.description)}"><label>Who can join <select name="mode"><option value="open"${g.join_mode !== 'apply' ? ' selected' : ''}>Open: anyone who qualifies</option><option value="apply"${g.join_mode === 'apply' ? ' selected' : ''}>Apply: leader or officers accept</option></select></label><label>Minimum stage <input name="min" type="number" min="0" step="50" value="${g.min_stage}"></label><label>Minimum Combat Power <input name="cp" inputmode="decimal" autocomplete="off" placeholder="none (e.g. 1.5M)" value="${(g.min_cp_log ?? 0) > 0 && g.min_cp ? fmt(new Decimal(g.min_cp)) : ''}"></label><button type="submit" class="rw-wide">Save</button></form></div>`;
       }
     }
     if (this.view === 'chat') this.renderChat();
@@ -821,6 +898,14 @@ export class Guild {
   }
 
   private renderMembers() {
+    setHtml(
+      $('g-apps'),
+      this.guildApps.length
+        ? `<div class="rw-card"><h3>Applications <small>${joinRules(this.guild!)}</small></h3><ul class="rw-list">${this.guildApps
+            .map((a) => `<li><div class="rw-text"><span><b>${esc(a.username)}</b></span><small>best stage ${a.best_stage.toLocaleString()} · ${fmt(new Decimal(a.cp))} CP · ${ago(a.created_at)}</small></div><button type="button" class="hot" data-g="accept:${a.user_id}">Accept</button><button type="button" data-g="decline:${a.user_id}">Decline</button></li>`)
+            .join('')}</ul></div>`
+        : '',
+    );
     setHtml(
       $('g-members'),
       this.members
