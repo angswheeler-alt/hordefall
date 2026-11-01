@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { HEROES } from '../src/data';
-import { ULT_FX_HEIGHT, ULT_FX_STYLES, parseUltFxFile, ultFxStyle } from '../src/ultFx';
+import { ULT_FX_ART, ULT_FX_HEIGHT, ULT_FX_STYLES, parseUltFxFile, ultFxStyle } from '../src/ultFx';
 import { weaponArtKey, weaponArtUrl } from '../src/weaponArt';
 import { HERO_TYPES } from '../src/data';
 import { WEAPON_KIND, WEAPON_LOOKS, WEAPON_LOOK_LEVEL, weaponLook, weaponName } from '../src/weapons';
@@ -28,8 +28,14 @@ describe('Ultimate effect art', () => {
     expect(ultFxStyle(byId('ember'))).toBe('drop'); // Meteor
   });
 
+  it('has the user\'s pictures for most heroes', () => {
+    expect(ULT_FX_ART.brine).toBeTruthy();
+    expect(Object.keys(ULT_FX_ART).length).toBeGreaterThanOrEqual(80);
+  });
+
   it('reads single pictures and frame rows from file names', () => {
     expect(parseUltFxFile('./assets/ultfx/brine.png')).toEqual({ id: 'brine', frames: 1 });
+    expect(parseUltFxFile('./assets/ultfx/brine.jpg')).toEqual({ id: 'brine', frames: 1 });
     expect(parseUltFxFile('./assets/ultfx/asc_dark-f6.png')).toEqual({ id: 'asc_dark', frames: 6 });
     expect(parseUltFxFile('./assets/ultfx/Bad Name.png')).toBeNull();
   });
