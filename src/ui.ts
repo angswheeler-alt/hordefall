@@ -28,6 +28,7 @@ import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_L
 import { busyWhile, setHtml } from './taps';
 import { holdToRepeat } from './hold';
 import { ScoutUI } from './scoutUi';
+import { WILD_CREST_COST } from './scouting';
 import { GlyphUI } from './glyphUi';
 import { RushUI, rushResultHtml } from './rushUi';
 import { sortHeroes, nextTeamSort, TEAM_SORT_LABELS, type TeamSort } from './teamSort';
@@ -1139,6 +1140,16 @@ export class UI {
       if (!this.state.buyDeal()) return;
       play('unlock');
       this.showModal(kind === 'crate' ? 'Ticket Crate' : 'Hero Voucher', kind === 'crate' ? `<p>${TICKET_CRATE.tickets} Trial tickets went to your bought stash (${this.state.boughtTickets}/${BOUGHT_TICKET_CAP}). They're used after your free tickets run out.</p>` : '<p>You have a Hero Voucher. Use it now, or keep it for later.</p>', 'Okay');
+      this.render();
+    });
+    $('hs-month').addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-month]');
+      if (!btn || btn.disabled) return;
+      if (btn.dataset.month === 'use') return this.scoutUi.pickWildHero();
+      const m = this.state.monthlyPackState();
+      if (!this.state.buyMonthlyPack()) return;
+      play('unlock');
+      this.showModal('Monthly Crest Pack', `<p>+${m.wild} Wild Crests. Spend them on any heroes you like, now or later: from here, the Scouting page or a hero's page.</p>`, 'Pick heroes', () => this.scoutUi.pickWildHero());
       this.render();
     });
     $('hs-asc').addEventListener('click', (e) => {
@@ -2639,6 +2650,12 @@ export class UI {
     const buy = `<button type="button" class="gem-btn" data-deal="buy" ${deal.bought || gems < deal.gems || !crateRoom ? 'disabled' : ''}>${deal.bought ? 'Bought' : `${deal.gems} <span class="gem"></span>`}</button>`;
     const use = s.vouchers > 0 ? `<button type="button" class="wood-btn" data-deal="use">Use Hero Voucher (${s.vouchers})</button>` : '';
     setHtml($('hs-deal'), `<div class="deal-head"><div><span class="deal-tag">Limited deal · ends in ${ends}</span>${what}</div>${buy}</div>${use}`);
+    const month = s.monthlyPackState(now);
+    const mLeft = month.endsAt - now;
+    const mEnds = mLeft >= 86_400_000 ? `${Math.floor(mLeft / 86_400_000)}d ${Math.floor((mLeft % 86_400_000) / 3_600_000)}h` : `${Math.floor(mLeft / 3_600_000)}h ${Math.ceil((mLeft % 3_600_000) / 60_000)}m`;
+    const mBuy = `<button type="button" class="gem-btn" data-month="buy" ${month.bought || gems < month.gems ? 'disabled' : ''}>${month.bought ? 'Bought' : `${month.gems} <span class="gem"></span>`}</button>`;
+    const mUse = s.wildCrests > 0 ? `<button type="button" class="wood-btn" data-month="use">Use Wild Crests (${s.wildCrests})</button>` : '';
+    setHtml($('hs-month'), `<div class="deal-head"><div><span class="deal-tag">Once a month · ${month.bought ? 'new pack' : 'ends'} in ${mEnds}</span><b>Monthly Crest Pack</b><small>${month.wild} Wild Crests for any heroes you pick: up to ${month.wild / WILD_CREST_COST.common} Common, ${month.wild / WILD_CREST_COST.rare} Rare or ${month.wild / WILD_CREST_COST.epic} Epic crests, split however you like.</small></div>${mBuy}</div>${mUse}`);
     // The Ascendant Chest: only while an Ascendant hero that beats this week's Guild Boss is out.
     const asc = s.ascendantChestState(now);
     $('hs-asc').hidden = !asc;

@@ -919,6 +919,11 @@ export const TRIAL_EVENT_DAYS = [6, 0];
 export const TRIAL_EVENT_MEDAL_MULT = 2;
 export const TICKET_CRATE = { tickets: 30, gems: 200 } as const;
 export const HERO_VOUCHER = { gems: 500, medals: { common: 200, rare: 100, epic: 60 } } as const;
+/**
+ * Monthly Crest Pack (Samuel, 2026-11-01): once each calendar month (local time), Gems for Wild Crests the player
+ * spends on any heroes they pick (Common 1, Rare 2, Epic 4 Wild per crest, src/scouting.ts). Test price.
+ */
+export const MONTHLY_CREST_PACK = { gems: 1000, wild: 500 } as const;
 
 /** Elemental Trials (GDD 11.1): each element's dungeon opens on set days (Samuel's schedule). */
 export const TRIAL_ROTATION: Element[] = ['water', 'earth', 'fire', 'light', 'dark'];
