@@ -6,7 +6,8 @@ import { HEROES, type HeroDef } from './data';
 import { fmtDuration } from './formulas';
 import type { GameState } from './state';
 import { SCOUT_BONUS_COMMONS, SCOUT_KINDS, SCOUT_MATCH_MULT, SCOUT_UNLOCK_LEVEL, WILD_CREST_COST, fullReward, missionEndsAt, scoutReward, type ScoutMission, type ScoutReward } from './scouting';
-import { FORGE_MATS, FORGE_MAT_NAMES, WEAPON_GLYPHS, WEAPON_LOOK_NAMES, WEAPON_MAX_LEVEL, WEAPON_STAT_STEP, weaponLook, weaponMult, type ForgeMat } from './weapons';
+import { FORGE_MATS, FORGE_MAT_NAMES, WEAPON_GLYPHS, WEAPON_LOOK_LEVEL, WEAPON_LOOK_NAMES, WEAPON_LOOKS, WEAPON_MAX_LEVEL, WEAPON_STAT_STEP, weaponLook, weaponMult, weaponName, type ForgeMat } from './weapons';
+import { weaponArtUrl } from './weaponArt';
 import { faceStyle, dropCards } from './ui';
 import { play } from './sfx';
 import { setHtml } from './taps';
@@ -266,6 +267,11 @@ export class ScoutUI {
     const cost = s.weaponCost(id);
     const block = s.weaponBlock(id);
     const pct = (x: number) => `+${Math.round((x - 1) * 100)}%`;
+    const type = HEROES.find((x) => x.id === id)?.type ?? 'Knight';
+    const ico = (level: number) => {
+      const url = weaponArtUrl(id, type, level);
+      return `<i class="wp-ico look-${weaponLook(level)}" title="${WEAPON_LOOK_NAMES[weaponLook(level)]}" ${url ? `style="background-image:url('${url}')"` : ''} aria-hidden="true"></i>`;
+    };
     const costRows = cost
       ? FORGE_MATS.filter((m) => cost[m])
           .map((m) => {
@@ -277,8 +283,9 @@ export class ScoutUI {
       : '';
     const html = `
       <h3>Weapon</h3>
-      <div class="wp-top"><i class="wp-ico look-${look}" aria-hidden="true"></i><div><b>Level ${lv} / ${WEAPON_MAX_LEVEL}</b><small>${WEAPON_LOOK_NAMES[look]} weapon · ATK and HP ${pct(weaponMult(lv))}</small></div></div>
-      ${cost ? `<p class="meta">Next level: ATK and HP ${pct(weaponMult(lv + 1))}, ${WEAPON_GLYPHS[lv + 1].slots} Glyph slots${WEAPON_GLYPHS[lv + 1].maxStar > WEAPON_GLYPHS[lv].maxStar ? ` holding up to ${WEAPON_GLYPHS[lv + 1].maxStar}★` : ''}${weaponLook(lv + 1) !== look ? `, and the weapon turns ${WEAPON_LOOK_NAMES[weaponLook(lv + 1)]}` : ''}.</p><ul class="wp-cost">${costRows}</ul>
+      <div class="wp-top">${ico(lv)}<div><b>${weaponName(type, lv)}</b><small>Level ${lv} / ${WEAPON_MAX_LEVEL} · ATK and HP ${pct(weaponMult(lv))}</small></div></div>
+      <ul class="wp-looks">${WEAPON_LOOKS.map((l) => `<li class="${l === look ? 'now' : l < look ? 'have' : ''}">${ico(WEAPON_LOOK_LEVEL[l])}<span>Lv ${WEAPON_LOOK_LEVEL[l]}</span></li>`).join('')}</ul>
+      ${cost ? `<p class="meta">Next level: ATK and HP ${pct(weaponMult(lv + 1))}, ${WEAPON_GLYPHS[lv + 1].slots} Glyph slots${WEAPON_GLYPHS[lv + 1].maxStar > WEAPON_GLYPHS[lv].maxStar ? ` holding up to ${WEAPON_GLYPHS[lv + 1].maxStar}★` : ''}${weaponLook(lv + 1) !== look ? `, and the weapon turns ${weaponName(type, lv + 1)}` : ''}.</p><ul class="wp-cost">${costRows}</ul>
       <button type="button" class="hot evolve" id="sheet-weapon-up" ${block ? 'disabled' : ''}>${block && block !== 'Not enough materials' ? block : `Upgrade to level ${lv + 1}`}</button>` : '<p class="meta">This weapon is at max level.</p>'}
       <p class="meta">Each weapon level gives ${Math.round((WEAPON_STAT_STEP - 1) * 100)}% more ATK and HP (compounding) and opens a Glyph slot. Materials come from Scouting on the Battle tab${s.scoutOpen() ? '' : `, which opens at player level ${SCOUT_UNLOCK_LEVEL}`}.</p>`;
     const host = $('sheet-weapon');

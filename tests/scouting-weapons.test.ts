@@ -41,7 +41,7 @@ describe('weapons', () => {
   it('gives +15% ATK and HP per level, compounding, and changes look at 4 and 7', () => {
     expect(weaponMult(1)).toBe(1);
     expect(weaponMult(9)).toBeCloseTo(Math.pow(1.15, 8));
-    expect([1, 3, 4, 6, 7, 9].map(weaponLook)).toEqual([1, 1, 2, 2, 3, 3]);
+    expect([1, 2, 3, 4, 5, 6, 7, 8, 9].map(weaponLook)).toEqual([1, 1, 1, 2, 2, 2, 3, 3, 3]);
   });
 
   it('upgrading spends materials and raises the hero power', () => {
