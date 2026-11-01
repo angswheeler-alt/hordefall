@@ -14,7 +14,9 @@ import { ascendBlocker, ascendNeeds, clampForm, formArtKey, resolveForm, COUNTER
 import { ascendantDef, isAscendant, ASCENDANT_HEROES } from './heroes/ascendant';
 import { HERO_ANIMS } from './heroAnims';
 import { TEST_MODE, TEST_SAVE_KEY } from './config';
-import { FORGE_MATS, clampWeaponLevel, weaponMult, weaponUpgradeCost, type ForgeCost, type ForgeMat } from './weapons';
+import { FORGE_MATS, WEAPON_GLYPHS, clampWeaponLevel, weaponMult, weaponUpgradeCost, type ForgeCost, type ForgeMat } from './weapons';
+import { GLYPH_BAG_CAP, chestStar, cleanGlyph, emptyTotals, glyphBound, glyphLevelCost, glyphSalvage, glyphTotals, rollGlyph, type Glyph, type GlyphChestKind, type GlyphFamily, type GlyphTotals } from './glyphs';
+import { RUSH_BRACKETS, RUSH_CREST_COINS, RUSH_CREST_LIMIT, RUSH_CREST_PACK, RUSH_DAILY_TICKETS, RUSH_DAYS, RUSH_FEATURED, RUSH_FIGHT_TICKETS, RUSH_FOES, RUSH_FREE_HOURS, RUSH_LOSS_COINS, RUSH_MAX_LEVEL, RUSH_SHOP, RUSH_STREAK_UP, RUSH_TIERS, RUSH_UNLOCK_LEVEL, chestKinds, cleanRush, freeAttacks, inBracket, newRush, rushWinPoints, type RushFoe, type RushReward, type RushShopId, type RushState } from './rush';
 import { SCOUT_KINDS, SCOUT_UNLOCK_LEVEL, WILD_CREST_COST, cleanScout, heroScoutScore, missionEndsAt, newScout, nextHour, refreshBoard, scoutReward, scoutShare, type ScoutReward, type ScoutSlot, type ScoutState } from './scouting';
 
 /** Test mode plays a copy of the save under its own key, so the real one is never written. */
@@ -25,6 +27,27 @@ export interface SummonDrop {
   crests: number;
   isNew: boolean;
 }
+
+/** A reward paid by Rush (a tier or a shop buy), with the Glyphs its chests gave. */
+export interface RushPaid {
+  reward: RushReward;
+  glyphs: Array<{ glyph?: Glyph; dust?: number }>;
+}
+
+/** A Rush fight's outcome, already paid out. */
+export interface RushFight {
+  won: boolean;
+  hero: string;
+  foe: RushFoe | null;
+  points: number;
+  coins: number;
+  featured: boolean;
+  levelUp: boolean;
+  level: number;
+  tiers: RushPaid[];
+}
+
+const EMPTY_GLYPHS: GlyphTotals = emptyTotals();
 
 export interface OfflineReport {
   seconds: number;
@@ -326,6 +349,18 @@ export class GameState {
   forge: Record<ForgeMat, number> = { ore: 0, crystal: 0, coreC: 0, coreR: 0, coreE: 0 };
   /** Wild Crests from Gilded Scouting: crests for any non-Legendary, non-Ascendant hero. */
   wildCrests = 0;
+  /** Glyphs (src/glyphs.ts): every Glyph owned, socketed or in the bag; Glyph Dust; Unbinders; Glyphs rolled so far (seeds new ones). */
+  glyphs: Glyph[] = [];
+  glyphDust = 0;
+  unbinders = 0;
+  glyphRolls = 0;
+  /** Socketed Glyph totals per hero, worked out once per change. Not saved. */
+  private glyphCache: Map<string, GlyphTotals> | null = null;
+  /** Rush (src/rush.ts): this event's progress, and Rush Coins (kept between events). */
+  rush: RushState = newRush();
+  rushCoins = 0;
+  /** Admin test mode runs a Rush every day, so it can be tried any time. Not saved. */
+  rushForced = TEST_MODE;
   /** Earned by giving medals to guildmates; spent in the guild shop. */
   guildCredits = 0;
   /** Guild shop: today's hero offers, Warsteel packs bought today (`pouches`, the old name, kept for saves) and Wild Medals bought this week. */
@@ -421,10 +456,11 @@ export class GameState {
     const fx = this.effects();
     const prof = heroProfile(def);
     const weapon = weaponMult(this.weaponLevel(base.id));
+    const g = this.glyphBonus(base.id);
     return {
-      atk: heroAtk(def, level).times(starMult * prof.atkMult * mulEffect(fx, 'atk', def.id) * atkRelics * weapon),
-      hp: heroHp(def, level).times(starMult * prof.hpMult * mulEffect(fx, 'hp', def.id) * hpRelics * weapon),
-      defense: heroDef(def, level).times(starMult * prof.defMult * mulEffect(fx, 'def', def.id) * (1 + this.relicBonus('def') + this.relicBonus(`${def.element}Def`)) * (1 + this.guildRelicBonus('def'))),
+      atk: heroAtk(def, level).times(starMult * prof.atkMult * mulEffect(fx, 'atk', def.id) * atkRelics * weapon * (1 + g.atk)),
+      hp: heroHp(def, level).times(starMult * prof.hpMult * mulEffect(fx, 'hp', def.id) * hpRelics * weapon * (1 + g.hp)),
+      defense: heroDef(def, level).times(starMult * prof.defMult * mulEffect(fx, 'def', def.id) * (1 + this.relicBonus('def') + this.relicBonus(`${def.element}Def`)) * (1 + this.guildRelicBonus('def')) * (1 + g.def)),
     };
   }
 
@@ -461,7 +497,8 @@ export class GameState {
     const starMult = this.starMultiplier(def.id);
     const power = this.heroPower(def, level);
     const sig = def.signature;
-    const cooldown = (def.attackCooldown * mul('attackSpeed')) / ((1 + this.relicBonus('speed')) * (1 + this.guildRelicBonus('speed')));
+    const glyph = this.glyphBonus(base.id);
+    const cooldown = (def.attackCooldown * mul('attackSpeed')) / ((1 + this.relicBonus('speed')) * (1 + this.guildRelicBonus('speed')) * (1 + glyph.speed));
     const splashMult = def.splash ? mul('splash') : 1;
     const prof = heroProfile(def);
     const counts = this.buildCounts();
@@ -470,13 +507,14 @@ export class GameState {
       atk: { value: power.atk, base: heroAtk(def, level).times(starMult * prof.atkMult) },
       hp: { value: power.hp, base: heroHp(def, level).times(starMult * prof.hpMult) },
       def: { value: power.defense, base: heroDef(def, level).times(starMult * prof.defMult) },
-      critRate: prof.crit + sum('crit') + this.relicBonus('crit'),
-      critDmg: (1 + prof.critDmg + sum('critDmg')) * (1 + this.relicBonus('critDmg')) - 1,
+      critRate: prof.crit + sum('crit') + this.relicBonus('crit') + glyph.crit,
+      critDmg: (1 + prof.critDmg + sum('critDmg') + glyph.critDmg) * (1 + this.relicBonus('critDmg')) - 1,
       attacksPerSec: { value: 1 / cooldown, base: 1 / def.attackCooldown },
       range: { value: def.range, base: def.range },
       moveSpeed: { value: def.moveSpeed, base: def.moveSpeed },
       effectRes: { value: prof.effectRes + sum('effectRes'), base: prof.effectRes },
-      frenzy: { value: prof.frenzy + sum('frenzy'), base: prof.frenzy },
+      frenzy: { value: prof.frenzy + sum('frenzy') + glyph.frenzy, base: prof.frenzy },
+      lifesteal: glyph.lifesteal,
       dodge: { value: prof.dodge + sum('dodge') + this.relicBonus('dodge'), base: prof.dodge },
       stunChance: prof.stunChance + sum('stunChance'),
       stunTime: this.relicBonus('stunTime') + prof.effectTime + build.stun.time + build.stun.dmg,
@@ -484,7 +522,7 @@ export class GameState {
       aoeDmg: def.splash ? prof.aoeDmg + sum('aoeDmg') : 0,
       ultAtk: prof.ultAtk + sum('ultAtk'),
       knightShield: isKnight(def) ? prof.shield + this.relicBonus('knightShield') : 0,
-      bonusGold: def.goldMult * (1 + prof.goldBonus) * mulEffect(fx, 'gold', null) * (1 + this.relicBonus('gold')) * (1 + this.researchBonus('prosperity')) - 1,
+      bonusGold: def.goldMult * (1 + prof.goldBonus) * mulEffect(fx, 'gold', null) * (1 + this.relicBonus('gold')) * (1 + this.researchBonus('prosperity')) * (1 + glyph.gold) - 1,
       freezeChance: prof.freezeChance + sum('freezeChance'),
       freezeTime: this.relicBonus('freezeTime') + prof.effectTime + build.freeze.time,
       freezeBlast: build.freeze.dmg,
@@ -1185,7 +1223,11 @@ export class GameState {
       if (heroes.some((x) => x.id === h.id)) continue;
       heroes.push({ id: h.id, stars: Math.min(this.maxStars(h.id), Math.max(0, avgStars + Math.floor(rand() * 3) - 1)) });
     }
-    const opp: PvpOpponent = { name, ghost: true, heroes, ember: 1, cp: '0' };
+    return GameState.fitGhost({ name, ghost: true, heroes, ember: 1, cp: '0' }, target);
+  }
+
+  /** Set a Ghost's Ember level and power multiplier so its CP lands near `target`. */
+  static fitGhost(opp: PvpOpponent, target: Decimal): PvpOpponent {
     const cpAt = (ember: number) => GameState.ghostState({ ...opp, ember }).teamCombatPower();
     // Grow the Ember level until the team passes the target, then narrow down.
     let lo = 1;
@@ -1745,11 +1787,11 @@ export class GameState {
   }
 
   /** Days from today on: open Trials, double medals and the week's deal, for the events calendar. */
-  calendar(days: number, now = Date.now()): Array<{ date: number; open: Element[]; double: boolean; deal: 'crate' | 'voucher' }> {
-    const out: Array<{ date: number; open: Element[]; double: boolean; deal: 'crate' | 'voucher' }> = [];
+  calendar(days: number, now = Date.now()): Array<{ date: number; open: Element[]; double: boolean; rush: boolean; deal: 'crate' | 'voucher' }> {
+    const out: Array<{ date: number; open: Element[]; double: boolean; rush: boolean; deal: 'crate' | 'voucher' }> = [];
     for (let i = 0; i < days; i++) {
       const t = this.dayStart(now, i) + 12 * 3_600_000;
-      out.push({ date: this.dayStart(t), open: this.openTrials(t), double: this.trialEventOn(t), deal: this.eventWeek(t) ? 'crate' : 'voucher' });
+      out.push({ date: this.dayStart(t), open: this.openTrials(t), double: this.trialEventOn(t), rush: this.rushOn(t), deal: this.eventWeek(t) ? 'crate' : 'voucher' });
     }
     return out;
   }
@@ -2245,8 +2287,413 @@ export class GameState {
     if (!cost || this.weaponBlock(id) !== null) return false;
     for (const m of FORGE_MATS) this.forge[m] -= cost[m] ?? 0;
     this.weapons[id] = this.weaponLevel(id) + 1;
+    this.glyphsChanged();
     this.save();
     return true;
+  }
+
+  // ---------- Glyphs (src/glyphs.ts) ----------
+
+  /** Glyph slots the hero's weapon has open, and the highest Glyph star it holds. */
+  glyphSlots(id: string): { slots: number; maxStar: number } {
+    return WEAPON_GLYPHS[this.weaponLevel(id)];
+  }
+
+  /** Glyphs socketed in a hero's weapon (only slots the weapon has open count). */
+  heroGlyphs(id: string): Glyph[] {
+    const { slots } = this.glyphSlots(id);
+    return this.glyphs.filter((g) => g.hero === id && (g.slot ?? 0) < slots).sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0));
+  }
+
+  /** The Glyph in a hero's weapon slot, if any. */
+  glyphAt(id: string, slot: number): Glyph | undefined {
+    return this.glyphs.find((g) => g.hero === id && g.slot === slot);
+  }
+
+  /** What a hero's Glyphs add (main stats, extra stats and sets). */
+  glyphBonus(id: string): GlyphTotals {
+    if (!this.glyphs.length) return EMPTY_GLYPHS;
+    if (!this.glyphCache) {
+      this.glyphCache = new Map();
+      const ids = new Set(this.glyphs.map((g) => g.hero).filter((h): h is string => !!h));
+      for (const h of ids) this.glyphCache.set(h, glyphTotals(this.heroGlyphs(h)));
+    }
+    return this.glyphCache.get(id) ?? EMPTY_GLYPHS;
+  }
+
+  /** Call after any change to Glyphs or weapon levels. */
+  glyphsChanged() {
+    this.glyphCache = null;
+  }
+
+  /** Glyphs in the bag (not socketed). */
+  bagGlyphs(): Glyph[] {
+    return this.glyphs.filter((g) => !g.hero);
+  }
+
+  /** Saved Glyphs, checked: unique ids, real heroes, one Glyph per slot. */
+  private cleanGlyphs(raw: unknown): Glyph[] {
+    const out: Glyph[] = [];
+    const ids = new Set<string>();
+    const slots = new Set<string>();
+    for (const x of Array.isArray(raw) ? raw : []) {
+      const g = cleanGlyph(x);
+      if (!g || ids.has(g.id)) continue;
+      ids.add(g.id);
+      if (g.hero !== undefined) {
+        const key = `${g.hero}:${g.slot}`;
+        if (!HEROES.some((h) => h.id === g.hero) || slots.has(key)) {
+          delete g.hero;
+          delete g.slot;
+        } else slots.add(key);
+      }
+      out.push(g);
+    }
+    this.glyphCache = null;
+    return out;
+  }
+
+  /** A new Glyph into the bag, or its Dust when the bag is full. */
+  gainGlyph(star: number, family?: GlyphFamily): { glyph?: Glyph; dust?: number } {
+    const g = rollGlyph(`g${++this.glyphRolls}`, star, family);
+    if (this.bagGlyphs().length >= GLYPH_BAG_CAP) {
+      const dust = glyphSalvage(g);
+      this.glyphDust += dust;
+      return { dust };
+    }
+    this.glyphs.push(g);
+    return { glyph: g };
+  }
+
+  /** Open Glyph Chests: one Glyph each. */
+  openGlyphChests(kind: GlyphChestKind, n: number): Array<{ glyph?: Glyph; dust?: number }> {
+    const out: Array<{ glyph?: Glyph; dust?: number }> = [];
+    for (let i = 0; i < n; i++) out.push(this.gainGlyph(chestStar(kind, `${kind}:${this.glyphRolls + 1}`)));
+    return out;
+  }
+
+  /** Why a Glyph can't go into this slot, or null if it can. */
+  socketBlock(heroId: string, slot: number, glyphId: string): string | null {
+    const g = this.glyphs.find((x) => x.id === glyphId);
+    const { slots, maxStar } = this.glyphSlots(heroId);
+    if (!g) return 'No such Glyph';
+    if (!((this.levels[heroId] ?? 0) > 0)) return 'Hero is locked';
+    if (slot < 0 || slot >= slots) return 'Slot not open yet';
+    if (g.hero) return 'Already in a weapon';
+    if (g.star > maxStar) return `This weapon holds up to ${maxStar}★`;
+    return null;
+  }
+
+  /**
+   * Put a Glyph from the bag into a slot. A Glyph already there goes back to the bag if it isn't bound;
+   * a bound one needs `old`: 'unbind' (spends an Unbinder, it goes to the bag) or 'break' (turns into Dust).
+   */
+  socketGlyph(heroId: string, slot: number, glyphId: string, old?: 'unbind' | 'break'): boolean {
+    if (this.socketBlock(heroId, slot, glyphId) !== null) return false;
+    const cur = this.glyphAt(heroId, slot);
+    if (cur && !this.takeOutGlyph(cur.id, glyphBound(cur) ? old : undefined)) return false;
+    const g = this.glyphs.find((x) => x.id === glyphId)!;
+    g.hero = heroId;
+    g.slot = slot;
+    this.glyphsChanged();
+    this.save();
+    return true;
+  }
+
+  /** Take a Glyph out of its weapon: free below the bind star, else with an Unbinder ('unbind') or broken into Dust ('break'). */
+  takeOutGlyph(glyphId: string, how?: 'unbind' | 'break'): boolean {
+    const g = this.glyphs.find((x) => x.id === glyphId);
+    if (!g || !g.hero) return false;
+    if (how === 'break') return this.breakGlyph(glyphId) > 0;
+    if (glyphBound(g)) {
+      if (how !== 'unbind' || this.unbinders <= 0) return false;
+      this.unbinders--;
+    }
+    delete g.hero;
+    delete g.slot;
+    this.glyphsChanged();
+    this.save();
+    return true;
+  }
+
+  /** Turn a Glyph (in the bag or a weapon) into Dust. Returns the Dust gained. */
+  breakGlyph(glyphId: string): number {
+    const g = this.glyphs.find((x) => x.id === glyphId);
+    if (!g) return 0;
+    const dust = glyphSalvage(g);
+    this.glyphs = this.glyphs.filter((x) => x !== g);
+    this.glyphDust += dust;
+    this.glyphsChanged();
+    this.save();
+    return dust;
+  }
+
+  /** Salvage bag Glyphs into Dust. Returns the Dust gained. */
+  salvageGlyphs(ids: string[]): number {
+    const pick = new Set(ids);
+    let dust = 0;
+    this.glyphs = this.glyphs.filter((g) => {
+      if (!pick.has(g.id) || g.hero) return true;
+      dust += glyphSalvage(g);
+      return false;
+    });
+    this.glyphDust += dust;
+    this.save();
+    return dust;
+  }
+
+  /** Level a Glyph up with Dust. */
+  levelGlyph(glyphId: string): boolean {
+    const g = this.glyphs.find((x) => x.id === glyphId);
+    const cost = g ? glyphLevelCost(g.star, g.level) : null;
+    if (!g || cost === null || this.glyphDust < cost) return false;
+    this.glyphDust -= cost;
+    g.level++;
+    this.glyphsChanged();
+    this.save();
+    return true;
+  }
+
+  // ---------- Rush (src/rush.ts) ----------
+
+  rushOpen(): boolean {
+    return this.keeperLevel() >= RUSH_UNLOCK_LEVEL;
+  }
+
+  /** Whether a Rush runs on `now`'s day: Thursday to Sunday of weeks without the double-crest Trial weekend. */
+  rushOn(now = Date.now()): boolean {
+    return this.rushForced || (!this.eventWeek(now) && RUSH_DAYS.includes(new Date(now).getDay()));
+  }
+
+  /** The Rush running now, or the next one: [start, end) in ms. */
+  rushWindow(now = Date.now()): { start: number; end: number } {
+    if (this.rushForced) return { start: this.dayStart(now), end: this.dayStart(now, 1) };
+    for (let i = 0; i < 7 * TRIAL_EVENT_EVERY + 7; i++) {
+      const t = this.dayStart(now, i) + 12 * 3_600_000;
+      if (!this.rushOn(t)) continue;
+      let start = this.dayStart(t);
+      while (this.rushOn(this.dayStart(start, -1) + 12 * 3_600_000)) start = this.dayStart(start, -1);
+      let end = this.dayStart(t, 1);
+      while (this.rushOn(end + 12 * 3_600_000)) end = this.dayStart(end, 1);
+      return { start, end };
+    }
+    return { start: now, end: now };
+  }
+
+  /**
+   * Bring the Rush up to date: a new event starts fresh (Rush Coins stay), and each new day of it adds tickets.
+   * Returns true when something changed.
+   */
+  rushSync(now = Date.now()): boolean {
+    if (!this.rushOpen() || !this.rushOn(now)) return false;
+    let changed = false;
+    const id = this.rushForced ? `test:${dayKey(now)}` : weekKey(now);
+    if (this.rush.id !== id) {
+      this.rush = newRush(id);
+      changed = true;
+    }
+    const today = dayKey(now);
+    if (this.rush.ticketDay !== today) {
+      if (this.rush.ticketDay) this.rush.tickets += RUSH_DAILY_TICKETS;
+      this.rush.ticketDay = today;
+      changed = true;
+    }
+    if (changed) this.save();
+    return changed;
+  }
+
+  /** Which free-attack period of the event `now` is in. */
+  rushPeriod(now = Date.now()): number {
+    return Math.max(0, Math.floor((now - this.rushWindow(now).start) / (RUSH_FREE_HOURS * 3_600_000)));
+  }
+
+  /** When the next free attacks come (ms). */
+  rushNextFree(now = Date.now()): number {
+    return this.rushWindow(now).start + (this.rushPeriod(now) + 1) * RUSH_FREE_HOURS * 3_600_000;
+  }
+
+  /** The event's nine featured heroes (+20% points), from the event's seed. */
+  rushFeatured(id = this.rush.id): HeroDef[] {
+    const rand = seededRandom(`rush:${id}`);
+    const pool = [...SHOP_HEROES];
+    const out: HeroDef[] = [];
+    while (out.length < RUSH_FEATURED && pool.length) out.push(pool.splice(Math.floor(rand() * pool.length) % pool.length, 1)[0]);
+    return out;
+  }
+
+  /** Recruited heroes that fit a bracket, strongest first. */
+  rushHeroes(bracket: number): HeroDef[] {
+    return HEROES.filter((h) => (this.levels[h.id] ?? 0) > 0 && inBracket(this.stars[h.id] ?? 0, bracket))
+      .map((h) => ({ h, cp: this.heroCombatPower(h) }))
+      .sort((a, b) => b.cp.cmp(a.cp))
+      .map((x) => x.h);
+  }
+
+  rushFree(heroId: string, now = Date.now()): number {
+    return freeAttacks(this.rush.free[heroId], this.rushPeriod(now));
+  }
+
+  /** A bracket's three opponents, rolled when the list is empty (needs a hero that fits the bracket). */
+  rushFoes(bracket: number, now = Date.now()): RushFoe[] {
+    const list = this.rush.foes[bracket] ?? [];
+    if (list.length || !this.rushOn(now)) return list;
+    const mine = this.rushHeroes(bracket);
+    if (!mine.length) return list;
+    const best = this.heroCombatPower(mine[0]);
+    const rand = seededRandom(`rush:${this.rush.id}:${bracket}:${this.rush.rolls}`);
+    const b = RUSH_BRACKETS[bracket];
+    const pool = PLAYABLE_HEROES.filter((h) => !isAscendant(h.id));
+    const foes: RushFoe[] = RUSH_FOES.map((f) => {
+      const share = f.min + rand() * (f.max - f.min);
+      const name = ghostName(rand);
+      const hero = pool[Math.floor(rand() * pool.length) % pool.length];
+      const stars = Math.min(this.maxStars(hero.id), b.min + Math.floor(rand() * (b.max - b.min + 1)));
+      const opp = GameState.fitGhost({ name, ghost: true, heroes: [{ id: hero.id, stars }], ember: 1, cp: '0' }, best.times(share));
+      return { name, hero: hero.id, stars, ember: opp.ember, power: opp.power ?? 1, cp: opp.cp };
+    });
+    this.rush.foes[bracket] = foes;
+    this.rush.rolls++;
+    this.save();
+    return foes;
+  }
+
+  /** An opponent as the Colosseum code sees it. */
+  rushOpponent(foe: RushFoe): PvpOpponent {
+    return { name: foe.name, ghost: true, heroes: [{ id: foe.hero, stars: foe.stars }], ember: foe.ember, power: foe.power, cp: foe.cp };
+  }
+
+  /** Why this hero can't fight this opponent now, or null if it can. */
+  rushBlock(bracket: number, foe: number, heroId: string, now = Date.now()): string | null {
+    if (!this.rushOpen()) return `Opens at player level ${RUSH_UNLOCK_LEVEL}`;
+    if (!this.rushOn(now)) return 'No Rush right now';
+    if (this.rush.active) return 'A fight is running';
+    if (!this.rush.foes[bracket]?.[foe]) return 'No opponent';
+    if (!((this.levels[heroId] ?? 0) > 0) || !inBracket(this.stars[heroId] ?? 0, bracket)) return 'Hero not in this bracket';
+    if (this.rushFree(heroId, now) <= 0 && this.rush.tickets < RUSH_FIGHT_TICKETS) return 'Not enough tickets';
+    return null;
+  }
+
+  /** A no-luck run of the fight, for the forecast and Quick Battle. */
+  rushForecast(bracket: number, foe: number, heroId: string): PvpResult | null {
+    const f = this.rush.foes[bracket]?.[foe];
+    const h = HEROES.find((x) => x.id === heroId);
+    if (!f || !h) return null;
+    return simulatePvp([this.pvpUnit(h)], this.pvpFoeUnits(this.rushOpponent(f)).map((u) => u.unit), 0, 0.1, true);
+  }
+
+  /** Quick Battle is open when the hero has PVP_QUICK_CP times the foe's CP and the forecast is an easy win. */
+  canQuickRush(bracket: number, foe: number, heroId: string, now = Date.now()): boolean {
+    if (this.rushBlock(bracket, foe, heroId, now) !== null) return false;
+    const f = this.rush.foes[bracket][foe];
+    const h = HEROES.find((x) => x.id === heroId)!;
+    if (this.heroCombatPower(h).lt(new Decimal(f.cp || 0).times(PVP_QUICK_CP))) return false;
+    const fc = this.rushForecast(bracket, foe, heroId);
+    return !!fc && fc.won && fc.left[0][0] >= PVP_QUICK_HP;
+  }
+
+  /** Start a Rush fight: spends a free attack (or tickets) now; leaving counts as a loss. */
+  startRush(bracket: number, foe: number, heroId: string, now = Date.now()): RushFoe | null {
+    if (this.rushBlock(bracket, foe, heroId, now) !== null) return null;
+    const free = this.rushFree(heroId, now);
+    if (free > 0) this.rush.free[heroId] = { n: free - 1, p: this.rushPeriod(now) };
+    else this.rush.tickets -= RUSH_FIGHT_TICKETS;
+    this.rush.active = { bracket, foe, hero: heroId, free: free > 0 };
+    this.skillTeam = new Set([heroId]);
+    this.save();
+    return this.rush.foes[bracket][foe];
+  }
+
+  /** End the running Rush fight: points, coins, Rush level, reward tiers; that bracket gets new opponents. */
+  finishRush(won: boolean): RushFight | null {
+    const r = this.rush;
+    const a = r.active;
+    if (!a) return null;
+    delete r.active;
+    this.skillTeam = null;
+    const foe = r.foes[a.bracket]?.[a.foe];
+    const featured = this.rushFeatured().some((h) => h.id === a.hero);
+    let points = 0;
+    let levelUp = false;
+    if (won) {
+      points = rushWinPoints(a.bracket, a.foe, r.level, featured);
+      r.wins++;
+      r.streak++;
+      if (r.streak >= RUSH_STREAK_UP) {
+        r.streak = 0;
+        if (r.level < RUSH_MAX_LEVEL) {
+          r.level++;
+          levelUp = true;
+        }
+      }
+    } else {
+      r.streak = 0;
+      r.losses++;
+    }
+    r.points += points;
+    const coins = won ? RUSH_BRACKETS[a.bracket].coins : RUSH_LOSS_COINS;
+    this.rushCoins += coins;
+    const tiers: RushPaid[] = [];
+    while (r.tiers < RUSH_TIERS.length && r.points >= RUSH_TIERS[r.tiers].points) {
+      tiers.push(this.payRush(RUSH_TIERS[r.tiers].reward));
+      r.tiers++;
+    }
+    r.foes[a.bracket] = [];
+    this.save();
+    return { won, hero: a.hero, foe: foe ?? null, points, coins, featured, levelUp, level: r.level, tiers };
+  }
+
+  /** Quick Battle: take the win without fighting. */
+  quickRush(bracket: number, foe: number, heroId: string, now = Date.now()): RushFight | null {
+    if (!this.canQuickRush(bracket, foe, heroId, now)) return null;
+    if (!this.startRush(bracket, foe, heroId, now)) return null;
+    return this.finishRush(true);
+  }
+
+  /** Pay a Rush reward; chests open at once. */
+  private payRush(reward: RushReward): RushPaid {
+    const glyphs: Array<{ glyph?: Glyph; dust?: number }> = [];
+    for (const [kind, n] of chestKinds(reward)) if (n > 0) glyphs.push(...this.openGlyphChests(kind, n));
+    this.glyphDust += reward.dust ?? 0;
+    this.gems += reward.gems ?? 0;
+    this.unbinders += reward.unbinder ?? 0;
+    return { reward, glyphs };
+  }
+
+  /** Buys left this event of a Rush Shop item (or `crest:<hero>`). */
+  rushShopLeft(item: string): number {
+    const limit = item.startsWith('crest:') ? RUSH_CREST_LIMIT : RUSH_SHOP[item as RushShopId]?.limit ?? 0;
+    return Math.max(0, limit - (this.rush.bought[item] ?? 0));
+  }
+
+  /** Buy a Rush Shop item with Rush Coins. */
+  buyRushItem(item: RushShopId): RushPaid | null {
+    const def = RUSH_SHOP[item];
+    if (!def || !this.rushOpen() || this.rushShopLeft(item) <= 0 || this.rushCoins < def.coins) return null;
+    this.rushCoins -= def.coins;
+    this.rush.bought[item] = (this.rush.bought[item] ?? 0) + 1;
+    let paid: RushPaid;
+    if (item === 'coreR') {
+      this.forge.coreR++;
+      paid = { reward: {}, glyphs: [] };
+    } else paid = this.payRush(item === 'glyph' ? { glyph: 1 } : item === 'grand' ? { grand: 1 } : item === 'dust' ? { dust: 200 } : { unbinder: 1 });
+    this.save();
+    return paid;
+  }
+
+  /** Rush Coins for RUSH_CREST_PACK crests of a featured hero, or null if it isn't featured. */
+  rushCrestCost(heroId: string): number | null {
+    const h = this.rushFeatured().find((x) => x.id === heroId);
+    return h && h.rarity in RUSH_CREST_COINS ? RUSH_CREST_COINS[h.rarity as keyof typeof RUSH_CREST_COINS] : null;
+  }
+
+  /** Buy crests for a featured hero (during the event). */
+  buyRushCrests(heroId: string, now = Date.now()): SummonDrop[] | null {
+    const cost = this.rushCrestCost(heroId);
+    const key = `crest:${heroId}`;
+    if (cost === null || !this.rushOn(now) || this.rushShopLeft(key) <= 0 || this.rushCoins < cost) return null;
+    this.rushCoins -= cost;
+    this.rush.bought[key] = (this.rush.bought[key] ?? 0) + 1;
+    return this.receiveGuildMedals([{ heroId, crests: RUSH_CREST_PACK }]);
   }
 
   // ---------- Scouting (src/scouting.ts) ----------
@@ -2343,6 +2790,7 @@ export class GameState {
     const reward = scoutReward(m, this.scoutScore(slot, m.heroes).share);
     for (const m2 of FORGE_MATS) this.forge[m2] += reward[m2] ?? 0;
     this.wildCrests += reward.wild ?? 0;
+    this.unbinders += reward.unbinder ?? 0;
     if (m.kind === 'common') this.scout.commons++;
     this.scout.done++;
     if (sl.slot === 'rb' || sl.slot === 'g') this.scout.slots = this.scout.slots.filter((x) => x !== sl);
@@ -3066,6 +3514,12 @@ export class GameState {
       scout: this.scout,
       forge: this.forge,
       wildCrests: this.wildCrests,
+      glyphs: this.glyphs,
+      glyphDust: this.glyphDust,
+      unbinders: this.unbinders,
+      glyphRolls: this.glyphRolls,
+      rush: this.rush,
+      rushCoins: this.rushCoins,
       enhanceStones: this.enhanceStones,
       equipped: this.equipped,
       relicSlots: this.relicSlots,
@@ -3243,6 +3697,13 @@ export class GameState {
       this.scout = cleanScout(d.scout, new Set(HEROES.map((h) => h.id)));
       for (const m of FORGE_MATS) this.forge[m] = Math.max(0, Math.floor(Number(d.forge?.[m]) || 0));
       this.wildCrests = Math.max(0, Math.floor(Number(d.wildCrests) || 0));
+      const int = (v: unknown) => Math.max(0, Math.floor(Number(v) || 0));
+      this.glyphDust = int(d.glyphDust);
+      this.unbinders = int(d.unbinders);
+      this.glyphRolls = int(d.glyphRolls);
+      this.glyphs = this.cleanGlyphs(d.glyphs);
+      this.rush = cleanRush(d.rush, new Set(HEROES.map((h) => h.id)));
+      this.rushCoins = int(d.rushCoins);
       // Older saves ran relics to level 50 across tiers I-V: keep those levels as Enhances.
       for (const def of RELICS) {
         const lv = this.relics[def.id] ?? 0;

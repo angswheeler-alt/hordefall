@@ -118,7 +118,7 @@ describe('scouting', () => {
 
   it('pays weapon materials scaled by the Team Score', () => {
     expect(fullReward({ kind: 'common', hours: 4 })).toEqual({ ore: 120, crystal: 120, coreC: 4 });
-    expect(fullReward({ kind: 'rare', hours: 6 })).toEqual({ ore: 300, crystal: 300, coreC: 12, coreR: 3, coreE: 1 });
+    expect(fullReward({ kind: 'rare', hours: 6 })).toEqual({ unbinder: 1, ore: 300, crystal: 300, coreC: 12, coreR: 3, coreE: 1 });
     expect(fullReward({ kind: 'gilded', hours: 6 }).wild).toBe(20);
     expect(scoutReward({ kind: 'common', hours: 4 }, 0.5)).toEqual({ ore: 60, crystal: 60, coreC: 2 });
     expect(scoutReward({ kind: 'rare', hours: 6 }, 0.4)).toEqual({ ore: 120, crystal: 120, coreC: 5, coreR: 1 });

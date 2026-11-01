@@ -353,6 +353,10 @@ interface PvpLive {
   meter: Map<string, PvpMeterRow>;
   /** The same totals for the whole opposing team. */
   foeMeter: PvpMeterRow;
+  /** Name over the lane ("Colosseum", "Rush"). */
+  label: string;
+  /** Rush: one hero a side, so melee heroes can hit flyers too (otherwise a melee hero could never beat a flyer). */
+  anyReach: boolean;
 }
 
 /** One line of the Colosseum battle meter. */
@@ -1188,12 +1192,12 @@ export class BattleScene extends Phaser.Scene {
    * blue crystal and the opponent's team at the red one. Fallen fighters on both sides get back up after
    * the usual wait; the first crystal destroyed loses. `onEnd` gets the outcome once.
    */
-  startPvp(ids: string[], foes: PvpFoe[], bonus: number, onEnd: (won: boolean) => void) {
+  startPvp(ids: string[], foes: PvpFoe[], bonus: number, onEnd: (won: boolean) => void, opts: { label?: string; anyReach?: boolean } = {}) {
     if (this.trial || this.pvp) return;
     this.nextStageTimer?.remove();
     this.nextStageTimer = undefined;
     this.clearChests();
-    this.pvp = { ids: new Set(ids), bonus, mine: { hp: new Decimal(1), max: new Decimal(1) }, theirs: { hp: new Decimal(1), max: new Decimal(1) }, timeLeft: PVP_LIVE_TIME, done: false, onEnd, meter: new Map(ids.map((id) => [id, meterRow(id)])), foeMeter: meterRow('foes') };
+    this.pvp = { ids: new Set(ids), bonus, mine: { hp: new Decimal(1), max: new Decimal(1) }, theirs: { hp: new Decimal(1), max: new Decimal(1) }, timeLeft: PVP_LIVE_TIME, done: false, onEnd, meter: new Map(ids.map((id) => [id, meterRow(id)])), foeMeter: meterRow('foes'), label: opts.label ?? 'Colosseum', anyReach: !!opts.anyReach };
     const ults = new Map(this.heroes.map((h) => [h.def?.id, h.ultReadyAt]));
     for (const h of this.heroes) h.view.destroy();
     this.heroes = [];
@@ -1713,7 +1717,7 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     // Melee enemies can't reach flying heroes (src/reach.ts); with only flyers left they wait under one.
-    const pick = pickVictim(e, this.heroes.map((u) => ({ x: u.x, alive: u.alive, flying: u.flying, u })));
+    const pick = pickVictim(e, this.heroes.map((u) => ({ x: u.x, alive: u.alive, flying: u.flying && !this.pvp?.anyReach, u })));
     const target = pick.target?.u;
     const dist = target ? Math.abs(e.x - target.x) : Infinity;
     if (target && dist <= e.range) {
@@ -1767,7 +1771,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Whether `a` can hit `t` with a single-target attack (ground melee can't hit flyers). */
   private reaches(a: Unit, t: Unit) {
-    return canReach(a, t);
+    return !!this.pvp?.anyReach || canReach(a, t);
   }
 
   /** Nearest living foe behind hero `h` (further than the usual slack) that is still in its reach. */
@@ -1938,7 +1942,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     const bossMult = this.mul('bossDamage', h);
-    const lifesteal = this.sum('lifesteal', h);
+    const lifesteal = this.sum('lifesteal', h) + (h.stats?.lifesteal ?? 0);
     const sig = def.signature;
     const vsBurning = this.mul('vsBurning', h);
     if (h.streakTarget === target) h.streak++;
@@ -2905,7 +2909,7 @@ export class BattleScene extends Phaser.Scene {
   /** Colosseum HUD: time left at the top left and an HP bar over each crystal. */
   private drawPvpHud(p: PvpLive) {
     this.stageText.setX(10);
-    this.stageText.setText(`Colosseum · ${Math.ceil(Math.max(0, p.timeLeft))}s`);
+    this.stageText.setText(`${p.label} · ${Math.ceil(Math.max(0, p.timeLeft))}s`);
     this.progressBar.clear();
     this.bossBar.clear();
     const bar = (x: number, c: { hp: Decimal; max: Decimal }, color: number) => {

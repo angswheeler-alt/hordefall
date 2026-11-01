@@ -8,7 +8,7 @@ const pair = (v: number) => ({ value: v, base: v });
 const big = (v: number) => ({ value: new Decimal(v), base: new Decimal(v) });
 const base = (): HeroStats => ({
   atk: big(100), hp: big(1000), def: big(10), critRate: 0.1, critDmg: 1.5, attacksPerSec: pair(1), range: pair(30), moveSpeed: pair(100),
-  effectRes: pair(0), frenzy: pair(0), dodge: pair(0), stunChance: 0, stunTime: 0, aoeRadius: 0, aoeDmg: 0, ultAtk: 0, knightShield: 0, bonusGold: 0,
+  effectRes: pair(0), frenzy: pair(0), lifesteal: 0, dodge: pair(0), stunChance: 0, stunTime: 0, aoeRadius: 0, aoeDmg: 0, ultAtk: 0, knightShield: 0, bonusGold: 0,
   freezeChance: 0, freezeTime: 0, freezeBlast: 0, burnChance: 0, burnTime: 0, burnDmg: 0, poisonChance: 0, poisonTime: 0, poisonDmg: 0, hasAoe: false, isKnight: false,
 });
 const cp = (over: Partial<HeroStats>) => combatPower({ ...base(), ...over }).toNumber();

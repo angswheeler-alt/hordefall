@@ -1,8 +1,7 @@
 /**
  * Weapons (design doc 5.5, built 2026-10-31): every hero carries a weapon from level 1 to WEAPON_MAX_LEVEL,
- * upgraded with Scouting materials (src/scouting.ts). Glyphs (runes) are not in the game yet, so for now each
- * weapon level gives the hero WEAPON_STAT_STEP more ATK and HP, compounding. The Glyph slot and max Glyph star
- * columns of the doc's table are kept here so Glyphs can hook in later.
+ * upgraded with Scouting materials (src/scouting.ts). Each weapon level gives the hero WEAPON_STAT_STEP more ATK
+ * and HP, compounding, and opens Glyph slots (WEAPON_GLYPHS) for Glyphs up to a star (src/glyphs.ts).
  */
 
 export type ForgeMat = 'ore' | 'crystal' | 'coreC' | 'coreR' | 'coreE';
@@ -32,7 +31,7 @@ export const WEAPON_COSTS: Record<number, ForgeCost> = {
   9: { ore: 5000, crystal: 5000, coreC: 256, coreR: 32, coreE: 8 },
 };
 
-/** For when Glyphs arrive: Glyph slots and the highest Glyph star a weapon level holds. */
+/** Glyph slots and the highest Glyph star each weapon level holds (src/glyphs.ts). */
 export const WEAPON_GLYPHS: Record<number, { slots: number; maxStar: number }> = {
   1: { slots: 1, maxStar: 2 }, 2: { slots: 2, maxStar: 2 }, 3: { slots: 3, maxStar: 3 },
   4: { slots: 4, maxStar: 3 }, 5: { slots: 5, maxStar: 4 }, 6: { slots: 6, maxStar: 4 },
