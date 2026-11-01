@@ -4,6 +4,8 @@
  * and HP, compounding, and opens Glyph slots (WEAPON_GLYPHS) for Glyphs up to a star (src/glyphs.ts).
  */
 
+import type { HeroType } from './data';
+
 export type ForgeMat = 'ore' | 'crystal' | 'coreC' | 'coreR' | 'coreE';
 export const FORGE_MATS: ForgeMat[] = ['ore', 'crystal', 'coreC', 'coreR', 'coreE'];
 export const FORGE_MAT_NAMES: Record<ForgeMat, string> = {
@@ -48,12 +50,39 @@ export function weaponMult(level: number): number {
   return Math.pow(WEAPON_STAT_STEP, clampWeaponLevel(level) - 1);
 }
 
-/** The weapon's look: 1 bronze (Lv 1-3), 2 silver (Lv 4-6), 3 gold (Lv 7-9). */
-export function weaponLook(level: number): 1 | 2 | 3 {
+/**
+ * Every hero has its own weapon, and its look changes every three levels (Samuel 2026-11-01):
+ * 1 Forged (Lv 1-3), 2 Runed (Lv 4-6), 3 Mythic (Lv 7-9).
+ */
+export type WeaponLook = 1 | 2 | 3;
+export const WEAPON_LOOKS: WeaponLook[] = [1, 2, 3];
+export function weaponLook(level: number): WeaponLook {
   const l = clampWeaponLevel(level);
   return l >= 7 ? 3 : l >= 4 ? 2 : 1;
 }
-export const WEAPON_LOOK_NAMES = { 1: 'Bronze', 2: 'Silver', 3: 'Gold' } as const;
+export const WEAPON_LOOK_NAMES: Record<WeaponLook, string> = { 1: 'Forged', 2: 'Runed', 3: 'Mythic' };
+/** The first weapon level of each look. */
+export const WEAPON_LOOK_LEVEL: Record<WeaponLook, number> = { 1: 1, 2: 4, 3: 7 };
+/** Colour of each look, for the battle slash. */
+export const WEAPON_LOOK_COLORS: Record<WeaponLook, number> = { 1: 0xffffff, 2: 0x8fdcff, 3: 0xffd447 };
+
+/** The kind of weapon each Type carries, for names and the placeholder pictures until a hero's own art lands (src/weaponArt.ts). */
+export const WEAPON_KIND: Record<HeroType, string> = {
+  Ranger: 'Longbow',
+  Gunner: 'Hand Cannon',
+  Magician: 'Staff',
+  Knight: 'Sword',
+  Barbarian: 'Great Axe',
+  Rogue: 'Twin Daggers',
+  Lancer: 'Spear',
+  Samurai: 'Katana',
+  Brawler: 'Gauntlets',
+  Support: 'Charm Rod',
+};
+/** "Gold Katana": the look's name and the weapon kind of a Type. */
+export function weaponName(type: string, level: number): string {
+  return `${WEAPON_LOOK_NAMES[weaponLook(level)]} ${WEAPON_KIND[type as HeroType] ?? 'Weapon'}`;
+}
 
 /** Cost to go from `level` to `level + 1`, or null at max. */
 export function weaponUpgradeCost(level: number): ForgeCost | null {
