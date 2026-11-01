@@ -24,7 +24,7 @@ import type { BattleScene, GuildBossFightSetup } from './BattleScene';
 /** The note under the battle screen's title during a Trial (the HTML default). */
 const TRIAL_HUD_NOTE = 'Your team fights at its Ember levels. Fallen heroes stay down until the Trial ends. Beat the boss before time runs out.';
 import type { ColosseumLink } from './colosseumLink';
-import { OBSERVATORY, OBSERVATORY_RESPEC_GEMS, sigilCost, type ObsBranch } from './observatory';
+import { OBSERVATORY, OBSERVATORY_RESPEC_GEMS, SIGIL_COST_STEP, SIGIL_LEVEL_STEP, sigilsEarned, sigilCost, type ObsBranch } from './observatory';
 import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_QUICK_CP, RANK_DAILY, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies } from './colosseum';
 
 import { BUY_AMOUNT_LIMIT, amountSliderHtml, bindAmountSlider, buyAmountLabel, buyAmountToSlider, sliderToBuyAmount, type BuyAmount } from './amountSlider';
@@ -2504,7 +2504,9 @@ export class UI {
     const s = this.state;
     const sigils = s.sigils();
     $('obs-sigils').textContent = sigils.toLocaleString();
-    $('obs-earn').textContent = `You earn 1 Sigil from every Rekindle and every player level (${s.sigilsEarned().toLocaleString()} so far). Each rank costs 1 more Sigil than the last.`;
+    $('obs-earn').textContent =
+      (s.obsRefunded ? 'Observatory prices went up, so every Sigil you had placed came back to you. ' : '') +
+      `You earn 1 Sigil from every Rekindle and 1 for every ${SIGIL_LEVEL_STEP} player levels (${s.sigilsEarned().toLocaleString()} so far). Each rank costs ${SIGIL_COST_STEP} more Sigils than the last.`;
     const star = '<svg class="obs-star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.6 6.6L21 9.3l-5 4.4 1.5 6.8L12 17l-5.5 3.5L8 13.7 3 9.3l6.4-.7z"/></svg>';
     setHtml(
       $('obs-list'),
@@ -2537,7 +2539,7 @@ export class UI {
     const lens = s.obsBonus('embers');
     $('rk-obs-row').hidden = $('rk-obsbonus').hidden = lens <= 0;
     $('rk-obsbonus').textContent = `x${(1 + lens).toFixed(2)}`;
-    $('rk-sigils').textContent = `+${1 + s.keeperLevelAfter(base) - s.keeperLevel()}`;
+    $('rk-sigils').textContent = `+${sigilsEarned(s.rekindles + 1, s.keeperLevelAfter(base)) - s.sigilsEarned()}`;
 
     const plus = (r: number) => `+${Math.round(r * 100)}%`;
     $('rk-mr-rev').textContent = `${plus(STALL_REKINDLE_REVENUE * s.rekindles)} → ${plus(STALL_REKINDLE_REVENUE * (s.rekindles + 1))}`;
@@ -2558,7 +2560,7 @@ export class UI {
     const to = keeperThreshold(level);
     const pct = (v: number) => `${Math.max(0, Math.min(100, ((v - from) / (to - from)) * 100))}%`;
     $('rk-level').textContent = String(level);
-    $('rk-nextlvl').textContent = `Lv ${level + 1}: Embers x${(s.keeperBonus() + KEEPER_BONUS_PER_LEVEL).toFixed(2)} + 🎁 ${LEVEL_GIFT_STONES} Enhance Stones + 1 Sigil`;
+    $('rk-nextlvl').textContent = `Lv ${level + 1}: Embers x${(s.keeperBonus() + KEEPER_BONUS_PER_LEVEL).toFixed(2)} + 🎁 ${LEVEL_GIFT_STONES} Enhance Stones`;
     $('rk-bar-fill').style.width = pct(s.lifetimeEmbers);
     $('rk-bar-gain').style.width = pct(s.lifetimeEmbers + base);
     $('rk-bar-now').textContent = `Lifetime Embers: ${fmt(s.lifetimeEmbers)}`;
@@ -3028,9 +3030,9 @@ export class UI {
       ? `<br>The Rekindle Wheel spun ${r.wheel.length} time${r.wheel.length === 1 ? '' : 's'}: ${[...counts].map(([line, n]) => (n > 1 ? `${line} x${n}` : line)).join(', ')}.`
       : '';
     const gift = r.levelsGained > 0 ? `<br>Player level up! Your gift: <b>${r.stones} Enhance Stones</b>.` : '';
-    const sigils = 1 + r.levelsGained;
+    const sigils = r.sigils;
     const obs = this.state.rekindles === 1
-      ? `<br><b>The Observatory is open!</b> You got ${sigils} Sigils to place in it. Find it on the home screen.`
+      ? `<br><b>The Observatory is open!</b> You got ${sigils} Sigil${sigils === 1 ? '' : 's'} for it, and every Rekindle brings more. Find it on the home screen.`
       : `<br>+${sigils} Sigil${sigils === 1 ? '' : 's'} for the Observatory.`;
     this.showModal(
       'Rekindled!',

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { GameState } from '../src/state';
 import { TICKET_CAP } from '../src/data';
-import { OBSERVATORY, OBSERVATORY_RESPEC_GEMS, sigilCost, sigilsEarned, sigilsSpent } from '../src/observatory';
+import { OBSERVATORY, OBSERVATORY_RESPEC_GEMS, SIGIL_COST_STEP, sigilCost, sigilsEarned, sigilsSpent } from '../src/observatory';
 import { keeperThreshold } from '../src/formulas';
 
 function fresh() {
@@ -10,10 +10,10 @@ function fresh() {
   return new GameState();
 }
 
-/** A save past its first Rekindle with `n` Sigils earned (all from Rekindles, player level 1). */
+/** A save past its first Rekindle with `n` old-price units of Sigils (3 Sigils each, all from Rekindles, player level 1). */
 function withSigils(n: number) {
   const s = fresh();
-  s.rekindles = n;
+  s.rekindles = n * SIGIL_COST_STEP;
   s.lifetimeEmbers = 0;
   return s;
 }
@@ -27,19 +27,22 @@ describe('Observatory', () => {
     expect(s.observatoryOpen()).toBe(true);
   });
 
-  it('earns one Sigil per Rekindle and per player level past 1', () => {
+  it('earns one Sigil per Rekindle and one per 3 player levels past 1', () => {
     expect(sigilsEarned(0, 1)).toBe(0);
-    expect(sigilsEarned(3, 5)).toBe(7);
+    expect(sigilsEarned(3, 5)).toBe(4);
+    expect(sigilsEarned(0, 7)).toBe(2);
     const s = fresh();
     s.rekindles = 2;
     s.lifetimeEmbers = keeperThreshold(3); // player level 4
     expect(s.keeperLevel()).toBe(4);
-    expect(s.sigils()).toBe(5);
+    expect(s.sigils()).toBe(3);
   });
 
-  it('ranks cost one more Sigil each and come out of the pool', () => {
-    expect([0, 1, 2].map(sigilCost)).toEqual([1, 2, 3]);
-    expect(sigilsSpent(3)).toBe(6);
+  it('ranks cost three more Sigils each and come out of the pool', () => {
+    expect([0, 1, 2].map(sigilCost)).toEqual([3, 6, 9]);
+    expect(sigilsSpent(3)).toBe(18);
+    // A full chart costs 1,290 Sigils.
+    expect(OBSERVATORY.reduce((t, d) => t + sigilsSpent(d.max), 0)).toBe(1290);
     const s = withSigils(3);
     expect(s.buyObservatory('embers')).toBe(true);
     expect(s.buyObservatory('embers')).toBe(true);
@@ -141,7 +144,7 @@ describe('Observatory', () => {
     s.gems = OBSERVATORY_RESPEC_GEMS;
     expect(s.respecObservatory()).toBe(true);
     expect(s.gems).toBe(0);
-    expect(s.sigils()).toBe(3);
+    expect(s.sigils()).toBe(9);
     expect(s.obsOff).toEqual([]);
     expect(s.respecObservatory()).toBe(false); // nothing placed
   });
@@ -163,10 +166,41 @@ describe('Observatory', () => {
     const raw = JSON.parse(localStorage.getItem('hordefall-save-v1')!);
     raw.observatory = { tickets: 999, nope: 4, speed: 'x' };
     raw.obsOff = ['nope', 'tickets'];
+    raw.rekindles = 1000; // enough Sigils for the capped ranks
     localStorage.setItem('hordefall-save-v1', JSON.stringify(raw));
     const u = new GameState();
     u.load();
     expect(u.observatory).toEqual({ tickets: OBSERVATORY.find((d) => d.id === 'tickets')!.max });
     expect(u.obsOff).toEqual(['tickets']);
+  });
+
+  it('gives every placed Sigil back for free when a save has more placed than earned', () => {
+    const s = withSigils(10);
+    s.buyObservatory('tickets');
+    s.buyObservatory('tickets');
+    s.toggleObservatory('tickets');
+    s.save();
+    const raw = JSON.parse(localStorage.getItem('hordefall-save-v1')!);
+    raw.rekindles = 2; // only 2 Sigils earned, 9 placed
+    localStorage.setItem('hordefall-save-v1', JSON.stringify(raw));
+    const t = new GameState();
+    t.load();
+    expect(t.observatory).toEqual({});
+    expect(t.obsOff).toEqual([]);
+    expect(t.obsRefunded).toBe(true);
+    expect(t.sigils()).toBe(2);
+    t.rekindles = 3;
+    t.buyObservatory('speed');
+    expect(t.obsRefunded).toBe(false);
+  });
+
+  it('a Rekindle reports the Sigils it earned', () => {
+    const s = fresh();
+    s.rekindles = 5;
+    s.lifetimeEmbers = 0;
+    s.reachStage(200);
+    const r = s.rekindle()!;
+    expect(r.sigils).toBe(s.sigilsEarned() - (5 + Math.floor((s.keeperLevel() - r.levelsGained - 1) / 3)));
+    expect(r.sigils).toBeGreaterThanOrEqual(1);
   });
 });

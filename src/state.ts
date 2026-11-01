@@ -70,6 +70,8 @@ export interface RekindleResult {
   stones: number;
   /** The stage the new run starts at (later than 1 with a head start). */
   start: number;
+  /** Observatory Sigils this Rekindle earned (1, plus any from new player levels). */
+  sigils: number;
 }
 
 export type SaveData = Record<string, any>;
@@ -411,6 +413,8 @@ export class GameState {
   observatory: Partial<Record<ObsBranch, number>> = {};
   /** Constellations the player switched off (their Sigils stay in them). */
   obsOff: ObsBranch[] = [];
+  /** Set when a price change gave every placed Sigil back; the Observatory says so until the next rank is bought. */
+  obsRefunded = false;
   /** Heroes picked for the Guild Boss (ids); empty means the lineup. */
   guildBossPicks: string[] = [];
   /** Legendary medals, made by maxed heroes from extra medals; any Legendary hero spends them to unlock and gain stars. */
@@ -2074,8 +2078,21 @@ export class GameState {
 
   /** Sigils not yet placed in a constellation. */
   sigils() {
-    const spent = OBSERVATORY.reduce((t, d) => t + sigilsSpent(this.observatory[d.id] ?? 0), 0);
-    return Math.max(0, this.sigilsEarned() - spent);
+    return Math.max(0, this.sigilsEarned() - this.sigilsPlaced());
+  }
+
+  sigilsPlaced() {
+    return OBSERVATORY.reduce((t, d) => t + sigilsSpent(this.observatory[d.id] ?? 0), 0);
+  }
+
+  /** After a price change, a save with more Sigils placed than earned gets them all back, for free. */
+  fitObservatory(): boolean {
+    if (this.sigilsPlaced() <= this.sigilsEarned()) return false;
+    this.observatory = {};
+    this.obsOff = [];
+    this.obsRefunded = true;
+    this.tickets = Math.min(this.ticketCap(), this.tickets);
+    return true;
   }
 
   obsRank(id: ObsBranch) {
@@ -2093,6 +2110,7 @@ export class GameState {
     const rank = this.obsRank(id);
     if (!this.observatoryOpen() || !def || rank >= def.max || this.sigils() < sigilCost(rank)) return false;
     this.observatory[id] = rank + 1;
+    this.obsRefunded = false;
     this.save();
     return true;
   }
@@ -2167,6 +2185,7 @@ export class GameState {
     if (mult !== 1 && (!boost || this.gems < boost.gems)) return null;
     if (boost) this.gems -= boost.gems;
     const levelBefore = this.keeperLevel();
+    const sigilsBefore = this.sigilsEarned();
     const wheel = this.spinWheel(base);
     const gained = base * mult + wheel.embers;
     this.embers += gained;
@@ -2188,7 +2207,7 @@ export class GameState {
     this.secondsPerStage = 20;
     this.goldPerSec = 0;
     this.save();
-    return { embers: gained, wheel: wheel.lines, levelsGained, stones, start };
+    return { embers: gained, wheel: wheel.lines, levelsGained, stones, start, sigils: this.sigilsEarned() - sigilsBefore };
   }
 
   /** Buy `count` Ember levels (or as many as the Embers pay for); all or nothing for x1 / x10. */
@@ -3684,6 +3703,7 @@ export class GameState {
       guildResearch: this.guildResearch,
       observatory: this.observatory,
       obsOff: this.obsOff,
+      obsRefunded: this.obsRefunded,
       guildBossPicks: this.guildBossPicks,
       achieved: this.achieved,
       bootcamp: this.bootcamp,
@@ -3802,6 +3822,7 @@ export class GameState {
       this.rekindles = d.rekindles ?? 0;
       this.observatory = cleanObservatory(d.observatory);
       this.obsOff = cleanObsOff(d.obsOff);
+      this.obsRefunded = d.obsRefunded === true;
       this.lifetimeEmbers = d.lifetimeEmbers ?? this.embers;
       this.benched = { ...(d.benched ?? {}) };
       this.stats = { ...this.stats, ...(d.stats ?? {}) };
@@ -3939,6 +3960,7 @@ export class GameState {
       this.goldPerSec = d.goldPerSec ?? 0;
       this.secondsPerStage = d.secondsPerStage ?? 20;
       this.lastSeen = d.lastSeen ?? Date.now();
+      this.fitObservatory();
       this.sanitize();
       // Keep whatever this version doesn't know (rev belongs to the cloud copy, not the device save).
       this.unknownFields = {};
