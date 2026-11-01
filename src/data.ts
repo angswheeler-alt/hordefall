@@ -1191,6 +1191,8 @@ export const GUILD_SHOP: Array<{ id: GuildShopId; name: string; text: string; co
   { id: 'horn', name: 'War Horn', text: '+25% hero damage for 30 minutes.', cost: 50 },
 ];
 export const GUILD_WARSTEEL_PACKS_PER_DAY = 3;
+/** Hero Chests the Guild Shop sells each week (Samuel, 2026-11-01 balance review: Guild Coins bought unlimited chests, the biggest crest leak). */
+export const GUILD_CHESTS_PER_WEEK = 10;
 export const GUILD_BOOST_MINUTES = 30;
 export const GUILD_BOOST_MAX_MINUTES = 120;
 export const GUILD_BOOSTS = { banner: 0.5, horn: 0.25 } as const;
