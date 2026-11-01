@@ -1306,6 +1306,8 @@ i.ticket.rush-ticket { background: linear-gradient(180deg, #e7a6ff, #8a3ab8); bo
 .cal-day .cal-rush { font-size: 8px; font-weight: 800; color: #e7a6ff; }
 .sc-deploy { align-self: stretch; padding: 9px; border-radius: 8px; font-weight: 900; }
 .sc-deploy:disabled { opacity: .5; }
+.sc-actions { display: flex; gap: 6px; align-self: stretch; }
+.sc-actions .sc-deploy { flex: 1; }
 .sc-needs { display: flex; flex-wrap: wrap; gap: 4px; }
 .sc-need { font-size: 11px; font-weight: 800; padding: 1px 6px; border-radius: 4px; background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.18); }
 .sc-problems { margin: 4px 0 0; padding-left: 18px; color: #ff9a8a; font-size: 12px; font-weight: 700; }

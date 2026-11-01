@@ -2982,6 +2982,26 @@ export class GameState {
     return reward;
   }
 
+  /**
+   * Collect all: claim every finished mission at once. Returns the summed reward and how many missions paid;
+   * lastScoutGlyphs holds every Glyph opened across them.
+   */
+  claimAllScouts(now = Date.now()): { count: number; reward: ScoutReward } {
+    const reward: ScoutReward = {};
+    const glyphs: Array<{ glyph?: Glyph; dust?: number }> = [];
+    let count = 0;
+    if (!this.scoutOpen()) return { count, reward };
+    for (const slot of this.scout.slots.filter((x) => this.scoutDone(x.slot, now)).map((x) => x.slot)) {
+      const r = this.claimScout(slot, now);
+      if (!r) continue;
+      count++;
+      glyphs.push(...this.lastScoutGlyphs);
+      for (const [k, v] of Object.entries(r) as Array<[keyof ScoutReward, number]>) reward[k] = (reward[k] ?? 0) + v;
+    }
+    this.lastScoutGlyphs = glyphs;
+    return { count, reward };
+  }
+
   /** Wild Crests one crest for this hero costs, or null for heroes they can't go to. */
   wildCrestCost(heroId: string): number | null {
     const h = HEROES.find((x) => x.id === heroId);
