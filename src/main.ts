@@ -8,6 +8,7 @@ import { Music } from './music';
 import { Account } from './account';
 import { Guild } from './guild';
 import { Social } from './social';
+import { WorldChat } from './worldChat';
 import { ColosseumLink } from './colosseumLink';
 import { Tutorial } from './tutorial';
 import { initInstall } from './install';
@@ -105,6 +106,7 @@ const account = new Account(state, (data) => {
 account.listeners.push(() => ui.setAdmin(account.isAdmin));
 new Guild(state, account, ui);
 new Social(state, account);
+new WorldChat(account);
 const pvpLink = new ColosseumLink(state, account);
 ui.setPvpServer(pvpLink);
 
