@@ -641,9 +641,11 @@ i.ess-dark { background-image: url('./assets/ui/ess-dark.png') !important; }
 
 /* ---------- guild ---------- */
 .g-form { display: flex; flex-direction: column; gap: 6px; }
-.g-form input, .g-chat-form input { font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid #000; background: #0c0f18; color: #e4eaf8; min-width: 0; }
+.g-form input, .g-form select, .g-chat-form input { font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid #000; background: #0c0f18; color: #e4eaf8; min-width: 0; }
 .g-form label { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #b0c1e8; }
 .g-form label input { width: 90px; }
+.g-form label select { flex: 0 1 220px; }
+.g-form input[name="cp"] { width: 120px; }
 .g-head h3 small { color: var(--orange); }
 .g-head p { margin: 0 0 8px; }
 .g-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }

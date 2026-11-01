@@ -60,6 +60,28 @@ create table if not exists public.guild_donations (
 );
 create index if not exists guild_donations_request on public.guild_donations (request_id);
 
+-- How players get in: 'open' guilds take anyone who meets the minimums, 'apply' guilds
+-- take applications that the leader or an officer accepts. Combat Power can outgrow any
+-- number type, so the minimum is kept as text (for showing) and its log10 (for checks).
+alter table public.guilds add column if not exists join_mode text not null default 'open';
+alter table public.guilds add column if not exists min_cp text not null default '0';
+alter table public.guilds add column if not exists min_cp_log double precision not null default 0;
+do $$ begin
+  alter table public.guilds add constraint guilds_join_mode_check check (join_mode in ('open', 'apply'));
+exception when duplicate_object then null; end $$;
+
+create table if not exists public.guild_applications (
+  guild_id uuid not null references public.guilds (id) on delete cascade,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  username text not null,
+  best_stage integer not null default 1,
+  cp text not null default '0',
+  cp_log double precision not null default 0,
+  created_at timestamptz not null default now(),
+  primary key (guild_id, user_id)
+);
+create index if not exists guild_applications_user on public.guild_applications (user_id);
+
 -- ---------- reading ----------
 
 create or replace function public.my_guild() returns uuid
@@ -72,6 +94,7 @@ alter table public.guild_members enable row level security;
 alter table public.guild_messages enable row level security;
 alter table public.guild_requests enable row level security;
 alter table public.guild_donations enable row level security;
+alter table public.guild_applications enable row level security;
 
 drop policy if exists "Signed-in players browse guilds" on public.guilds;
 create policy "Signed-in players browse guilds" on public.guilds for select to authenticated using (true);
@@ -100,7 +123,24 @@ language sql stable security definer set search_path = public as $$
   select role from guild_members where user_id = auth.uid()
 $$;
 
-create or replace function public.create_guild(p_name text, p_description text, p_min_stage integer, p_best_stage integer) returns uuid
+-- Players see their own applications; the leader and officers see their guild's.
+drop policy if exists "Applicants and officers read applications" on public.guild_applications;
+create policy "Applicants and officers read applications" on public.guild_applications for select to authenticated
+  using (user_id = auth.uid() or (guild_id = public.my_guild() and public.guild_role() in ('leader', 'officer')));
+
+-- Older versions of these functions had fewer settings; the game now sends join rules too.
+drop function if exists public.create_guild(text, text, integer, integer);
+drop function if exists public.join_guild(uuid, integer);
+drop function if exists public.update_guild(text, integer);
+
+-- A Combat Power minimum from the game: text for showing, log10 for checks.
+create or replace function public.guild_cp_ok(p_cp text, p_cp_log double precision) returns boolean
+language sql immutable as $$
+  select coalesce(p_cp, '') ~ '^[0-9.e+]{1,40}$' and p_cp_log is not null and p_cp_log >= 0 and p_cp_log <= 1000000
+$$;
+
+create or replace function public.create_guild(p_name text, p_description text, p_min_stage integer, p_best_stage integer,
+  p_join_mode text, p_min_cp text, p_min_cp_log double precision) returns uuid
 language plpgsql security definer set search_path = public as $$
 declare g uuid;
 begin
@@ -109,25 +149,82 @@ begin
   p_name := btrim(p_name);
   if char_length(p_name) not between 3 and 24 then raise exception 'Guild names are 3-24 characters.'; end if;
   if exists (select 1 from guilds where lower(name) = lower(p_name)) then raise exception 'That guild name is taken.'; end if;
-  insert into guilds (name, description, min_stage) values (p_name, left(btrim(coalesce(p_description, '')), 140), greatest(0, coalesce(p_min_stage, 0)))
+  if p_join_mode not in ('open', 'apply') then raise exception 'Pick Open or Apply to join.'; end if;
+  if not public.guild_cp_ok(p_min_cp, p_min_cp_log) then raise exception 'That Combat Power minimum doesn''t look right.'; end if;
+  insert into guilds (name, description, min_stage, join_mode, min_cp, min_cp_log)
+    values (p_name, left(btrim(coalesce(p_description, '')), 140), greatest(0, coalesce(p_min_stage, 0)), p_join_mode, p_min_cp, p_min_cp_log)
     returning id into g;
   insert into guild_members (user_id, guild_id, username, role, best_stage)
     values (auth.uid(), g, public.guild_username(), 'leader', greatest(1, coalesce(p_best_stage, 1)));
+  delete from guild_applications where user_id = auth.uid();
   return g;
 end $$;
 
-create or replace function public.join_guild(p_guild uuid, p_best_stage integer) returns void
+-- Open guilds: join right away when you meet the minimums.
+create or replace function public.join_guild(p_guild uuid, p_best_stage integer, p_cp_log double precision) returns void
 language plpgsql security definer set search_path = public as $$
-declare need integer;
+declare g guilds;
 begin
   if auth.uid() is null then raise exception 'Sign in first.'; end if;
   if public.my_guild() is not null then raise exception 'Leave your guild first.'; end if;
-  select min_stage into need from guilds where id = p_guild for update;
+  select * into g from guilds where id = p_guild for update;
   if not found then raise exception 'That guild no longer exists.'; end if;
-  if coalesce(p_best_stage, 1) < need then raise exception 'This guild needs stage %.', need; end if;
+  if g.join_mode <> 'open' then raise exception 'This guild takes applications. Apply to join.'; end if;
+  if coalesce(p_best_stage, 1) < g.min_stage then raise exception 'This guild needs stage %.', g.min_stage; end if;
+  if coalesce(p_cp_log, 0) + 1e-9 < g.min_cp_log then raise exception 'This guild needs more Combat Power.'; end if;
   if (select count(*) from guild_members where guild_id = p_guild) >= 30 then raise exception 'That guild is full.'; end if;
   insert into guild_members (user_id, guild_id, username, role, best_stage)
     values (auth.uid(), p_guild, public.guild_username(), 'member', greatest(1, coalesce(p_best_stage, 1)));
+  delete from guild_applications where user_id = auth.uid();
+end $$;
+
+-- Apply guilds: ask to join (up to 5 open applications at a time).
+create or replace function public.apply_guild(p_guild uuid, p_best_stage integer, p_cp text, p_cp_log double precision) returns void
+language plpgsql security definer set search_path = public as $$
+declare g guilds;
+begin
+  if auth.uid() is null then raise exception 'Sign in first.'; end if;
+  if public.my_guild() is not null then raise exception 'Leave your guild first.'; end if;
+  if not public.guild_cp_ok(p_cp, p_cp_log) then raise exception 'Bad Combat Power.'; end if;
+  select * into g from guilds where id = p_guild;
+  if not found then raise exception 'That guild no longer exists.'; end if;
+  if g.join_mode <> 'apply' then raise exception 'This guild is open. Join it right away.'; end if;
+  if coalesce(p_best_stage, 1) < g.min_stage then raise exception 'This guild needs stage %.', g.min_stage; end if;
+  if p_cp_log + 1e-9 < g.min_cp_log then raise exception 'This guild needs more Combat Power.'; end if;
+  if (select count(*) from guild_applications where user_id = auth.uid() and guild_id <> p_guild) >= 5 then
+    raise exception 'You can apply to 5 guilds at a time. Cancel one first.';
+  end if;
+  insert into guild_applications (guild_id, user_id, username, best_stage, cp, cp_log)
+    values (p_guild, auth.uid(), public.guild_username(), greatest(1, coalesce(p_best_stage, 1)), p_cp, p_cp_log)
+    on conflict (guild_id, user_id) do update set username = excluded.username, best_stage = excluded.best_stage,
+      cp = excluded.cp, cp_log = excluded.cp_log, created_at = now();
+end $$;
+
+create or replace function public.cancel_guild_application(p_guild uuid) returns void
+language sql security definer set search_path = public as $$
+  delete from guild_applications where guild_id = p_guild and user_id = auth.uid()
+$$;
+
+-- Leader and officers accept or turn down an application.
+create or replace function public.answer_guild_application(p_user uuid, p_accept boolean) returns void
+language plpgsql security definer set search_path = public as $$
+declare g uuid := public.my_guild(); app guild_applications;
+begin
+  if public.guild_role() not in ('leader', 'officer') then raise exception 'Only the leader and officers can answer applications.'; end if;
+  perform 1 from guilds where id = g for update;
+  select * into app from guild_applications where guild_id = g and user_id = p_user;
+  if app.user_id is null then raise exception 'That application is gone.'; end if;
+  if not coalesce(p_accept, false) then
+    delete from guild_applications where guild_id = g and user_id = p_user;
+    return;
+  end if;
+  if exists (select 1 from guild_members where user_id = p_user) then
+    delete from guild_applications where user_id = p_user;
+    raise exception '% already joined another guild.', app.username;
+  end if;
+  if (select count(*) from guild_members where guild_id = g) >= 30 then raise exception 'Your guild is full.'; end if;
+  insert into guild_members (user_id, guild_id, username, role, best_stage) values (p_user, g, app.username, 'member', app.best_stage);
+  delete from guild_applications where user_id = p_user;
 end $$;
 
 create or replace function public.leave_guild() returns void
@@ -171,11 +268,14 @@ begin
   delete from guild_members where user_id = p_user;
 end $$;
 
-create or replace function public.update_guild(p_description text, p_min_stage integer) returns void
+create or replace function public.update_guild(p_description text, p_min_stage integer, p_join_mode text, p_min_cp text, p_min_cp_log double precision) returns void
 language plpgsql security definer set search_path = public as $$
 begin
   if public.guild_role() not in ('leader', 'officer') then raise exception 'Only the leader and officers can edit the guild.'; end if;
-  update guilds set description = left(btrim(coalesce(p_description, '')), 140), min_stage = greatest(0, coalesce(p_min_stage, 0))
+  if p_join_mode not in ('open', 'apply') then raise exception 'Pick Open or Apply to join.'; end if;
+  if not public.guild_cp_ok(p_min_cp, p_min_cp_log) then raise exception 'That Combat Power minimum doesn''t look right.'; end if;
+  update guilds set description = left(btrim(coalesce(p_description, '')), 140), min_stage = greatest(0, coalesce(p_min_stage, 0)),
+    join_mode = p_join_mode, min_cp = p_min_cp, min_cp_log = p_min_cp_log
     where id = public.my_guild();
 end $$;
 
@@ -619,8 +719,9 @@ begin
 end $$;
 
 revoke all on function public.my_guild(), public.guild_username(), public.guild_role(),
-  public.create_guild(text, text, integer, integer), public.join_guild(uuid, integer), public.leave_guild(),
-  public.set_guild_role(uuid, text), public.kick_guild_member(uuid), public.update_guild(text, integer),
+  public.create_guild(text, text, integer, integer, text, text, double precision), public.join_guild(uuid, integer, double precision), public.leave_guild(),
+  public.apply_guild(uuid, integer, text, double precision), public.cancel_guild_application(uuid), public.answer_guild_application(uuid, boolean),
+  public.set_guild_role(uuid, text), public.kick_guild_member(uuid), public.update_guild(text, integer, text, text, double precision),
   public.touch_guild_member(integer), public.post_guild_message(text), public.request_guild_medals(text, integer),
   public.donate_guild_medals(bigint, integer), public.collect_guild_medals(),
   public.guild_boss_week(), public.hit_guild_boss(numeric), public.guild_boss_rewards(), public.claim_guild_boss_rewards(),
@@ -630,8 +731,9 @@ revoke all on function public.my_guild(), public.guild_username(), public.guild_
 -- research helper (any guild, any amount) is closed to them; only the functions above call it.
 revoke all on function public.add_guild_research(uuid, text, bigint) from authenticated;
 grant execute on function public.my_guild(), public.guild_username(), public.guild_role(),
-  public.create_guild(text, text, integer, integer), public.join_guild(uuid, integer), public.leave_guild(),
-  public.set_guild_role(uuid, text), public.kick_guild_member(uuid), public.update_guild(text, integer),
+  public.create_guild(text, text, integer, integer, text, text, double precision), public.join_guild(uuid, integer, double precision), public.leave_guild(),
+  public.apply_guild(uuid, integer, text, double precision), public.cancel_guild_application(uuid), public.answer_guild_application(uuid, boolean),
+  public.set_guild_role(uuid, text), public.kick_guild_member(uuid), public.update_guild(text, integer, text, text, double precision),
   public.touch_guild_member(integer), public.post_guild_message(text), public.request_guild_medals(text, integer),
   public.donate_guild_medals(bigint, integer), public.collect_guild_medals(),
   public.guild_boss_week(), public.hit_guild_boss(numeric), public.guild_boss_rewards(), public.claim_guild_boss_rewards(),

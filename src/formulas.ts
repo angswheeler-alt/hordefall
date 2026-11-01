@@ -180,6 +180,26 @@ export function fmt(value: Decimal | number): string {
   return `${d.m.toFixed(2)}e${d.e}`;
 }
 
+/**
+ * Reads an amount the way fmt writes it ("1.5M", "250", "3.2aa", "1e40"), for typed-in minimums.
+ * Returns null when the text isn't an amount.
+ */
+export function parseAmount(text: string): Decimal | null {
+  const t = text.trim().replace(/,/g, '');
+  if (!t) return new Decimal(0);
+  const sci = /^(\d+(?:\.\d+)?)e\+?(\d+)$/i.exec(t);
+  if (sci) return new Decimal(`${sci[1]}e${sci[2]}`);
+  const m = /^(\d+(?:\.\d+)?)\s*([a-zA-Z]{0,2})$/.exec(t);
+  if (!m) return null;
+  const word = m[2];
+  // K, M ... Dc in any case, then fmt's letter pairs after Dc (aa, ab ...).
+  let tier = SUFFIXES.indexOf(word);
+  if (tier < 0) tier = SUFFIXES.findIndex((s) => s && s.toLowerCase() === word.toLowerCase());
+  if (tier < 0 && /^[a-z]{2}$/.test(word)) tier = SUFFIXES.length + (word.charCodeAt(0) - 97) * 26 + (word.charCodeAt(1) - 97);
+  if (tier < 0) return null;
+  return new Decimal(m[1]).times(Decimal.pow(10, tier * 3));
+}
+
 export function fmtDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
