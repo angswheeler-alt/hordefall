@@ -1,4 +1,5 @@
 import { devToolsOn } from './devAccess';
+import { CLAIM_ROOT, claimOf } from './claims';
 import { TEST_MODE } from './config';
 import { testAdjust, testMaxAll, testMaxHero, testRange, testRecruit, testValue, enterTestMode, exitTestMode, type TestField } from './testMode';
 import Decimal from 'break_infinity.js';
@@ -2533,10 +2534,11 @@ export class UI {
       this.showModal('Stage Milestone', `You claimed ${what}: <b>${paid}${gold}</b>.${dropCards(got.drops)}`, 'Collect');
       this.render();
     });
-    $('rewards').addEventListener('click', (e) => {
-      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-claim]');
-      if (!btn || btn.disabled) return;
-      const [kind, id] = btn.dataset.claim!.split(':');
+    // Daily challenges live on Home, Recruit Trials and achievements in the Shop: listen on the whole panel area.
+    $(CLAIM_ROOT).addEventListener('click', (e) => {
+      const goal = claimOf(e.target);
+      if (!goal) return;
+      const { kind, id } = goal;
       const ok =
         kind === 'daily' ? this.state.claimDaily(id as (typeof DAILIES)[number]['stat']) : kind === 'ach' ? this.state.claimAchievement(id) : this.state.claimBootcamp(id);
       if (ok) {
