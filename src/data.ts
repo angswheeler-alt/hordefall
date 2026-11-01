@@ -909,14 +909,12 @@ export const TICKETS_PER_DAY = 10;
 export const BOUGHT_TICKET_CAP = 100;
 
 /**
- * Events (Samuel, 2026-10-21): every TRIAL_EVENT_EVERY weeks, Saturday and Sunday pay double Trial
- * medals. Limited Gem deals alternate weeks: the Ticket Crate in the week of a double-medal weekend
- * (tickets to save for it), the Hero Voucher in the other week (medals for a hero picked when it is
- * used, fewer for rarer heroes). Each deal can be bought once while it's up. Test prices.
+ * Events (Samuel, 2026-10-21; monthly since 2026-11-01): the first weekend of each month (its first
+ * Saturday and the Sunday after) pays double Trial medals. Limited Gem deals: the Ticket Crate in the
+ * week of the double-medal weekend (tickets to save for it), the Hero Voucher in every other week
+ * (medals for a hero picked when it is used, fewer for rarer heroes). Each deal can be bought once
+ * while it's up. Test prices.
  */
-export const TRIAL_EVENT_EVERY = 2;
-/** weekIndex() % TRIAL_EVENT_EVERY on an event week (the week of 19 Oct 2026 is one). */
-export const TRIAL_EVENT_PHASE = 1;
 export const TRIAL_EVENT_DAYS = [6, 0];
 export const TRIAL_EVENT_MEDAL_MULT = 2;
 export const TICKET_CRATE = { tickets: 30, gems: 200 } as const;

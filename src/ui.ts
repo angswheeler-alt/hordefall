@@ -2718,14 +2718,14 @@ export class UI {
     );
   }
 
-  /** Settings > Events: four weeks of open Trials, double-medal weekends and the weekly deals. */
+  /** Settings > Events: five weeks (always reaching the next monthly x2 weekend) of open Trials, double-medal weekends and the weekly deals. */
   private showCalendar() {
     const s = this.state;
     const now = Date.now();
     const monday = new Date(now);
     monday.setHours(12, 0, 0, 0);
     monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
-    const days = s.calendar(28, monday.getTime());
+    const days = s.calendar(35, monday.getTime());
     const today = new Date(now).toDateString();
     const head = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => `<span class="cal-h">${d}</span>`).join('');
     const cells = days.map((d) => {
@@ -2747,7 +2747,7 @@ export class UI {
     const legend = TRIAL_ROTATION.map((e) => `<li><i style="background:${hex(ELEMENT_COLORS[e])}"></i>${cap(e)}</li>`).join('');
     this.showModal(
       'Events',
-      `<p>${evLine}. Every other weekend, Trials pay x${TRIAL_EVENT_MEDAL_MULT} crests; Rush runs Thursday to Sunday in the weeks between.</p>
+      `<p>${evLine}. On the first weekend of every month, Trials pay x${TRIAL_EVENT_MEDAL_MULT} crests; Rush runs Thursday to Sunday in the other weeks.</p>
       <div class="cal-grid">${head}${cells}</div>
       <ul class="cal-legend">${legend}<li><span class="cal-x2">x2</span> double crests</li><li><span class="cal-rush">Rush</span> Rush event</li></ul>
       <p>Dots show which Trials are open. Each Trial opens on two weekdays, and every Trial is open on Saturday and Sunday.</p>
