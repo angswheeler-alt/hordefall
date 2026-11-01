@@ -626,6 +626,9 @@ revoke all on function public.my_guild(), public.guild_username(), public.guild_
   public.guild_boss_week(), public.hit_guild_boss(numeric), public.guild_boss_rewards(), public.claim_guild_boss_rewards(),
   public.add_guild_research(uuid, text, bigint), public.contribute_guild_research(text, integer), public.set_guild_research_focus(text),
   public.guild_quests(), public.report_guild_quests(integer, integer, integer), public.claim_guild_quest(text) from public, anon;
+-- Supabase lets signed-in players run every new function by default, so the internal
+-- research helper (any guild, any amount) is closed to them; only the functions above call it.
+revoke all on function public.add_guild_research(uuid, text, bigint) from authenticated;
 grant execute on function public.my_guild(), public.guild_username(), public.guild_role(),
   public.create_guild(text, text, integer, integer), public.join_guild(uuid, integer), public.leave_guild(),
   public.set_guild_role(uuid, text), public.kick_guild_member(uuid), public.update_guild(text, integer),
