@@ -15,12 +15,22 @@ const MILESTONE_LEVELS = 20;
 
 export const isBossStage = (stage: number) => stage % 50 === 0;
 
+/** Stages before this start softer, so a new player's first minute moves quickly. */
+export const EASY_START_STAGES = 10;
+const EASY_START_FLOOR = 0.4;
+
+/** Enemy strength share on the first stages: 40% at stage 1, rising to full at stage 10. */
+export function easyStart(stage: number): number {
+  if (stage >= EASY_START_STAGES) return 1;
+  return EASY_START_FLOOR + ((1 - EASY_START_FLOOR) * Math.max(0, stage - 1)) / (EASY_START_STAGES - 1);
+}
+
 export function enemyHp(stage: number): Decimal {
-  return Decimal.pow(ENEMY_GROWTH, stage - 1).times(ENEMY_HP_BASE);
+  return Decimal.pow(ENEMY_GROWTH, stage - 1).times(ENEMY_HP_BASE * easyStart(stage));
 }
 
 export function enemyAtk(stage: number): Decimal {
-  return Decimal.pow(ENEMY_GROWTH, stage - 1).times(2);
+  return Decimal.pow(ENEMY_GROWTH, stage - 1).times(2 * easyStart(stage));
 }
 
 export function bossHp(stage: number): Decimal {

@@ -622,6 +622,8 @@ export const OFFLINE_MOB_COOLDOWN = 1.1;
 export const OFFLINE_STAGE_TIME = 8;
 /** Seconds a fallen hero waits at the crystal before getting back up (Rattle Back shortens it). */
 export const RESPAWN_SECONDS = 6;
+/** Gold a brand-new game starts with, so the first Level Up can happen right away. */
+export const START_GOLD = 25;
 export const ULT_UNLOCK_LEVEL = 30;
 export const ULT_COOLDOWN = 30;
 export { ULT_MULTIPLIER } from './heroText';

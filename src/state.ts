@@ -5,7 +5,7 @@ import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM,
 import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicCost, guildRelicEffect, warsteelForFight, warsteelForKill, warsteelForWeek, type GuildRelicDef, type GuildRelicEffect } from './guildRelics';
 import { utcWeekStart, guildBossElement, relicCost, bossHp, bossAtk, enemyHp, enemyAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, isBossStage } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
-import { RENAMED_HEROES, PLAYABLE_HEROES, RELEASED_HEROES, ASCENDANT_CHEST } from './data';
+import { RENAMED_HEROES, PLAYABLE_HEROES, RELEASED_HEROES, ASCENDANT_CHEST, START_GOLD } from './data';
 import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills';
 import { isKnight, combatPower, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
@@ -265,7 +265,7 @@ export function medalPackCost(heroId: string): number | null {
 export interface HeroShopOffer { heroId: string; medals: number; gems: number; bought: boolean }
 
 export class GameState {
-  gold = new Decimal(0);
+  gold = new Decimal(START_GOLD);
   stage = 1;
   bestStage = 1;
   /** Highest stage reached since the last Rekindle; sets the Ember payout. */
