@@ -154,3 +154,37 @@ $('flags-load').addEventListener('click', async () => {
     .join('');
   $('flags').hidden = !flags.length;
 });
+interface ErrorRow { fingerprint: string; message: string; stack: string; place: string; user_agent: string; stage: number | null; count: number; first_seen: string; last_seen: string }
+
+/** Error reports (supabase/errors.sql): crashes the game sent from players' phones. */
+async function showErrors() {
+  note('errors-note', 'Loading…');
+  const { data, error } = await db.rpc('admin_error_reports');
+  if (error) {
+    note('errors-note', /does not exist|Could not find/i.test(error.message) ? 'Run errors.sql in Supabase first.' : error.message, 'err');
+    return;
+  }
+  const rows = (data ?? []) as ErrorRow[];
+  note('errors-note', rows.length ? `${rows.length} kind${rows.length === 1 ? '' : 's'} of error (up to 200).` : 'No errors reported.', rows.length ? 'muted' : 'good');
+  const body = $('errors').querySelector('tbody')!;
+  body.innerHTML = rows
+    .map((r, i) => `<tr class="pick" data-i="${i}"><td>${escape(r.message)}</td><td>${num(r.count)}</td><td>${when(r.last_seen)}</td><td><button type="button" data-fixed="${i}">Fixed</button></td></tr>`)
+    .join('');
+  $('errors').hidden = !rows.length;
+  $('error-detail').hidden = true;
+  body.querySelectorAll<HTMLTableRowElement>('tr').forEach((row) =>
+    row.addEventListener('click', async (e) => {
+      const r = rows[Number(row.dataset.i)];
+      if ((e.target as HTMLElement).closest('[data-fixed]')) {
+        const { error: err } = await db.rpc('admin_clear_error', { p_fingerprint: r.fingerprint });
+        if (err) return note('errors-note', err.message, 'err');
+        return showErrors();
+      }
+      body.querySelectorAll('tr').forEach((x) => x.classList.toggle('sel', x === row));
+      const detail = $('error-detail');
+      detail.textContent = [r.message, '', `Times: ${r.count}   First: ${when(r.first_seen)}   Last: ${when(r.last_seen)}`, `Best stage: ${num(r.stage)}`, `Where: ${r.place}`, `Phone/browser: ${r.user_agent}`, '', r.stack || '(no stack)'].join('\n');
+      detail.hidden = false;
+    }),
+  );
+}
+$('errors-load').addEventListener('click', () => void showErrors());
