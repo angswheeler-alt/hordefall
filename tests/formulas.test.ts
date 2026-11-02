@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import Decimal from 'break_infinity.js';
-import { defended, bulkCost, goldPerKill, enemyHp, fmt, upgradeCost, stallBulkCost, emberYield, emberCost, keeperLevel, keeperThreshold, relicCost, guildBossHp, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, guildBossElement, researchPointsFor, researchRank } from '../src/formulas';
+import { defended, bulkCost, goldPerKill, enemyHp, easyStart, EASY_START_STAGES, fmt, upgradeCost, stallBulkCost, emberYield, emberCost, keeperLevel, keeperThreshold, relicCost, guildBossHp, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, guildBossElement, researchPointsFor, researchRank } from '../src/formulas';
 import { HEROES, STALLS, elementBoss, bossElement, bossLabel, stageBoss, bossWeakness, bossHasElement, bossImmuneTo, STRONG_VS } from '../src/data';
 
 const hero = HEROES.find((h) => h.unlockCost !== 0)!;
@@ -199,5 +199,21 @@ describe('element-locked bosses (every 100th stage from 600)', () => {
     }
     expect(bossImmuneTo(600, 'water')).toBe(false);
     expect(bossImmuneTo(600, 'fire')).toBe(true);
+  });
+});
+
+describe('easy start', () => {
+  it('the first stages are softer and reach full strength at stage 10', () => {
+    expect(easyStart(1)).toBeCloseTo(0.4);
+    expect(easyStart(5)).toBeGreaterThan(0.4);
+    expect(easyStart(5)).toBeLessThan(1);
+    expect(easyStart(EASY_START_STAGES)).toBe(1);
+    expect(easyStart(500)).toBe(1);
+    // Stage 10 and later are untouched: 12 HP times 1.07 per stage.
+    expect(enemyHp(60).toNumber()).toBeCloseTo(12 * Math.pow(1.07, 59), 3);
+  });
+
+  it('enemies still get stronger every stage through the easy start', () => {
+    for (let s = 2; s <= 20; s++) expect(enemyHp(s).gt(enemyHp(s - 1))).toBe(true);
   });
 });
