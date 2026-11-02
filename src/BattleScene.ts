@@ -76,7 +76,7 @@ import type { EffectKind } from './data';
 import { comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets, drenchVuln, heatStep, quarryMult, quarryCarry } from './kits';
 import { STAT_BASE, FREEZE_BLAST_RADIUS, BOSS_STUN_CHANCE, BOSS_STUN_SECONDS, type HeroStats } from './stats';
 import { heroProfile } from './profiles';
-import { canReach, pickVictim } from './reach';
+import { canReach, enemyGoal, flyerVictim, pickVictim } from './reach';
 
 /** Visible area. The lane itself is WORLD_WIDTH long and the camera follows the heroes. */
 export const WIDTH = 480;
@@ -1736,10 +1736,14 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     // Melee enemies can't reach flying heroes (src/reach.ts); with only flyers left they wait under one.
-    const pick = pickVictim(e, this.heroes.map((u) => ({ x: u.x, alive: u.alive, flying: u.flying && !this.pvp?.anyReach, u })));
-    const target = pick.target?.u;
+    const placed = this.heroes.map((u) => ({ x: u.x, alive: u.alive, flying: u.flying && !this.pvp?.anyReach, u }));
+    const pick = pickVictim(e, placed);
+    // Flyers never turn back toward their own crystal: they hit whoever is in reach, even a hero already past
+    // them, from where they hover, and otherwise fly on toward the heroes' crystal (src/reach.ts).
+    const target = e.flying ? flyerVictim(e, placed)?.u : pick.target?.u;
     const dist = target ? Math.abs(e.x - target.x) : Infinity;
     if (target && dist <= e.range) {
+      if (e.flying) this.faceEnemy(e, target.x > e.x ? 1 : -1);
       if (e.cooldownLeft <= 0) {
         e.cooldownLeft = e.cooldown;
         this.lunge(e, target.x > e.x ? 1 : -1);
@@ -1771,7 +1775,8 @@ export class BattleScene extends Phaser.Scene {
     const x0 = e.x;
     const step = e.speed * slow * dt;
     // Out in the Colosseum a foe with nobody to hit heads for the crystal; on the lane it waits under a flyer.
-    const goal = target && target.x > e.x ? target.x - e.range * 0.8 : !this.pvp && pick.holdX !== undefined ? pick.holdX : -Infinity;
+    if (e.flying) this.faceEnemy(e, -1);
+    const goal = enemyGoal(e, target, pick.holdX, !!this.pvp);
     if (goal > e.x) e.x = Math.min(e.x + step, goal);
     else e.x = Math.max(e.x - step, goal, PLAYER_CRYSTAL_X + 30);
     e.view.x = e.x;
@@ -1779,6 +1784,13 @@ export class BattleScene extends Phaser.Scene {
     if (e.mob && e.mob.state !== 'attack') this.mobAnim(e, walking ? 'walk' : 'idle');
     if (e.anim && e.anim.state !== 'attack') this.setAnim(e, walking ? 'run' : 'idle');
     this.mobBob(e, walking);
+  }
+
+  /** Turns an enemy to face right (1) or its usual left (-1), keeping its feet point where it was. */
+  private faceEnemy(e: Unit, dir: 1 | -1) {
+    const flip = dir < 0;
+    if (e.body.flipX === flip) return;
+    e.body.setFlipX(flip).setOrigin(1 - e.body.originX, e.body.originY);
   }
 
   /** A walking mob rises a little on each step of its walk cycle; flyers hover instead. */
