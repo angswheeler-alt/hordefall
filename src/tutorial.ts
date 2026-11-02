@@ -38,6 +38,8 @@ export class Tutorial {
       true,
     );
     window.addEventListener('resize', () => this.place());
+    // The home panel scrolls; keep the spotlight on its target while it moves.
+    document.addEventListener('scroll', () => this.place(), { capture: true, passive: true });
     setInterval(() => this.tick(), 250);
     this.tick();
   }

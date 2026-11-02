@@ -979,7 +979,7 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 /* First-time guide (src/tutorial.ts): a spotlight and a bubble that never block the game. */
 #coach { position: fixed; inset: 0; z-index: 12; pointer-events: none; }
 #coach[hidden], #coach .coach-hole[hidden] { display: none; }
-.coach-hole { position: fixed; border-radius: 12px; border: 3px solid var(--gold); box-shadow: 0 0 14px var(--gold); animation: coach-pulse 1.2s ease-in-out infinite; transition: left .2s, top .2s, width .2s, height .2s; }
+.coach-hole { position: fixed; border-radius: 12px; border: 3px solid var(--gold); box-shadow: 0 0 14px var(--gold); animation: coach-pulse 1.2s ease-in-out infinite; }
 #coach.intro .coach-hole { box-shadow: 0 0 0 9999px rgba(8,4,20,.55), 0 0 14px var(--gold); }
 .coach-tip { position: fixed; pointer-events: auto; padding: 12px 14px; border-radius: 12px; background: linear-gradient(180deg, #e4eaf8, #b7c7ed); color: #131927; border: 3px solid var(--wood-deep); box-shadow: 0 4px 0 rgba(0,0,0,.45), 0 8px 24px rgba(0,0,0,.4); }
 .coach-tip b { display: block; font-size: 17px; font-weight: 900; margin-bottom: 4px; }
@@ -989,7 +989,7 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .coach-skip { background: none; border: 0; padding: 4px 0; color: #455478; font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; }
 .coach-go { margin-left: auto; padding: 8px 16px; }
 @keyframes coach-pulse { 50% { border-color: #fff; } }
-@media (prefers-reduced-motion: reduce) { .coach-hole { animation: none; transition: none; } }
+@media (prefers-reduced-motion: reduce) { .coach-hole { animation: none; } }
 
 /* Settings volume sliders. */
 .vol-row input[type=range] { flex: 1; min-width: 0; accent-color: var(--gold); }
