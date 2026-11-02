@@ -49,9 +49,17 @@ returns text language sql stable security definer set search_path = public as $$
 $$;
 
 -- The game uploads its defense team when it changes (and now and then anyway).
+-- Fair play: trophies may rise by at most 60 at once and then 1 a minute (a day of every
+-- ticket and Gem buy wins about 330); more than that is cut down and noted in fair_play_flags
+-- (from social.sql) when that table exists.
 create or replace function public.save_colosseum_team(p_trophies integer, p_team_cp text, p_cp_log double precision, p_team jsonb)
 returns void language plpgsql security definer set search_path = public as $$
-declare me uuid := colosseum_me();
+declare
+  me uuid := colosseum_me();
+  prev colosseum_teams;
+  mins double precision;
+  tro integer := greatest(0, least(coalesce(p_trophies, 0), 100000));
+  cap integer;
 begin
   if p_team_cp !~ '^[0-9.e+]{1,40}$' or p_cp_log is null or p_cp_log < 0 or p_cp_log > 1000000 then
     raise exception 'Bad Combat Power.';
@@ -59,8 +67,19 @@ begin
   if jsonb_typeof(p_team) <> 'array' or jsonb_array_length(p_team) < 1 or jsonb_array_length(p_team) > 10 or length(p_team::text) > 8000 then
     raise exception 'Bad team.';
   end if;
+  select * into prev from colosseum_teams where user_id = me;
+  mins := greatest(0, extract(epoch from now() - coalesce(prev.updated_at, (select u.created_at from auth.users u where u.id = me), now())) / 60);
+  cap := coalesce(prev.trophies, 0) + 60 + floor(mins)::integer;
+  if tro > cap then
+    if to_regclass('public.fair_play_flags') is not null then
+      execute 'insert into fair_play_flags (user_id, kind, claimed, allowed) select $1, ''trophies'', $2, $3
+        where not exists (select 1 from fair_play_flags where user_id = $1 and kind = ''trophies'' and created_at > now() - interval ''10 minutes'')'
+        using me, tro::text, cap::text;
+    end if;
+    tro := cap;
+  end if;
   insert into colosseum_teams (user_id, username, trophies, team_cp, cp_log, team, updated_at)
-  values (me, colosseum_username(me), greatest(0, least(coalesce(p_trophies, 0), 100000)), p_team_cp, p_cp_log, p_team, now())
+  values (me, colosseum_username(me), tro, p_team_cp, p_cp_log, p_team, now())
   on conflict (user_id) do update set username = excluded.username, trophies = excluded.trophies, team_cp = excluded.team_cp,
     cp_log = excluded.cp_log, team = excluded.team, updated_at = now();
 end $$;

@@ -136,3 +136,21 @@ async function restore(v: Version) {
 }
 
 void enter();
+
+interface Flag { username: string; kind: string; claimed: string; allowed: string; created_at: string }
+
+/** Fair play notes (supabase/social.sql): numbers save_profile or save_colosseum_team cut down. */
+$('flags-load').addEventListener('click', async () => {
+  note('flags-note', 'Loading…');
+  const { data, error } = await db.rpc('admin_fair_play_flags');
+  if (error) {
+    note('flags-note', /does not exist|Could not find/i.test(error.message) ? 'Run social.sql in Supabase first.' : error.message, 'err');
+    return;
+  }
+  const flags = (data ?? []) as Flag[];
+  note('flags-note', flags.length ? `${flags.length} note${flags.length === 1 ? '' : 's'} (up to 200).` : 'No notes. Nobody has sent numbers that look made up.');
+  $('flags').querySelector('tbody')!.innerHTML = flags
+    .map((f) => `<tr><td>${escape(f.username ?? '?')}</td><td>${escape(f.kind)}</td><td>${escape(f.claimed)}</td><td>${escape(f.allowed)}</td><td>${when(f.created_at)}</td></tr>`)
+    .join('');
+  $('flags').hidden = !flags.length;
+});
