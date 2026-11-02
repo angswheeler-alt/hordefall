@@ -55,10 +55,63 @@ returns boolean language sql stable security definer set search_path = public as
   select exists (select 1 from friendships where user_a = least(p_a, p_b) and user_b = greatest(p_a, p_b) and status = 'accepted')
 $$;
 
+-- Fair play: the game runs on the player's phone, so the server can't prove a number is real.
+-- It can refuse numbers that grow faster than anyone could play: best stage, Rekindles and
+-- Combat Power may only rise so much in the time since the last report (or since sign-up),
+-- and anything above that is cut down to the limit and written to fair_play_flags. An honest
+-- player who was away a long time catches up on the next reports, as the allowance grows with time.
+create table if not exists public.fair_play_flags (
+  id bigserial primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  kind text not null,
+  claimed text not null,
+  allowed text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists fair_play_flags_user on public.fair_play_flags (user_id, created_at desc);
+alter table public.fair_play_flags enable row level security;
+
+-- Stages a player may climb: a head start, then 10 a minute (faster than 2x speed allows).
+create or replace function public.fair_stage_cap(p_prev integer, p_minutes double precision)
+returns integer language sql immutable as $$
+  select (least(2000000000, greatest(1, coalesce(p_prev, 1))::double precision + 300 + 10 * greatest(0, coalesce(p_minutes, 0))))::integer
+$$;
+
+-- Combat Power (as log10) may grow a millionfold at once, then 100x every hour.
+create or replace function public.fair_cp_cap(p_prev double precision, p_minutes double precision)
+returns double precision language sql immutable as $$
+  select greatest(0, coalesce(p_prev, 0)) + 6 + 2 * greatest(0, coalesce(p_minutes, 0)) / 60
+$$;
+
+create or replace function public.fair_flag(p_user uuid, p_kind text, p_claimed text, p_allowed text)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  -- One note per player and kind every 10 minutes is plenty.
+  if not exists (select 1 from fair_play_flags where user_id = p_user and kind = p_kind and created_at > now() - interval '10 minutes') then
+    insert into fair_play_flags (user_id, kind, claimed, allowed) values (p_user, p_kind, left(p_claimed, 60), left(p_allowed, 60));
+  end if;
+end $$;
+
+-- Minutes since the player's last report, or since they signed up for a first report.
+create or replace function public.fair_minutes(p_user uuid, p_last timestamptz)
+returns double precision language sql stable security definer set search_path = public as $$
+  select greatest(0, extract(epoch from now() - coalesce(p_last, (select u.created_at from auth.users u where u.id = p_user), now())) / 60)
+$$;
+
 -- The game reports its profile (every minute while signed in, when something changed).
 create or replace function public.save_profile(p_total_cp text, p_cp_log double precision, p_best_stage integer, p_rekindles integer, p_team jsonb)
 returns void language plpgsql security definer set search_path = public as $$
-declare me uuid := social_me();
+declare
+  me uuid := social_me();
+  prev profiles;
+  mins double precision;
+  stage integer := greatest(1, coalesce(p_best_stage, 1));
+  rk integer := greatest(0, coalesce(p_rekindles, 0));
+  cp text := p_total_cp;
+  cpl double precision := p_cp_log;
+  cap_stage integer;
+  cap_rk integer;
+  cap_cp double precision;
 begin
   if p_total_cp !~ '^[0-9.e+]{1,40}$' or p_cp_log is null or p_cp_log < 0 or p_cp_log > 1000000 then
     raise exception 'Bad Combat Power.';
@@ -66,10 +119,41 @@ begin
   if jsonb_typeof(p_team) <> 'array' or jsonb_array_length(p_team) > 5 or length(p_team::text) > 2000 then
     raise exception 'Bad team.';
   end if;
+  select * into prev from profiles where user_id = me;
+  mins := fair_minutes(me, prev.updated_at);
+  cap_stage := fair_stage_cap(prev.best_stage, mins);
+  if stage > cap_stage then
+    perform fair_flag(me, 'stage', stage::text, cap_stage::text);
+    stage := cap_stage;
+  end if;
+  -- A Rekindle needs a run past stage 125: a few at once, then one every 5 minutes at most.
+  cap_rk := coalesce(prev.rekindles, 0) + 3 + floor(mins / 5)::integer;
+  if rk > cap_rk then
+    perform fair_flag(me, 'rekindles', rk::text, cap_rk::text);
+    rk := cap_rk;
+  end if;
+  cap_cp := fair_cp_cap(prev.cp_log, mins);
+  if cpl > cap_cp then
+    perform fair_flag(me, 'power', p_total_cp, '1e+' || floor(cap_cp)::text);
+    cpl := cap_cp;
+    cp := '1e+' || floor(cap_cp)::text;
+  end if;
   insert into profiles (user_id, username, total_cp, cp_log, best_stage, rekindles, team, updated_at)
-  values (me, social_username(me), p_total_cp, p_cp_log, greatest(1, coalesce(p_best_stage, 1)), greatest(0, coalesce(p_rekindles, 0)), p_team, now())
+  values (me, social_username(me), cp, cpl, stage, rk, p_team, now())
   on conflict (user_id) do update set username = excluded.username, total_cp = excluded.total_cp, cp_log = excluded.cp_log,
     best_stage = excluded.best_stage, rekindles = excluded.rekindles, team = excluded.team, updated_at = now();
+end $$;
+
+-- Admins: the latest fair-play notes, newest first (Supabase Table Editor shows them too).
+create or replace function public.admin_fair_play_flags()
+returns table (username text, kind text, claimed text, allowed text, created_at timestamptz)
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not exists (select 1 from save_admins where user_id = auth.uid()) then
+    raise exception 'Admins only.';
+  end if;
+  return query select social_username(f.user_id), f.kind, f.claimed, f.allowed, f.created_at
+    from fair_play_flags f order by f.created_at desc limit 200;
 end $$;
 
 -- Ask a player (by username) to be friends. If they already asked you, you become friends.
@@ -192,6 +276,11 @@ revoke all on function public.social_me() from public, anon;
 revoke all on function public.social_username(uuid) from public, anon, authenticated;
 revoke all on function public.are_friends(uuid, uuid) from public, anon, authenticated;
 revoke all on function public.save_profile(text, double precision, integer, integer, jsonb) from public, anon;
+revoke all on function public.fair_stage_cap(integer, double precision) from public, anon, authenticated;
+revoke all on function public.fair_cp_cap(double precision, double precision) from public, anon, authenticated;
+revoke all on function public.fair_flag(uuid, text, text, text) from public, anon, authenticated;
+revoke all on function public.fair_minutes(uuid, timestamptz) from public, anon, authenticated;
+revoke all on function public.admin_fair_play_flags() from public, anon;
 revoke all on function public.send_friend_request(text) from public, anon;
 revoke all on function public.answer_friend_request(uuid, boolean) from public, anon;
 revoke all on function public.remove_friend(uuid) from public, anon;
