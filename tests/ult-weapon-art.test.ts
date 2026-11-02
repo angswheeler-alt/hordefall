@@ -65,3 +65,12 @@ describe('Weapon looks', () => {
     for (const h of HEROES) for (const l of WEAPON_LOOKS) expect(weaponArtUrl(h.id, h.type, WEAPON_LOOK_LEVEL[l])).toBeTruthy();
   });
 });
+
+import uiSrc from '../src/ui.ts?raw';
+
+describe('Ultimate buttons on the battle lane', () => {
+  it('show the hero weapon on its element colour', () => {
+    expect(uiSrc).toContain('class="ult-wp"');
+    expect(uiSrc).toMatch(/weaponArtUrl\(u\.def\.id, u\.def\.type, this\.state\.weaponLevel\(u\.def\.id\)\)/);
+  });
+});
