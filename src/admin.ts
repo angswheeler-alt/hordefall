@@ -188,3 +188,45 @@ async function showErrors() {
   );
 }
 $('errors-load').addEventListener('click', () => void showErrors());
+
+interface ReportRow { id: number; kind: 'chat' | 'guild' | 'name'; reported_name: string; reporter_name: string; message_id: number | null; body: string; reports: number; created_at: string }
+
+const REPORT_KINDS = { chat: 'All chat', guild: 'Guild chat', name: 'Username' } as const;
+
+/** Player reports (supabase/reports.sql): reported chat messages and names. */
+async function showReports() {
+  note('reports-note', 'Loading…');
+  const { data, error } = await db.rpc('admin_player_reports');
+  if (error) {
+    note('reports-note', /does not exist|Could not find/i.test(error.message) ? 'Run reports.sql in Supabase first.' : error.message, 'err');
+    return;
+  }
+  // One row per reported message or name (the newest report), with how many players reported it.
+  const seen = new Set<string>();
+  const rows = ((data ?? []) as ReportRow[]).filter((r) => {
+    const key = `${r.kind}:${r.reported_name}:${r.message_id ?? ''}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  note('reports-note', rows.length ? `${rows.length} open report${rows.length === 1 ? '' : 's'}.` : 'No open reports.', rows.length ? 'muted' : 'good');
+  const body = $('reports').querySelector('tbody')!;
+  body.innerHTML = rows
+    .map(
+      (r, i) =>
+        `<tr><td>${escape(r.reported_name)}</td><td><b>${REPORT_KINDS[r.kind] ?? escape(r.kind)}</b>${r.body ? `<br>"${escape(r.body)}"` : ''}<br><small class="muted">first from ${escape(r.reporter_name ?? '?')}</small></td><td>${num(Number(r.reports))}</td><td>${when(r.created_at)}</td><td>${
+          r.kind === 'name' ? '' : `<button type="button" data-close="${i}" data-del="1">Delete message</button> `
+        }<button type="button" data-close="${i}">Done</button></td></tr>`,
+    )
+    .join('');
+  $('reports').hidden = !rows.length;
+  body.querySelectorAll<HTMLButtonElement>('[data-close]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      const r = rows[Number(b.dataset.close)];
+      const { error: err } = await db.rpc('admin_close_report', { p_id: r.id, p_delete_message: b.dataset.del === '1' });
+      if (err) return note('reports-note', err.message, 'err');
+      await showReports();
+    }),
+  );
+}
+$('reports-load').addEventListener('click', () => void showReports());

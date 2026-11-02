@@ -1,3 +1,4 @@
+import { sendReport, reportQuestion } from './report';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import Decimal from 'break_infinity.js';
 import { HEROES } from './data';
@@ -174,7 +175,7 @@ export class Social {
       <div class="sp-stats"><div><span>Total Combat Power</span><b>${fmt(new Decimal(p.total_cp || 0))}</b></div><div><span>Best stage</span><b>${Number(p.best_stage).toLocaleString()}</b></div><div><span>Rekindles</span><b>${Number(p.rekindles).toLocaleString()}</b></div></div>
       <h3 class="sp-section">Team</h3><div class="sp-team">${slots}</div>
       <p>${updated} ${other ? '' : 'Your friends can see this profile; everyone signed in sees your name, Combat Power and best stage on the leaderboards.'}</p>
-      ${other ? `<button type="button" class="wood-btn small danger" data-remove="${esc(p.user_id)}">Remove friend</button>` : ''}`);
+      ${other ? `<button type="button" class="wood-btn small danger" data-remove="${esc(p.user_id)}">Remove friend</button> <button type="button" class="wood-btn small" data-report="${esc(p.user_id)}" data-name="${esc(p.username)}">Report name</button>${this.noteHtml()}` : ''}`);
   }
 
   private async renderFriends() {
@@ -204,9 +205,9 @@ export class Social {
     const val = (r: BoardRow) => (kind === 'cp' ? fmt(new Decimal(r.total_cp || 0)) : `Stage ${Number(r.best_stage).toLocaleString()}`);
     const sub = (r: BoardRow) => (kind === 'cp' ? `Best stage ${Number(r.best_stage).toLocaleString()}` : `CP ${fmt(new Decimal(r.total_cp || 0))}`);
     const list = rows
-      .map((r) => `<div class="sp-row${r.is_me ? ' me' : ''}"${r.is_friend ? ` data-view="${r.user_id}" role="button" tabindex="0"` : ''}><span class="rk">${Number(r.rank).toLocaleString()}</span><div class="who"><b>${esc(r.username)}${r.is_me ? ' (you)' : r.is_friend ? ' · friend' : ''}</b><small>${sub(r)}</small></div><span class="val">${val(r)}</span></div>`)
+      .map((r) => `<div class="sp-row${r.is_me ? ' me' : ''}"${r.is_friend ? ` data-view="${r.user_id}" role="button" tabindex="0"` : ''}><span class="rk">${Number(r.rank).toLocaleString()}</span><div class="who"><b>${esc(r.username)}${r.is_me ? ' (you)' : r.is_friend ? ' · friend' : ''}</b><small>${sub(r)}</small></div><span class="val">${val(r)}</span>${r.is_me ? '' : `<button type="button" class="sp-flag" data-report="${esc(r.user_id)}" data-name="${esc(r.username)}" aria-label="Report ${esc(r.username)}'s name" title="Report name">⚑</button>`}</div>`)
       .join('');
-    this.setBody(`<p>${kind === 'cp' ? 'Highest total Combat Power' : 'Highest stage beaten'}, top 50. Tap a friend to see their profile.</p>${list || '<p>No one on the board yet.</p>'}`);
+    this.setBody(`<p>${kind === 'cp' ? 'Highest total Combat Power' : 'Highest stage beaten'}, top 50. Tap a friend to see their profile, or ⚑ to report a rude name.</p>${this.noteHtml()}${list || '<p>No one on the board yet.</p>'}`);
   }
 
   private async onClick(e: Event) {
@@ -219,6 +220,15 @@ export class Social {
     }
     if (t.closest('[data-back]')) {
       this.viewing = null;
+      this.note = '';
+      return this.render();
+    }
+    const flag = t.closest<HTMLElement>('[data-report]');
+    if (flag) {
+      if (!db || !confirm(reportQuestion('name', flag.dataset.name ?? 'this player'))) return;
+      const res = await sendReport(db, 'name', { user: flag.dataset.report });
+      this.note = res.text;
+      this.noteErr = !res.ok;
       return this.render();
     }
     const view = t.closest<HTMLElement>('[data-view]');

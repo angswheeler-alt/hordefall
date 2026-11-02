@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Account } from './account';
+import { sendReport, reportQuestion } from './report';
 import { busyWhile } from './taps';
 
 // All chat: one room for every signed-in player (supabase/chat.sql). A card on the
@@ -43,6 +44,8 @@ export class WorldChat {
   private muted = readMuted();
   private error = '';
   private picked: number | null = null;
+  /** A line under the messages after a report ("Thanks…"). */
+  private notice = '';
   private lastFetch = 0;
   private busy = false;
 
@@ -81,7 +84,7 @@ export class WorldChat {
     overlay.innerHTML = `<div class="rk-card wchat-card" role="dialog" aria-modal="true" aria-labelledby="wchat-title">
         <button id="wchat-close" class="rk-close" aria-label="Close">&#x2715;</button>
         <h2 id="wchat-title">All chat</h2>
-        <p class="rk-note">Everyone who's signed in. Be kind. Tap a message to mute its player.</p>
+        <p class="rk-note">Everyone who's signed in. Be kind. Tap a message to mute or report its player.</p>
         <ul id="wchat-list" class="g-chat wchat-list"></ul>
         <form id="wchat-form" class="g-chat-form"><input maxlength="200" placeholder="Say something" autocomplete="off" enterkeyhint="send"><button type="submit" class="hot">Send</button></form>
         <div id="wchat-muted" class="wchat-muted"></div>
@@ -101,6 +104,10 @@ export class WorldChat {
         this.setMuted(arg, m?.username ?? 'player', true);
       } else if (kind === 'unmute') this.setMuted(arg, '', false);
       else if (kind === 'delete') void busyWhile(el, this.remove(Number(arg)));
+      else if (kind === 'report') {
+        const m = this.messages.find((x) => x.id === Number(arg));
+        if (m && confirm(reportQuestion('chat', m.username))) void busyWhile(el, this.report(m.id));
+      }
       else if (kind === 'signin') {
         overlay.hidden = true;
         this.account.signIn();
@@ -115,6 +122,7 @@ export class WorldChat {
   private open() {
     $('wchat').hidden = false;
     this.picked = null;
+    this.notice = '';
     this.render(true);
     void this.refresh(true);
   }
@@ -172,6 +180,13 @@ export class WorldChat {
     list.scrollTop = list.scrollHeight;
   }
 
+  private async report(id: number) {
+    const res = await sendReport(this.db!, 'chat', { message: id });
+    this.notice = res.text;
+    this.picked = null;
+    this.render();
+  }
+
   private async remove(id: number) {
     const res = await this.db!.rpc('delete_world_message', { p_id: id });
     if (res.error) this.error = res.error.message;
@@ -204,14 +219,15 @@ export class WorldChat {
                 const mine = m.user_id === me;
                 const actions =
                   this.picked === m.id
-                    ? `<div class="wchat-acts">${mine ? '' : `<button type="button" data-w="mute:${m.user_id}">Mute ${esc(m.username)}</button>`}${admin ? `<button type="button" class="hot" data-w="delete:${m.id}">Delete</button>` : ''}</div>`
+                    ? `<div class="wchat-acts">${mine ? '' : `<button type="button" data-w="mute:${m.user_id}">Mute ${esc(m.username)}</button><button type="button" data-w="report:${m.id}">Report</button>`}${admin ? `<button type="button" class="hot" data-w="delete:${m.id}">Delete</button>` : ''}</div>`
                     : '';
                 return `<li class="${mine ? 'me' : ''}" data-w="pick:${m.id}"><b>${esc(m.username)}</b> <small>${ago(m.created_at)}</small><p>${esc(m.body)}</p>${actions}</li>`;
               })
               .join('')
           : this.error
             ? ''
-            : '<li class="g-empty">No messages yet. Say hello!</li>');
+            : '<li class="g-empty">No messages yet. Say hello!</li>') +
+        (this.notice ? `<li class="g-empty">${esc(this.notice)}</li>` : '');
     if (stick) list.scrollTop = list.scrollHeight;
     $('wchat-form').hidden = !signedIn;
     $('wchat-muted').innerHTML = this.muted.size

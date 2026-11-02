@@ -1,3 +1,4 @@
+import { sendReport, reportQuestion } from './report';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { warsteelForKill, warsteelForWeek } from './guildRelics';
 import { isAscendant } from './heroes/ascendant';
@@ -104,6 +105,8 @@ export class Guild {
   private guild: GuildRow | null = null;
   private members: MemberRow[] = [];
   private messages: MessageRow[] = [];
+  /** The guild chat message tapped open (shows Report). */
+  private pickedMsg: number | null = null;
   private requests: RequestRow[] = [];
   private quests: QuestData | null = null;
   private reporting = false;
@@ -656,6 +659,20 @@ export class Guild {
     const run = (work: Promise<unknown>) => void busyWhile(el, work);
     if (kind === 'signin') this.account.signIn();
     else if (kind === 'retry') run(this.refresh());
+    else if (kind === 'msg') {
+      this.pickedMsg = this.pickedMsg === Number(arg) ? null : Number(arg);
+      this.renderChat();
+    } else if (kind === 'report') {
+      const m = this.messages.find((x) => x.id === Number(arg));
+      if (m && confirm(reportQuestion('guild', m.username)))
+        run(
+          sendReport(this.db!, 'guild', { message: m.id }).then((res) => {
+            this.pickedMsg = null;
+            this.renderChat();
+            this.ui.showModal('Report', esc(res.text), 'Okay');
+          }),
+        );
+    }
     else if (kind === 'join') run(this.call('join_guild', { p_guild: arg, p_best_stage: this.state.bestStage, p_cp_log: this.myCp().cpLog }));
     else if (kind === 'apply') {
       const { cp, cpLog } = this.myCp();
@@ -891,7 +908,13 @@ export class Guild {
     setHtml(
       list,
       this.messages.length
-        ? this.messages.map((m) => `<li class="${m.user_id === this.me!.user_id ? 'me' : ''}"><b>${esc(m.username)}</b> <small>${ago(m.created_at)}</small><p>${esc(m.body)}</p></li>`).join('')
+        ? this.messages
+            .map((m) => {
+              const mine = m.user_id === this.me!.user_id;
+              const acts = !mine && this.pickedMsg === m.id ? `<div class="wchat-acts"><button type="button" data-g="report:${m.id}">Report</button></div>` : '';
+              return `<li class="${mine ? 'me' : ''}"${mine ? '' : ` data-g="msg:${m.id}"`}><b>${esc(m.username)}</b> <small>${ago(m.created_at)}</small><p>${esc(m.body)}</p>${acts}</li>`;
+            })
+            .join('')
         : '<li class="g-empty">No messages yet. Say hello!</li>',
     );
     if (stick) list.scrollTop = list.scrollHeight;
