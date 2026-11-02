@@ -49,3 +49,24 @@ export function pickVictim<T extends Placed>(a: Attacker & { x: number }, heroes
   const under = closest(alive);
   return under ? { holdX: under.x } : {};
 }
+
+/**
+ * Who a flying enemy hits right now. Flyers never turn back toward their own crystal: a hero in reach (in front
+ * of it or already past it) is hit from where the flyer hovers, the nearest one in front first. With nobody in
+ * reach it returns nothing and the flyer keeps flying on toward the heroes' crystal.
+ */
+export function flyerVictim<T extends Placed>(a: Attacker & { x: number }, heroes: T[]): T | undefined {
+  const inReach = heroes.filter((h) => h.alive && canReach(a, h) && Math.abs(h.x - a.x) <= a.range);
+  const ahead = inReach.filter((h) => a.x - h.x >= -BEHIND_SLACK).reduce<T | undefined>((b, h) => (!b || h.x > b.x ? h : b), undefined);
+  return ahead ?? inReach.reduce<T | undefined>((b, h) => (!b || Math.abs(h.x - a.x) < Math.abs(b.x - a.x) ? h : b), undefined);
+}
+
+/**
+ * The x an enemy moves toward this step (it moves left by default, toward the heroes' crystal). A walker turns back
+ * for a hero behind it, or on the lane waits under a flyer it can't reach (`holdX`); a flyer never turns back.
+ */
+export function enemyGoal(a: { x: number; range: number; flying?: boolean }, target: { x: number } | undefined, holdX: number | undefined, pvp: boolean): number {
+  if (a.flying) return -Infinity;
+  if (target && target.x > a.x) return target.x - a.range * 0.8;
+  return !pvp && holdX !== undefined ? holdX : -Infinity;
+}
