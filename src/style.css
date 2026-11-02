@@ -205,6 +205,8 @@ button.link[disabled] { display: none; }
 .wood-btn { background: linear-gradient(180deg, var(--wood-hi), var(--wood)); border: 2px solid var(--wood-deep); border-radius: 10px; color: #e4eaf8; font-weight: 800; text-shadow: 0 1px 0 var(--wood-deep); box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 2px 0 var(--wood-deep); line-height: 1.1; }
 .wood-btn.small { font-size: 12px; padding: 5px 10px; }
 #acct-reset { margin-top: 10px; }
+.reset-phrase { display: block; width: 100%; box-sizing: border-box; margin-top: 10px; font: inherit; font-size: 16px; padding: 8px 10px; border-radius: 8px; border: 1px solid #000; background: #0c0f18; color: #e4eaf8; user-select: text; -webkit-user-select: text; }
+#modal-ok:disabled { opacity: .45; }
 .wood-btn.danger { background: linear-gradient(180deg, #a8352b, #6e1d16); color: #e4eaf8; }
 .hero-head { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 8px; align-items: stretch; margin-bottom: 8px; }
 .hero-head .wood-btn { min-height: 50px; font-size: 14px; }

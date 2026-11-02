@@ -34,6 +34,7 @@ import { ScoutUI } from './scoutUi';
 import { WILD_CREST_COST } from './scouting';
 import { GlyphUI } from './glyphUi';
 import { RushUI, rushResultHtml } from './rushUi';
+import { RESET_PHRASE, resetPhraseOk } from './resetPhrase';
 import { sortHeroes, nextTeamSort, TEAM_SORT_LABELS, type TeamSort } from './teamSort';
 
 /** The teams Manage Team edits: stages, Colosseum attack and defense, and the Guild Boss. */
@@ -1867,12 +1868,14 @@ export class UI {
       'Reset account?',
       'This erases <b>all</b> your progress: stages, heroes, stars, Embers, Gems, relics and everything else. You start a brand-new game. If you are signed in, your online save is erased too and you leave your guild.',
       'Reset',
-      () =>
+      () => {
         this.showModal(
           'Are you sure?',
-          'There is no way to get this progress back.',
+          `There is no way to get this progress back. To confirm, type <b>${RESET_PHRASE}</b> below.<input id="reset-phrase" class="reset-phrase" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${RESET_PHRASE}" aria-label="Type ${RESET_PHRASE} to confirm">`,
           'Yes, erase everything',
           () => {
+            // The button stays off until the phrase is typed; check again in case.
+            if (!resetPhraseOk($<HTMLInputElement>('reset-phrase')?.value ?? '')) return;
             this.showModal('Resetting…', 'Starting a new game.', 'Okay');
             $<HTMLButtonElement>('modal-ok').disabled = true;
             void this.hooks.resetAccount().then((error) => {
@@ -1881,10 +1884,21 @@ export class UI {
           },
           true,
           'Keep my progress',
-        ),
+        );
+        this.lockResetOk();
+      },
       true,
       'Cancel',
     );
+  }
+
+  /** Keeps the final reset button off until the player types the reset phrase. */
+  private lockResetOk() {
+    const ok = $<HTMLButtonElement>('modal-ok');
+    const input = $<HTMLInputElement>('reset-phrase');
+    ok.disabled = true;
+    input.addEventListener('input', () => (ok.disabled = !resetPhraseOk(input.value)));
+    input.focus();
   }
 
   showModal(title: string, html: string, ok: string, action: (() => void) | null = null, cancel = false, cancelLabel = 'Not yet') {
