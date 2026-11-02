@@ -1,3 +1,4 @@
+import { weaponArtUrl } from './weaponArt';
 import { devToolsOn } from './devAccess';
 import { CLAIM_ROOT, claimOf } from './claims';
 import { TEST_MODE } from './config';
@@ -116,6 +117,10 @@ interface UltButton {
   def: HeroDef;
   button: HTMLButtonElement;
   cd: HTMLElement;
+  /** Weapon picture on the button (empty when the hero's weapon has no art yet). */
+  wp: HTMLElement;
+  /** The weapon picture URL now shown, so render only touches the DOM when it changes. */
+  wpUrl: string | null;
 }
 
 /** HTML overlay for everything that isn't the lane: gold, hero upgrades, toggles. */
@@ -957,15 +962,25 @@ export class UI {
       const button = document.createElement('button');
       button.className = 'ult';
       button.style.setProperty('--el', hex(ELEMENT_COLORS[def.element]));
-      button.innerHTML = `${ULT_ICONS[def.element]}<span class="cd"></span>`;
+      // The hero's weapon on its element's colour; the element symbol shows until the weapon has a picture.
+      button.innerHTML = `<i class="ult-wp" aria-hidden="true"></i>${ULT_ICONS[def.element]}<span class="cd"></span>`;
       button.setAttribute('aria-label', `${def.name} ultimate: ${def.ultimate.name}`);
       button.title = `${def.name}: ${def.ultimate.name} (unlocks at Lv ${ULT_UNLOCK_LEVEL})`;
       button.addEventListener('click', () => {
         if (!this.scene()?.triggerUlt(def.id)) this.scene()?.lockedUltHint(def.id);
       });
       host.appendChild(button);
-      this.ults.push({ def, button, cd: button.querySelector('.cd') as HTMLElement });
+      this.ults.push({ def, button, cd: button.querySelector('.cd') as HTMLElement, wp: button.querySelector('.ult-wp') as HTMLElement, wpUrl: null });
     }
+  }
+
+  /** Shows the hero's current weapon look on its Ultimate button (it changes as the weapon levels up). */
+  private setUltWeapon(u: UltButton) {
+    const url = weaponArtUrl(u.def.id, u.def.type, this.state.weaponLevel(u.def.id));
+    if (url === u.wpUrl) return;
+    u.wpUrl = url;
+    u.wp.style.backgroundImage = url ? `url('${url}')` : '';
+    u.button.classList.toggle('has-wp', !!url);
   }
 
   private bindControls() {
@@ -3261,6 +3276,7 @@ export class UI {
       const fights = slotted.includes(u.def.id);
       u.button.hidden = !fights;
       u.button.style.order = String(slotted.indexOf(u.def.id));
+      if (fights) this.setUltWeapon(u);
       if (!scene || !fights) continue;
       const st = scene.getUltState(u.def.id);
       const ready = st.unlocked && st.alive && st.remaining <= 0;
