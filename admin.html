@@ -69,6 +69,14 @@
           <p id="flags-note" class="note"></p>
           <div class="wide"><table id="flags" hidden><thead><tr><th>Player</th><th>What</th><th>Sent</th><th>Kept</th><th>When</th></tr></thead><tbody></tbody></table></div>
         </section>
+        <section>
+          <h2>Error reports</h2>
+          <p class="note muted">Errors the game hit on players' phones, newest first. The same error is one row with a count. Tap a row to see the details.</p>
+          <button type="button" id="errors-load">Show errors</button>
+          <p id="errors-note" class="note"></p>
+          <div class="wide"><table id="errors" hidden><thead><tr><th>Error</th><th>Times</th><th>Last seen</th><th></th></tr></thead><tbody></tbody></table></div>
+          <pre id="error-detail" hidden></pre>
+        </section>
       </div>
     </main>
     <script type="module" src="/src/admin.ts"></script>

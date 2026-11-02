@@ -13,6 +13,8 @@ import { ColosseumLink } from './colosseumLink';
 import { Tutorial } from './tutorial';
 import { initInstall } from './install';
 import { watchTaps } from './taps';
+import { watchErrors } from './errorReport';
+import { TEST_MODE } from './config';
 import { colosseumNews, eventNews, defenseNews, type WelcomeSection } from './welcome';
 
 // iOS Safari ignores user-scalable=no, so stop pinch zoom here (double-tap zoom is off via touch-action in the CSS).
@@ -21,6 +23,8 @@ for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev
 watchTaps(window);
 
 const state = new GameState();
+// Crashes and errors on players' phones are sent to the server (src/errorReport.ts, admin.html).
+watchErrors(() => (TEST_MODE ? null : account.client), () => state.bestStage);
 const hadSave = state.load();
 initAudio();
 setMuted(state.muted);
