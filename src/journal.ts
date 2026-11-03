@@ -1,8 +1,9 @@
 /**
  * The Hunting Journal (Samuel, 2026-11-03): every enemy has a page that counts how many the player has beaten.
  * Each page has three tiers; reaching one gives a small permanent damage bonus against that enemy only.
- * Pages: each of the 5 mob kinds in each of the 5 element colours (25), the 5 stage bosses (who are also the
- * every-100th element bosses from stage 600), the 5 Trial bosses and the 5 Guild Bosses: 40 pages.
+ * Pages: each of the 5 mob kinds in each of the 5 element colours (25), the 5 mutation traits (from stage 501,
+ * src/mutations.ts), the 5 stage bosses (who are also the every-100th element bosses from stage 600), the 5 Trial
+ * bosses and the 5 Guild Bosses: 45 pages.
  *
  * Shinies: about 1 in SHINY_ODDS regular mobs (balance check 2026-11-03: a normal run kills ~3,000 an hour, so 1 in 500 with 10 a day added ~35% to free Gems) in a normal run is a shiny, a recoloured one with a sparkle. Beating
  * one pays a small treasure (Gems, sometimes a Hero Chest) and puts a gold stamp on its page for an extra bonus.
@@ -10,8 +11,9 @@
  */
 import { ELEMENT_BOSSES, GUILD_BOSS_NAMES, TRIAL_BOSS_NAMES, type Element } from './data';
 import { MOB_ELEMENTS, type MobId } from './mobs';
+import { MUTATIONS, MUTATION_IDS, type MutationId } from './mutations';
 
-export type JournalGroup = 'mob' | 'boss' | 'trial' | 'guild';
+export type JournalGroup = 'mob' | 'mutant' | 'boss' | 'trial' | 'guild';
 
 export interface JournalPage {
   id: string;
@@ -20,6 +22,8 @@ export interface JournalPage {
   element: Element;
   /** Mob pages: which kind. */
   mob?: MobId;
+  /** Mutant pages: which trait (any mob kind or colour with it counts). */
+  mutation?: MutationId;
   /** Kills (Guild Boss: fights) for each tier. */
   tiers: readonly number[];
 }
@@ -38,6 +42,8 @@ export const MOB_NAMES: Record<MobId, string> = {
 /** Regular mobs die by the thousand, bosses far less often, so each group has its own tiers. */
 export const JOURNAL_TIERS: Record<JournalGroup, readonly number[]> = {
   mob: [100, 1_000, 10_000],
+  // Mutants are 5-15% of mobs from stage 501, split over 5 traits: tier 3 takes about as long as a mob page's.
+  mutant: [50, 500, 5_000],
   boss: [10, 100, 1_000],
   trial: [10, 100, 1_000],
   // The Guild Boss counts every fight (a level only falls to the whole guild), with up to ~48 fights a day.
@@ -61,6 +67,10 @@ export const mobPageId = (mob: MobId, element: Element) => `mob_${mob}_${element
 export const bossPageId = (art: Element) => `boss_${art}`;
 export const trialPageId = (element: Element) => `trial_${element}`;
 export const guildPageId = (element: Element) => `guild_${element}`;
+export const mutantPageId = (id: MutationId) => `mutant_${id}`;
+
+/** Element whose colour and mob art a mutant page borrows. */
+const MUTANT_LOOK: Record<MutationId, Element> = { armored: 'earth', swift: 'water', splitting: 'dark', enraged: 'fire', mending: 'light' };
 
 function buildPages(): JournalPage[] {
   const pages: JournalPage[] = [];
@@ -68,6 +78,9 @@ function buildPages(): JournalPage[] {
     for (const element of MOB_ELEMENTS) {
       pages.push({ id: mobPageId(mob, element), group: 'mob', name: `${cap(element)} ${MOB_NAMES[mob]}`, element, mob, tiers: JOURNAL_TIERS.mob });
     }
+  }
+  for (const id of MUTATION_IDS) {
+    pages.push({ id: mutantPageId(id), group: 'mutant', name: `${MUTATIONS[id].name} mutant`, element: MUTANT_LOOK[id], mob: 'brute', mutation: id, tiers: JOURNAL_TIERS.mutant });
   }
   for (const element of MOB_ELEMENTS) pages.push({ id: bossPageId(element), group: 'boss', name: ELEMENT_BOSSES[element].name, element, tiers: JOURNAL_TIERS.boss });
   for (const element of MOB_ELEMENTS) pages.push({ id: trialPageId(element), group: 'trial', name: TRIAL_BOSS_NAMES[element], element, tiers: JOURNAL_TIERS.trial });

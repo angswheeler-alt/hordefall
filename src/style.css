@@ -1461,3 +1461,7 @@ i.ticket.rush-ticket { background: linear-gradient(180deg, #e7a6ff, #8a3ab8); bo
 .jr-tiers li.gold.done { background: rgba(255,201,58,.22); }
 .jr-tiers li span { flex: 1; }
 .jr-badge::before { content: none; display: none; }
+/* Mutant pages (src/mutations.ts): the brute art with a glow in the trait's colour. */
+.jr-cell.mutant:not(.unseen) .jr-pic, .jr-dhead.mutant .jr-pic { filter: drop-shadow(0 0 3px var(--mut)) drop-shadow(0 0 1px var(--mut)); }
+.jr-cell.mutant { border-color: color-mix(in srgb, var(--mut) 70%, #000); }
+.jr-mut-note { margin: 2px 0 6px; font-size: 12px; opacity: .85; text-align: center; }

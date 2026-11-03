@@ -16,6 +16,7 @@ import { ascendBlocker, ascendNeeds, clampForm, formArtKey, resolveForm, COUNTER
 import { ascendantDef, isAscendant, ASCENDANT_HEROES } from './heroes/ascendant';
 import { HERO_ANIMS } from './heroAnims';
 import { TEST_MODE, TEST_SAVE_KEY } from './config';
+import { mutationLoad } from './mutations';
 import { SHINY_GEMS, cleanJournal, cleanStamps, isShinyRoll, journalBonus, journalPage, journalTier, shinyTreasure, trialPageId } from './journal';
 import { FORGE_MATS, WEAPON_GLYPHS, clampWeaponLevel, weaponMult, weaponUpgradeCost, type ForgeCost, type ForgeMat } from './weapons';
 import { GLYPH_BAG_CAP, GLYPH_FAMILIES, chestStar, cleanGlyph, emptyTotals, glyphBound, glyphLevelCost, glyphSalvage, glyphTotals, rollGlyph, type Glyph, type GlyphChestKind, type GlyphFamily, type GlyphTotals } from './glyphs';
@@ -1945,8 +1946,10 @@ export class GameState {
    */
   canClearStage(stage: number, team = this.stageTeam()): boolean {
     if (team.dps.lte(0)) return false;
-    const killTime = enemyHp(stage).times(OFFLINE_STAGE_HP).div(team.dps).toNumber();
-    const incoming = defended(enemyAtk(stage), team.def).times(OFFLINE_STAGE_ATTACKERS / OFFLINE_MOB_COOLDOWN);
+    // Past stage 500 some mobs are mutants (src/mutations.ts): count their average extra HP and damage.
+    const load = mutationLoad(stage);
+    const killTime = enemyHp(stage).times(OFFLINE_STAGE_HP * load.hp).div(team.dps).toNumber();
+    const incoming = defended(enemyAtk(stage).times(load.atk), team.def).times(OFFLINE_STAGE_ATTACKERS / OFFLINE_MOB_COOLDOWN);
     const wipeTime = incoming.gt(0) ? team.hp.div(incoming).toNumber() : Infinity;
     return killTime <= Math.min(wipeTime, OFFLINE_STAGE_TIME);
   }

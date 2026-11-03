@@ -24,6 +24,7 @@ import {
   type JournalPage,
 } from './journal';
 import { MOB_ELEMENTS } from './mobs';
+import { MUTATIONS, MUTATION_STAGE, MUTATION_MAX_CHANCE, MUTANT_GOLD, mutationChance } from './mutations';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
@@ -86,7 +87,7 @@ function picStyle(page: JournalPage): string {
   return `background-image:${st.backgroundImage};background-size:${st.backgroundSize};background-position:${st.backgroundPosition}`;
 }
 
-const GROUP_TITLES: Record<Exclude<JournalGroup, 'mob'>, string> = {
+const GROUP_TITLES: Record<Exclude<JournalGroup, 'mob' | 'mutant'>, string> = {
   boss: 'Stage bosses',
   trial: 'Trial bosses',
   guild: 'Guild Bosses',
@@ -95,8 +96,13 @@ const GROUP_TITLES: Record<Exclude<JournalGroup, 'mob'>, string> = {
 /** What a page counts, in words. */
 const unit = (page: JournalPage, n: number) => (page.group === 'guild' ? (n === 1 ? 'fight' : 'fights') : n === 1 ? 'kill' : 'kills');
 
+type Tab = 'mobs' | 'mutants' | 'bosses';
+
+/** Which tab lists a page. */
+const tabOf = (p: JournalPage): Tab => (p.group === 'mob' ? 'mobs' : p.group === 'mutant' ? 'mutants' : 'bosses');
+
 export class JournalUI {
-  private tab: 'mobs' | 'bosses' = 'mobs';
+  private tab: Tab = 'mobs';
   private picked = JOURNAL_PAGES[0].id;
 
   constructor(
@@ -113,8 +119,8 @@ export class JournalUI {
     $('jr-tabs').addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-tab]');
       if (!b) return;
-      this.tab = b.dataset.tab as 'mobs' | 'bosses';
-      const first = JOURNAL_PAGES.find((p) => (this.tab === 'mobs') === (p.group === 'mob'));
+      this.tab = b.dataset.tab as Tab;
+      const first = JOURNAL_PAGES.find((p) => tabOf(p) === this.tab);
       if (first) this.picked = first.id;
       this.render();
     });
@@ -182,8 +188,9 @@ export class JournalUI {
       const tier = journalTier(page, kills);
       const stamped = s.journalStamps.includes(page.id);
       const pips = page.tiers.map((_, i) => `<i class="${i < tier ? 'on' : ''}"></i>`).join('');
+      const mut = page.mutation ? `;--mut:${hex(MUTATIONS[page.mutation].color)}` : '';
       return (
-        `<button class="jr-cell${page.id === this.picked ? ' picked' : ''}${kills ? '' : ' unseen'}" data-page="${page.id}" style="--el:${hex(ELEMENT_COLORS[page.element])}" title="${page.name}">` +
+        `<button class="jr-cell${page.id === this.picked ? ' picked' : ''}${kills ? '' : ' unseen'}${mut ? ' mutant' : ''}" data-page="${page.id}" style="--el:${hex(ELEMENT_COLORS[page.element])}${mut}" title="${page.name}">` +
         `<span class="jr-pic${page.mob ? ' mob' : ''}" style="${picStyle(page)}"></span>` +
         (stamped ? '<i class="jr-stamp" aria-label="Gold stamp"></i>' : '') +
         `<span class="jr-kills">${kills.toLocaleString()}</span><span class="jr-pips">${pips}</span></button>`
@@ -196,6 +203,12 @@ export class JournalUI {
       for (const mob of JOURNAL_MOBS) {
         html += `<div class="jr-row"><span class="jr-label">${MOB_NAMES[mob]}</span>${MOB_ELEMENTS.map((el) => cell(journalPage(`mob_${mob}_${el}`)!)).join('')}</div>`;
       }
+    } else if (this.tab === 'mutants') {
+      const pages = JOURNAL_PAGES.filter((p) => p.group === 'mutant');
+      html += s.bestStage >= MUTATION_STAGE
+        ? `<p class="jr-mut-note">Mutants: ${pct(mutationChance(Math.max(MUTATION_STAGE, s.stage)))} of mobs on this stage (up to ${pct(MUTATION_MAX_CHANCE)} from stage 1,500), ${MUTANT_GOLD}x gold.</p>`
+        : `<p class="jr-mut-note">Locked: mutants start showing up after stage ${(MUTATION_STAGE - 1).toLocaleString()}.</p>`;
+      html += `<div class="jr-row jr-bosses">${pages.map(cell).join('')}</div>`;
     } else {
       for (const group of ['boss', 'trial', 'guild'] as const) {
         html += `<h4 class="jr-group">${GROUP_TITLES[group]}</h4><div class="jr-row jr-bosses">${JOURNAL_PAGES.filter((p) => p.group === group).map(cell).join('')}</div>`;
@@ -213,7 +226,9 @@ export class JournalUI {
     const stamped = s.journalStamps.includes(page.id);
     const bonus = journalBonus(page, kills, stamped);
     const where =
-      page.group === 'mob'
+      page.mutation
+        ? `${MUTATIONS[page.mutation].text}. Any mob after stage ${(MUTATION_STAGE - 1).toLocaleString()} can be one`
+        : page.group === 'mob'
         ? `${cap(page.element)} stages`
         : page.group === 'boss'
           ? `${ELEMENT_BOSSES[page.element as Element].title}: a stage boss every 250 stages, and the element boss from 600`
@@ -228,7 +243,7 @@ export class JournalUI {
         ? `<li class="${stamped ? 'done gold' : ''}"><span>Gold stamp: beat a shiny one</span><b>+${pct(STAMP_BONUS)} more</b></li>`
         : '';
     setHtml($('jr-detail'),
-      `<div class="jr-dhead" style="--el:${hex(ELEMENT_COLORS[page.element])}"><span class="jr-pic${page.mob ? ' mob' : ''}" style="${picStyle(page)}"></span>` +
+      `<div class="jr-dhead${page.mutation ? ' mutant' : ''}" style="--el:${hex(ELEMENT_COLORS[page.element])}${page.mutation ? `;--mut:${hex(MUTATIONS[page.mutation].color)}` : ''}"><span class="jr-pic${page.mob ? ' mob' : ''}" style="${picStyle(page)}"></span>` +
       `<div><b>${page.name}</b><small>${where}</small><small>${kills.toLocaleString()} ${unit(page, kills)} · now <b class="jr-bonus">+${pct(bonus)} damage</b> against it</small></div></div>` +
       `<ul class="jr-tiers">${rows}${stampRow}</ul>`);
   }
@@ -236,5 +251,5 @@ export class JournalUI {
 
 /** The Journal's rules, in words, for the overlay's footer. */
 export function journalRulesText(): string {
-  return `Each page's tiers give your heroes more damage against that enemy only. About 1 in ${SHINY_ODDS} mobs is a shiny: beat it for ${SHINY_GEMS} Gems (${Math.round(SHINY_CHEST_CHANCE * 100)}% of the time a Hero Chest) and a gold stamp. Up to ${SHINY_PER_DAY} shinies a day.`;
+  return `Each page's tiers give your heroes more damage against that enemy only. About 1 in ${SHINY_ODDS} mobs is a shiny: beat it for ${SHINY_GEMS} Gems (${Math.round(SHINY_CHEST_CHANCE * 100)}% of the time a Hero Chest) and a gold stamp. Up to ${SHINY_PER_DAY} shinies a day. After stage ${(MUTATION_STAGE - 1).toLocaleString()} some mobs are mutants: tougher, but they pay ${MUTANT_GOLD}x gold and fill their own pages.`;
 }
