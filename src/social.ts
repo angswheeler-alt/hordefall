@@ -125,17 +125,23 @@ export class Social {
     // A device that hasn't loaded the cloud save yet still reads stage 1; reporting that
     // would drop the player's real best stage on the leaderboards.
     if (this.state.bestStage <= 1 && this.state.rekindles === 0) return;
-    const payload = profilePayload(this.state);
-    const key = JSON.stringify(payload);
-    if (!force && key === this.lastReport && Date.now() - this.lastReportAt < REPORT_ANYWAY_MS) return;
-    const { error } = await db.rpc('save_profile', payload);
-    if (error) {
-      if (missingServer(error.message)) this.serverMissing = true;
-      this.reportError = error.message;
+    try {
+      const payload = profilePayload(this.state);
+      const key = JSON.stringify(payload);
+      if (!force && key === this.lastReport && Date.now() - this.lastReportAt < REPORT_ANYWAY_MS) return;
+      const { error } = await db.rpc('save_profile', payload);
+      if (error) {
+        if (missingServer(error.message)) this.serverMissing = true;
+        this.reportError = error.message;
+        return;
+      }
+      this.reportError = '';
+      this.lastReport = key;
+    } catch (e) {
+      // A bug or a dropped connection must still show up on the Profile tab, never fail silently.
+      this.reportError = e instanceof Error ? e.message : String(e);
       return;
     }
-    this.reportError = '';
-    this.lastReport = key;
     this.lastReportAt = Date.now();
   }
 
@@ -191,7 +197,7 @@ export class Social {
       <div class="sp-head"><b>${esc(p.username)}</b><small class="muted">${other ? 'Friend' : 'You'}</small></div>
       <div class="sp-stats"><div><span>Total Combat Power</span><b>${fmt(new Decimal(p.total_cp || 0))}</b></div><div><span>Best stage</span><b>${Number(p.best_stage).toLocaleString()}</b></div><div><span>Rekindles</span><b>${Number(p.rekindles).toLocaleString()}</b></div></div>
       <h3 class="sp-section">Team</h3><div class="sp-team">${slots}</div>
-      ${!other && this.reportError ? `<p class="sp-note err">Couldn't update your profile: ${esc(this.reportError)}</p>` : ''}
+      ${other ? '' : this.reportError ? `<p class="sp-note err">Couldn't update your profile: ${esc(this.reportError)}</p>` : this.lastReportAt ? `<p class="sp-note">Sent from this device at ${new Date(this.lastReportAt).toLocaleTimeString([], { timeStyle: 'short' })}.</p>` : this.state.bestStage <= 1 && this.state.rekindles === 0 ? '' : '<p class="sp-note err">Not sent from this device yet.</p>'}
       <p>${updated} ${other ? '' : 'Your friends can see this profile; everyone signed in sees your name, Combat Power and best stage on the leaderboards.'}</p>
       ${other ? `<button type="button" class="wood-btn small danger" data-remove="${esc(p.user_id)}">Remove friend</button> <button type="button" class="wood-btn small" data-report="${esc(p.user_id)}" data-name="${esc(p.username)}">Report name</button>${this.noteHtml()}` : ''}`);
   }
