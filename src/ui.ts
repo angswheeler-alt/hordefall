@@ -1530,6 +1530,7 @@ export class UI {
       'Hero Chest',
       `<div class="chest-pop"><div class="chest-art" aria-hidden="true"></div>
         <p>${CHEST_DROPS} drops of Hero Crests. Collect enough to unlock a hero, then keep collecting to evolve them. Legendary heroes never drop.</p>
+        ${s.stats.summons === 0 ? '<p class="chest-first"><b>Your first chest also brings a new hero who joins your team right away!</b></p>' : ''}
         <div class="chest-heroes">${faces}</div>
         <ul class="chest-odds">${odds}</ul>
         <p class="chest-wallet">You have <b>${s.gems}</b> Gems${afford ? '' : `. You need ${CHEST_COST - s.gems} more.`}</p>
@@ -3305,14 +3306,14 @@ export function dropCards(drops: SummonDrop[]): string {
   const merged = new Map<string, SummonDrop>();
   for (const d of drops) {
     const m = merged.get(d.heroId);
-    merged.set(d.heroId, m ? { heroId: d.heroId, crests: m.crests + d.crests, isNew: m.isNew || d.isNew } : { ...d });
+    merged.set(d.heroId, m ? { heroId: d.heroId, crests: m.crests + d.crests, isNew: m.isNew || d.isNew, joined: m.joined || d.joined } : { ...d });
   }
   // Heroes now ready to unlock go first.
   const cards = [...merged.values()]
     .sort((a, b) => Number(b.isNew) - Number(a.isNew))
     .map((d) => {
       const def = HEROES.find((h) => h.id === d.heroId)!;
-      return `<div class="drop">${crestFace(def, `<div class="face art" style="${faceStyle(def)}">${def.name[0]}</div>`)}<b>${def.name}</b>${d.isNew ? '<span class="new">READY TO UNLOCK</span>' : ''}<span class="crest">+${d.crests} Crests</span></div>`;
+      return `<div class="drop">${crestFace(def, `<div class="face art" style="${faceStyle(def)}">${def.name[0]}</div>`)}<b>${def.name}</b>${d.joined ? '<span class="new">JOINED YOUR TEAM</span>' : d.isNew ? '<span class="new">READY TO UNLOCK</span>' : ''}<span class="crest">+${d.crests} Crests</span></div>`;
     })
     .join('');
   return `<div class="summon-grid${merged.size > 9 ? ' many' : ''}">${cards}</div>`;

@@ -14,8 +14,7 @@ describe('Shop red dot', () => {
   it('ignores Gems on hand and lights for a new Hero Shop set until the Shop is opened', () => {
     const s = fresh();
     s.gems = 100_000;
-    expect(s.shopWaiting(NOW)).toBe(true);
-    s.seeHeroShop(NOW);
+    // A brand-new game's first set counts as seen; a later new set lights the dot.
     expect(s.shopWaiting(NOW)).toBe(false);
     const later = NOW + HERO_SHOP_REFRESH_MINUTES * 60_000 + 1;
     expect(s.shopWaiting(later)).toBe(true);

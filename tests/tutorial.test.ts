@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { GameState } from '../src/state';
-import { INTRO, TIPS, TIP_IDS, TUTORIAL_DONE, advanceIntro, pendingTip, type GuideView } from '../src/tutorialSteps';
+import { INTRO, TIPS, TIP_IDS, TUTORIAL_DONE, OLD_TUTORIAL_DONE, advanceIntro, pendingTip, type GuideView } from '../src/tutorialSteps';
+import { CHEST_COST, CHEST_DROPS, HEROES } from '../src/data';
 
 const view = (v: Partial<GuideView> = {}): GuideView => ({ tab: 'home', leveled: false, bossButton: false, ultReady: false, rekindleButton: false, bestStage: 1, firstChest: false, unlockReady: false, ...v });
 
@@ -68,5 +69,49 @@ describe('First-time guide', () => {
     expect(pendingTip(TUTORIAL_DONE, [], view({ firstChest: true, tab: 'heroes' }))?.id).toBe('chest');
     expect(pendingTip(TUTORIAL_DONE, ['chest'], view({ firstChest: true, tab: 'heroes' }))).toBeNull();
     expect(pendingTip(TUTORIAL_DONE, ['chest'], view({ unlockReady: true, tab: 'heroes' }))?.id).toBe('unlock');
+  });
+});
+
+describe('First Hero Chest brings a new hero', () => {
+  it('has an intro step that waits for the first chest', () => {
+    const at = INTRO.findIndex((st) => st.target === '#chest-btn');
+    expect(at).toBeGreaterThan(0);
+    expect(advanceIntro(at, view({ tab: 'heroes', firstChest: true }))).toBe(at);
+    expect(advanceIntro(at, view({ tab: 'heroes', firstChest: false }))).toBe(at + 1);
+  });
+
+  it('unlocks a Common who joins the team, on top of the normal drops, only once', () => {
+    const s = new GameState();
+    s.gems = CHEST_COST * 2;
+    const owned = () => Object.keys(s.levels).filter((id) => s.levels[id] > 0);
+    const before = owned().length;
+    const drops = s.summon()!;
+    expect(drops).toHaveLength(CHEST_DROPS + 1);
+    const gift = drops[0];
+    expect(gift.joined).toBe(true);
+    expect(gift.isNew).toBe(true);
+    const def = HEROES.find((h) => h.id === gift.heroId)!;
+    expect(def.rarity).toBe('common');
+    expect(s.levels[gift.heroId]).toBe(1);
+    expect(s.benched[gift.heroId]).toBeFalsy();
+    expect(owned().length).toBeGreaterThanOrEqual(before + 1);
+    const again = s.summon()!;
+    expect(again).toHaveLength(CHEST_DROPS);
+    expect(again.some((d) => d.joined)).toBe(false);
+  });
+
+  it('keeps an old finished guide finished after the intro grew', () => {
+    const old = new GameState().toJSON();
+    old.tutorialStep = OLD_TUTORIAL_DONE;
+    delete old.tutorialLen;
+    GameState.writeLocal(old);
+    const s = new GameState();
+    s.load();
+    expect(s.tutorialStep).toBe(TUTORIAL_DONE);
+  });
+
+  it('shows no Shop dot for the Hero Shop on a brand-new game', () => {
+    const s = new GameState();
+    expect(s.shopWaiting()).toBe(false);
   });
 });

@@ -412,6 +412,7 @@ describe('medals, unlocks and evolution', () => {
     s.gems = CHEST_COST - 1;
     expect(s.summon()).toBeNull();
     s.gems = CHEST_COST;
+    s.stats.summons = 1; // past the first chest's free hero (tests/tutorial.test.ts)
     const drops = s.summon()!;
     expect(drops).toHaveLength(CHEST_DROPS);
     expect(s.gems).toBe(0);

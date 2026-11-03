@@ -11,7 +11,7 @@ import { isKnight, combatPower, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
 import { OBSERVATORY, OBSERVATORY_RESPEC_GEMS, obsDef, sigilCost, sigilsSpent, sigilsEarned, cleanObservatory, cleanObsOff, type ObsBranch } from './observatory';
 import { PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_TICKET_GEMS, PVP_TICKET_BUYS, PVP_REFRESH_MINUTES, PVP_CP_MIN, PVP_CP_MAX, PVP_REAL_MIN, PVP_REAL_MAX, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_FIRST_WIN_MOTES, PVP_STREAK_DMG, PVP_STREAK_MAX, PVP_QUICK_CP, PVP_QUICK_HP, RANK_PRESSURE, RANK_DAILY, RANK_WEEKLY, rankIndex, rankName, droppedTrophies, seededRandom, ghostName, simulatePvp, type PvpUnit, type PvpResult } from './colosseum';
-import { TUTORIAL_DONE, TIP_IDS } from './tutorialSteps';
+import { TUTORIAL_DONE, OLD_TUTORIAL_DONE, TIP_IDS } from './tutorialSteps';
 import { ascendBlocker, ascendNeeds, clampForm, formArtKey, resolveForm, COUNTERED_BY, type AscendBlocker, type AscendContext, type AscendantDef } from './ascendant';
 import { ascendantDef, isAscendant, ASCENDANT_HEROES } from './heroes/ascendant';
 import { HERO_ANIMS } from './heroAnims';
@@ -31,6 +31,8 @@ export interface SummonDrop {
   heroId: string;
   crests: number;
   isNew: boolean;
+  /** The hero was unlocked and joined the team straight away (the first Hero Chest's free hero). */
+  joined?: boolean;
 }
 
 /** A reward paid by Rush (a tier or a shop buy), with the Glyphs its chests gave. */
@@ -986,11 +988,31 @@ export class GameState {
   summon(times = 1): SummonDrop[] | null {
     if (times < 1 || this.gems < CHEST_COST * times) return null;
     this.gems -= CHEST_COST * times;
+    const first = this.stats.summons === 0;
     this.track('summons', times);
     const drops: SummonDrop[] = [];
     for (let i = 0; i < times; i++) drops.push(...this.rollChest());
+    // The very first Hero Chest always brings a new hero, so a new player gets a second fighter early.
+    if (first) {
+      const gift = this.firstChestHero();
+      if (gift) drops.unshift(gift);
+    }
     this.save();
     return drops;
+  }
+
+  /**
+   * The first Hero Chest's gift on top of its normal drops: a locked Common gets exactly the crests it
+   * still needs and joins the team.
+   */
+  firstChestHero(pick: (n: number) => number = (n) => Math.floor(Math.random() * n)): SummonDrop | null {
+    const pool = SHOP_HEROES.filter((h) => h.rarity === 'common' && (this.levels[h.id] ?? 0) === 0);
+    if (!pool.length) return null;
+    const hero = pool[pick(pool.length)];
+    const need = Math.max(0, this.unlockCrests(hero) - (this.crests[hero.id] ?? 0));
+    this.addCrests(hero.id, need);
+    if (!this.unlockHero(hero.id)) return null;
+    return { heroId: hero.id, crests: need, isNew: true, joined: !this.benched[hero.id] };
   }
 
   /** The drops of one Hero Chest, paid for or not. */
@@ -3657,6 +3679,8 @@ export class GameState {
   /** The Shop tab's red dot: a Gem goal to claim, or a Hero Shop set the player hasn't looked at yet. */
   shopWaiting(now = Date.now()): boolean {
     this.heroShopState(now);
+    // A brand-new game has nothing new to show yet: its first Hero Shop set counts as seen.
+    if (this.heroShopSeen === 0) this.heroShopSeen = this.heroShop.refreshAt;
     return this.rewardsWaiting() || this.heroShop.refreshAt !== this.heroShopSeen;
   }
 
@@ -3818,6 +3842,7 @@ export class GameState {
       sfxVolume: this.sfxVolume,
       musicVolume: this.musicVolume,
       tutorialStep: this.tutorialStep,
+      tutorialLen: TUTORIAL_DONE,
       tipsSeen: this.tipsSeen,
       buyAmount: this.buyAmount,
       stallBuyAmount: this.stallBuyAmount,
@@ -3992,6 +4017,8 @@ export class GameState {
       this.musicVolume = typeof d.musicVolume === 'number' ? Math.max(0, Math.min(1, d.musicVolume)) : 0.6;
       // Saves from before the guide existed belong to players who already know the game: no intro, no tips.
       this.tutorialStep = typeof d.tutorialStep === 'number' ? d.tutorialStep : TUTORIAL_DONE;
+      // Saves from before the Hero Chest step that had finished the old, shorter intro stay finished.
+      if (typeof d.tutorialLen !== 'number' && this.tutorialStep >= OLD_TUTORIAL_DONE) this.tutorialStep = TUTORIAL_DONE;
       this.tipsSeen = Array.isArray(d.tipsSeen) ? d.tipsSeen.filter((t: unknown) => typeof t === 'string') : d.tutorialStep === undefined ? [...TIP_IDS] : [];
       this.buyAmount = normalizeBuyAmount(d.buyAmount);
       this.stallBuyAmount = normalizeBuyAmount(d.stallBuyAmount);
