@@ -871,12 +871,12 @@ export class BattleScene extends Phaser.Scene {
       const level = this.levelOf(def.id);
       if (level <= 0) continue;
       const stats = this.state.heroStats(def, level);
-      // A squad splits the hero's ATK and HP between its small fighters (the first one owns the Ultimate).
-      const size = def.squad ?? 1;
       // A Colosseum win streak hits harder.
-      const atk = stats.atk.value.div(size).times(1 + (this.pvp?.bonus ?? 0)), hp = stats.hp.value.div(size), defense = stats.def.value;
-      const squad = this.heroes.filter((h) => h.def?.id === def.id);
-      for (const u of squad) {
+      const atk = stats.atk.value.times(1 + (this.pvp?.bonus ?? 0)), hp = stats.hp.value, defense = stats.def.value;
+      // Every hero is one unit on the lane.
+      const existing = this.heroes.find((h) => h.def?.id === def.id);
+      if (existing) {
+        const u = existing;
         const ratio = u.maxHp.gt(0) ? u.hp.div(u.maxHp) : new Decimal(1);
         u.maxHp = hp;
         u.atk = atk;
@@ -888,14 +888,13 @@ export class BattleScene extends Phaser.Scene {
         u.speed = stats.moveSpeed.value;
         if (u.alive) u.hp = hp.times(ratio);
         this.drawHpBar(u);
-      }
-      for (let i = squad.length; i < size; i++) {
+      } else {
         const u = this.makeUnit({
           side: 'hero',
           def,
           art: this.heroArt(def),
           texture: `hero-${this.heroArt(def)}`,
-          x: PLAYER_CRYSTAL_X + 20 - i * 12,
+          x: PLAYER_CRYSTAL_X + 20,
           hp,
           atk,
           range: def.range,
@@ -905,7 +904,6 @@ export class BattleScene extends Phaser.Scene {
           goldMult: def.goldMult * (1 + heroProfile(def).goldBonus),
           flying: def.flying,
         });
-        if (size > 1) u.view.setScale(0.7);
         u.defense = defense;
         u.stats = stats;
         this.giveKnightShield(u);
@@ -1238,23 +1236,22 @@ export class BattleScene extends Phaser.Scene {
       this.reviveHero(h);
     }
     for (const [i, f] of foes.entries()) {
-      const size = f.def.squad ?? 1;
-      for (let k = 0; k < size; k++) {
+      {
+        // Every foe hero is one unit.
         const e = this.makeUnit({
           side: 'enemy',
           def: f.def,
           texture: `hero-${f.def.id}`,
-          x: ENEMY_CRYSTAL_X - 20 - i * 6 - k * 12,
-          hp: f.stats.hp.value.div(size),
+          x: ENEMY_CRYSTAL_X - 20 - i * 6,
+          hp: f.stats.hp.value,
           // Foes have no crit rolls of their own: their hits carry the average crit.
-          atk: f.stats.atk.value.div(size).times(1 + f.stats.critRate * f.stats.critDmg),
+          atk: f.stats.atk.value.times(1 + f.stats.critRate * f.stats.critDmg),
           range: f.def.range,
           cooldown: 1 / Math.max(0.05, f.stats.attacksPerSec.value),
           speed: f.stats.moveSpeed.value,
           element: f.def.element,
           flying: f.def.flying,
         });
-        if (size > 1) e.view.setScale(0.7);
         e.defense = f.stats.def.value;
         e.stats = f.stats;
         this.enemies.push(e);
@@ -1344,7 +1341,7 @@ export class BattleScene extends Phaser.Scene {
     e.poisonUntil = 0;
     e.x = ENEMY_CRYSTAL_X - 20;
     this.tweens.killTweensOf(e.view);
-    e.view.setPosition(e.x, e.y).setAlpha(1).setScale(e.def?.squad ? 0.7 : 1).setVisible(true);
+    e.view.setPosition(e.x, e.y).setAlpha(1).setScale(1).setVisible(true);
     e.body.setAlpha(1);
     this.drawHpBar(e);
   }

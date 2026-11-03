@@ -139,12 +139,11 @@ describe('full roster', () => {
     for (const h of HEROES) expect(RELEASED_HEROES, h.id).toContain(h.id);
   });
 
-  it('makes troop Commons squads of three, and only Commons', () => {
-    const squads = HEROES.filter((h) => h.squad);
-    expect(squads.length).toBe(10);
-    for (const h of squads) {
-      expect(h.squad).toBe(3);
-      expect(h.rarity).toBe('common');
+  it('makes every hero a single unit (no squads), with troop text that says so', () => {
+    for (const h of HEROES) {
+      expect((h as unknown as Record<string, unknown>).squad, h.id).toBeUndefined();
+      expect(h.bio, h.id).not.toMatch(/squad of/i);
+      expect(h.basic.text, h.id).not.toMatch(/a third of the ATK/i);
     }
   });
 

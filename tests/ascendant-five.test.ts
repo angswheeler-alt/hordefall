@@ -54,7 +54,7 @@ describe('the five Ascendant heroes', () => {
         expect(dps(f[n])).toBeGreaterThan(dps(f[n - 1]));
         expect(f[n].baseHp).toBeGreaterThanOrEqual(f[n - 1].baseHp);
       }
-      const same = HEROES.filter((h) => h.type === a.base.type && !h.squad);
+      const same = HEROES.filter((h) => h.type === a.base.type);
       const rares = same.filter((h) => h.rarity === 'rare' || h.rarity === 'common');
       const tops = same.filter((h) => h.rarity === 'epic' || h.rarity === 'legendary');
       expect(dps(f[0])).toBeLessThanOrEqual(Math.max(...rares.map(dps)));
