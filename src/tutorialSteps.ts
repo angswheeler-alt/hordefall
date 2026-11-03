@@ -57,6 +57,13 @@ export const INTRO: GuideStep[] = [
     done: (v) => v.leveled,
   },
   {
+    target: '#chest-btn',
+    title: 'A new hero',
+    text: 'Open a Hero Chest with your Gems. Your first chest always brings a new hero to fight beside you.',
+    // Moves on once the first chest is opened (or straight away when there are no Gems for one).
+    done: (v) => !v.firstChest,
+  },
+  {
     target: '#home-btn',
     title: 'Back home',
     text: 'Tap the arrow (or the open tab again) to close it and go back home.',
@@ -72,6 +79,12 @@ export const INTRO: GuideStep[] = [
 
 /** The intro step a finished (or skipped) guide sits on. */
 export const TUTORIAL_DONE = INTRO.length;
+
+/**
+ * How long the intro was before the Hero Chest step joined it (2026-11-03). Saves that don't record the
+ * length and sit at or past this step had already finished, so they stay finished.
+ */
+export const OLD_TUTORIAL_DONE = 6;
 
 export interface GuideTip extends GuideStep {
   id: string;

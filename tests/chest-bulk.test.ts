@@ -12,10 +12,11 @@ describe('Open 10 Hero Chests', () => {
   it('opens all ten at once and pays for all ten', () => {
     const s = fresh();
     s.gems = CHEST_COST * CHEST_BULK + 5;
+    s.stats.summons = 1; // past the first chest's free hero
     const drops = s.summon(CHEST_BULK);
     expect(drops).toHaveLength(CHEST_DROPS * CHEST_BULK);
     expect(s.gems).toBe(5);
-    expect(s.stats.summons).toBe(CHEST_BULK);
+    expect(s.stats.summons).toBe(CHEST_BULK + 1);
     const total = drops!.reduce((n, d) => n + d.crests, 0);
     const owned = Object.values(s.crests).reduce((n, c) => n + c, 0);
     expect(owned).toBeGreaterThanOrEqual(total);
