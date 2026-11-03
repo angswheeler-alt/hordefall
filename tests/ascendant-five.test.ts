@@ -141,7 +141,7 @@ describe('Charge', () => {
     expect(chargeText({ stacks: 6, boost: 'attackSpeed', value: 0.3 })).toBe('Charge: every 6th attack in a row speeds up attacks by 30% for 4 seconds.');
   });
 
-  it('Valeth walks in Form I and flies from Form II on', () => {
+  it('Hayle walks in Form I and flies from Form II on', () => {
     const light = forms(ELEMENTS.indexOf('light'));
     expect(light.map((f) => !!f.flying)).toEqual([false, true, true, true]);
   });
