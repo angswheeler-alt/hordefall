@@ -2,7 +2,7 @@
  * Tiny synthesized sound effects (Web Audio), so the prototype needs no audio files.
  * Browsers only allow audio after a tap, so the context starts on the first pointer event.
  */
-type Sound = 'hit' | 'crit' | 'kill' | 'coin' | 'hurt' | 'ult' | 'heal' | 'clear' | 'boss' | 'defeat' | 'chest' | 'unlock' | 'levelup' | 'tap';
+type Sound = 'hit' | 'crit' | 'kill' | 'coin' | 'hurt' | 'ult' | 'heal' | 'clear' | 'boss' | 'defeat' | 'chest' | 'unlock' | 'levelup' | 'tap' | 'shiny';
 
 /** Loudness of the whole mix at full volume. */
 const MASTER = 0.35;
@@ -172,6 +172,10 @@ export function play(sound: Sound) {
       break;
     case 'tap':
       tone('triangle', 900, 700, t, 0.04, 0.08);
+      break;
+    case 'shiny':
+      // A rising twinkle: a shiny mob just walked onto the lane.
+      [1319, 1568, 1976, 2637, 1976, 2637].forEach((f, i) => tone('sine', f, f, t + i * 0.06, 0.12, 0.09));
       break;
     case 'unlock':
       [523, 784, 1047, 1568].forEach((f, i) => tone('triangle', f, f, t + i * 0.1, 0.25, 0.18));

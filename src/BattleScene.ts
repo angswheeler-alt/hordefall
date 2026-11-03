@@ -129,6 +129,8 @@ const REVIVE_HP = 0.5;
 const MAX_ENEMIES = 14;
 /** A Splitting mutant's copies are drawn this much smaller. */
 const SPLIT_SCALE = 0.7;
+/** One full trip around the rainbow for a shiny mob, ms. */
+const SHINY_SHIMMER_MS = 1600;
 /** Melee feet sit this far below a unit's y (the old 30 px placeholders were centred on it). */
 const FOOT_Y = 15;
 /** Where an animated boss's head ends up (container y), drawn at BOSS_SCALE from its feet. */
@@ -852,7 +854,7 @@ export class BattleScene extends Phaser.Scene {
   /** The tint an enemy rests at: ice blue while frozen, else its element (animated bosses and mobs keep their art). */
   private restTint(e: Unit) {
     if (e.frozenUntil > this.clock) e.body.setTint(0x9fdcff);
-    else if (e.shiny && !e.body.postFX) e.body.setTint(0xffe27a);
+    else if (e.shiny && !e.body.postFX) return; // the rainbow tween owns its tint
     else if (e.bossArt || e.mob) e.body.clearTint();
     else e.body.setTint(ELEMENT_COLORS[e.element]);
   }
@@ -1135,28 +1137,52 @@ export class BattleScene extends Phaser.Scene {
     this.state.emit();
   }
 
-  /** Turn a fresh mob into a shiny: other colours (hue turned on WebGL, gold tint otherwise), a gold glow and sparkles. */
+  /**
+   * Turn a fresh mob into a shiny: a rainbow shimmer (its colours cycle through the hues on WebGL, a cycling
+   * rainbow tint otherwise), a glow that cycles with it, rainbow sparkles, and a chime plus a "SHINY!" pop as it spawns.
+   */
   private makeShiny(u: Unit) {
     u.shiny = true;
     const fx = u.body.postFX;
-    if (fx) {
-      fx.addColorMatrix().hue(150);
-      fx.addGlow(0xffe066, 3, 0, false, 0.1, 10);
-    }
-    this.restTint(u);
+    const matrix = fx?.addColorMatrix();
+    const glow = fx?.addGlow(0xffffff, 4, 0, false, 0.1, 10);
+    const shimmer = { hue: 0 };
+    const spin = this.tweens.add({
+      targets: shimmer,
+      hue: 360,
+      duration: SHINY_SHIMMER_MS,
+      repeat: -1,
+      onUpdate: () => {
+        if (!u.body.active) return;
+        const color = Phaser.Display.Color.HSVToRGB(shimmer.hue / 360, 0.75, 1) as Phaser.Types.Display.ColorObject;
+        const rgb = (color.r << 16) | (color.g << 8) | color.b;
+        if (matrix) matrix.hue(shimmer.hue);
+        if (glow) glow.color = rgb;
+        // Without WebGL effects the tint carries the rainbow (unless frozen, which shows ice blue).
+        if (!fx && u.frozenUntil <= this.clock) u.body.setTint(rgb);
+      },
+    });
     const twinkle = this.time.addEvent({
-      delay: 260,
+      delay: 200,
       loop: true,
       callback: () => {
         if (!u.alive || !u.view.active) return;
         const h = u.body.displayHeight;
+        const color = Phaser.Display.Color.HSVToRGB(Math.random(), 0.6, 1) as Phaser.Types.Display.ColorObject;
         const star = this.add
-          .star(u.x + Phaser.Math.Between(-14, 14), u.y - Phaser.Math.Between(4, Math.max(8, Math.round(h * 0.8))), 4, 1.2, 3.5, 0xfff6b0)
+          .star(u.x + Phaser.Math.Between(-14, 14), u.y - Phaser.Math.Between(4, Math.max(8, Math.round(h * 0.8))), 4, 1.2, 3.5, (color.r << 16) | (color.g << 8) | color.b)
           .setDepth(u.view.depth + 1);
         this.tweens.add({ targets: star, scale: 0, angle: 90, alpha: 0, duration: 520, onComplete: () => star.destroy() });
       },
     });
-    u.view.once(Phaser.GameObjects.Events.DESTROY, () => twinkle.remove());
+    u.view.once(Phaser.GameObjects.Events.DESTROY, () => {
+      twinkle.remove();
+      spin.remove();
+    });
+    play('shiny');
+    // The pop shows at the right edge of the screen, where it walks on.
+    const cam = this.cameras.main.scrollX;
+    this.floatText(Math.min(u.x, cam + WIDTH - 50), 86, '\u2726 SHINY! \u2726', '#fff2a0', 15);
   }
 
   private spawnWave(behind = 0) {
