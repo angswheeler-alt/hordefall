@@ -73,4 +73,22 @@ describe('profile report', () => {
     expect(p.p_team[0].stars).toBeGreaterThanOrEqual(1);
     expect(p.p_total_cp).toMatch(/^[0-9.e+]{1,40}$/);
   });
+
+  it('sends at most 5 team heroes, the strongest first, so the server accepts a 6+ hero team', async () => {
+    const { profilePayload, PROFILE_TEAM_MAX } = await import('../src/social');
+    GameState.frozen = false;
+    localStorage.clear();
+    const s = new GameState();
+    s.teamSlots = 10;
+    for (const h of HEROES.slice(0, 8)) {
+      s.levels[h.id] = 5;
+      s.benched[h.id] = false;
+    }
+    expect(s.lineupCount()).toBeGreaterThan(PROFILE_TEAM_MAX);
+    const p = profilePayload(s);
+    expect(PROFILE_TEAM_MAX).toBe(5);
+    expect(p.p_team.length).toBe(PROFILE_TEAM_MAX);
+    const cps = p.p_team.map((t) => new Decimal(t.cp));
+    for (let i = 1; i < cps.length; i++) expect(cps[i - 1].gte(cps[i])).toBe(true);
+  });
 });
