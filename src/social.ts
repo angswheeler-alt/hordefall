@@ -61,6 +61,8 @@ export class Social {
   private viewing: string | null = null;
   private lastReport = '';
   private lastReportAt = 0;
+  /** Why the last profile report failed, shown on the Profile tab so a stuck leaderboard can be explained. */
+  private reportError = '';
   private serverMissing = false;
   private note = '';
   private noteErr = false;
@@ -106,8 +108,9 @@ export class Social {
     this.viewing = null;
     this.note = '';
     $('social').hidden = false;
-    void this.report(true);
-    void this.render();
+    this.setBody('<p>Loading…</p>');
+    // Send the latest profile first, so the Profile tab and leaderboards show it straight away.
+    void this.report(true).finally(() => this.render());
   }
 
   private close() {
@@ -128,8 +131,10 @@ export class Social {
     const { error } = await db.rpc('save_profile', payload);
     if (error) {
       if (missingServer(error.message)) this.serverMissing = true;
+      this.reportError = error.message;
       return;
     }
+    this.reportError = '';
     this.lastReport = key;
     this.lastReportAt = Date.now();
   }
@@ -186,6 +191,7 @@ export class Social {
       <div class="sp-head"><b>${esc(p.username)}</b><small class="muted">${other ? 'Friend' : 'You'}</small></div>
       <div class="sp-stats"><div><span>Total Combat Power</span><b>${fmt(new Decimal(p.total_cp || 0))}</b></div><div><span>Best stage</span><b>${Number(p.best_stage).toLocaleString()}</b></div><div><span>Rekindles</span><b>${Number(p.rekindles).toLocaleString()}</b></div></div>
       <h3 class="sp-section">Team</h3><div class="sp-team">${slots}</div>
+      ${!other && this.reportError ? `<p class="sp-note err">Couldn't update your profile: ${esc(this.reportError)}</p>` : ''}
       <p>${updated} ${other ? '' : 'Your friends can see this profile; everyone signed in sees your name, Combat Power and best stage on the leaderboards.'}</p>
       ${other ? `<button type="button" class="wood-btn small danger" data-remove="${esc(p.user_id)}">Remove friend</button> <button type="button" class="wood-btn small" data-report="${esc(p.user_id)}" data-name="${esc(p.username)}">Report name</button>${this.noteHtml()}` : ''}`);
   }
