@@ -131,8 +131,6 @@ export interface HeroDef {
   steadfast?: boolean;
   /** Flies (wings, or a ghost drifting on mist): moves in the sky above the walking heroes. Looks only; combat is the same. */
   flying?: boolean;
-  /** A squad: this many small fighters share the slot, each with 1/squad of the ATK and HP. */
-  squad?: number;
   /** Attack and HP at gold level 1. */
   baseAtk: number;
   baseHp: number;

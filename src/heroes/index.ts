@@ -8,7 +8,7 @@ import { DARK_HEROES, DARK_PROFILES } from './dark';
 import { SQUAD_HEROES, SQUAD_PROFILES } from './squads';
 import { ASCENDANT_FIVE } from './ascendant';
 
-/** The rest of the roster, one file per element, plus the squads. */
+/** The rest of the roster, one file per element, plus the troop Commons. */
 export const ROSTER_HEROES: HeroDef[] = [...WATER_HEROES, ...FIRE_HEROES, ...EARTH_HEROES, ...LIGHT_HEROES, ...DARK_HEROES, ...SQUAD_HEROES, ...ASCENDANT_FIVE.map((a) => a.base)];
 export const ROSTER_PROFILES: Record<string, HeroProfile> = { ...WATER_PROFILES, ...FIRE_PROFILES, ...EARTH_PROFILES, ...LIGHT_PROFILES, ...DARK_PROFILES, ...SQUAD_PROFILES,
   // The Ascendant heroes (src/heroes/ascendant.ts): their own Signatures carry them, so plain profiles.
