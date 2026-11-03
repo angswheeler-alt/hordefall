@@ -4,7 +4,7 @@
  * Pages: each of the 5 mob kinds in each of the 5 element colours (25), the 5 stage bosses (who are also the
  * every-100th element bosses from stage 600), the 5 Trial bosses and the 5 Guild Bosses: 40 pages.
  *
- * Shinies: about 1 in SHINY_ODDS regular mobs in a normal run is a shiny, a recoloured one with a sparkle. Beating
+ * Shinies: about 1 in SHINY_ODDS regular mobs (balance check 2026-11-03: a normal run kills ~3,000 an hour, so 1 in 500 with 10 a day added ~35% to free Gems) in a normal run is a shiny, a recoloured one with a sparkle. Beating
  * one pays a small treasure (Gems, sometimes a Hero Chest) and puts a gold stamp on its page for an extra bonus.
  * Shinies are capped per day (SHINY_PER_DAY) so the treasure can't flood the Gem economy.
  */
@@ -49,8 +49,8 @@ export const TIER_BONUS = [0.03, 0.06, 0.1];
 /** Extra damage on top for a page with a gold stamp (a shiny of it beaten). */
 export const STAMP_BONUS = 0.02;
 
-export const SHINY_ODDS = 500;
-export const SHINY_PER_DAY = 10;
+export const SHINY_ODDS = 2000;
+export const SHINY_PER_DAY = 5;
 export const SHINY_GEMS = 5;
 /** Share of shiny treasures that are a Hero Chest instead of Gems. */
 export const SHINY_CHEST_CHANCE = 0.15;

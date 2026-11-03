@@ -116,8 +116,8 @@ describe('Hunting Journal in the save', () => {
 });
 
 describe('Shinies', () => {
-  it('about 1 in 500 spawns, and none once the daily cap is reached', () => {
-    expect(SHINY_ODDS).toBe(500);
+  it('about 1 in 2,000 spawns, and none once the daily cap is reached', () => {
+    expect(SHINY_ODDS).toBe(2000);
     expect(isShinyRoll(0, 0)).toBe(true);
     expect(isShinyRoll(1 / SHINY_ODDS - 1e-9, 0)).toBe(true);
     expect(isShinyRoll(1 / SHINY_ODDS, 0)).toBe(false);
