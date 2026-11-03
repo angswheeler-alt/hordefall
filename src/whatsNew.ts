@@ -28,6 +28,11 @@ export const WHATS_NEW_SHOWN = 8;
 /** Newest first. */
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: 'mutation-mobs',
+    date: '2026-11-03',
+    text: '<b>Mutation mobs</b> after stage 500: Armored, Swift, Splitting, Enraged or Mending. Tougher, but 1.5x gold, with Journal pages.',
+  },
+  {
     id: 'hunting-journal',
     date: '2026-11-03',
     text: '<b>Hunting Journal</b> on Home: fill pages by defeating mobs and bosses for bonus damage, and watch for rare shiny mobs.',
