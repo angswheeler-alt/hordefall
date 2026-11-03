@@ -60,6 +60,11 @@
             <span class="obs-home-text"><b>Observatory</b><small id="home-obs-note"></small></span>
             <span class="obs-home-count"><b id="home-obs-sigils"></b><small>Sigils</small></span>
           </button>
+          <button id="home-journal" class="rw-card obs-home jr-home">
+            <span class="jr-home-ico" aria-hidden="true"></span>
+            <span class="obs-home-text"><b>Hunting Journal</b><small id="home-journal-note"></small></span>
+            <span class="obs-home-count"><b id="home-journal-tiers"></b><small>tiers</small></span>
+          </button>
           <div class="rw-card">
             <h3>Daily challenges <small id="daily-note"></small></h3>
             <ul id="daily-list" class="rw-list"></ul>
@@ -387,6 +392,18 @@
         <div id="obs-list" class="obs-list"></div>
         <p class="rk-note">Switch a constellation off any time for free; its Sigils stay in it. Taking every Sigil back out costs Gems.</p>
         <button id="obs-respec" class="gem-btn obs-respec"></button>
+      </div>
+    </div>
+    <div id="jr" hidden>
+      <div class="rk-card jr-card" role="dialog" aria-modal="true" aria-labelledby="jr-title">
+        <button id="jr-close" class="rk-close" aria-label="Close">&#x2715;</button>
+        <div class="rk-badge jr-badge" aria-hidden="true"><span class="jr-home-ico"></span></div>
+        <h2 id="jr-title">Hunting Journal</h2>
+        <div id="jr-sum" class="jr-sum"></div>
+        <div id="jr-detail" class="jr-detail"></div>
+        <div id="jr-tabs" class="jr-tabs"><button data-tab="mobs">Mobs</button><button data-tab="bosses">Bosses</button></div>
+        <div id="jr-list" class="jr-list"></div>
+        <p id="jr-rules" class="rk-note"></p>
       </div>
     </div>
     <div id="social" hidden>

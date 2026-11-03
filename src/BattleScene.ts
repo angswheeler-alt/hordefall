@@ -77,6 +77,7 @@ import { comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PL
 import { STAT_BASE, FREEZE_BLAST_RADIUS, BOSS_STUN_CHANCE, BOSS_STUN_SECONDS, type HeroStats } from './stats';
 import { heroProfile } from './profiles';
 import { canReach, enemyGoal, flyerVictim, pickVictim } from './reach';
+import { bossPageId, guildPageId, journalPage, mobPageId, trialPageId } from './journal';
 
 /** Visible area. The lane itself is WORLD_WIDTH long and the camera follows the heroes. */
 export const WIDTH = 480;
@@ -186,6 +187,10 @@ interface Unit {
   anim?: { id: string; state: AnimState };
   /** A frame-animated regular enemy (MOB_ANIMS key). */
   mob?: { id: MobId; key: string; state: 'idle' | 'walk' | 'attack' };
+  /** Enemies: their Hunting Journal page (journal.ts). */
+  page?: string;
+  /** A shiny mob: recoloured, sparkles, and pays a treasure when beaten. */
+  shiny?: boolean;
   /** Set for frame-animated element bosses: whose art (BOSS_ANIMS key) and when it may flinch next. */
   bossArt?: { id: string; flinchAt: number };
   /** Fights without an element (bosses before stage 600): no element bonus either way on its hits or on hits it takes. */
@@ -838,6 +843,7 @@ export class BattleScene extends Phaser.Scene {
   /** The tint an enemy rests at: ice blue while frozen, else its element (animated bosses and mobs keep their art). */
   private restTint(e: Unit) {
     if (e.frozenUntil > this.clock) e.body.setTint(0x9fdcff);
+    else if (e.shiny && !e.body.postFX) e.body.setTint(0xffe27a);
     else if (e.bossArt || e.mob) e.body.clearTint();
     else e.body.setTint(ELEMENT_COLORS[e.element]);
   }
@@ -1007,6 +1013,8 @@ export class BattleScene extends Phaser.Scene {
     });
     if (boss && !bossHasElement(stage)) u.noElement = true;
     if (boss && isElementBossStage(stage)) u.lockStage = stage;
+    u.page = boss ? bossPageId(stageBoss(stage).art) : mobPageId(kind!.id, element);
+    if (!boss && !this.trial && !this.pvp && this.state.rollShiny(Math.random())) this.makeShiny(u);
     this.enemies.push(u);
   }
 
@@ -1057,6 +1065,30 @@ export class BattleScene extends Phaser.Scene {
     // The opening wave queues up behind the groups instead of piling onto the first one.
     this.spawnWave(START_GROUPS * GROUP_GAP);
     this.state.emit();
+  }
+
+  /** Turn a fresh mob into a shiny: other colours (hue turned on WebGL, gold tint otherwise), a gold glow and sparkles. */
+  private makeShiny(u: Unit) {
+    u.shiny = true;
+    const fx = u.body.postFX;
+    if (fx) {
+      fx.addColorMatrix().hue(150);
+      fx.addGlow(0xffe066, 3, 0, false, 0.1, 10);
+    }
+    this.restTint(u);
+    const twinkle = this.time.addEvent({
+      delay: 260,
+      loop: true,
+      callback: () => {
+        if (!u.alive || !u.view.active) return;
+        const h = u.body.displayHeight;
+        const star = this.add
+          .star(u.x + Phaser.Math.Between(-14, 14), u.y - Phaser.Math.Between(4, Math.max(8, Math.round(h * 0.8))), 4, 1.2, 3.5, 0xfff6b0)
+          .setDepth(u.view.depth + 1);
+        this.tweens.add({ targets: star, scale: 0, angle: 90, alpha: 0, duration: 520, onComplete: () => star.destroy() });
+      },
+    });
+    u.view.once(Phaser.GameObjects.Events.DESTROY, () => twinkle.remove());
   }
 
   private spawnWave(behind = 0) {
@@ -1374,6 +1406,7 @@ export class BattleScene extends Phaser.Scene {
       hp: trialHp(level).div(1 + this.state.researchBonus('elemental')),
       atk: trialDps(level).times(TRIAL_BOSS_COOLDOWN),
       label: TRIAL_BOSS_NAMES[element],
+      page: trialPageId(element),
     });
     this.banner(`${TRIAL_BOSS_NAMES[element].toUpperCase()}\nTRIAL LEVEL ${tier}`, '#ff6680');
   }
@@ -1406,7 +1439,7 @@ export class BattleScene extends Phaser.Scene {
     const alive = this.heroes.filter((h) => h.def);
     const avg = (f: (h: Unit) => Decimal) => (alive.length ? alive.reduce((t, h) => t.plus(f(h)), new Decimal(0)).div(alive.length) : new Decimal(1));
     const art = BOSS_ANIMS[setup.element] ? setup.element : BOSS_ANIMS[TRIAL_BOSS_ART[setup.element]] ? TRIAL_BOSS_ART[setup.element] : undefined;
-    const boss = this.placeBoss({ art, element: setup.element, hp: setup.maxHp, atk: guildBossHitAtk(avg((h) => h.maxHp), avg((h) => h.defense), setup.level), label: setup.name });
+    const boss = this.placeBoss({ art, element: setup.element, hp: setup.maxHp, atk: guildBossHitAtk(avg((h) => h.maxHp), avg((h) => h.defense), setup.level), label: setup.name, page: guildPageId(setup.element) });
     boss.hp = Decimal.min(setup.maxHp, setup.hp);
     this.drawHpBar(boss);
     this.banner(`${setup.name.toUpperCase()}\nGUILD BOSS LEVEL ${setup.level}`, '#ff6680');
@@ -1445,7 +1478,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** The boss at the far end of the lane, with a short wind-up before its first hit. */
-  private placeBoss(o: { art: string | undefined; element: Element; hp: Decimal; atk: Decimal; label: string }): Unit {
+  private placeBoss(o: { art: string | undefined; element: Element; hp: Decimal; atk: Decimal; label: string; page: string }): Unit {
     const boss = this.makeUnit({
       side: 'enemy',
       texture: o.art ? `boss-${o.art}-idle` : 'boss',
@@ -1462,6 +1495,7 @@ export class BattleScene extends Phaser.Scene {
       label: o.label,
     });
     boss.cooldownLeft = TRIAL_BOSS_COOLDOWN;
+    boss.page = o.page;
     this.enemies.push(boss);
     play('boss');
     this.state.emit();
@@ -1494,6 +1528,8 @@ export class BattleScene extends Phaser.Scene {
     t.done = true;
     this.transitioning = true;
     const g = t.guild;
+    // The Guild Boss's Journal page counts every fight (its levels fall to the whole guild).
+    if (g) this.state.journalAdd(guildPageId(t.element));
     if (g) this.banner(won ? `LEVEL ${g.level} BEATEN!` : t.timeLeft <= 0 ? 'TIME UP' : 'FIGHT OVER', won ? '#ffe066' : '#ffd27a');
     else this.banner(won ? 'TRIAL CLEARED!' : t.timeLeft <= 0 ? 'TIME UP' : 'DEFEATED', won ? '#ffe066' : '#ff6b6b');
     play(won ? 'clear' : 'defeat');
@@ -2226,6 +2262,8 @@ export class BattleScene extends Phaser.Scene {
     if (target.side === 'enemy') amount = amount.times(this.mul('enemyVuln', null));
     // Slayer's Spear (a guild relic): heroes hit every boss harder.
     if (target.isBoss && target.side === 'enemy' && source?.side === 'hero') amount = amount.times(this.state.bossDamageMult());
+    // Hunting Journal: a little more damage against enemies the player has beaten many of.
+    if (target.side === 'enemy' && target.page && source?.side === 'hero') amount = amount.times(this.state.journalMult(target.page));
     let toHp = amount;
     if (target.shield.gt(0)) {
       const soaked = Decimal.min(target.shield, amount);
@@ -2327,6 +2365,7 @@ export class BattleScene extends Phaser.Scene {
       this.cameras.main.flash(150, 255, 255, 255);
     } else if (u.side === 'enemy') {
       this.state.track('kills');
+      if (u.page) this.journalKill(u);
       const gold = goldPerKill(this.state.stage)
         .times(u.isBoss ? 10 : 1)
         .times(source?.goldMult ?? 1)
@@ -2360,6 +2399,26 @@ export class BattleScene extends Phaser.Scene {
       this.puff(u.x, u.y, 0xffffff);
       if (this.trial) u.view.setVisible(false);
       else this.ghostHero(u);
+    }
+  }
+
+  /** Count a kill in the Hunting Journal; a shiny pays its treasure. Tiers reached float up over the lane. */
+  private journalKill(u: Unit) {
+    this.state.journalAdd(u.page!);
+    if (u.shiny) {
+      const got = this.state.catchShiny(u.page!, Math.random());
+      for (let i = 0; i < 4; i++) this.sparks(u.x + Phaser.Math.Between(-10, 10), u.y - Phaser.Math.Between(4, 24), 0xfff2a0, 6);
+      play('chest');
+      if (got) {
+        this.floatText(u.x, u.y - 46, got.chest ? 'SHINY! +Hero Chest' : `SHINY! +${got.gems} Gems`, '#ffe66b', 14);
+        if (got.stamped) this.floatText(u.x, u.y - 62, 'Gold stamp!', '#ffd34a', 13);
+      }
+    }
+    const news = this.state.journalNews;
+    if (news) {
+      this.state.journalNews = null;
+      const page = journalPage(news.pageId);
+      if (page) this.floatText(WIDTH / 2 + this.cameras.main.scrollX, 92, `Journal: ${page.name} tier ${news.tier}!`, '#ffe66b', 13);
     }
   }
 
