@@ -27,6 +27,7 @@ export const WHATS_NEW_SHOWN = 8;
 
 /** Newest first. */
 export const WHATS_NEW: WhatsNewEntry[] = [
+  { id: 'ascendant-names', date: '2026-11-03', text: '<b>New names</b>: the Ascendant heroes are now Grimward, Ruffy, Juno, Hayle and Rivelle.' },
   { id: 'victory-run', date: '2026-11-03', text: '<b>Victory run</b>: after a stage clear your heroes keep running off the screen into the next fight.' },
   {
     id: 'mutation-mobs',

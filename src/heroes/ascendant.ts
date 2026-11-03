@@ -25,7 +25,7 @@ const ascTestBase: HeroDef = {
   aura: { name: 'Dark Resolve', text: 'Dark heroes +20% ATK.', effect: { kind: 'atk', value: 1.2, team: true, element: 'dark' } },
 };
 
-// ---- Dark: Zanshin, a swordsman with an oversized cleaver. Single target and boss killer; fragile. ----
+// ---- Dark: Grimward, a swordsman with an oversized cleaver. Single target and boss killer; fragile. ----
 // His own moves: a mask that saves him once a life, and a crescent wave down the whole lane.
 const darkC: Charge[] = [
   { stacks: 6, boost: 'damage', value: 1 },
@@ -37,7 +37,7 @@ const maskText = (below: number, heal: number, seconds: number, speed: string) =
   `Once a life, when a hit would drop him under ${below}% HP (even a killing blow), he survives it and a bone-white mask covers his face: he heals ${heal}% of max HP and attacks ${speed} for ${seconds} seconds.`;
 const ascDark: AscendantDef = {
   base: {
-    ...base, id: 'asc_dark', name: 'Zanshin', element: 'dark', type: 'Samurai', baseAtk: 4.8, baseHp: 46, range: 28, attackCooldown: 0.8, moveSpeed: 140,
+    ...base, id: 'asc_dark', name: 'Grimward', element: 'dark', type: 'Samurai', baseAtk: 4.8, baseHp: 46, range: 28, attackCooldown: 0.8, moveSpeed: 140,
     signature: { kind: 'mask', below: 0.3, heal: 0.3, haste: 0.5, seconds: 6, plusSeconds: 10 },
     sigPlus: 'The mask lasts 10 seconds.',
     // Balance check 2026-10-22: the whole-lane crescent at full damage (and 2x/3x on bosses) made him the strongest
@@ -77,7 +77,7 @@ const ascDark: AscendantDef = {
   steps: standardSteps(1000),
 };
 
-// ---- Fire: Kip, a stretchy brawler who heats up with each form. Crowd clear and flurries; no flyers. ----
+// ---- Fire: Ruffy, a stretchy brawler who heats up with each form. Crowd clear and flurries; no flyers. ----
 // His own moves: flurries of rubbery punches, and a bouncing slam that stuns everything it hits.
 const fireC: Charge[] = [
   { stacks: 5, boost: 'area', value: 1 },
@@ -89,7 +89,7 @@ const fireC: Charge[] = [
 const barrageText = (every: number, hits: number, pct: number) => `Every ${every}th attack is a flurry of ${hits} rubbery punches for ${pct}% damage each.`;
 const ascFire: AscendantDef = {
   base: {
-    ...base, id: 'asc_fire', name: 'Kip', element: 'fire', type: 'Brawler', baseAtk: 5, baseHp: 80, range: 40, attackCooldown: 1.0, moveSpeed: 125,
+    ...base, id: 'asc_fire', name: 'Ruffy', element: 'fire', type: 'Brawler', baseAtk: 5, baseHp: 80, range: 40, attackCooldown: 1.0, moveSpeed: 125,
     signature: { kind: 'barrage', every: 4, hits: 4, plusHits: 6, mult: 0.6 },
     sigPlus: 'Each flurry is 6 punches.',
     ult: { kind: 'bounce', seconds: 1.5, plusSeconds: 2.5 },
@@ -130,7 +130,7 @@ const ascFire: AscendantDef = {
   steps: standardSteps(800),
 };
 
-// ---- Light: Valeth, a winged warrior who speeds up the longer she fights. Slow start, little burst. ----
+// ---- Light: Hayle, a winged warrior who speeds up the longer she fights. Slow start, little burst. ----
 // Her own moves: Zeal (faster with every attack in a row, then waves of light), and a ward that makes an ally untouchable.
 const lightC: Charge[] = [
   { stacks: 6, boost: 'damage', value: 0.8 },
@@ -142,7 +142,7 @@ const zealText = (pct: number, max: number, wave: number) =>
   `Each attack in a row makes her attack ${pct}% faster, up to ${max} times. At 5 in a row her attacks also hit enemies within ${wave} px. Walking resets it.`;
 const ascLight: AscendantDef = {
   base: {
-    ...base, id: 'asc_light', name: 'Valeth', element: 'light', type: 'Ranger', baseAtk: 4.6, baseHp: 40, range: 150, attackCooldown: 1.0, moveSpeed: 115,
+    ...base, id: 'asc_light', name: 'Hayle', element: 'light', type: 'Ranger', baseAtk: 4.6, baseHp: 40, range: 150, attackCooldown: 1.0, moveSpeed: 115,
     signature: { kind: 'zeal', perStack: 0.06, max: 5, plusMax: 8, waveAt: 5, wave: 30 },
     sigPlus: 'Zeal stacks up to 8 times.',
     ult: { kind: 'sanctuary', seconds: 2, plusSeconds: 3 },
@@ -181,7 +181,7 @@ const ascLight: AscendantDef = {
   steps: standardSteps(900),
 };
 
-// ---- Water: Marisel, a water mage. Steady area caster; sturdier than most mages, slow walker. ----
+// ---- Water: Rivelle, a water mage. Steady area caster; sturdier than most mages, slow walker. ----
 // Her own moves: Tidal Veil (a water barrier when hurt: she casts harder and takes less), and a tide that soaks and
 // pushes, which becomes a water dragon in her final form.
 const waterC: Charge[] = [
@@ -194,7 +194,7 @@ const torrentText = (below: number, dmg: number, guard: number) =>
   `Under ${below}% HP a veil of water wraps around her: +${dmg}% damage and ${guard}% less damage taken.`;
 const ascWater: AscendantDef = {
   base: {
-    ...base, id: 'asc_water', name: 'Marisel', element: 'water', type: 'Magician', baseAtk: 6, baseHp: 46, range: 150, attackCooldown: 1.3, moveSpeed: 95, splash: 20,
+    ...base, id: 'asc_water', name: 'Rivelle', element: 'water', type: 'Magician', baseAtk: 6, baseHp: 46, range: 150, attackCooldown: 1.3, moveSpeed: 95, splash: 20,
     signature: { kind: 'torrent', below: 0.4, plusBelow: 0.6, dmg: 1.5, guard: 0.6 },
     sigPlus: 'The veil rises under 60% HP.',
     ult: { kind: 'hydro', push: 140, slow: 0.5, seconds: 3, plusSeconds: 5 },
@@ -234,7 +234,7 @@ const ascWater: AscendantDef = {
   steps: standardSteps(600),
 };
 
-// ---- Earth: Aeron, a wind mage. His magic looks like wind but every hit is Earth. Fast multi-target; fragile. ----
+// ---- Earth: Juno, a wind mage. His magic looks like wind but every hit is Earth. Fast multi-target; fragile. ----
 // His own moves: a wind spirit that casts alongside him, and a storm that pulls enemies together and holds them.
 const earthC: Charge[] = [
   { stacks: 5, boost: 'area', value: 1 },
@@ -246,7 +246,7 @@ const spiritText = (who: string, every: number, targets: number, pct: number) =>
   `Every ${every === 2 ? '2nd' : every === 3 ? '3rd' : `${every}th`} attack ${who} also throws a wind blade at ${targets === 1 ? 'one other enemy' : `${targets} other enemies`} in reach for ${pct}% damage.`;
 const ascEarth: AscendantDef = {
   base: {
-    ...base, id: 'asc_earth', name: 'Aeron', element: 'earth', type: 'Magician', baseAtk: 6.5, baseHp: 38, range: 140, attackCooldown: 1.2, moveSpeed: 110, splash: 20,
+    ...base, id: 'asc_earth', name: 'Juno', element: 'earth', type: 'Magician', baseAtk: 6.5, baseHp: 38, range: 140, attackCooldown: 1.2, moveSpeed: 110, splash: 20,
     signature: { kind: 'spirit', every: 4, targets: 1, plusTargets: 2, mult: 1 },
     sigPlus: 'The wisp throws 2 blades.',
     ult: { kind: 'tempest', seconds: 1.5, plusSeconds: 2.5 },
