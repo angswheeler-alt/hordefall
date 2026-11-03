@@ -71,13 +71,14 @@ import { ASCENDANT_HEROES } from './heroes/ascendant';
 import { chargeOf, chargeStep, chargeDamageMult, CHARGE_AREA, CHARGE_LINE, CHARGE_HASTE_SECONDS, type Charge } from './ascendant';
 import { MOB_ANIMS } from './mobAnims';
 import { MOB_ELEMENTS, MOB_KINDS, pickMob, type MobId } from './mobs';
+import { MUTANT_GOLD, rollMutation, type Mutation } from './mutations';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES, type BossAnim } from './bossAnims';
 import type { EffectKind } from './data';
 import { comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets, drenchVuln, heatStep, quarryMult, quarryCarry } from './kits';
 import { STAT_BASE, FREEZE_BLAST_RADIUS, BOSS_STUN_CHANCE, BOSS_STUN_SECONDS, type HeroStats } from './stats';
 import { heroProfile } from './profiles';
 import { canReach, enemyGoal, flyerVictim, pickVictim } from './reach';
-import { bossPageId, guildPageId, journalPage, mobPageId, trialPageId } from './journal';
+import { bossPageId, guildPageId, journalPage, mobPageId, mutantPageId, trialPageId } from './journal';
 
 /** Visible area. The lane itself is WORLD_WIDTH long and the camera follows the heroes. */
 export const WIDTH = 480;
@@ -126,6 +127,8 @@ const BEACON_SECONDS = 4;
 const REVIVE_BEHIND = 14;
 const REVIVE_HP = 0.5;
 const MAX_ENEMIES = 14;
+/** A Splitting mutant's copies are drawn this much smaller. */
+const SPLIT_SCALE = 0.7;
 /** Melee feet sit this far below a unit's y (the old 30 px placeholders were centred on it). */
 const FOOT_Y = 15;
 /** Where an animated boss's head ends up (container y), drawn at BOSS_SCALE from its feet. */
@@ -191,6 +194,12 @@ interface Unit {
   page?: string;
   /** A shiny mob: recoloured, sparkles, and pays a treasure when beaten. */
   shiny?: boolean;
+  /** A mutant (src/mutations.ts): its trait. */
+  mutation?: Mutation;
+  /** Enemies: gold paid when beaten, times a plain mob's (mutants more, a splitter's copies less). */
+  goldShare?: number;
+  /** A Splitting mutant's small copy, drawn at SPLIT_SCALE. */
+  small?: boolean;
   /** Set for frame-animated element bosses: whose art (BOSS_ANIMS key) and when it may flinch next. */
   bossArt?: { id: string; flinchAt: number };
   /** Fights without an element (bosses before stage 600): no element bonus either way on its hits or on hits it takes. */
@@ -1015,7 +1024,66 @@ export class BattleScene extends Phaser.Scene {
     if (boss && isElementBossStage(stage)) u.lockStage = stage;
     u.page = boss ? bossPageId(stageBoss(stage).art) : mobPageId(kind!.id, element);
     if (!boss && !this.trial && !this.pvp && this.state.rollShiny(Math.random())) this.makeShiny(u);
+    else if (!boss && !this.trial && !this.pvp) {
+      const m = rollMutation(stage, Math.random(), Math.random());
+      if (m) this.mutate(u, m);
+    }
     this.enemies.push(u);
+  }
+
+  /** Give a fresh mob its trait: tougher stats, a glow in the trait's colour and a small tag over its head. */
+  private mutate(u: Unit, m: Mutation) {
+    u.mutation = m;
+    u.goldShare = MUTANT_GOLD;
+    u.maxHp = u.maxHp.times(m.hp);
+    u.hp = u.maxHp;
+    u.atk = u.atk.times(m.atk);
+    u.speed *= m.speed;
+    u.cooldown *= m.cooldown;
+    u.cooldownLeft *= m.cooldown;
+    u.body.postFX?.addGlow(m.color, 3, 0, false, 0.1, 8);
+    const top = u.mob ? FOOT_Y - MOB_ANIMS[u.mob.id].feet[1] + MOB_ANIMS[u.mob.id].headTop - 14 : -u.body.height / 2 - 16;
+    const tag = this.add
+      .text(0, top, m.name.toUpperCase(), { fontFamily: 'monospace', fontSize: '8px', color: `#${m.color.toString(16).padStart(6, '0')}`, stroke: '#000', strokeThickness: 2 })
+      .setOrigin(0.5);
+    u.view.add(tag);
+  }
+
+  /** A Splitting mutant breaks into small plain copies where it fell. */
+  private splitMutant(u: Unit) {
+    const split = u.mutation?.split;
+    if (!split || this.transitioning) return;
+    for (let i = 0; i < split.count; i++) {
+      const c = this.makeUnit({
+        side: 'enemy',
+        texture: u.mob ? u.mob.key : 'enemy',
+        mob: u.mob?.id,
+        flying: u.flying,
+        x: u.x + 6 + i * 14,
+        hp: u.maxHp.times(split.hp),
+        atk: u.atk.times(split.atk),
+        range: u.range,
+        cooldown: u.cooldown,
+        speed: u.speed * 1.1,
+        element: u.element,
+      });
+      c.body.setScale(SPLIT_SCALE);
+      c.small = true;
+      c.page = u.page;
+      c.goldShare = 0.5;
+      this.enemies.push(c);
+    }
+    this.puff(u.x, u.y, u.mutation!.color);
+  }
+
+  /** Mending mutants heal a share of their HP every second. */
+  private mendMutants(dt: number) {
+    for (const e of this.enemies) {
+      const rate = e.alive ? e.mutation?.regen : 0;
+      if (!rate || e.hp.gte(e.maxHp)) continue;
+      e.hp = Decimal.min(e.maxHp, e.hp.plus(e.maxHp.times(rate * dt)));
+      this.drawHpBar(e);
+    }
   }
 
   // ---------- stage flow ----------
@@ -1640,6 +1708,7 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     this.regenerate(dt);
+    this.mendMutants(dt);
     if (this.state.autoUlt) for (const h of this.heroes) this.tryAutoUlt(h);
     const shielded = this.bossAlive();
     this.crystalShield.setVisible(shielded);
@@ -2264,6 +2333,7 @@ export class BattleScene extends Phaser.Scene {
     if (target.isBoss && target.side === 'enemy' && source?.side === 'hero') amount = amount.times(this.state.bossDamageMult());
     // Hunting Journal: a little more damage against enemies the player has beaten many of.
     if (target.side === 'enemy' && target.page && source?.side === 'hero') amount = amount.times(this.state.journalMult(target.page));
+    if (target.mutation && source?.side === 'hero') amount = amount.times(this.state.journalMult(mutantPageId(target.mutation.id)));
     let toHp = amount;
     if (target.shield.gt(0)) {
       const soaked = Decimal.min(target.shield, amount);
@@ -2291,7 +2361,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Squash, sparks, knockback, damage numbers, shake and sound for one hit. */
   private hitFeedback(target: Unit, amount: Decimal, source: Unit | null, crit: boolean) {
-    const scale = target.bossArt ? BOSS_SCALE : 1;
+    const scale = target.bossArt ? BOSS_SCALE : target.small ? SPLIT_SCALE : 1;
     this.tweens.add({ targets: target.body, scaleX: 1.25 * scale, scaleY: 0.8 * scale, duration: 50, yoyo: true, onComplete: () => target.body.setScale(scale) });
     if (target.side === 'hero') {
       play('hurt');
@@ -2366,8 +2436,9 @@ export class BattleScene extends Phaser.Scene {
     } else if (u.side === 'enemy') {
       this.state.track('kills');
       if (u.page) this.journalKill(u);
+      if (u.mutation) this.splitMutant(u);
       const gold = goldPerKill(this.state.stage)
-        .times(u.isBoss ? 10 : 1)
+        .times(u.isBoss ? 10 : (u.goldShare ?? 1))
         .times(source?.goldMult ?? 1)
         .times(this.mul('gold', null))
         .times(1 + this.state.relicBonus('gold'))
@@ -2405,6 +2476,7 @@ export class BattleScene extends Phaser.Scene {
   /** Count a kill in the Hunting Journal; a shiny pays its treasure. Tiers reached float up over the lane. */
   private journalKill(u: Unit) {
     this.state.journalAdd(u.page!);
+    if (u.mutation) this.state.journalAdd(mutantPageId(u.mutation.id));
     if (u.shiny) {
       const got = this.state.catchShiny(u.page!, Math.random());
       for (let i = 0; i < 4; i++) this.sparks(u.x + Phaser.Math.Between(-10, 10), u.y - Phaser.Math.Between(4, 24), 0xfff2a0, 6);
