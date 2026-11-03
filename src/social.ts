@@ -28,15 +28,24 @@ interface BoardRow { rank: number; user_id: string; username: string; total_cp: 
 /** A server that hasn't had social.sql run yet. */
 const missingServer = (message: string) => /does not exist|schema cache|PGRST20[0-9]|42883|42P01/i.test(message);
 
+/** The server (save_profile in supabase/social.sql) refuses a report with more heroes than this. */
+export const PROFILE_TEAM_MAX = 5;
+
 /** This player's profile as the game reports it. */
 export function profilePayload(state: GameState) {
   const total = state.totalCombatPower();
-  const team: TeamEntry[] = HEROES.filter((h) => (state.levels[h.id] ?? 0) > 0 && state.inLineup(h.id)).map((h) => ({
-    id: h.id,
-    level: state.heroLevel(h.id),
-    stars: (state.stars[h.id] ?? 0) + 1,
-    cp: state.heroCombatPower(h).toString(),
-  }));
+  // Teams can grow to 10 slots, but the profile shows the strongest 5: a longer list made the
+  // server refuse every report, so the leaderboards kept a stale stage and Combat Power.
+  const team: TeamEntry[] = HEROES.filter((h) => (state.levels[h.id] ?? 0) > 0 && state.inLineup(h.id))
+    .map((h) => ({ h, cp: state.heroCombatPower(h) }))
+    .sort((a, b) => b.cp.cmp(a.cp))
+    .slice(0, PROFILE_TEAM_MAX)
+    .map(({ h, cp }) => ({
+      id: h.id,
+      level: state.heroLevel(h.id),
+      stars: (state.stars[h.id] ?? 0) + 1,
+      cp: cp.toString(),
+    }));
   return {
     p_total_cp: total.toString(),
     p_cp_log: total.gt(1) ? Math.max(0, total.log10()) : 0,
@@ -110,6 +119,9 @@ export class Social {
   private async report(force = false) {
     const db = this.db;
     if (!db || this.serverMissing) return;
+    // A device that hasn't loaded the cloud save yet still reads stage 1; reporting that
+    // would drop the player's real best stage on the leaderboards.
+    if (this.state.bestStage <= 1 && this.state.rekindles === 0) return;
     const payload = profilePayload(this.state);
     const key = JSON.stringify(payload);
     if (!force && key === this.lastReport && Date.now() - this.lastReportAt < REPORT_ANYWAY_MS) return;
