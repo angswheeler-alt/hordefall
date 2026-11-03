@@ -50,6 +50,7 @@ import {
   trialHp,
   trialDps,
   guildBossHitAtk,
+  guildBossKnocked,
 } from './formulas';
 import type { GameState } from './state';
 import { play } from './sfx';
@@ -1529,7 +1530,7 @@ export class BattleScene extends Phaser.Scene {
       onEnd: (won, seconds) => {
         const boss = this.enemies.find((e) => e.isBoss);
         const left = won || !boss ? new Decimal(0) : Decimal.max(0, boss.hp);
-        onEnd(Decimal.max(0, guild.startHp.minus(left)), won, seconds);
+        onEnd(guildBossKnocked(guild.startHp, left, fight.foeMeter.taken), won, seconds);
       },
       meter: new Map(),
       foeMeter: meterRow('boss'),

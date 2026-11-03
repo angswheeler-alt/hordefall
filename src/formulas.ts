@@ -344,6 +344,16 @@ export function guildBossLane(hp: Decimal, damage: Decimal, bonus: number): { hp
   };
 }
 
+/**
+ * Health a Guild Boss fight knocked off in the lane. On high levels the boss has far more health than the game's
+ * numbers keep digits for (level 59 is ~1e34 against ~1e18 damage), so "health at start - health left" rounds to 0
+ * even after a full fight. The meter's "taken" total adds each landed hit on its own and keeps it, so use whichever
+ * is larger.
+ */
+export function guildBossKnocked(startHp: Decimal, left: Decimal, taken: Decimal): Decimal {
+  return Decimal.max(0, Decimal.max(startHp.minus(left), taken));
+}
+
 /** Share of the Guild Boss's health a killing blow overshoots by, to beat number rounding on high levels. */
 export const GUILD_BOSS_KILL_MARGIN = 1e-6;
 
