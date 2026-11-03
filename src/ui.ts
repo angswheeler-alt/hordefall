@@ -15,6 +15,7 @@ import { setMuted, setVolumes } from './sfx';
 import { BOSS_ANIMS } from './bossAnims';
 import { guildBossElement, utcWeekStart, bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberRefund, emberBulk, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
 import type { WelcomeSection } from './welcome';
+import { WHATS_NEW_TITLE } from './whatsNew';
 import type { GameState, OfflineReport, SummonDrop, RekindleResult, TrialResult, PvpOpponent } from './state';
 import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, SPIN_SLICES, BOOTCAMP, MILESTONE_STEP, milestoneReward, milestoneText, rewardText, type Reward } from './rewards';
 import { rarityOdds, SHOP_HEROES, medalPackCost } from './state';
@@ -3111,7 +3112,8 @@ export class UI {
     const kept = sections.filter((x) => x.lines.length);
     if (!report && !kept.length) return;
     this.welcome = { report, sections: kept };
-    this.showModal(report ? 'Welcome back!' : 'While you were away', this.welcomeHtml(), 'Collect', () => {
+    const onlyNew = kept.every((x) => x.title === WHATS_NEW_TITLE);
+    this.showModal(report ? 'Welcome back!' : onlyNew ? WHATS_NEW_TITLE : 'While you were away', this.welcomeHtml(), 'Collect', () => {
       this.welcome = null;
       onCollect?.();
     });
