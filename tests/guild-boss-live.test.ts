@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import Decimal from 'break_infinity.js';
-import { guildBossHitAtk, guildBossLane, defended, GUILD_BOSS_KILL_MARGIN } from '../src/formulas';
+import { guildBossHitAtk, guildBossLane, guildBossKnocked, guildBossHp, defended, GUILD_BOSS_KILL_MARGIN } from '../src/formulas';
 import { GUILD_BOSS_HIT_SHARE, GUILD_BOSS_HIT_PER_LEVEL, GUILD_BOSS_HIT_LEVEL_CAP } from '../src/data';
 
 describe('Guild Boss live fight', () => {
@@ -68,5 +68,24 @@ describe('Guild Boss live fight', () => {
     const lane = guildBossLane(new Decimal(Number(hp)), new Decimal(Number(done)), 0);
     expect(lane.left.gt(0)).toBe(true);
     expect(done + exact(lane.damageFor(lane.left).toString()) >= hp).toBe(true);
+  });
+});
+
+describe('guildBossKnocked', () => {
+  it('counts a full fight on a high-level boss even when start minus left rounds to 0', () => {
+    const hp = guildBossHp(59);
+    const dealt = new Decimal('6.34e17');
+    // The boss's own health can't show a hit this small next to ~1e34.
+    const left = hp.minus(dealt);
+    expect(hp.minus(left).toNumber()).toBe(0);
+    const knocked = guildBossKnocked(hp, left, dealt);
+    expect(knocked.toNumber()).toBe(6.34e17);
+    const lane = guildBossLane(hp, new Decimal(0), 0);
+    expect(lane.damageFor(knocked).gt(0)).toBe(true);
+  });
+
+  it('keeps start minus left when that is larger (a kill)', () => {
+    expect(guildBossKnocked(new Decimal(1000), new Decimal(0), new Decimal(400)).toNumber()).toBe(1000);
+    expect(guildBossKnocked(new Decimal(1000), new Decimal(1000), new Decimal(0)).toNumber()).toBe(0);
   });
 });
