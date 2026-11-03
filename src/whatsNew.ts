@@ -27,6 +27,7 @@ export const WHATS_NEW_SHOWN = 8;
 
 /** Newest first. */
 export const WHATS_NEW: WhatsNewEntry[] = [
+  { id: 'victory-run', date: '2026-11-03', text: '<b>Victory run</b>: after a stage clear your heroes keep running off the screen into the next fight.' },
   {
     id: 'mutation-mobs',
     date: '2026-11-03',

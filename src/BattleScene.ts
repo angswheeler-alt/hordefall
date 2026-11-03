@@ -60,7 +60,7 @@ import chestWoodUrl from './assets/ui/chest-wood.png';
 import chestBronzeUrl from './assets/ui/chest-bronze.png';
 import chestGoldUrl from './assets/ui/chest-gold.png';
 import { sumEffect, mulEffect, everyNth, procEffect, procs } from './skills';
-import { marchCap, marchStep } from './movement';
+import { exitRunStep, marchCap, marchStep } from './movement';
 import { respawnTime, reviveIn, stageStartRevives } from './respawn';
 import { chestsAllowed, laneMode } from './chests';
 import { PVP_RESPAWN_MULT } from './colosseum';
@@ -426,6 +426,8 @@ export class BattleScene extends Phaser.Scene {
   private waveTimer = 0;
   private bossTimer = 0;
   private transitioning = false;
+  /** Seconds into the after-clear run off screen, or -1 when the heroes aren't running off. */
+  private exitRun = -1;
   /** The stage just ended in a loss, so the next one starts with the whole team up. */
   private lostStage = false;
   private chestTimer = 20;
@@ -1116,6 +1118,7 @@ export class BattleScene extends Phaser.Scene {
     this.stageRealTime = 0;
     this.waveTimer = 0;
     this.transitioning = false;
+    this.exitRun = -1;
     this.bossEngaged = false;
     this.cameras.main.scrollX = 0;
     this.drawBackground();
@@ -1258,6 +1261,8 @@ export class BattleScene extends Phaser.Scene {
     this.freeze(0.12);
     play('clear');
     this.banner(isBossStage(stage) ? 'BOSS DOWN!' : 'STAGE CLEAR', '#ffe066');
+    // The team keeps running right and off screen while the banner shows; the next stage starts on time.
+    this.exitRun = 0;
     this.state.save();
     this.nextStageTimer = this.time.delayedCall(900, () => this.startStage());
   }
@@ -1390,6 +1395,7 @@ export class BattleScene extends Phaser.Scene {
     this.pvp.theirs = { hp: theirs, max: theirs };
     this.crystalShield.setVisible(false);
     this.transitioning = false;
+    this.exitRun = -1;
     this.bossEngaged = false;
     this.cameras.main.scrollX = 0;
     this.drawBackground();
@@ -1566,6 +1572,7 @@ export class BattleScene extends Phaser.Scene {
       this.reviveHero(h);
     }
     this.transitioning = false;
+    this.exitRun = -1;
     this.bossEngaged = false;
     this.cameras.main.scrollX = 0;
     this.drawBackground();
@@ -1683,6 +1690,7 @@ export class BattleScene extends Phaser.Scene {
     this.clock += dt;
     if (chestsAllowed(laneMode({ trial: this.trial, pvp: this.pvp }))) this.updateChests(dt);
     this.drawHud();
+    if (this.transitioning && this.exitRun >= 0 && !this.trial && !this.pvp) this.runHeroesOff(dt);
     this.syncShadows();
     if (this.transitioning) return;
     if (this.trial) {
@@ -1765,6 +1773,19 @@ export class BattleScene extends Phaser.Scene {
     }
     this.regenerate(dt);
     if (this.state.autoUlt) for (const h of this.heroes) this.tryAutoUlt(h);
+  }
+
+  /** After a stage clear: every standing hero runs right, off the end of the lane, until the next stage starts. */
+  private runHeroesOff(dt: number) {
+    const elapsed = this.exitRun;
+    this.exitRun += dt;
+    for (const h of this.heroes) {
+      if (!h.alive) continue;
+      h.x = exitRunStep(h.x, h.speed * this.mul('moveSpeed', h), elapsed, dt);
+      h.view.x = h.x;
+      h.engaged = false;
+      if (h.anim) this.setAnim(h, 'run');
+    }
   }
 
   /** Move or attack, then show running while the hero moved this frame and standing otherwise. */
