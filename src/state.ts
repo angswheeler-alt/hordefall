@@ -22,6 +22,7 @@ import { FORGE_MATS, WEAPON_GLYPHS, clampWeaponLevel, weaponMult, weaponUpgradeC
 import { GLYPH_BAG_CAP, GLYPH_FAMILIES, chestStar, cleanGlyph, emptyTotals, glyphBound, glyphLevelCost, glyphSalvage, glyphTotals, rollGlyph, type Glyph, type GlyphChestKind, type GlyphFamily, type GlyphTotals } from './glyphs';
 import { RUSH_BRACKETS, RUSH_CREST_COINS, RUSH_CREST_LIMIT, RUSH_CREST_PACK, RUSH_DAILY_TICKETS, RUSH_DAYS, RUSH_FEATURED, RUSH_FIGHT_TICKETS, RUSH_FOES, RUSH_FREE_HEROES, RUSH_FREE_HOURS, RUSH_LOSS_COINS, RUSH_MAX_LEVEL, RUSH_SHOP, RUSH_STREAK_UP, RUSH_TIERS, RUSH_UNLOCK_LEVEL, chestKinds, cleanRush, freeAttacks, inBracket, newRush, rushWinPoints, type RushFoe, type RushReward, type RushShopId, type RushState } from './rush';
 import { SCOUT_KINDS, SCOUT_PRIORITY, SCOUT_UNLOCK_LEVEL, WILD_CREST_COST, cleanScout, pickScoutTeam, scoutProblems, type ScoutCand, heroScoutScore, missionEndsAt, newScout, nextHour, refreshBoard, scoutReward, scoutShare, type ScoutReward, type ScoutSlot, type ScoutState } from './scouting';
+import { allWhatsNewIds } from './whatsNew';
 
 /** Test mode plays a copy of the save under its own key, so the real one is never written. */
 const SAVE_KEY = TEST_MODE ? TEST_SAVE_KEY : 'hordefall-save-v1';
@@ -329,6 +330,8 @@ export class GameState {
   /** When the next automatic boss retry is due (ms clock), 0 when not counting. Not saved. */
   bossRetryAt = 0;
   speed2x = false;
+  /** "What's new" entries this player has seen (src/whatsNew.ts). A new game has seen them all. */
+  whatsNewSeen: string[] = allWhatsNewIds();
   autoUlt = false;
   muted = false;
   /** Sound effects and music volume, 0 to 1. */
@@ -3693,6 +3696,11 @@ export class GameState {
    */
   static frozen = false;
 
+  /** Mark every "What's new" entry as seen (after the pop-up's Collect). */
+  markWhatsNewSeen() {
+    this.whatsNewSeen = allWhatsNewIds();
+  }
+
   save() {
     if (GameState.frozen) return;
     // lastSeen marks when the game last ran. A hidden tab is paused (and paid
@@ -3804,6 +3812,7 @@ export class GameState {
       autoAdvance: this.autoAdvance,
       autoBoss: this.autoBoss,
       speed2x: this.speed2x,
+      whatsNewSeen: this.whatsNewSeen,
       autoUlt: this.autoUlt,
       muted: this.muted,
       sfxVolume: this.sfxVolume,
@@ -3975,6 +3984,8 @@ export class GameState {
       this.autoAdvance = d.autoAdvance ?? true;
       this.autoBoss = d.autoBoss ?? true;
       this.speed2x = !!d.speed2x;
+      // Saves from before the list existed haven't seen any of it.
+      this.whatsNewSeen = Array.isArray(d.whatsNewSeen) ? d.whatsNewSeen.filter((x: unknown) => typeof x === 'string') : [];
       this.autoUlt = !!d.autoUlt;
       this.muted = !!d.muted;
       this.sfxVolume = typeof d.sfxVolume === 'number' ? Math.max(0, Math.min(1, d.sfxVolume)) : 1;

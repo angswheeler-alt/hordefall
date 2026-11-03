@@ -15,6 +15,7 @@ import { initInstall } from './install';
 import { watchTaps } from './taps';
 import { watchErrors } from './errorReport';
 import { TEST_MODE } from './config';
+import { WHATS_NEW_TITLE, whatsNewLines } from './whatsNew';
 import { colosseumNews, eventNews, defenseNews, type WelcomeSection } from './welcome';
 
 // iOS Safari ignores user-scalable=no, so stop pinch zoom here (double-tap zoom is off via touch-action in the CSS).
@@ -70,14 +71,16 @@ const ui = new UI(state, scene, {
     return error;
   },
 });
-/** What happened since `from`: Colosseum rewards (paid now) and events that started or ended. */
+/** What's new in this version, then what happened since `from`: Colosseum rewards (paid now) and events that started or ended. */
 const awayNews = (from: number): WelcomeSection[] => [
+  { title: WHATS_NEW_TITLE, lines: whatsNewLines(state.whatsNewSeen) },
   { title: 'Colosseum', lines: colosseumNews(state, Date.now()) },
   { title: 'Events', lines: eventNews(state, from, Date.now()) },
 ];
 /** Seen once Collect is tapped, so the Colosseum page doesn't repeat them. */
 const seenNews = () => {
   state.pvp.notes = [];
+  state.markWhatsNewSeen();
   state.save();
 };
 if (hadSave) ui.showWelcome(offline, awayNews(awayFrom), seenNews);
