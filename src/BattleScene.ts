@@ -71,14 +71,33 @@ import { HERO_ANIMS } from './heroAnims';
 import { ASCENDANT_HEROES } from './heroes/ascendant';
 import { chargeOf, chargeStep, chargeDamageMult, CHARGE_AREA, CHARGE_LINE, CHARGE_HASTE_SECONDS, type Charge } from './ascendant';
 import { MOB_ANIMS } from './mobAnims';
-import { MOB_ELEMENTS, MOB_KINDS, pickMob, type MobId } from './mobs';
+import {
+  MOB_ELEMENTS,
+  MOB_KINDS,
+  MOB_ART_PENDING,
+  pickMob,
+  type MobId,
+  type MobKind,
+  GUARD_HP,
+  BOMB_MULT,
+  MINION_ATK,
+  MINION_GOLD,
+  MINION_HP,
+  SUMMON_SECONDS,
+  BURROW_SECONDS,
+  bombVictims,
+  burrowSpot,
+  guardShare,
+  summonReady,
+} from './mobs';
+import { PLACEHOLDER_SIZE, placeholderUrl } from './mobPlaceholders';
 import { MUTANT_GOLD, rollMutation, type Mutation } from './mutations';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES, type BossAnim } from './bossAnims';
 import type { EffectKind } from './data';
 import { comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets, drenchVuln, heatStep, quarryMult, quarryCarry } from './kits';
 import { STAT_BASE, FREEZE_BLAST_RADIUS, BOSS_STUN_CHANCE, BOSS_STUN_SECONDS, type HeroStats } from './stats';
 import { heroProfile } from './profiles';
-import { canReach, enemyGoal, flyerVictim, pickVictim } from './reach';
+import { canReach, enemyGoal, flyerVictim, isMelee, pickVictim } from './reach';
 import { bossPageId, guildPageId, journalPage, mobPageId, mutantPageId, trialPageId } from './journal';
 
 /** Visible area. The lane itself is WORLD_WIDTH long and the camera follows the heroes. */
@@ -203,6 +222,17 @@ interface Unit {
   goldShare?: number;
   /** A Splitting mutant's small copy, drawn at SPLIT_SCALE. */
   small?: boolean;
+  /** Regular enemies: their kind (src/mobs.ts), for the special kinds' tricks. */
+  kind?: MobKind;
+  /** Shieldbearers: the shield's full size (the shield itself is `shield`). */
+  guardMax?: Decimal;
+  /** Summoners: when the next minion may come. Minions: who called them. */
+  nextSummonAt?: number;
+  minionOf?: Unit;
+  /** Burrowers: underground (can't be hit) until burrowedUntil, then up at burrowTo; they dig once. */
+  burrowedUntil?: number;
+  burrowTo?: number;
+  dug?: boolean;
   /** Set for frame-animated element bosses: whose art (BOSS_ANIMS key) and when it may flinch next. */
   bossArt?: { id: string; flinchAt: number };
   /** Fights without an element (bosses before stage 600): no element bonus either way on its hits or on hits it takes. */
@@ -487,6 +517,8 @@ export class BattleScene extends Phaser.Scene {
         this.load.spritesheet(`mob-${id}-${el}-attack`, `mobs/${id}_${el}_attack.png`, size);
       }
     }
+    // Special mob kinds without art yet: a simple white placeholder, tinted by element on the lane.
+    for (const id of MOB_ART_PENDING) if (!MOB_ANIMS[id]) this.load.svg(`enemy-${id}`, placeholderUrl(id), { width: PLACEHOLDER_SIZE, height: PLACEHOLDER_SIZE });
     // Ultimate pictures (src/ultFx.ts); a row of frames is cut into frames in create().
     for (const [id, art] of Object.entries(ULT_FX_ART)) this.load.image(`ultfx-${id}`, art.url);
     for (const [id, a] of Object.entries(BOSS_ANIMS)) {
@@ -876,7 +908,9 @@ export class BattleScene extends Phaser.Scene {
     u.hpBar.fillStyle(0x000000, 0.7).fillRect(-w / 2 - 1, top - 1, w + 2, 5);
     u.hpBar.fillStyle(u.side === 'hero' ? 0x4cff7a : 0xff4c4c, 1).fillRect(-w / 2, top, w * ratio, 3);
     // Shields show as a pale bar over the top of the HP bar.
-    if (u.shield.gt(0) && u.maxHp.gt(0)) u.hpBar.fillStyle(0xbfe8ff, 1).fillRect(-w / 2, top - 2, w * Math.min(1, u.shield.div(u.maxHp).toNumber() * 5), 2);
+    // A Shieldbearer's shield shows as a steel bar against its own full size.
+    if (u.guardMax && u.shield.gt(0)) u.hpBar.fillStyle(0x000000, 0.7).fillRect(-w / 2 - 1, top - 4, w + 2, 3).fillStyle(0xc8d4e0, 1).fillRect(-w / 2, top - 3, w * Math.min(1, u.shield.div(u.guardMax).toNumber()), 1.5);
+    else if (u.shield.gt(0) && u.maxHp.gt(0)) u.hpBar.fillStyle(0xbfe8ff, 1).fillRect(-w / 2, top - 2, w * Math.min(1, u.shield.div(u.maxHp).toNumber() * 5), 2);
   }
 
   /** Create units for newly recruited heroes and refresh stats after upgrades. */
@@ -1010,7 +1044,13 @@ export class BattleScene extends Phaser.Scene {
     const kind = boss ? undefined : flying ? MOB_KINDS.flyer : pickMob(stage, Math.random());
     const u = this.makeUnit({
       side: 'enemy',
-      texture: bossArt ? `boss-${bossArt}-idle` : kind && this.textures.exists(`mob-${kind.id}-${element}`) ? `mob-${kind.id}-${element}` : boss ? 'boss' : flying ? 'enemy-flyer' : 'enemy',
+      texture: bossArt
+        ? `boss-${bossArt}-idle`
+        : kind && this.textures.exists(`mob-${kind.id}-${element}`)
+          ? `mob-${kind.id}-${element}`
+          : kind && this.textures.exists(`enemy-${kind.id}`)
+            ? `enemy-${kind.id}`
+            : boss ? 'boss' : flying ? 'enemy-flyer' : 'enemy',
       bossArt,
       flying,
       mob: kind?.id,
@@ -1018,7 +1058,7 @@ export class BattleScene extends Phaser.Scene {
       hp: boss ? bossHp(stage) : enemyHp(stage).times(kind!.hp),
       atk: boss ? bossAtk(stage) : enemyAtk(stage).times(kind!.atk),
       range: boss ? 40 : kind!.range,
-      cooldown: boss ? 1.6 : 1.1,
+      cooldown: boss ? 1.6 : kind!.cooldown ?? 1.1,
       // Fast enough that the two sides meet around the middle of the lane (grunts; brutes are slower).
       speed: boss ? 18 : Phaser.Math.Between(kind!.speed[0], kind!.speed[1]),
       element,
@@ -1028,18 +1068,32 @@ export class BattleScene extends Phaser.Scene {
     if (boss && !bossHasElement(stage)) u.noElement = true;
     if (boss && isElementBossStage(stage)) u.lockStage = stage;
     u.page = boss ? bossPageId(stageBoss(stage).art) : mobPageId(kind!.id, element);
+    if (kind) {
+      u.kind = kind;
+      u.goldShare = kind.gold ?? 1;
+    }
     if (!boss && !this.trial && !this.pvp && this.state.rollShiny(Math.random())) this.makeShiny(u);
     else if (!boss && !this.trial && !this.pvp) {
       const m = rollMutation(stage, Math.random(), Math.random());
       if (m) this.mutate(u, m);
     }
+    this.armTrick(u);
     this.enemies.push(u);
+  }
+
+  /** Ready a special kind's trick (src/mobs.ts) once its HP is final: a Shieldbearer raises its shield. */
+  private armTrick(u: Unit) {
+    if (u.kind?.trick === 'guard') {
+      u.guardMax = u.maxHp.times(GUARD_HP);
+      u.shield = u.guardMax;
+      this.drawHpBar(u);
+    }
   }
 
   /** Give a fresh mob its trait: tougher stats, a glow in the trait's colour and a small tag over its head. */
   private mutate(u: Unit, m: Mutation) {
     u.mutation = m;
-    u.goldShare = MUTANT_GOLD;
+    u.goldShare = (u.goldShare ?? 1) * MUTANT_GOLD;
     u.maxHp = u.maxHp.times(m.hp);
     u.hp = u.maxHp;
     u.atk = u.atk.times(m.atk);
@@ -1061,7 +1115,7 @@ export class BattleScene extends Phaser.Scene {
     for (let i = 0; i < split.count; i++) {
       const c = this.makeUnit({
         side: 'enemy',
-        texture: u.mob ? u.mob.key : 'enemy',
+        texture: u.mob ? u.mob.key : u.body.texture.key,
         mob: u.mob?.id,
         flying: u.flying,
         x: u.x + 6 + i * 14,
@@ -1076,6 +1130,10 @@ export class BattleScene extends Phaser.Scene {
       c.small = true;
       c.page = u.page;
       c.goldShare = 0.5;
+      // Copies keep their kind's trick (a small Shieldbearer has a small shield, and so on).
+      c.kind = u.kind;
+      c.dug = u.dug;
+      this.armTrick(c);
       this.enemies.push(c);
     }
     this.puff(u.x, u.y, u.mutation!.color);
@@ -1864,7 +1922,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Enemies the heroes fight: everyone but those under Puppet Bind for now. */
   private foes(): Unit[] {
-    return this.enemies.filter((e) => !(e.charmUntil > this.clock));
+    return this.enemies.filter((e) => !(e.charmUntil > this.clock) && !(e.burrowedUntil! > this.clock));
   }
 
   private stepEnemy(e: Unit, dt: number) {
@@ -1885,6 +1943,7 @@ export class BattleScene extends Phaser.Scene {
       }
       return;
     }
+    if (e.kind?.trick && !this.pvp && this.stepTrick(e)) return;
     // Melee enemies can't reach flying heroes (src/reach.ts); with only flyers left they wait under one.
     const placed = this.heroes.map((u) => ({ x: u.x, alive: u.alive, flying: u.flying && !this.pvp?.anyReach, u }));
     const pick = pickVictim(e, placed);
@@ -1894,6 +1953,11 @@ export class BattleScene extends Phaser.Scene {
     const dist = target ? Math.abs(e.x - target.x) : Infinity;
     if (target && dist <= e.range) {
       if (e.flying) this.faceEnemy(e, target.x > e.x ? 1 : -1);
+      // A Bomber blows up on the first hero it reaches (a shiny one's fuse is a dud).
+      if (e.kind?.trick === 'bomb' && !e.shiny && !this.pvp) {
+        this.explode(e);
+        return;
+      }
       if (e.cooldownLeft <= 0) {
         e.cooldownLeft = e.cooldown;
         this.lunge(e, target.x > e.x ? 1 : -1);
@@ -1934,6 +1998,83 @@ export class BattleScene extends Phaser.Scene {
     if (e.mob && e.mob.state !== 'attack') this.mobAnim(e, walking ? 'walk' : 'idle');
     if (e.anim && e.anim.state !== 'attack') this.setAnim(e, walking ? 'run' : 'idle');
     this.mobBob(e, walking);
+  }
+
+  /**
+   * The special kinds' tricks that happen before the usual move-or-attack (src/mobs.ts). Returns true when the
+   * enemy is busy (a Burrower underground) and skips the rest of its step.
+   */
+  private stepTrick(e: Unit): boolean {
+    const trick = e.kind!.trick;
+    if (trick === 'burrow') {
+      if (e.burrowedUntil !== undefined && e.burrowTo !== undefined) {
+        if (this.clock < e.burrowedUntil) return true;
+        // Up it comes, next to the back row.
+        e.x = e.burrowTo;
+        e.burrowTo = undefined;
+        e.view.setPosition(e.x, e.y).setVisible(true);
+        this.puff(e.x, e.y + 8, 0x8a6a44);
+        this.floatText(e.x, e.y - 30, 'AMBUSH!', '#ffb36b', 10);
+        return false;
+      }
+      if (e.dug) return false;
+      const ground = this.heroes.filter((h) => !h.flying).map((h) => ({ x: h.x, alive: h.alive }));
+      const spot = burrowSpot(e.x, ground);
+      if (spot === null) return false;
+      e.dug = true;
+      e.burrowTo = spot;
+      e.burrowedUntil = this.clock + BURROW_SECONDS;
+      this.puff(e.x, e.y + 8, 0x8a6a44);
+      e.view.setVisible(false);
+      return true;
+    }
+    if (trick === 'summon') {
+      const near = this.heroes.filter((h) => h.alive).reduce((d, h) => Math.min(d, Math.abs(h.x - e.x)), Infinity);
+      const minions = this.enemies.filter((m) => m.alive && m.minionOf === e).length;
+      if (this.enemies.length < MAX_ENEMIES && summonReady(this.clock, e.nextSummonAt ?? 0, minions, near)) {
+        e.nextSummonAt = this.clock + SUMMON_SECONDS;
+        this.summonMinion(e, e.kind!);
+      }
+    }
+    return false;
+  }
+
+  /** A Summoner calls a small minion in front of it: weak, cheap, and with no Journal page. */
+  private summonMinion(e: Unit, kind: MobKind) {
+    const art = this.textures.exists(`mob-grunt-${e.element}`);
+    const m = this.makeUnit({
+      side: 'enemy',
+      texture: art ? `mob-grunt-${e.element}` : 'enemy',
+      mob: 'grunt',
+      x: e.x - 16,
+      hp: e.maxHp.times(MINION_HP / kind.hp),
+      atk: e.atk.times(MINION_ATK / kind.atk),
+      range: MOB_KINDS.grunt.range,
+      cooldown: 1.1,
+      speed: Phaser.Math.Between(MOB_KINDS.grunt.speed[0], MOB_KINDS.grunt.speed[1]),
+      element: e.element,
+    });
+    m.body.setScale(SPLIT_SCALE);
+    m.small = true;
+    m.minionOf = e;
+    m.goldShare = MINION_GOLD;
+    this.enemies.push(m);
+    this.puff(m.x, m.y, 0xc58cff);
+    this.mobAnim(e, 'attack');
+  }
+
+  /** A Bomber's blast: every hero close by takes BOMB_MULT x its hit, and the Bomber is gone (no gold, no Journal kill). */
+  private explode(e: Unit) {
+    e.atk = e.atk.times(BOMB_MULT);
+    for (const h of bombVictims(e.x, this.heroes)) this.enemyHits(e, h);
+    e.alive = false;
+    e.hpBar.clear();
+    this.shatter(e.x, e.y, 0xffa040);
+    this.shatter(e.x, e.y - 6, 0xffe14a);
+    this.floatText(e.x, e.y - 34, 'BOOM!', '#ffa040', 14);
+    this.cameras.main.shake(120, 0.006);
+    play('kill');
+    this.tweens.add({ targets: e.view, alpha: 0, scale: 1.8, duration: 160, onComplete: () => e.view.destroy() });
   }
 
   /** Turns an enemy to face right (1) or its usual left (-1), keeping its feet point where it was. */
@@ -2370,6 +2511,8 @@ export class BattleScene extends Phaser.Scene {
 
   private damageUnit(target: Unit, amount: Decimal, source: Unit | null, crit = false) {
     if (!target.alive) return;
+    // A Burrower underground can't be hit.
+    if (target.burrowedUntil! > this.clock) return;
     if (this.immune(target, source)) return;
     // Sanctuary: no damage at all for a while.
     if (target.side === 'hero' && target.guardUntil > this.clock) return;
@@ -2382,11 +2525,27 @@ export class BattleScene extends Phaser.Scene {
     // Hunting Journal: a little more damage against enemies the player has beaten many of.
     if (target.side === 'enemy' && target.page && source?.side === 'hero') amount = amount.times(this.state.journalMult(target.page));
     if (target.mutation && source?.side === 'hero') amount = amount.times(this.state.journalMult(mutantPageId(target.mutation.id)));
+    // A Shieldbearer's shield blocks most ranged hits from the front (src/mobs.ts guardShare).
+    const guarded = !!target.guardMax && target.shield.gt(0);
+    if (guarded && source?.side === 'hero') {
+      const share = guardShare(true, !isMelee(source), source.x, target.x);
+      if (share < 1) {
+        amount = amount.times(share);
+        if (this.clock - (target.immuneShownAt ?? -Infinity) >= 0.8) {
+          target.immuneShownAt = this.clock;
+          this.floatText(target.x + Phaser.Math.Between(-6, 6), target.y - 32, 'BLOCK', '#c8d4e0', 9);
+        }
+      }
+    }
     let toHp = amount;
     if (target.shield.gt(0)) {
       const soaked = Decimal.min(target.shield, amount);
       target.shield = target.shield.minus(soaked);
       toHp = amount.minus(soaked);
+    }
+    if (guarded && target.shield.lte(0)) {
+      this.floatText(target.x, target.y - 40, 'SHIELD BROKEN', '#ffe14a', 10);
+      this.shatter(target.x - 8, target.y, 0xc8d4e0);
     }
     const landed = Decimal.min(amount, target.hp.plus(amount.minus(toHp)));
     this.meter(source, 'dealt', landed);

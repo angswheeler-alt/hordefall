@@ -1437,7 +1437,8 @@ i.ticket.rush-ticket { background: linear-gradient(180deg, #e7a6ff, #8a3ab8); bo
 .jr-row { display: grid; grid-template-columns: 58px repeat(5, minmax(0, 1fr)); gap: 4px; align-items: center; }
 .jr-row.jr-bosses { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .jr-head span { font-size: 10px; text-align: center; font-weight: 700; }
-.jr-label { font-size: 11px; font-weight: 700; color: #f2e6c4; }
+.jr-label { font-size: 11px; font-weight: 700; color: #f2e6c4; hyphens: manual; }
+.jr-label small { display: block; font-size: 9px; font-weight: 400; color: #a8a090; }
 .jr-group { margin: 8px 0 2px; font-size: 13px; color: #f2e6c4; }
 .jr-cell { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 3px 0 4px; min-width: 0; border-radius: 8px; border: 2px solid color-mix(in srgb, var(--el) 60%, #000); background: color-mix(in srgb, var(--el) 22%, #120c08); }
 .jr-cell.picked { border-color: #ffe066; box-shadow: 0 0 0 1px #ffe066; }

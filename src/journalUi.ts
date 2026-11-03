@@ -23,7 +23,8 @@ import {
   type JournalGroup,
   type JournalPage,
 } from './journal';
-import { MOB_ELEMENTS } from './mobs';
+import { MOB_ELEMENTS, MOB_KINDS, MOB_TRICK_TEXT } from './mobs';
+import { placeholderUrl } from './mobPlaceholders';
 import { MUTATIONS, MUTATION_STAGE, MUTATION_MAX_CHANCE, MUTANT_GOLD, mutationChance } from './mutations';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -75,7 +76,8 @@ function setHtml(el: HTMLElement, html: string) {
 function picStyle(page: JournalPage): string {
   if (page.mob) {
     const a = MOB_ANIMS[page.mob];
-    if (!a) return '';
+    // A special kind whose art hasn't arrived yet: its placeholder in the element's colour.
+    if (!a) return `background-image:url('${placeholderUrl(page.mob, hex(ELEMENT_COLORS[page.element]))}');background-size:${PIC}px ${PIC}px;background-position:0 0`;
     const scale = Math.min(PIC / a.frame[0], PIC / a.frame[1]);
     const w = Math.round(a.frame[0] * scale);
     const h = Math.round(a.frame[1] * scale);
@@ -201,7 +203,9 @@ export class JournalUI {
     if (this.tab === 'mobs') {
       html += `<div class="jr-row jr-head"><span></span>${MOB_ELEMENTS.map((e) => `<span style="color:${hex(ELEMENT_COLORS[e])}">${cap(e)}</span>`).join('')}</div>`;
       for (const mob of JOURNAL_MOBS) {
-        html += `<div class="jr-row"><span class="jr-label">${MOB_NAMES[mob]}</span>${MOB_ELEMENTS.map((el) => cell(journalPage(`mob_${mob}_${el}`)!)).join('')}</div>`;
+        const from = MOB_KINDS[mob].fromStage;
+        const locked = MOB_TRICK_TEXT[mob] && s.bestStage < from ? `<small>from ${from.toLocaleString()}</small>` : '';
+        html += `<div class="jr-row"><span class="jr-label">${MOB_NAMES[mob].replace('Shieldbearer', 'Shield&shy;bearer')}${locked}</span>${MOB_ELEMENTS.map((el) => cell(journalPage(`mob_${mob}_${el}`)!)).join('')}</div>`;
       }
     } else if (this.tab === 'mutants') {
       const pages = JOURNAL_PAGES.filter((p) => p.group === 'mutant');
@@ -228,6 +232,8 @@ export class JournalUI {
     const where =
       page.mutation
         ? `${MUTATIONS[page.mutation].text}. Any mob after stage ${(MUTATION_STAGE - 1).toLocaleString()} can be one`
+        : page.group === 'mob' && page.mob && MOB_TRICK_TEXT[page.mob]
+        ? `${MOB_TRICK_TEXT[page.mob]}. ${cap(page.element)} stages from stage ${MOB_KINDS[page.mob].fromStage.toLocaleString()}`
         : page.group === 'mob'
         ? `${cap(page.element)} stages`
         : page.group === 'boss'
