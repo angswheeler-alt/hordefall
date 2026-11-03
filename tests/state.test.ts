@@ -1176,7 +1176,7 @@ describe('Guild Boss rewards', () => {
     expect(k.drops.length).toBe(0);
     const w = s.payGuildBossRewards([], [7], []);
     expect(w).toMatchObject({ coins: 170 });
-    expect(w.drops.length).toBe(3 * CHEST_DROPS);
+    expect(w.drops.length).toBe(2 * CHEST_DROPS);
     expect(s.guildCredits).toBe(13 + 69 + 170);
   });
 });

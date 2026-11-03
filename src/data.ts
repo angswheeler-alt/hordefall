@@ -1229,10 +1229,13 @@ export const GUILD_BOSS_PAR_ATTEMPTS = 15;
 export const GUILD_BOSS_GOLD_MINUTES = 30;
 /** Every level beaten pays each member who hit the boss that week: Guild Coins per level (x (10 + level)) (no Embers: guild rewards stay guild-side, Samuel 2026-10-31). */
 export const GUILD_BOSS_KILL_COINS = 3;
-/** Weekly reward by the highest level beaten: Guild Coins (x (10 + level)) and a Hero Chest per few levels, up to a cap. */
+/**
+ * Weekly reward by the highest level beaten: Guild Coins (x (10 + level)) and a Hero Chest per few levels, up to a cap.
+ * Samuel, 2026-11-03 ("the guild boss rewards so many crests"): was 1 chest per 3 levels, up to 10 (~200 crests a week).
+ */
 export const GUILD_BOSS_WEEK_COINS = 10;
-export const GUILD_BOSS_LEVELS_PER_CHEST = 3;
-export const GUILD_BOSS_WEEK_MAX_CHESTS = 10;
+export const GUILD_BOSS_LEVELS_PER_CHEST = 5;
+export const GUILD_BOSS_WEEK_MAX_CHESTS = 4;
 /**
  * Ascendant Chest (Samuel, 2026-10-21): Gems only, sold each week (Monday 00:00 UTC, with the Guild Boss) for the Ascendant
  * hero whose element beats that week's Guild Boss. Each buy gives that hero's crests plus a Hero Chest's drops for other
@@ -1246,10 +1249,11 @@ export const ASCENDANT_CHEST: ReadonlyArray<{ gems: number; crests: number }> = 
 ];
 /**
  * Each Guild Boss level a player helps beat also pays that week's Ascendant hero (the one the Ascendant Chest sells)
- * GUILD_BOSS_ASC_CRESTS crests, for the first GUILD_BOSS_ASC_LEVELS levels: up to 200 a week (Samuel, 2026-10-28).
+ * GUILD_BOSS_ASC_CRESTS crests, for the first GUILD_BOSS_ASC_LEVELS levels: up to 100 a week (Samuel, 2026-10-28;
+ * halved from 10 a level on 2026-11-03 because the Guild Boss paid too many crests).
  * A free, slower road to the final form next to the Gem-only chest.
  */
-export const GUILD_BOSS_ASC_CRESTS = 10;
+export const GUILD_BOSS_ASC_CRESTS = 5;
 export const GUILD_BOSS_ASC_LEVELS = 20;
 /** Boss for each week's element (guildBossElement / the server pick the element). */
 export const GUILD_BOSS_NAMES: Record<Element, string> = {
