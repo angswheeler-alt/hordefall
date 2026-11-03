@@ -12,7 +12,7 @@ import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
 import { setMuted, setVolumes } from './sfx';
-import { BOSS_ANIMS, BOSS_ANIM_FRAMES } from './bossAnims';
+import { BOSS_ANIMS } from './bossAnims';
 import { guildBossElement, utcWeekStart, bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberRefund, emberBulk, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
 import type { WelcomeSection } from './welcome';
 import type { GameState, OfflineReport, SummonDrop, RekindleResult, TrialResult, PvpOpponent } from './state';
@@ -34,6 +34,7 @@ import { holdToRepeat } from './hold';
 import { ScoutUI } from './scoutUi';
 import { WILD_CREST_COST } from './scouting';
 import { GlyphUI } from './glyphUi';
+import { JournalUI, bossFaceStyle, journalRulesText } from './journalUi';
 import { RushUI, rushResultHtml } from './rushUi';
 import { RESET_PHRASE, resetPhraseOk } from './resetPhrase';
 import { sortHeroes, nextTeamSort, TEAM_SORT_LABELS, type TeamSort } from './teamSort';
@@ -127,21 +128,7 @@ interface UltButton {
 
 /** CSS for a Trial boss portrait: the first idle frame in a `size` px box. */
 function bossFace(el: Element, size: number): Partial<CSSStyleDeclaration> {
-  const id = BOSS_ANIMS[TRIAL_BOSS_ART[el]] ? TRIAL_BOSS_ART[el] : el;
-  const a = BOSS_ANIMS[id];
-  if (!a) return {};
-  const [x0, x1] = a.idleX ?? [0, a.frame[0]];
-  const tall = a.frame[1] - a.headTop;
-  // A long four-legged boss (head off to one side, a shrine or chimneys on top) is shown whole, centred on
-  // itself; an upright one is zoomed in a little past the frame width so the head and shoulders fill the box.
-  const whole = a.frame[0] > 100;
-  const scale = whole ? (size / Math.max(x1 - x0, tall)) * 1.05 : (size / a.frame[0]) * 1.35;
-  const top = whole ? -a.headTop * scale + (size - tall * scale) / 2 : -Math.max(0, a.headTop - 4) * scale;
-  return {
-    backgroundImage: `url(bosses/${id}_idle.png)`,
-    backgroundSize: `${a.frame[0] * BOSS_ANIM_FRAMES.idle * scale}px auto`,
-    backgroundPosition: `${size / 2 - ((x0 + x1) / 2) * scale}px ${top}px`,
-  };
+  return bossFaceStyle(BOSS_ANIMS[TRIAL_BOSS_ART[el]] ? TRIAL_BOSS_ART[el] : el, size);
 }
 
 export class UI {
@@ -152,6 +139,7 @@ export class UI {
   private tapPending = false;
   private scoutUi!: ScoutUI;
   private glyphUi!: GlyphUI;
+  private journalUi!: JournalUI;
   private rushUi!: RushUI;
 
   constructor(
@@ -160,6 +148,7 @@ export class UI {
     private hooks: { simulateAway: () => void; resetAccount: () => Promise<string | null>; rekindle: (mult: number) => void },
   ) {
     setFormArt((id) => this.state.heroArtKey(id));
+    this.journalUi = new JournalUI(this.state, this);
     this.buildHeroes();
     this.buildUlts();
     this.bindControls();
@@ -1120,6 +1109,8 @@ export class UI {
       this.renderRekindle();
     });
     $('home-obs').addEventListener('click', () => this.openObservatory());
+    this.journalUi.bind();
+    $('jr-rules').textContent = journalRulesText();
     $('obs-close').addEventListener('click', () => ($('obs').hidden = true));
     $('obs').addEventListener('click', (e) => {
       if (e.target === $('obs')) $('obs').hidden = true;
@@ -1482,6 +1473,7 @@ export class UI {
       } else if (!$('settings').hidden) $('settings-close').click();
       else if (!$('rk').hidden) this.closeRekindle();
       else if (!$('obs').hidden) $('obs').hidden = true;
+      else if (this.journalUi.isOpen()) this.journalUi.close();
       else if (this.sheetHero) this.closeSheet();
       else if (!$('coll').hidden) this.closeCollection();
     });
@@ -2956,6 +2948,7 @@ export class UI {
       $('home-obs-sigils').textContent = s.sigils().toLocaleString();
       $('home-obs-note').textContent = 'Spend Sigils on lasting buffs';
     }
+    this.journalUi.renderHome();
 
     // Run stats sit at the bottom of the home panel.
     const nextBoss = Math.ceil((s.stage + (isBossStage(s.stage) ? 0 : 1)) / BOSS_EVERY) * BOSS_EVERY;
@@ -3158,6 +3151,8 @@ export class UI {
     // The Rekindle page stays live: the run keeps going behind it.
     if (!$('rk').hidden) this.renderRekindle();
     if (!$('obs').hidden) this.renderObservatory();
+    if (this.journalUi.isOpen()) this.journalUi.render();
+    this.journalUi.showShinyDrops(dropCards);
     if (!$('coll').hidden) this.renderCollection();
     const s = this.state;
     $('gold').textContent = fmt(s.gold);

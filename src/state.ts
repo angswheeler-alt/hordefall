@@ -16,6 +16,7 @@ import { ascendBlocker, ascendNeeds, clampForm, formArtKey, resolveForm, COUNTER
 import { ascendantDef, isAscendant, ASCENDANT_HEROES } from './heroes/ascendant';
 import { HERO_ANIMS } from './heroAnims';
 import { TEST_MODE, TEST_SAVE_KEY } from './config';
+import { SHINY_GEMS, cleanJournal, cleanStamps, isShinyRoll, journalBonus, journalPage, journalTier, shinyTreasure, trialPageId } from './journal';
 import { FORGE_MATS, WEAPON_GLYPHS, clampWeaponLevel, weaponMult, weaponUpgradeCost, type ForgeCost, type ForgeMat } from './weapons';
 import { GLYPH_BAG_CAP, GLYPH_FAMILIES, chestStar, cleanGlyph, emptyTotals, glyphBound, glyphLevelCost, glyphSalvage, glyphTotals, rollGlyph, type Glyph, type GlyphChestKind, type GlyphFamily, type GlyphTotals } from './glyphs';
 import { RUSH_BRACKETS, RUSH_CREST_COINS, RUSH_CREST_LIMIT, RUSH_CREST_PACK, RUSH_DAILY_TICKETS, RUSH_DAYS, RUSH_FEATURED, RUSH_FIGHT_TICKETS, RUSH_FOES, RUSH_FREE_HEROES, RUSH_FREE_HOURS, RUSH_LOSS_COINS, RUSH_MAX_LEVEL, RUSH_SHOP, RUSH_STREAK_UP, RUSH_TIERS, RUSH_UNLOCK_LEVEL, chestKinds, cleanRush, freeAttacks, inBracket, newRush, rushWinPoints, type RushFoe, type RushReward, type RushShopId, type RushState } from './rush';
@@ -413,6 +414,16 @@ export class GameState {
   observatory: Partial<Record<ObsBranch, number>> = {};
   /** Constellations the player switched off (their Sigils stay in them). */
   obsOff: ObsBranch[] = [];
+  /** Hunting Journal (journal.ts): kills per page (Guild Boss pages count fights). */
+  journal: Record<string, number> = {};
+  /** Journal pages with a gold stamp (a shiny of that mob beaten). */
+  journalStamps: string[] = [];
+  /** Shinies beaten today (capped at SHINY_PER_DAY). */
+  shinies: { day: string; caught: number } = { day: '', caught: 0 };
+  /** A shiny's Hero Chest waiting to be shown (not saved: the crests are already added). */
+  shinyDrops: SummonDrop[] | null = null;
+  /** The last Journal tier reached, for the lane to announce (not saved). */
+  journalNews: { pageId: string; tier: number } | null = null;
   /** Set when a price change gave every placed Sigil back; the Observatory says so until the next rank is bought. */
   obsRefunded = false;
   /** Heroes picked for the Guild Boss (ids); empty means the lineup. */
@@ -2044,6 +2055,7 @@ export class GameState {
     const level = TRIAL_LEVELS[tier - 1];
     this.spendTrialTicket();
     this.track('trials');
+    this.journalAdd(trialPageId(element));
     const explore = 1 + this.researchBonus('exploration');
     result.essence = Math.round(level.essence * explore);
     this.essences[element] = (this.essences[element] ?? 0) + result.essence;
@@ -2133,6 +2145,67 @@ export class GameState {
     this.tickets = Math.min(this.ticketCap(), this.tickets);
     this.save();
     return true;
+  }
+
+  // ---------- Hunting Journal (journal.ts) ----------
+
+  /** Count `n` kills (Guild Boss: fights) on a Journal page. Returns the new tier when this crossed one, else 0. */
+  journalAdd(pageId: string, n = 1): number {
+    const page = journalPage(pageId);
+    if (!page || n <= 0) return 0;
+    const before = this.journal[pageId] ?? 0;
+    const after = before + Math.floor(n);
+    this.journal[pageId] = after;
+    const tier = journalTier(page, after);
+    if (tier > journalTier(page, before)) {
+      this.journalNews = { pageId, tier };
+      return tier;
+    }
+    return 0;
+  }
+
+  journalKills(pageId: string): number {
+    return this.journal[pageId] ?? 0;
+  }
+
+  /** Damage multiplier the Journal gives against an enemy on this page. */
+  journalMult(pageId: string | undefined): number {
+    const page = pageId ? journalPage(pageId) : undefined;
+    if (!page) return 1;
+    return 1 + journalBonus(page, this.journal[pageId!] ?? 0, this.journalStamps.includes(pageId!));
+  }
+
+  /** Shinies beaten today. */
+  shiniesToday(now = Date.now()): number {
+    return this.shinies.day === dayKey(now) ? this.shinies.caught : 0;
+  }
+
+  /** Whether a regular mob spawning now is a shiny (`roll` in [0, 1)). */
+  rollShiny(roll: number, now = Date.now()): boolean {
+    return isShinyRoll(roll, this.shiniesToday(now));
+  }
+
+  /**
+   * A shiny was beaten: stamp its page and pay its treasure (`roll` in [0, 1) picks Gems or a Hero Chest).
+   * Nothing is paid past today's cap.
+   */
+  catchShiny(pageId: string, roll: number, now = Date.now()): { gems: number; chest: boolean; stamped: boolean } | null {
+    const page = journalPage(pageId);
+    if (!page || page.group !== 'mob') return null;
+    const caught = this.shiniesToday(now);
+    if (!isShinyRoll(0, caught)) return null;
+    this.shinies = { day: dayKey(now), caught: caught + 1 };
+    const stamped = !this.journalStamps.includes(pageId);
+    if (stamped) this.journalStamps.push(pageId);
+    const chest = shinyTreasure(roll) === 'chest';
+    let gems = 0;
+    if (chest) this.shinyDrops = [...(this.shinyDrops ?? []), ...this.rollChest()];
+    else {
+      gems = SHINY_GEMS;
+      this.gems += gems;
+    }
+    this.save();
+    return { gems, chest, stamped };
   }
 
   /** Trial tickets that refill over time hold up to this many (Pilgrim Star raises it). */
@@ -3704,6 +3777,9 @@ export class GameState {
       observatory: this.observatory,
       obsOff: this.obsOff,
       obsRefunded: this.obsRefunded,
+      journal: this.journal,
+      journalStamps: this.journalStamps,
+      shinies: { ...this.shinies },
       guildBossPicks: this.guildBossPicks,
       achieved: this.achieved,
       bootcamp: this.bootcamp,
@@ -3823,6 +3899,9 @@ export class GameState {
       this.observatory = cleanObservatory(d.observatory);
       this.obsOff = cleanObsOff(d.obsOff);
       this.obsRefunded = d.obsRefunded === true;
+      this.journal = cleanJournal(d.journal);
+      this.journalStamps = cleanStamps(d.journalStamps);
+      this.shinies = d.shinies && typeof d.shinies === 'object' ? { day: String(d.shinies.day ?? ''), caught: Math.max(0, Math.floor(Number(d.shinies.caught) || 0)) } : { day: '', caught: 0 };
       this.lifetimeEmbers = d.lifetimeEmbers ?? this.embers;
       this.benched = { ...(d.benched ?? {}) };
       this.stats = { ...this.stats, ...(d.stats ?? {}) };
