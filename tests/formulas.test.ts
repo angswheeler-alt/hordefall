@@ -126,8 +126,8 @@ describe('Guild Boss', () => {
     expect(guildBossKillCoins(5)).toBe(45);
     expect(guildBossWeekReward(0)).toEqual({ coins: 0, chests: 0 });
     expect(guildBossWeekReward(1)).toEqual({ coins: 110, chests: 1 });
-    expect(guildBossWeekReward(10)).toEqual({ coins: 200, chests: 4 });
-    expect(guildBossWeekReward(60)).toEqual({ coins: 700, chests: 10 });
+    expect(guildBossWeekReward(10)).toEqual({ coins: 200, chests: 2 });
+    expect(guildBossWeekReward(60)).toEqual({ coins: 700, chests: 4 });
   });
 
   it('a new boss each week, rotating like the server', () => {

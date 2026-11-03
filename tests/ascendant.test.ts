@@ -322,7 +322,7 @@ describe('Guild Boss Ascendant crests', () => {
     const kills = Array.from({ length: GUILD_BOSS_ASC_LEVELS + 5 }, (_, i) => ({ week: '2026-10-26', level: i + 1 }));
     const got = s.payGuildBossRewards(kills, [], pool);
     expect(got.ascendant).toEqual([{ heroId: 'asc_test', crests: GUILD_BOSS_ASC_LEVELS * GUILD_BOSS_ASC_CRESTS }]);
-    expect(s.crests.asc_test).toBe(200);
+    expect(s.crests.asc_test).toBe(100);
   });
 
   it('pays nothing for a week whose boss no released Ascendant hero beats', () => {

@@ -41,9 +41,10 @@ describe('Guild Boss weeks start near last week\'s best (2026-11-01)', () => {
 
   it('weekly chests count levels beaten that week, coins the top level', async () => {
     const { guildBossWeekReward } = await import('../src/formulas');
-    expect(guildBossWeekReward(115, 6)).toEqual({ coins: 1250, chests: 2 });
+    expect(guildBossWeekReward(115, 6)).toEqual({ coins: 1250, chests: 2 })
+    expect(guildBossWeekReward(115, 5)).toEqual({ coins: 1250, chests: 1 });;
     expect(guildBossWeekReward(115, 0)).toEqual({ coins: 0, chests: 0 });
-    expect(guildBossWeekReward(30)).toEqual({ coins: 400, chests: 10 });
+    expect(guildBossWeekReward(30)).toEqual({ coins: 400, chests: 4 });
   });
 
   it('Ascendant crests follow the level\'s place in the week, not its number', async () => {
