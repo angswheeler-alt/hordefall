@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { initAutoUpdate } from './autoUpdate';
 import './style.css';
 import { BattleScene, WIDTH, HEIGHT } from './BattleScene';
 import { GameState } from './state';
@@ -140,6 +141,7 @@ document.getElementById('tut-replay')!.addEventListener('click', () => {
 });
 
 initInstall();
+initAutoUpdate(save);
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {});

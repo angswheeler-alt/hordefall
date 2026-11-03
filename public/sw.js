@@ -3,7 +3,7 @@
 // Built files (hashed names under assets/): cache first, they never change under the same name.
 // Art and other files: the cached copy right away, refreshed in the background for next time.
 // Other sites (the Supabase cloud save, fonts) are left alone: an old cached save must never come back.
-const CACHE = 'hordefall-v2';
+const CACHE = 'hordefall-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
@@ -32,6 +32,8 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
+  // The game's own update check must always reach the server.
+  if (url.searchParams.has('fresh')) return;
   if (req.mode === 'navigate') {
     e.respondWith(
       fetch(req)
