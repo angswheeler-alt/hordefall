@@ -54,3 +54,13 @@ export function marchCap(self: Marcher, team: readonly Marcher[]): number {
 export function marchStep(x: number, speed: number, dt: number, cap: number, stopAt: number): number {
   return Math.max(x, Math.min(x + speed * dt, cap, stopAt));
 }
+
+/** After a stage clear, heroes keep running right and off screen while the banner shows: a quick start, then faster. */
+export const EXIT_SPEED_MULT = 1.5;
+/** Extra px/s gained per second of the exit run, so even the back line leaves before the next stage. */
+export const EXIT_ACCEL = 500;
+
+/** Where a hero is after `dt` more seconds of the exit run, `elapsed` seconds in. Always forward. */
+export function exitRunStep(x: number, speed: number, elapsed: number, dt: number): number {
+  return x + (Math.max(0, speed) * EXIT_SPEED_MULT + EXIT_ACCEL * elapsed) * Math.max(0, dt);
+}
