@@ -2119,6 +2119,7 @@ export class BattleScene extends Phaser.Scene {
     // With its art, the Bomber's own blast plays out (the last frames of its attack strip: flash, cloud, smoke).
     if (e.mob && this.anims.exists(`${e.mob.key}-attack`)) {
       e.mob.state = 'attack';
+      e.body.clearTint();
       e.body.play({ key: `${e.mob.key}-attack`, startFrame: Math.min(BOMB_ART_FRAME, MOB_ANIMS[e.mob.id].attack - 1) });
       e.body.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
         if (e.view.active) this.tweens.add({ targets: e.view, alpha: 0, duration: 150, onComplete: () => e.view.destroy() });
