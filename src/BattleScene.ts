@@ -175,6 +175,8 @@ export const BOSS_SCALE = 1.5;
 
 interface Unit {
   side: 'hero' | 'enemy';
+  /** A borrowed hero fighting on the player's side (Expedition): stats come from its owner, not the save. */
+  ally?: boolean;
   def?: HeroDef;
   x: number;
   y: number;
@@ -406,6 +408,8 @@ interface PvpLive {
   label: string;
   /** Rush: one hero a side, so melee heroes can hit flyers too (otherwise a melee hero could never beat a flyer). */
   anyReach: boolean;
+  /** Expedition Boons: stat multipliers for each of the player's own heroes. */
+  boost?: (def: HeroDef) => { atk: number; hp: number; def: number };
 }
 
 /** One line of the Colosseum battle meter. */
@@ -916,8 +920,13 @@ export class BattleScene extends Phaser.Scene {
   /** Create units for newly recruited heroes and refresh stats after upgrades. */
   syncHeroes() {
     // Heroes taken out of the lineup leave the lane.
-    for (const h of this.heroes) if (h.def && !this.fights(h.def.id)) h.view.destroy();
-    this.heroes = this.heroes.filter((h) => h.def && this.fights(h.def.id));
+    // Borrowed heroes stay while their battle lasts.
+    if (!this.pvp) {
+      for (const h of this.heroes) if (h.ally) h.view.destroy();
+      this.heroes = this.heroes.filter((h) => !h.ally);
+    }
+    for (const h of this.heroes) if (h.def && !h.ally && !this.fights(h.def.id)) h.view.destroy();
+    this.heroes = this.heroes.filter((h) => h.def && (h.ally || this.fights(h.def.id)));
     for (const base of HEROES) {
       if (!this.fights(base.id)) continue;
       // An Ascendant hero fights in its current form.
@@ -926,9 +935,10 @@ export class BattleScene extends Phaser.Scene {
       if (level <= 0) continue;
       const stats = this.state.heroStats(def, level);
       // A Colosseum win streak hits harder.
-      const atk = stats.atk.value.times(1 + (this.pvp?.bonus ?? 0)), hp = stats.hp.value, defense = stats.def.value;
+      const boost = this.pvp?.boost?.(def) ?? { atk: 1, hp: 1, def: 1 };
+      const atk = stats.atk.value.times((1 + (this.pvp?.bonus ?? 0)) * boost.atk), hp = stats.hp.value.times(boost.hp), defense = stats.def.value.times(boost.def);
       // Every hero is one unit on the lane.
-      const existing = this.heroes.find((h) => h.def?.id === def.id);
+      const existing = this.heroes.find((h) => !h.ally && h.def?.id === def.id);
       if (existing) {
         const u = existing;
         const ratio = u.maxHp.gt(0) ? u.hp.div(u.maxHp) : new Decimal(1);
@@ -1403,17 +1413,40 @@ export class BattleScene extends Phaser.Scene {
    * blue crystal and the opponent's team at the red one. Fallen fighters on both sides get back up after
    * the usual wait; the first crystal destroyed loses. `onEnd` gets the outcome once.
    */
-  startPvp(ids: string[], foes: PvpFoe[], bonus: number, onEnd: (won: boolean) => void, opts: { label?: string; anyReach?: boolean } = {}) {
+  startPvp(ids: string[], foes: PvpFoe[], bonus: number, onEnd: (won: boolean) => void, opts: { label?: string; anyReach?: boolean; allies?: PvpFoe[]; boost?: PvpLive['boost'] } = {}) {
     if (this.trial || this.pvp) return;
     this.nextStageTimer?.remove();
     this.nextStageTimer = undefined;
     this.clearChests();
-    this.pvp = { ids: new Set(ids), bonus, mine: { hp: new Decimal(1), max: new Decimal(1) }, theirs: { hp: new Decimal(1), max: new Decimal(1) }, timeLeft: PVP_LIVE_TIME, done: false, onEnd, meter: new Map(ids.map((id) => [id, meterRow(id)])), foeMeter: meterRow('foes'), label: opts.label ?? 'Colosseum', anyReach: !!opts.anyReach };
+    this.pvp = { ids: new Set(ids), bonus, mine: { hp: new Decimal(1), max: new Decimal(1) }, theirs: { hp: new Decimal(1), max: new Decimal(1) }, timeLeft: PVP_LIVE_TIME, done: false, onEnd, meter: new Map(ids.map((id) => [id, meterRow(id)])), foeMeter: meterRow('foes'), label: opts.label ?? 'Colosseum', anyReach: !!opts.anyReach, boost: opts.boost };
     const ults = new Map(this.heroes.map((h) => [h.def?.id, h.ultReadyAt]));
     for (const h of this.heroes) h.view.destroy();
     this.heroes = [];
     this.syncHeroes();
     for (const h of this.heroes) h.ultReadyAt = ults.get(h.def?.id) ?? 0;
+    // Borrowed heroes (Expedition) join the player's side with their owner's stats.
+    for (const a of opts.allies ?? []) {
+      const u = this.makeUnit({
+        side: 'hero',
+        def: a.def,
+        art: a.def.id,
+        texture: `hero-${a.def.id}`,
+        x: PLAYER_CRYSTAL_X + 20,
+        hp: a.stats.hp.value,
+        atk: a.stats.atk.value,
+        range: a.def.range,
+        cooldown: a.def.attackCooldown,
+        speed: a.stats.moveSpeed.value,
+        element: a.def.element,
+        flying: a.def.flying,
+      });
+      u.ally = true;
+      u.defense = a.stats.def.value;
+      u.stats = a.stats;
+      this.giveKnightShield(u);
+      this.heroes.push(u);
+      this.pvp.meter.set(a.def.id, meterRow(a.def.id));
+    }
     for (const e of this.enemies) e.view.destroy();
     this.enemies = [];
     for (const z of this.zones) z.view.destroy();
@@ -1458,7 +1491,7 @@ export class BattleScene extends Phaser.Scene {
     this.bossEngaged = false;
     this.cameras.main.scrollX = 0;
     this.drawBackground();
-    this.banner('COLOSSEUM\nFIGHT!', '#ffd84a');
+    this.banner(`${this.pvp.label.toUpperCase()}\nFIGHT!`, '#ffd84a');
     play('boss');
     this.state.emit();
   }

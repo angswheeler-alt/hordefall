@@ -167,6 +167,12 @@
               <b class="mode-title">Rush</b>
               <small id="hub-rush-note" class="mode-note"></small>
             </button>
+            <button class="mode-card exp" data-battle-go="exp">
+              <span class="mode-count"><i class="exp-charge-ico" aria-hidden="true"></i><b id="hub-exp-count"></b></span>
+              <svg class="mode-trophy exp-compass" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="24" fill="#f0d9a0" stroke="#5a3a10" stroke-width="3"/><circle cx="32" cy="32" r="17" fill="none" stroke="#c9a868" stroke-width="2"/><path d="M32 12l6 20-6 20-6-20z" fill="#b3261c" stroke="#5a3a10" stroke-width="2" stroke-linejoin="round"/><path d="M32 32l6 0-6 20-6-20z" fill="#e8e0cc" stroke="#5a3a10" stroke-width="2" stroke-linejoin="round"/><circle cx="32" cy="32" r="3" fill="#5a3a10"/></svg>
+              <b class="mode-title">Expedition</b>
+              <small id="hub-exp-note" class="mode-note"></small>
+            </button>
           </div>
           <div data-battle-pane="trials" hidden>
             <button class="wood-btn small trial-back" data-battle-go="hub">&#8592; Battle</button>
@@ -197,6 +203,11 @@
             <button class="wood-btn small trial-back" data-battle-go="hub">&#8592; Battle</button>
             <div class="panel-head"><h2>Rush</h2><button id="rush-help" class="wood-btn small">How it works</button></div>
             <div id="rush" class="rush"></div>
+          </div>
+          <div data-battle-pane="exp" hidden>
+            <button class="wood-btn small trial-back" data-battle-go="hub">&#8592; Battle</button>
+            <div class="panel-head"><h2>Expedition</h2><button id="exp-help" class="wood-btn small">How it works</button></div>
+            <div id="exp" class="exp"></div>
           </div>
           <div data-battle-pane="arena" hidden>
             <button class="wood-btn small trial-back" data-battle-go="hub">&#8592; Battle</button>

@@ -37,6 +37,8 @@ import { WILD_CREST_COST } from './scouting';
 import { GlyphUI } from './glyphUi';
 import { JournalUI, bossFaceStyle, journalRulesText } from './journalUi';
 import { RushUI, rushResultHtml } from './rushUi';
+import { ExpeditionUI, expEndHtml } from './expeditionUi';
+import type { ExpLender } from './expedition';
 import { RESET_PHRASE, resetPhraseOk } from './resetPhrase';
 import { sortHeroes, nextTeamSort, TEAM_SORT_LABELS, type TeamSort } from './teamSort';
 
@@ -142,6 +144,7 @@ export class UI {
   private glyphUi!: GlyphUI;
   private journalUi!: JournalUI;
   private rushUi!: RushUI;
+  private expUi!: ExpeditionUI;
 
   constructor(
     private state: GameState,
@@ -159,6 +162,8 @@ export class UI {
     this.glyphUi = new GlyphUI(this.state, this);
     this.rushUi = new RushUI(this.state, this);
     $('rush-help').addEventListener('click', () => this.rushUi.help());
+    this.expUi = new ExpeditionUI(this.state, this);
+    $('exp-help').addEventListener('click', () => this.expUi.help());
     let last = performance.now();
     setInterval(() => {
       const now = performance.now();
@@ -673,7 +678,7 @@ export class UI {
     const bg = (f: string) => `url("${new URL(`bg/${f}`, document.baseURI).href}")`;
     const scene = (name: string, y = '40%') => `${bg(`${name}_far.png`)} center ${y} / cover, ${bg(`${name}_sky.png`)} center / cover`;
     // Every mode card shows a battle backdrop that suits it, like the Colosseum's.
-    const cardArt: Record<string, string> = { arena: scene('colosseum'), trials: scene('hollowmoon'), scout: scene('tidecoast'), rush: scene('stormcrag') };
+    const cardArt: Record<string, string> = { arena: scene('colosseum'), trials: scene('hollowmoon'), scout: scene('tidecoast'), rush: scene('stormcrag'), exp: scene('hollowmoon', '60%') };
     for (const [mode, art] of Object.entries(cardArt)) document.querySelector<HTMLElement>(`.mode-card.${mode}`)?.style.setProperty('--art', art);
     for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-battle-go]')) {
       btn.addEventListener('click', () => {
@@ -2503,6 +2508,8 @@ export class UI {
     if (!document.querySelector<HTMLElement>('[data-battle-pane="scout"]')!.hidden) this.scoutUi.renderBoard();
     this.rushUi.renderHub();
     if (!document.querySelector<HTMLElement>('[data-battle-pane="rush"]')!.hidden) this.rushUi.render();
+    this.expUi.renderHub();
+    if (!document.querySelector<HTMLElement>('[data-battle-pane="exp"]')!.hidden) this.expUi.render();
   }
 
   /** The Glyph bag (from the Rush page). */
@@ -2532,6 +2539,40 @@ export class UI {
       }, 1200);
       this.render();
     }, { label: 'Rush', anyReach: true });
+  }
+
+  /** Players whose heroes Expedition Taverns can offer (friends, Colosseum players); empty offline. */
+  expeditionLenders(): Promise<ExpLender[]> {
+    return this.pvpServer?.lenders() ?? Promise.resolve([]);
+  }
+
+  /** Start the current Expedition fight on the lane: the party plus borrowed heroes against the stop's foes. */
+  fightExpedition() {
+    const s = this.state;
+    const scene = this.scene();
+    const r = s.expedition.run;
+    const foe = s.expFoeOpponent();
+    if (!scene || scene.inTrial() || scene.inPvp() || !r || !foe || !s.expFightStart()) return;
+    this.closeSheet();
+    document.body.classList.add('in-trial');
+    $('trial-hud').hidden = false;
+    $('trial-hud-name').textContent = `Expedition: ${foe.name}`;
+    $('trial-hud-note').textContent = 'Your party and borrowed heroes fight at Ember levels with their Boons, no Ultimates. Destroy the red crystal before they destroy yours.';
+    $('trial-leave').textContent = 'Leave';
+    const allies = r.hires.map((h) => {
+      const u = s.expHireUnit(h);
+      return { def: u.def, stats: u.stats };
+    });
+    const units = s.pvpFoeUnits(foe).map((f) => ({ def: f.def, stats: f.stats }));
+    scene.startPvp([...r.party], units, 0, (won) => {
+      $('trial-leave').textContent = 'Back';
+      const res = s.expFightEnd(won);
+      const html = !res ? '' : res.end ? expEndHtml(res.end) : won ? '<p class="tf-result win">Victory! Pick a Boon on the Expedition page.</p>' : `<p class="tf-result lose">Defeat. You lose a heart (${res.heartsLeft} left). Try again, or rethink your Boons.</p>`;
+      window.setTimeout(() => {
+        if (scene.inPvp()) this.showModal('Expedition', html, 'Okay', () => this.endPvpScreen());
+      }, 1200);
+      this.render();
+    }, { label: 'Expedition', allies, boost: (def) => s.expBoost(def) });
   }
 
   /** The Rekindle rewards page: what this Rekindle pays and what it moves forward. */
