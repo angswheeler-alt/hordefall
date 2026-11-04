@@ -50,6 +50,15 @@ export const PVP_FIRST_WIN_MOTES = 10;
 export const RANK_PRESSURE = 0.04;
 /** Fallen fighters on both sides take longer to get back up in the Colosseum (lane: 6 s, Colosseum: 10 s). */
 export const PVP_RESPAWN_MULT = 10 / 6;
+/**
+ * Ultimates are off in fights against other players (Samuel, 2026-11-04): the Colosseum (attack and
+ * defense teams, so Quick Battle forecasts never counted them) and Rush. Ult buttons and Auto ult hide there.
+ */
+export const PVP_ULTIMATES = false;
+/** Whether a hero may fire its Ultimate: always on the run, in Trials and the Guild Boss; never in a PvP fight. */
+export function ultsAllowed(inPvp: boolean): boolean {
+  return !inPvp || PVP_ULTIMATES;
+}
 /** Each win in a row gives this much more damage on the next attack, up to PVP_STREAK_MAX wins. */
 export const PVP_STREAK_DMG = 0.1;
 export const PVP_STREAK_MAX = 3;

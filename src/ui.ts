@@ -27,7 +27,7 @@ import type { BattleScene, GuildBossFightSetup } from './BattleScene';
 const TRIAL_HUD_NOTE = 'Your team fights at its Ember levels. Fallen heroes stay down until the Trial ends. Beat the boss before time runs out.';
 import type { ColosseumLink } from './colosseumLink';
 import { OBSERVATORY, OBSERVATORY_RESPEC_GEMS, SIGIL_COST_STEP, SIGIL_LEVEL_STEP, sigilsEarned, sigilCost, type ObsBranch } from './observatory';
-import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_QUICK_CP, RANK_DAILY, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies } from './colosseum';
+import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_QUICK_CP, RANK_DAILY, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies, ultsAllowed } from './colosseum';
 
 import { BUY_AMOUNT_LIMIT, amountSliderHtml, bindAmountSlider, buyAmountLabel, buyAmountToSlider, sliderToBuyAmount, type BuyAmount } from './amountSlider';
 import { busyWhile, setHtml } from './taps';
@@ -2406,7 +2406,7 @@ export class UI {
     $('trial-hud').hidden = false;
     $('trial-hud-name').textContent = `Colosseum vs ${foe.name}`;
     const defender = foe.userId;
-    $('trial-hud-note').textContent = 'Fighters fight at their Ember levels and get back up after 10 seconds. Destroy the red crystal before they destroy yours.';
+    $('trial-hud-note').textContent = 'Fighters fight at their Ember levels with no Ultimates and get back up after 10 seconds. Destroy the red crystal before they destroy yours.';
     $('trial-leave').textContent = 'Leave';
     scene.startPvp(ids, s.pvpFoeUnits(foe).map((f) => ({ def: f.def, stats: f.stats })), bonus, (won) => {
       $('trial-leave').textContent = 'Back';
@@ -2495,7 +2495,7 @@ export class UI {
     document.body.classList.add('in-trial');
     $('trial-hud').hidden = false;
     $('trial-hud-name').textContent = `Rush vs ${foe.name}`;
-    $('trial-hud-note').textContent = 'One hero a side, at Ember levels; melee heroes can hit flyers here. Destroy the red crystal before they destroy yours.';
+    $('trial-hud-note').textContent = 'One hero a side, at Ember levels, no Ultimates; melee heroes can hit flyers here. Destroy the red crystal before they destroy yours.';
     $('trial-leave').textContent = 'Leave';
     const units = s.pvpFoeUnits(s.rushOpponent(foe)).map((f) => ({ def: f.def, stats: f.stats }));
     scene.startPvp([heroId], units, 0, (won) => {
@@ -3268,6 +3268,8 @@ export class UI {
     this.renderSheet();
 
     const scene = this.scene();
+    // No Ultimates against other players (Colosseum, Rush): the Ult buttons and Auto ult hide there.
+    document.body.classList.toggle('no-ults', !!scene && !ultsAllowed(scene.inPvp()));
     // Only heroes holding an Ultimate slot get a button, in slot order.
     const slotted = this.state.ultHeroes();
     for (const u of this.ults) {
