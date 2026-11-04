@@ -44,8 +44,9 @@ export const MOB_KINDS: Record<MobId, MobKind> = {
   burrower: { id: 'burrower', fromStage: 1000, weight: 5, hp: 0.9, atk: 1.2, speed: [70, 80], range: 22, trick: 'burrow', gold: 1.2 },
 };
 
-/** Special kinds still drawn with simple placeholder shapes until their art arrives (BattleScene.makeTextures). */
-export const MOB_ART_PENDING: MobId[] = ['shieldbearer', 'bomber', 'summoner', 'burrower'];
+/** Kinds still drawn with simple placeholder shapes until their art arrives (src/mobPlaceholders.ts). None since the
+ *  special kinds' art came in (2026-11-04); keep for the next new kind. */
+export const MOB_ART_PENDING: MobId[] = [];
 
 /** The special kinds in the order they first show up. */
 export const SPECIAL_MOBS: MobId[] = ['shieldbearer', 'bomber', 'summoner', 'burrower'];

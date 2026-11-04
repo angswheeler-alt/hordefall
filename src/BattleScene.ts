@@ -71,6 +71,7 @@ import { HERO_ANIMS } from './heroAnims';
 import { ASCENDANT_HEROES } from './heroes/ascendant';
 import { chargeOf, chargeStep, chargeDamageMult, CHARGE_AREA, CHARGE_LINE, CHARGE_HASTE_SECONDS, type Charge } from './ascendant';
 import { MOB_ANIMS } from './mobAnims';
+import { mobArtUrl } from './mobArt';
 import {
   MOB_ELEMENTS,
   MOB_KINDS,
@@ -165,6 +166,8 @@ const MOB_WALK_FPS = 10;
 const MOB_ATTACK_FPS = 14;
 /** How high a walking mob bobs on each step, px, so its stride reads even when the legs are small. */
 const MOB_BOB = 1.5;
+/** The Bomber's attack strip: hold the bomb up, squeeze, then (from this frame) flash, cloud and smoke. */
+const BOMB_ART_FRAME = 2;
 type BossAnimName = keyof typeof BOSS_ANIM_FRAMES;
 const BOSS_FPS: Record<BossAnimName, number> = { idle: 6, attack: 10, hurt: 10, death: 8 };
 /** An animated boss flinches (its hurt animation) at most this often, so steady damage doesn't freeze it in place. */
@@ -516,9 +519,9 @@ export class BattleScene extends Phaser.Scene {
     for (const [id, a] of Object.entries(MOB_ANIMS)) {
       const size = { frameWidth: a.frame[0], frameHeight: a.frame[1] };
       for (const el of MOB_ELEMENTS) {
-        this.load.image(`mob-${id}-${el}`, `mobs/${id}_${el}.png`);
-        this.load.spritesheet(`mob-${id}-${el}-walk`, `mobs/${id}_${el}_walk.png`, size);
-        this.load.spritesheet(`mob-${id}-${el}-attack`, `mobs/${id}_${el}_attack.png`, size);
+        this.load.image(`mob-${id}-${el}`, mobArtUrl(`${id}_${el}.png`));
+        this.load.spritesheet(`mob-${id}-${el}-walk`, mobArtUrl(`${id}_${el}_walk.png`), size);
+        this.load.spritesheet(`mob-${id}-${el}-attack`, mobArtUrl(`${id}_${el}_attack.png`), size);
       }
     }
     // Special mob kinds without art yet: a simple white placeholder, tinted by element on the lane.
@@ -2113,6 +2116,15 @@ export class BattleScene extends Phaser.Scene {
     this.floatText(e.x, e.y - 34, 'BOOM!', '#ffa040', 14);
     this.cameras.main.shake(120, 0.006);
     play('kill');
+    // With its art, the Bomber's own blast plays out (the last frames of its attack strip: flash, cloud, smoke).
+    if (e.mob && this.anims.exists(`${e.mob.key}-attack`)) {
+      e.mob.state = 'attack';
+      e.body.play({ key: `${e.mob.key}-attack`, startFrame: Math.min(BOMB_ART_FRAME, MOB_ANIMS[e.mob.id].attack - 1) });
+      e.body.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+        if (e.view.active) this.tweens.add({ targets: e.view, alpha: 0, duration: 150, onComplete: () => e.view.destroy() });
+      });
+      return;
+    }
     this.tweens.add({ targets: e.view, alpha: 0, scale: 1.8, duration: 160, onComplete: () => e.view.destroy() });
   }
 
