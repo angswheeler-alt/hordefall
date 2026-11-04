@@ -13,7 +13,7 @@ import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
 import { setMuted, setVolumes } from './sfx';
 import { BOSS_ANIMS } from './bossAnims';
-import { guildBossElement, utcWeekStart, bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberRefund, emberBulk, emberStageBonus, keeperThreshold, fmt, fmtDuration } from './formulas';
+import { guildBossElement, utcWeekStart, bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberRefund, emberBulk, emberStageBonus, keeperThreshold, fmt, fmtDuration, compareTag, NUMBER_LETTERS_NOTE } from './formulas';
 import type { WelcomeSection } from './welcome';
 import { WHATS_NEW_TITLE } from './whatsNew';
 import type { GameState, OfflineReport, SummonDrop, RekindleResult, TrialResult, PvpOpponent } from './state';
@@ -378,10 +378,18 @@ export class UI {
         .join('');
       const level = (h: HeroDef) => (stage ? `Lv ${s.heroLevel(h.id).toLocaleString()}` : `Ember Lv ${Math.max(1, s.emberLevels[h.id] ?? 0).toLocaleString()}`);
       const edgeTag = (h: HeroDef) => (edge(h) > 1 ? '<i class="tm-edge strong">Strong</i>' : edge(h) < 1 ? '<i class="tm-edge weak">Weak</i>' : '');
+      // A power bar under each CP: how strong this hero is next to the strongest one listed, so heroes
+      // whose numbers carry different letters (14.4Qa vs 1.19Qi) still compare at a glance.
+      const cps = new Map(shown.map((h) => [h.id, s.heroCombatPower(h)] as const));
+      const topCp = [...cps.values()].reduce((a, b) => (b.gt(a) ? b : a), new Decimal(0));
+      const bar = (cp: Decimal) => {
+        const w = topCp.gt(0) ? Math.max(3, Math.round(cp.div(topCp).toNumber() * 100)) : 0;
+        return `<span class="tm-bar" aria-hidden="true"><i style="width:${w}%"></i></span>`;
+      };
       const cards = shown
         .map(
           (h) =>
-            `<button type="button" class="tm-card${ids.includes(h.id) ? ' on' : ''}" data-peek="${h.id}" style="--el:${hex(ELEMENT_COLORS[h.element])}" title="${cap(h.rarity)} ${h.type}">${edgeTag(h)}${face(h)}<b class="tm-name r-${h.rarity}">${h.name}</b><small>${level(h)}</small><small class="tm-cp">CP ${fmt(s.heroCombatPower(h))}</small>${starsOf(h)}</button>`,
+            `<button type="button" class="tm-card${ids.includes(h.id) ? ' on' : ''}" data-peek="${h.id}" style="--el:${hex(ELEMENT_COLORS[h.element])}" title="${cap(h.rarity)} ${h.type}">${edgeTag(h)}${face(h)}<b class="tm-name r-${h.rarity}">${h.name}</b><small>${level(h)}</small><small class="tm-cp">CP ${fmt(cps.get(h.id)!)}</small>${bar(cps.get(h.id)!)}${starsOf(h)}</button>`,
         )
         .join('');
       const tools = swapping
@@ -392,7 +400,7 @@ export class UI {
           stage
             ? 'Tap a hero to see their stats and add, remove or swap them. Taking a hero out drops them to gold level 1 and gives that gold back. Their Ember levels stay. New heroes are unlocked in Collection.'
             : 'Tap a hero to see their stats and add, remove or swap them. Changing this team never touches gold levels.'
-        }</p>`;
+        }</p><p class="team-help tm-letters">${NUMBER_LETTERS_NOTE}</p>`;
     }
     const prevScroll = $('modal').classList.contains('team-mode') && scrollKey && scrollKey === this.teamScrollKey ? ($('modal-body').querySelector<HTMLElement>('.tm-scroll')?.scrollTop ?? 0) : 0;
     this.teamScrollKey = scrollKey;
@@ -474,7 +482,24 @@ export class UI {
     const spent = s.goldSpent(h.id);
     const pct = (n: number) => `${(Math.round(n * 1000) / 10).toLocaleString()}%`;
     const num = (n: number) => (Math.round(n * 100) / 100).toLocaleString();
-    const stat = (label: string, value: string) => `<div><span>${label}</span><b>${value}</b></div>`;
+    // Compare with the hero this one would most likely trade places with: a benched hero against the
+    // weakest in the team, a team hero against the strongest on the bench (Samuel, 2026-11-04).
+    const cpOf = (x: HeroDef) => s.heroCombatPower(x);
+    const pool = on
+      ? HEROES.filter((x) => x.id !== h.id && (s.levels[x.id] ?? 0) > 0 && !ids.includes(x.id))
+      : ids.filter((id) => id !== h.id).map((id) => HEROES.find((x) => x.id === id)!);
+    const rival = pool.length
+      ? pool.reduce((a, b) => (on ? (cpOf(b).gt(cpOf(a)) ? b : a) : cpOf(b).lt(cpOf(a)) ? b : a))
+      : undefined;
+    const rivalSt = rival ? s.heroStats(rival) : undefined;
+    const tag = (mine: Decimal, theirs: Decimal | undefined) => {
+      const c = theirs ? compareTag(mine, theirs) : null;
+      return c ? ` <em class="cmp ${c.dir > 0 ? 'up' : c.dir < 0 ? 'down' : 'same'}">${c.text}</em>` : '';
+    };
+    const stat = (label: string, value: string, cmp = '') => `<div><span>${label}</span><b>${value}${cmp}</b></div>`;
+    const vsLine = rival
+      ? `<p class="tm-vs">Compared with <b>${rival.name}</b> (${on ? 'strongest on the bench' : 'weakest in the team'}, CP ${fmt(cpOf(rival))}).</p>`
+      : '';
     const ember = s.emberLevels[h.id] ?? 0;
     const action = on
       ? `<button type="button" data-lineup="${h.id}" ${count <= 1 ? 'disabled' : ''}>${stage && spent.gt(0) ? `Remove (+${fmt(spent)} gold)` : 'Remove'}</button>`
@@ -486,9 +511,10 @@ export class UI {
       <div class="tm-peek-head"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span>
         <div><b class="tm-peek-name">${h.name}</b> ${rarityTag(h)}<small>${heroTitle(h)} · ${'★'.repeat(Math.max(1, (s.stars[h.id] ?? 0) + 1))}</small>
         <small>Level ${s.heroLevel(h.id).toLocaleString()}${ember ? ` (incl. +${ember.toLocaleString()} Ember)` : ''} · ${on ? 'In team' : 'Benched'}</small></div></div>
-      <p class="tm-cp-big">Combat Power <b>${fmt(s.heroCombatPower(h))}</b></p>
-      <div class="tm-stats">${stat('Atk', fmt(st.atk.value))}${stat('HP', fmt(st.hp.value))}${stat('Def', fmt(st.def.value))}${stat('Atk per sec', num(st.attacksPerSec.value))}${stat('Crit', pct(st.critRate))}${stat('Crit Dmg', `+${pct(st.critDmg)}`)}${stat('Range', num(st.range.value))}${stat('Move', num(st.moveSpeed.value))}${stat('Dodge', pct(st.dodge.value))}</div>
+      <p class="tm-cp-big">Combat Power <b>${fmt(cpOf(h))}</b>${tag(cpOf(h), rival && cpOf(rival))}</p>${vsLine}
+      <div class="tm-stats">${stat('Atk', fmt(st.atk.value), tag(st.atk.value, rivalSt?.atk.value))}${stat('HP', fmt(st.hp.value), tag(st.hp.value, rivalSt?.hp.value))}${stat('Def', fmt(st.def.value), tag(st.def.value, rivalSt?.def.value))}${stat('Atk per sec', num(st.attacksPerSec.value))}${stat('Crit', pct(st.critRate))}${stat('Crit Dmg', `+${pct(st.critDmg)}`)}${stat('Range', num(st.range.value))}${stat('Move', num(st.moveSpeed.value))}${stat('Dodge', pct(st.dodge.value))}</div>
       <p class="tm-spec">${prof.specialty}</p>
+      <p class="team-help tm-letters">${NUMBER_LETTERS_NOTE}</p>
       ${why ? `<p class="team-help">${why}</p>` : ''}
       ${on && stage ? this.ultToggleHtml(h) : ''}
       <div class="tm-peek-btns"><button type="button" data-peek-back>Back</button><button type="button" data-team-page="${h.id}">Hero page</button>${action}</div>
