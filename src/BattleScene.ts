@@ -63,7 +63,7 @@ import chestGoldUrl from './assets/ui/chest-gold.png';
 import { sumEffect, mulEffect, everyNth, procEffect, procs } from './skills';
 import { exitRunStep, marchCap, marchStep } from './movement';
 import { respawnTime, reviveIn, stageStartRevives } from './respawn';
-import { chestsAllowed, laneMode } from './chests';
+import { chestsAllowed, chestTapArea, laneMode, CHEST_SCALE, CHEST_Y_MAX, CHEST_Y_MIN } from './chests';
 import { PVP_RESPAWN_MULT, ultsAllowed } from './colosseum';
 import { WEAPON_LOOK_COLORS, weaponLook } from './weapons';
 import { ULT_FX_ART, ULT_FX_HEIGHT, ultFxStyle } from './ultFx';
@@ -3003,8 +3003,11 @@ export class BattleScene extends Phaser.Scene {
     const total = CHESTS.reduce((s, c) => s + c.weight, 0);
     let roll = Math.random() * total;
     const kind = CHESTS.find((c) => (roll -= c.weight) < 0) ?? CHESTS[0];
-    const y = Phaser.Math.Between(70, 130);
-    const chest = this.add.image(WIDTH + 20, y, kind.key).setScale(1.5).setDepth(900).setScrollFactor(0).setInteractive({ useHandCursor: true });
+    const y = Phaser.Math.Between(CHEST_Y_MIN, CHEST_Y_MAX);
+    const chest = this.add.image(WIDTH + 20, y, kind.key).setScale(CHEST_SCALE).setDepth(900).setScrollFactor(0);
+    // A much bigger tap box than the small art, so a thumb on a moving, bobbing chest still counts (src/chests.ts).
+    const tap = chestTapArea(chest.width, chest.height);
+    chest.setInteractive({ hitArea: new Phaser.Geom.Rectangle(tap.x, tap.y, tap.w, tap.h), hitAreaCallback: Phaser.Geom.Rectangle.Contains, useHandCursor: true });
     // Destroying an object doesn't stop its tweens, and the bob loops forever, so both are killed with the chest.
     const remove = () => {
       this.tweens.killTweensOf(chest);
