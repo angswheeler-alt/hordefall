@@ -10,6 +10,7 @@ import type { ExpEnd, GameState } from './state';
 import {
   EXP_AUTO_SHARE,
   EXP_CHARGE_CAP,
+  EXP_ENABLED,
   EXP_HEARTS,
   EXP_HIRE_MAX,
   EXP_NODE_INFO,
@@ -76,6 +77,8 @@ export class ExpeditionUI {
 
   /** The Expedition card on the Battle hub. */
   renderHub(now = Date.now()) {
+    document.querySelector<HTMLElement>('.mode-card.exp')!.hidden = !EXP_ENABLED;
+    if (!EXP_ENABLED) return;
     const s = this.state;
     const open = s.expOpen();
     if (open) s.expSync(now);
