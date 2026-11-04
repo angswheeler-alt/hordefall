@@ -26,7 +26,7 @@ export const HERO_ANIMS: Record<string, HeroAnim> = {
   asc_fire_f3: { frame: [60,56], feet: [32,55], headTop: 3, run: 5, attack: 5, hitFrame: 2 },
   asc_fire_f4: { frame: [60,55], feet: [34,54], headTop: 5, run: 6, attack: 5, hitFrame: 1 },
   asc_light: { frame: [68,55], feet: [36,54], headTop: 3, run: 5, attack: 5, hitFrame: 2 },
-  asc_light_f2: { frame: [72,57], feet: [39,56], headTop: 7, run: 5, attack: 5, hitFrame: 4 },
+  asc_light_f2: { frame: [72,57], feet: [39,56], headTop: 7, run: 4, attack: 5, hitFrame: 4 },
   asc_light_f3: { frame: [57,54], feet: [13,53], headTop: 4, run: 6, attack: 5, hitFrame: 2 },
   asc_light_f4: { frame: [63,54], feet: [25,53], headTop: 4, run: 6, attack: 5, hitFrame: 3 },
   asc_water: { frame: [75,63], feet: [28,62], headTop: 9, run: 5, attack: 5, hitFrame: 2 },
