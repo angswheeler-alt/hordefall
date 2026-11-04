@@ -390,3 +390,30 @@ export function researchRank(points: number): number {
   while (r < 10 && points >= researchPointsFor(r + 1)) r++;
   return r;
 }
+
+/**
+ * How much bigger or smaller `value` is than `base`, for comparing heroes whose numbers carry
+ * different letters (14.4Qa vs 1.19Qi reads as "x8.3"). Samuel, 2026-11-04.
+ * Under 2x either way it reads as a percent (+45%, -30%); beyond that as a multiple (x8.3, ÷8.3).
+ * `dir` is 1 when value is bigger, -1 when smaller, 0 when about the same (within 0.5%).
+ */
+export function compareTag(value: Decimal | number, base: Decimal | number): { text: string; dir: -1 | 0 | 1 } | null {
+  const v = value instanceof Decimal ? value : new Decimal(value);
+  const b = base instanceof Decimal ? base : new Decimal(base);
+  if (b.lte(0) || v.lt(0)) return null;
+  if (v.eq(0)) return { text: '-100%', dir: -1 };
+  const up = v.gte(b);
+  const ratio = up ? v.div(b) : b.div(v);
+  const r = ratio.toNumber();
+  if (Number.isFinite(r) && r < 1.005) return { text: '=', dir: 0 };
+  const sign = up ? 1 : -1;
+  if (Number.isFinite(r) && r < 2) {
+    const pct = up ? (r - 1) * 100 : (1 - 1 / r) * 100;
+    return { text: `${up ? '+' : '-'}${Math.round(pct)}%`, dir: sign };
+  }
+  const times = ratio.lt(100) ? (Math.round(r * 10) / 10).toString() : fmt(ratio.floor());
+  return { text: `${up ? 'x' : '÷'}${times}`, dir: sign };
+}
+
+/** Player-facing guide to the number letters, smallest first (Samuel, 2026-11-04: "difference between Sx and Qi?"). */
+export const NUMBER_LETTERS_NOTE = `Number letters, smallest to biggest, each 1,000x the one before: ${SUFFIXES.slice(1).join(' < ')}, then aa, ab, ac...`;
