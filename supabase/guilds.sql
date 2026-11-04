@@ -364,9 +364,9 @@ end $$;
 -- ---------- Guild Boss ----------
 -- A weekly guild event. Each week (Monday 00:00 UTC) the guild faces a new boss
 -- (the element rotates week by week) starting at level 1. The whole guild hits
--- the same health bar and members fight as often as they like (one fight per
--- player every 2 minutes); the first 3 fights a player makes each UTC day pay
--- attempt rewards and research. Every time it dies it rests 30 minutes, then
+-- the same health bar. Each player gets 3 fights a UTC day, and unused fights
+-- stack up to 9 (guild_boss_fight_bank), one fight every 2 minutes; every fight
+-- pays attempt rewards and research. Every time it dies it rests 30 minutes, then
 -- comes back one level higher (damage past the kill is lost).
 -- Rewards: every level beaten pays everyone in the guild who hit the boss that
 -- week (claim right away), and when the week ends the highest level beaten
@@ -591,12 +591,45 @@ begin
   update guilds set research_focus = p_branch where id = public.my_guild();
 end $$;
 
--- One fight. Members fight as often as they like, one fight every 2 minutes each; the first 3 a
--- player makes each UTC day are "paid" (the game pays attempt rewards) and feed the focus branch.
+-- Guild Boss fights a player has (Samuel, 2026-11-04): 3 a UTC day, and unused fights stack up to 9,
+-- so skipping a day or two loses nothing. Stored per player as fights left on a day; each new day adds 3
+-- (src/formulas.ts mirrors this as guildBossFightsLeft). A player's first row starts at 3 minus the fights
+-- already made today, so the switch from unlimited fights doesn't hand out extra ones.
+create table if not exists public.guild_boss_fight_bank (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  fights integer not null check (fights >= 0),
+  day date not null
+);
+alter table public.guild_boss_fight_bank enable row level security;
+drop policy if exists "Players read their own boss fights" on public.guild_boss_fight_bank;
+create policy "Players read their own boss fights" on public.guild_boss_fight_bank for select to authenticated using (user_id = auth.uid());
+
+-- Fights the caller has right now (refilled to today, saved). Also used by hit_guild_boss.
+create or replace function public.guild_boss_fights() returns json
+language plpgsql security definer set search_path = public as $$
+declare today date := (now() at time zone 'utc')::date; bank guild_boss_fight_bank; used integer;
+begin
+  if auth.uid() is null then raise exception 'Sign in first.'; end if;
+  select * into bank from guild_boss_fight_bank where user_id = auth.uid() for update;
+  if not found then
+    select count(*) into used from guild_boss_hits where user_id = auth.uid() and day = today;
+    insert into guild_boss_fight_bank (user_id, fights, day) values (auth.uid(), greatest(0, 3 - used), today)
+      on conflict (user_id) do nothing;
+    select * into bank from guild_boss_fight_bank where user_id = auth.uid() for update;
+  end if;
+  if bank.day < today then
+    update guild_boss_fight_bank set fights = least(9, fights + 3 * (today - day)), day = today
+      where user_id = auth.uid() returning * into bank;
+  end if;
+  return json_build_object('left', bank.fights, 'per_day', 3, 'cap', 9);
+end $$;
+
+-- One fight. Each fight uses one of the player's stacked fights (3 a day, up to 9) and pays attempt
+-- rewards and research; one fight every 2 minutes each.
 -- A fight that beats the boss puts it to rest for 30 minutes; it comes back one level higher.
 create or replace function public.hit_guild_boss(p_damage numeric) returns json
 language plpgsql security definer set search_path = public as $$
-declare boss guild_boss_weeks; used integer; last_hit timestamptz; paid boolean; dmg numeric; left_over numeric; start_level integer; start_hp numeric; kills integer := 0; focus text; who text := public.guild_username();
+declare boss guild_boss_weeks; used integer; have integer; last_hit timestamptz; dmg numeric; left_over numeric; start_level integer; start_hp numeric; kills integer := 0; focus text; who text := public.guild_username();
 begin
   boss := public.guild_boss_week();
   select * into boss from guild_boss_weeks where guild_id = boss.guild_id and week = boss.week for update;
@@ -607,8 +640,12 @@ begin
   if last_hit is not null and last_hit > now() - interval '2 minutes' then
     raise exception 'Catch your breath: you can fight again in % s.', ceil(extract(epoch from last_hit + interval '2 minutes' - now()));
   end if;
+  have := (public.guild_boss_fights() ->> 'left')::integer;
+  if have < 1 then
+    raise exception 'No Guild Boss fights left. You get 3 more at the daily reset (00:00 UTC), and unused fights stack up to 9.';
+  end if;
+  update guild_boss_fight_bank set fights = fights - 1 where user_id = auth.uid();
   select count(*) into used from guild_boss_hits where user_id = auth.uid() and day = (now() at time zone 'utc')::date;
-  paid := used < 3;
   dmg := greatest(0, coalesce(p_damage, 0));
   insert into guild_boss_hits (guild_id, day, user_id, username, damage) values (boss.guild_id, (now() at time zone 'utc')::date, auth.uid(), who, dmg);
   start_level := boss.level;
@@ -626,10 +663,10 @@ begin
     where guild_id = boss.guild_id and week = boss.week
     returning * into boss;
   select research_focus into focus from guilds where id = boss.guild_id;
-  if paid then perform public.add_guild_research(boss.guild_id, focus, 10 + start_level); end if;
-  return json_build_object('attempt', used + 1, 'paid', paid, 'level', start_level, 'hp', start_hp, 'kills', kills,
+  perform public.add_guild_research(boss.guild_id, focus, 10 + start_level);
+  return json_build_object('attempt', used + 1, 'paid', true, 'left', have - 1, 'level', start_level, 'hp', start_hp, 'kills', kills,
     'next_level', boss.level, 'next_hp', boss.hp, 'damage', boss.damage, 'rest_until', boss.rest_until,
-    'research', case when paid then 10 + start_level else 0 end, 'focus', focus);
+    'research', 10 + start_level, 'focus', focus);
 end $$;
 
 -- ---------- Guild Quests ----------
@@ -685,9 +722,9 @@ begin
     select 'kills' kind, coalesce(sum(kills), 0) total, coalesce(sum(kills) filter (where user_id = auth.uid()), 0) mine from guild_quest_progress where guild_id = g and week = wk
     union all select 'stages', coalesce(sum(stages), 0), coalesce(sum(stages) filter (where user_id = auth.uid()), 0) from guild_quest_progress where guild_id = g and week = wk
     union all select 'trials', coalesce(sum(trials), 0), coalesce(sum(trials) filter (where user_id = auth.uid()), 0) from guild_quest_progress where guild_id = g and week = wk
-    -- Boss fights count up to 3 a day per player (the paid ones), so extra fights don't fill the quest.
+    -- Boss fights count up to 9 a day per player (3 a day that stack to 9), so old unlimited days don't fill the quest.
     union all select 'boss', coalesce(sum(daily.fights), 0), coalesce(sum(daily.fights) filter (where daily.user_id = auth.uid()), 0)
-      from (select h.user_id, least(count(*), 3) fights from guild_boss_hits h where h.guild_id = g and h.day >= wk and h.day < wk + 7 group by h.user_id, h.day) daily
+      from (select h.user_id, least(count(*), 9) fights from guild_boss_hits h where h.guild_id = g and h.day >= wk and h.day < wk + 7 group by h.user_id, h.day) daily
   )
   select json_build_object(
     'week', wk,
@@ -744,7 +781,7 @@ revoke all on function public.my_guild(), public.guild_username(), public.guild_
   public.set_guild_role(uuid, text), public.kick_guild_member(uuid), public.update_guild(text, integer, text, text, double precision),
   public.touch_guild_member(integer), public.post_guild_message(text), public.request_guild_medals(text, integer),
   public.donate_guild_medals(bigint, integer), public.collect_guild_medals(),
-  public.guild_boss_week(), public.hit_guild_boss(numeric), public.guild_boss_rewards(), public.claim_guild_boss_rewards(),
+  public.guild_boss_week(), public.guild_boss_fights(), public.hit_guild_boss(numeric), public.guild_boss_rewards(), public.claim_guild_boss_rewards(),
   public.add_guild_research(uuid, text, bigint), public.contribute_guild_research(text, integer), public.set_guild_research_focus(text),
   public.guild_quests(), public.report_guild_quests(integer, integer, integer), public.claim_guild_quest(text) from public, anon;
 -- Supabase lets signed-in players run every new function by default, so the internal
@@ -756,6 +793,6 @@ grant execute on function public.my_guild(), public.guild_username(), public.gui
   public.set_guild_role(uuid, text), public.kick_guild_member(uuid), public.update_guild(text, integer, text, text, double precision),
   public.touch_guild_member(integer), public.post_guild_message(text), public.request_guild_medals(text, integer),
   public.donate_guild_medals(bigint, integer), public.collect_guild_medals(),
-  public.guild_boss_week(), public.hit_guild_boss(numeric), public.guild_boss_rewards(), public.claim_guild_boss_rewards(),
+  public.guild_boss_week(), public.guild_boss_fights(), public.hit_guild_boss(numeric), public.guild_boss_rewards(), public.claim_guild_boss_rewards(),
   public.contribute_guild_research(text, integer), public.set_guild_research_focus(text),
   public.guild_quests(), public.report_guild_quests(integer, integer, integer), public.claim_guild_quest(text) to authenticated;

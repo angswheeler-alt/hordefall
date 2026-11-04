@@ -27,6 +27,7 @@ export const WHATS_NEW_SHOWN = 8;
 
 /** Newest first. */
 export const WHATS_NEW: WhatsNewEntry[] = [
+  { id: 'guild-boss-fights', date: '2026-11-04', text: '<b>Guild Boss fights</b>: 3 fights a day, and every fight pays. Unused fights stack up to 9.' },
   { id: 'levels-by-mode', date: '2026-11-04', text: '<b>Levels by mode</b>: Guild Boss, Colosseum and Rush ignore gold and Ember levels; stars, relics, weapons and Glyphs decide.' },
   { id: 'hero-compare', date: '2026-11-04', text: '<b>Easier hero compare</b>: Manage Team shows power bars, and each hero shows how much stronger or weaker they are (+45%, x8.3).' },
   { id: 'special-mobs', date: '2026-11-04', text: '<b>New enemies</b> deeper in: Shieldbearers, Bombers, Summoners and Burrowers, each with its own trick and Journal pages.' },
