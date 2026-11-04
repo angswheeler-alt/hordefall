@@ -675,6 +675,9 @@ export class Guild {
     const run = (work: Promise<unknown>) => void busyWhile(el, work);
     if (kind === 'signin') this.account.signIn();
     else if (kind === 'retry') run(this.refresh());
+    else if (kind === 'ascpick') {
+      if (this.state.setGuildAscPick(arg)) this.renderBoss();
+    }
     else if (kind === 'msg') {
       this.pickedMsg = this.pickedMsg === Number(arg) ? null : Number(arg);
       this.renderChat();
@@ -855,7 +858,14 @@ export class Guild {
     const paidLeft = Math.max(0, GUILD_BOSS_ATTEMPTS - used);
     const out = fightsLeft === 0;
     const refill = fightsLeft === null ? '' : fightsLeft >= GUILD_BOSS_FIGHT_CAP ? `Full: unused fights stack up to ${GUILD_BOSS_FIGHT_CAP}.` : `+${Math.min(GUILD_BOSS_ATTEMPTS, GUILD_BOSS_FIGHT_CAP - fightsLeft)} fight${GUILD_BOSS_FIGHT_CAP - fightsLeft === 1 ? '' : 's'} in ${untilText(dayReset)} · unused fights stack up to ${GUILD_BOSS_FIGHT_CAP}.`;
-    const ascHero = this.state.ascendantChestState(Date.parse(boss.week))?.hero;
+    const weekHero = this.state.ascendantChestState(Date.parse(boss.week))?.hero;
+    const ascHero = this.state.guildAscHero(boss.week);
+    const ascChoices = this.state.guildAscChoices();
+    const ascPick = ascChoices.length
+      ? `<div class="g-team g-asc"><b>Ascendant crests go to <small>tap to choose · change any time</small></b><span class="faces">${ascChoices
+          .map((h) => `<button type="button" class="g-asc-pick${h.id === ascHero?.id ? ' on' : ''}" data-g="ascpick:${h.id}" title="${esc(h.name)}">${this.teamFace(h)}<small>${esc(h.name)}${h.id === weekHero?.id ? ' · chest' : ''}</small></button>`)
+          .join('')}</span></div>`
+      : '';
     const secs = (ms: number) => (ms >= 60_000 ? untilText(ms) : `${Math.ceil(ms / 1000)}s`);
     const btn = `<button type="button" class="hot rw-wide" data-g="fight" ${wait.kind !== 'ready' || out || this.fighting || !team.length ? 'disabled' : ''}>${
       this.fighting
@@ -881,7 +891,7 @@ export class Guild {
          <li><b>Each fight</b> ${10 + boss.level} to ${2 * (10 + boss.level)} Guild Coins and as much Warsteel each (about ${coins} for yours) and gold</li>
          <li><b>Each level beaten</b> ${guildBossKillCoins(boss.level)} Guild Coins and ${warsteelForKill(boss.level)} Warsteel${ascHero ? `, plus ${GUILD_BOSS_ASC_CRESTS} ${ascHero.name} crests for the first ${GUILD_BOSS_ASC_LEVELS} levels beaten (to level ${(boss.start_level ?? 1) + GUILD_BOSS_ASC_LEVELS - 1})` : ''}, for everyone who hit it this week</li>
          <li><b>End of the week</b> ${boss.level > (boss.start_level ?? 1) ? `${fmt(week.coins)} Guild Coins, ${fmt(warsteelForWeek(top))} Warsteel and ${week.chests} Hero Chest${week.chests === 1 ? '' : 's'} so far (level ${top})` : 'Guild Coins, Warsteel and Hero Chests by the highest level beaten'}, for everyone who hit it</li>
-       </ul><div class="g-team"><div class="pvp-row"><b>Your Guild Boss team <small>CP ${fmt(this.state.fixedTeamCp(team.map((m) => m.def)))}</small></b><button type="button" class="wood-btn small" data-g="team">Change</button></div><span class="faces">${team.map((m) => this.teamFace(m.def)).join('')}</span></div>${btn}<small class="g-boss-next">Next week: ${GUILD_BOSS_NAMES[next]} (${next}), starting at level ${guildBossStartLevel(boss.level - 1)}</small>`,
+       </ul>${ascPick}<div class="g-team"><div class="pvp-row"><b>Your Guild Boss team <small>CP ${fmt(this.state.fixedTeamCp(team.map((m) => m.def)))}</small></b><button type="button" class="wood-btn small" data-g="team">Change</button></div><span class="faces">${team.map((m) => this.teamFace(m.def)).join('')}</span></div>${btn}<small class="g-boss-next">Next week: ${GUILD_BOSS_NAMES[next]} (${next}), starting at level ${guildBossStartLevel(boss.level - 1)}</small>`,
     );
     const r = this.rewards;
     const levelCoins = r.kills.reduce((n, k) => n + guildBossKillCoins(k.level), 0);

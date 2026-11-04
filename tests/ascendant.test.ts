@@ -332,3 +332,47 @@ describe('Guild Boss Ascendant crests', () => {
     expect(s.crests.asc_test ?? 0).toBe(0);
   });
 });
+
+describe('Guild Boss Ascendant crests: picked hero', () => {
+  const other = { ...test, base: { ...test.base, id: 'asc_other', element: 'water' as const } };
+  const pool = [test, other];
+
+  it('pays the picked hero in any week, even one whose boss it does not counter', () => {
+    const s = fresh();
+    expect(s.setGuildAscPick('asc_other', pool)).toBe(true);
+    const got = s.payGuildBossRewards([{ week: '2026-10-26', level: 1 }, { week: '2026-10-19', level: 1 }], [], pool);
+    expect(got.ascendant).toEqual([{ heroId: 'asc_other', crests: 2 * GUILD_BOSS_ASC_CRESTS }]);
+    expect(s.crests.asc_test ?? 0).toBe(0);
+  });
+
+  it('keeps the level cap for a picked hero', () => {
+    const s = fresh();
+    s.setGuildAscPick('asc_other', pool);
+    const kills = Array.from({ length: GUILD_BOSS_ASC_LEVELS + 5 }, (_, i) => ({ week: '2026-10-26', level: i + 1 }));
+    expect(s.payGuildBossRewards(kills, [], pool).ascendant).toEqual([{ heroId: 'asc_other', crests: GUILD_BOSS_ASC_LEVELS * GUILD_BOSS_ASC_CRESTS }]);
+  });
+
+  it('refuses a hero that is not a released Ascendant hero and falls back to the week hero', () => {
+    const s = fresh();
+    expect(s.setGuildAscPick('brine', pool)).toBe(false);
+    expect(s.guildAscHero('2026-10-26', pool)?.id).toBe('asc_test');
+    s.setGuildAscPick('asc_other', pool);
+    expect(s.setGuildAscPick('', pool)).toBe(true);
+    expect(s.guildAscHero('2026-10-26', pool)?.id).toBe('asc_test');
+  });
+});
+
+describe('Guild Boss Ascendant pick in saves', () => {
+  it('keeps the pick and drops ids that are not Ascendant heroes', () => {
+    const s = fresh();
+    s.guildAscPick = 'asc_dark';
+    GameState.writeLocal(s.toJSON());
+    const t = new GameState();
+    expect(t.load()).toBe(true);
+    expect(t.guildAscPick).toBe('asc_dark');
+    GameState.writeLocal({ ...t.toJSON(), guildAscPick: 'brine' });
+    const u = new GameState();
+    expect(u.load()).toBe(true);
+    expect(u.guildAscPick).toBe('');
+  });
+});
