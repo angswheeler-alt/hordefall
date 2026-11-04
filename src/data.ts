@@ -798,6 +798,22 @@ export function stageBoss(stage: number): { name: string; title: string; art: El
   return { ...ELEMENT_BOSSES[art], art };
 }
 
+/**
+ * The boss a player is heading for (user, 2026-11-04: "show what the next stage boss element is"): the current
+ * stage when it is a boss stage, otherwise the next one. `weakness` is set from stage 600, when the element counts;
+ * `onlyWeakness` marks the 100th-stage element bosses that only their weakness can hurt.
+ */
+export function nextBossInfo(stage: number): { stage: number; element: Element; weakness: Element | null; onlyWeakness: boolean } {
+  const at = Math.max(1, Math.ceil(stage / BOSS_EVERY)) * BOSS_EVERY;
+  return { stage: at, element: bossElement(at), weakness: bossWeakness(at), onlyWeakness: isElementBossStage(at) };
+}
+
+/** Short lane line for the next boss, e.g. "Boss 650 · Fire". Kept short to fit left of the Auto boss button. */
+export function nextBossLine(stage: number): string {
+  const b = nextBossInfo(stage);
+  return `Boss ${b.stage.toLocaleString()} · ${b.element[0].toUpperCase()}${b.element.slice(1)}`;
+}
+
 /** The name shown over a boss on the lane. */
 export function bossLabel(stage: number): string {
   const b = stageBoss(stage);

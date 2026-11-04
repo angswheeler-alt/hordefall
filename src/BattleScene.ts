@@ -19,6 +19,8 @@ import {
   elementMultiplier,
   enemyElement,
   bossElement,
+  nextBossInfo,
+  nextBossLine,
   bossWeakness,
   bossImmuneTo,
   isElementBossStage,
@@ -478,6 +480,8 @@ export class BattleScene extends Phaser.Scene {
   private groundTiles!: Phaser.GameObjects.TileSprite;
   private ground!: Phaser.GameObjects.Graphics;
   private stageText!: Phaser.GameObjects.Text;
+  /** Small line under the stage label: the next boss's stage and element (nextBossLine). */
+  private bossHintText!: Phaser.GameObjects.Text;
   private bossBar!: Phaser.GameObjects.Graphics;
   private bannerText!: Phaser.GameObjects.Text;
   /** Real seconds left in a hit-stop freeze, which sells the weight of big hits. */
@@ -598,6 +602,7 @@ export class BattleScene extends Phaser.Scene {
     this.crystalParts.push(this.crystalShield, this.crystalBar);
 
     this.stageText = this.add.text(10, 8, '', { fontFamily: 'monospace', fontSize: '18px', color: '#ffffff', stroke: '#000', strokeThickness: 4 }).setDepth(1000).setScrollFactor(0);
+    this.bossHintText = this.add.text(10, 28, '', { fontFamily: 'monospace', fontSize: '12px', fontStyle: 'bold', color: '#ffffff', stroke: '#000', strokeThickness: 3 }).setDepth(1000).setScrollFactor(0);
     this.bossBar = this.add.graphics().setDepth(1000).setScrollFactor(0);
     this.bannerText = this.add
       .text(WIDTH / 2, 110, '', { fontFamily: 'monospace', fontSize: '28px', color: '#ffffff', stroke: '#000', strokeThickness: 6 })
@@ -3375,6 +3380,8 @@ export class BattleScene extends Phaser.Scene {
     // Just the stage number, right of the Rekindle emblem once that shows.
     this.stageText.setX(this.state.rekindleShown() ? 50 : 10);
     this.stageText.setText(`Stage ${stage}`);
+    const next = nextBossInfo(stage);
+    this.bossHintText.setVisible(true).setX(this.stageText.x + 2).setText(nextBossLine(stage)).setColor(`#${ELEMENT_COLORS[next.element].toString(16).padStart(6, '0')}`);
 
     const ratio = this.crystal.maxHp.gt(0) ? Math.max(0, this.crystal.hp.div(this.crystal.maxHp).toNumber()) : 0;
     this.crystalBar.clear();
@@ -3405,6 +3412,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Trial HUD: the boss and level at the top left, with the time left under it. */
   private drawTrialHud(t: TrialFight) {
+    this.bossHintText.setVisible(false);
     this.stageText.setX(10);
     this.stageText.setText(`${t.guild ? 'Guild Boss' : 'Trial'} Lv ${t.tier} · ${Math.ceil(Math.max(0, t.timeLeft))}s`);
     this.crystalBar.clear();
@@ -3428,6 +3436,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Colosseum HUD: time left at the top left and an HP bar over each crystal. */
   private drawPvpHud(p: PvpLive) {
+    this.bossHintText.setVisible(false);
     this.stageText.setX(10);
     this.stageText.setText(`${p.label} · ${Math.ceil(Math.max(0, p.timeLeft))}s`);
     this.progressBar.clear();
