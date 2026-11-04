@@ -27,7 +27,6 @@ export const WHATS_NEW_SHOWN = 8;
 
 /** Newest first. */
 export const WHATS_NEW: WhatsNewEntry[] = [
-  { id: 'expedition', date: '2026-11-04', text: '<b>Expedition</b> on the Battle tab: pick your path, choose Boons and hire friends\' heroes on the way to a boss. Charges stack.' },
   { id: 'hero-compare', date: '2026-11-04', text: '<b>Easier hero compare</b>: Manage Team shows power bars, and each hero shows how much stronger or weaker they are (+45%, x8.3).' },
   { id: 'special-mobs', date: '2026-11-04', text: '<b>New enemies</b> deeper in: Shieldbearers, Bombers, Summoners and Burrowers, each with its own trick and Journal pages.' },
   { id: 'pvp-no-ults', date: '2026-11-04', text: '<b>Fair fights</b>: Ultimates are now off in the Colosseum and Rush, so PvP battles come down to your heroes.' },

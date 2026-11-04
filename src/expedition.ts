@@ -15,6 +15,8 @@
 import type { Element, HeroType } from './data';
 import { seededRandom } from './colosseum';
 
+/** Expedition is hidden from players for now (Samuel, 2026-11-04: "take it out for now"). Set true to bring it back. */
+export const EXP_ENABLED = false;
 export const EXP_UNLOCK_LEVEL = 10;
 export const EXP_CHARGE_CAP = 5;
 export const EXP_HEARTS = 3;

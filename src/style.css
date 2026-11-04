@@ -1521,3 +1521,15 @@ button.exp-boon:disabled { opacity: .5; cursor: default; }
 .exp-node.pick { cursor: pointer; border: 2px solid #ffd84a; background: rgba(255,216,74,.15); animation: exp-glow 1.2s ease-in-out infinite alternate; }
 @keyframes exp-glow { from { box-shadow: 0 0 0 rgba(255,216,74,0); } to { box-shadow: 0 0 8px rgba(255,216,74,.6); } }
 .g-pick.on { outline: 2px solid #ffd84a; background: rgba(255,216,74,.18); }
+.mode-card[hidden] { display: none; }
+
+/* Battle hub: mode cards two per row (Samuel, 2026-11-04). */
+[data-battle-pane="hub"]:not([hidden]) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+[data-battle-pane="hub"] .mode-card { margin: 0; min-height: 132px; padding: 8px 10px; }
+[data-battle-pane="hub"] .mode-title { font-size: 19px; }
+[data-battle-pane="hub"] .mode-note { font-size: 11px; line-height: 1.25; }
+[data-battle-pane="hub"] .mode-count { top: 6px; left: 8px; font-size: 14px; }
+[data-battle-pane="hub"] .mode-trophy { width: 46px; height: 46px; transform: translate(-50%, -62%); }
+[data-battle-pane="hub"] .mode-orbs { top: 30px; bottom: auto; left: 0; right: 0; justify-content: center; gap: 4px; }
+[data-battle-pane="hub"] .mode-orb { width: 15px; height: 15px; }
+[data-battle-pane="hub"] .mode-alert { right: 6px; top: 6px; bottom: auto; width: 20px; height: 20px; font-size: 13px; }
