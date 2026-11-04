@@ -64,7 +64,7 @@ import { sumEffect, mulEffect, everyNth, procEffect, procs } from './skills';
 import { exitRunStep, marchCap, marchStep } from './movement';
 import { respawnTime, reviveIn, stageStartRevives } from './respawn';
 import { chestsAllowed, laneMode } from './chests';
-import { PVP_RESPAWN_MULT } from './colosseum';
+import { PVP_RESPAWN_MULT, ultsAllowed } from './colosseum';
 import { WEAPON_LOOK_COLORS, weaponLook } from './weapons';
 import { ULT_FX_ART, ULT_FX_HEIGHT, ultFxStyle } from './ultFx';
 import { HERO_ANIMS } from './heroAnims';
@@ -2600,6 +2600,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** A tap on a hero's Ultimate before it unlocks: say when it does. */
   lockedUltHint(heroId: string) {
+    if (!ultsAllowed(!!this.pvp)) return;
     const s = this.getUltState(heroId);
     if (s.alive && s.slotted && !s.unlocked && !this.transitioning) this.banner(`ULTIMATE UNLOCKS\nAT HERO LEVEL ${ULT_UNLOCK_LEVEL}`, '#ffd27a');
   }
@@ -2619,7 +2620,7 @@ export class BattleScene extends Phaser.Scene {
 
   triggerUlt(heroId: string): boolean {
     const h = this.heroes.find((u) => u.def?.id === heroId);
-    if (!h || !h.alive || this.transitioning) return false;
+    if (!h || !h.alive || this.transitioning || !ultsAllowed(!!this.pvp)) return false;
     const s = this.getUltState(heroId);
     if (!s.slotted || !s.unlocked || s.remaining > 0) return false;
     h.ultReadyAt = this.clock + this.ultCooldown(heroId);
@@ -2972,7 +2973,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private tryAutoUlt(h: Unit) {
-    if (!h.alive || !h.def) return;
+    if (!h.alive || !h.def || !ultsAllowed(!!this.pvp)) return;
     const s = this.getUltState(h.def.id);
     if (!s.slotted || !s.unlocked || s.remaining > 0) return;
     if (h.def.heals) {
