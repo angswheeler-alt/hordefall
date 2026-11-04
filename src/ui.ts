@@ -6,7 +6,7 @@ import { testAdjust, testMaxAll, testMaxHero, testRange, testRecruit, testValue,
 import Decimal from 'break_infinity.js';
 import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { GUILD_BOSS_SECONDS, HEROES, byRarity, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_SLIDER_MAX, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, trialFirstWin, ESSENCE_NAMES, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, elementMultiplier, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { GUILD_BOSS_SECONDS, HEROES, byRarity, OFFLINE_CAP_HOURS, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, BOSS_EVERY, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_SLIDER_MAX, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_SET_START_SHARE, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, trialFirstWin, ESSENCE_NAMES, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, elementMultiplier, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicEffect, type GuildRelicDef, type GuildRelicEffect } from './guildRelics';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
@@ -649,7 +649,7 @@ export class UI {
         const head = document.createElement('button');
         head.className = 'relic-set';
         head.style.setProperty('--el', set.element ? hex(ELEMENT_COLORS[set.element]) : 'var(--gold)');
-        head.innerHTML = `<b>${set.name} set <span class="set-count"></span></b><small>Own all ${pieces.length} pieces: ${set.text}</small>`;
+        head.innerHTML = `<b>${set.name} set <span class="set-count"></span></b><small>Own all ${pieces.length} pieces: ${set.text}. Starts at ${Math.round(RELIC_SET_START_SHARE * 100)}%, full when every piece is Lv ${RELIC_BASE_MAX}.</small>`;
         head.addEventListener('click', () => {
           box.dataset.user = '1';
           box.classList.toggle('open');
@@ -661,7 +661,7 @@ export class UI {
         const ch = document.createElement('div');
         ch.className = 'relic-set static';
         ch.style.setProperty('--el', set.element ? hex(ELEMENT_COLORS[set.element]) : 'var(--gold)');
-        ch.innerHTML = `<b>${set.name} set</b><small>Own all ${pieces.length} pieces: ${set.text}</small>`;
+        ch.innerHTML = `<b>${set.name} set</b><small>Own all ${pieces.length} pieces: ${set.text}. Starts at ${Math.round(RELIC_SET_START_SHARE * 100)}%, full when every piece is Lv ${RELIC_BASE_MAX}.</small>`;
         catalog.appendChild(ch);
         const grid = tiles();
         pieces.forEach((d) => tile(d, grid));
@@ -813,7 +813,8 @@ export class UI {
     for (const sec of this.relicSections) sec.head.hidden = !sec.defs.some(owned);
     for (const h of this.setHeads) {
       const p = s.setPieces(h.id);
-      h.count.textContent = `${p.owned}/${p.total}`;
+      const share = s.setBonusShare(h.id);
+      h.count.textContent = share ? `${p.owned}/${p.total} · bonus ${Math.round(share * 100)}%` : `${p.owned}/${p.total}`;
       h.root.classList.toggle('done', p.owned === p.total);
       h.box.hidden = p.owned === 0;
       if (!h.box.dataset.user) h.box.classList.add('open');
