@@ -4,11 +4,11 @@ import { warsteelForKill, warsteelForWeek } from './guildRelics';
 import { isAscendant } from './heroes/ascendant';
 import {
   HEROES, RELEASED_HEROES, GUILD_MAX_MEMBERS, GUILD_REQUEST_GOAL, GUILD_REQUEST_HOURS, GUILD_REQUEST_OPEN_HOURS, GUILD_DONATE_MAX, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP,
-  GUILD_BOSS_ATTEMPTS, GUILD_BOSS_FIGHT_GAP_SECONDS, GUILD_BOSS_REST_MINUTES, GUILD_BOSS_NAMES, GUILD_BOSS_PAR_ATTEMPTS, ELEMENT_COLORS, elementMultiplier, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, guildResearchPerAttempt, GUILD_WILD_PER_WEEK, GUILD_WILD_COST, GUILD_WARSTEEL_PACKS_PER_DAY, GUILD_CHESTS_PER_WEEK, GUILD_QUESTS, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, GUILD_BOSS_ASC_CRESTS, GUILD_BOSS_ASC_LEVELS,
+  GUILD_BOSS_ATTEMPTS, GUILD_BOSS_FIGHT_CAP, GUILD_BOSS_REST_MINUTES, GUILD_BOSS_NAMES, GUILD_BOSS_PAR_ATTEMPTS, ELEMENT_COLORS, elementMultiplier, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, guildResearchPerAttempt, GUILD_WILD_PER_WEEK, GUILD_WILD_COST, GUILD_WARSTEEL_PACKS_PER_DAY, GUILD_CHESTS_PER_WEEK, GUILD_QUESTS, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, GUILD_BOSS_ASC_CRESTS, GUILD_BOSS_ASC_LEVELS,
   type HeroDef, type GuildShopId, type Element, type ResearchBranch,
 } from './data';
 import Decimal from 'break_infinity.js';
-import { fmt, parseAmount, guildBossFightWait, guildBossLane, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, guildBossElement, guildBossStartLevel, researchPointsFor, researchRank } from './formulas';
+import { fmt, parseAmount, guildBossFightWait, guildBossFightsLeft, guildBossLane, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, guildBossElement, guildBossStartLevel, researchPointsFor, researchRank } from './formulas';
 import type { GameState } from './state';
 import type { Account } from './account';
 import { faceStyle, dropCards, type UI } from './ui';
@@ -100,6 +100,8 @@ export class Guild {
   private kills: KillRow[] = [];
   /** Level and weekly rewards this player can claim. */
   private rewards: BossRewards = { kills: [], weekly: [] };
+  /** This player's Guild Boss fights as last fetched, and the UTC day they were fetched (null: unknown, e.g. old server SQL). */
+  private fights: { left: number; day: string } | null = null;
   private fighting = false;
   private me: MemberRow | null = null;
   private guild: GuildRow | null = null;
@@ -332,6 +334,14 @@ export class Guild {
     this.hits = hits.data as HitRow[];
     this.kills = kills.data as KillRow[];
     this.rewards = rewards.data as BossRewards;
+    // Fights left (3 a day, stacking to 9). Missing until guilds.sql is re-run; the fight button then works as before.
+    const fights = await db.rpc('guild_boss_fights');
+    this.fights = fights.error ? null : { left: Number((fights.data as { left: number }).left) || 0, day: utcDay() };
+  }
+
+  /** Fights this player has now (null when the server doesn't say). A new UTC day adds fights without a fetch. */
+  private fightsLeft(): number | null {
+    return this.fights ? guildBossFightsLeft(this.fights.left, this.fights.day, utcDay()) : null;
   }
 
   /** When this player may fight next: the boss's rest after a kill, then their own gap between fights. */
@@ -352,6 +362,10 @@ export class Guild {
       await this.fetchBoss();
       const boss = this.boss;
       const wait = this.fightWait(boss);
+      if (this.fightsLeft() === 0) {
+        this.ui.showModal('Guild Boss', `<p>No fights left. You get ${GUILD_BOSS_ATTEMPTS} more at the daily reset, and unused fights stack up to ${GUILD_BOSS_FIGHT_CAP}.</p>`, 'Okay');
+        return;
+      }
       if (wait.kind !== 'ready') {
         this.ui.showModal('Guild Boss', wait.kind === 'resting' ? `<p>The boss was just beaten and is resting. It comes back at level ${boss.level} soon.</p>` : '<p>Catch your breath first: your next fight opens soon.</p>', 'Okay');
         return;
@@ -388,7 +402,8 @@ export class Guild {
         this.ui.showModal('Guild Boss', `<p>${esc(this.message(res.error))}</p><p>This fight's damage did not count.</p>`, 'Okay', back);
         return;
       }
-      const r = res.data as { attempt: number; paid?: boolean; level: number; hp: number | string; kills: number; next_level: number };
+      const r = res.data as { attempt: number; paid?: boolean; left?: number; level: number; hp: number | string; kills: number; next_level: number };
+      if (typeof r.left === 'number') this.fights = { left: r.left, day: utcDay() };
       const hp = big(r.hp);
       // Only the first few fights a day pay (the server says which); the rest still add damage.
       const paid = r.paid ?? r.attempt <= GUILD_BOSS_ATTEMPTS;
@@ -404,7 +419,8 @@ export class Guild {
       if (r.kills) {
         html += `<p><b>You beat level ${r.level}!</b> It rests for ${GUILD_BOSS_REST_MINUTES} minutes, then comes back at level ${r.next_level} and stronger. Everyone who hit it this week can claim the level rewards.</p>`;
       }
-      this.ui.showModal(paid ? `Rewarded fight ${r.attempt}/${GUILD_BOSS_ATTEMPTS} today` : `Fight ${r.attempt} today`, html, 'Nice', back);
+      const title = typeof r.left === 'number' ? `Guild Boss fight · ${r.left} left` : paid ? `Rewarded fight ${r.attempt}/${GUILD_BOSS_ATTEMPTS} today` : `Fight ${r.attempt} today`;
+      this.ui.showModal(title, html, 'Nice', back);
       this.ui.render();
     } catch (e) {
       this.ui.showModal('Guild Boss', `<p>${esc(this.message(e))}</p><p>This fight's damage did not count.</p>`, 'Okay', back);
@@ -823,6 +839,7 @@ export class Guild {
     const left = Decimal.max(0, hp.minus(big(boss.damage)));
     const today = utcDay();
     const used = this.hits.filter((h) => h.user_id === uid && h.day === today).length;
+    const fightsLeft = this.fightsLeft();
     const top = boss.level - 1;
     const week = guildBossWeekReward(top, boss.level - (boss.start_level ?? 1));
     const mine = this.state.guildBossDamage(boss.element);
@@ -836,26 +853,32 @@ export class Guild {
     const next = guildBossElement(new Date(Date.parse(boss.week) + 7 * 24 * HOUR).toISOString().slice(0, 10));
     const wait = this.fightWait(boss);
     const paidLeft = Math.max(0, GUILD_BOSS_ATTEMPTS - used);
+    const out = fightsLeft === 0;
+    const refill = fightsLeft === null ? '' : fightsLeft >= GUILD_BOSS_FIGHT_CAP ? `Full: unused fights stack up to ${GUILD_BOSS_FIGHT_CAP}.` : `+${Math.min(GUILD_BOSS_ATTEMPTS, GUILD_BOSS_FIGHT_CAP - fightsLeft)} fight${GUILD_BOSS_FIGHT_CAP - fightsLeft === 1 ? '' : 's'} in ${untilText(dayReset)} · unused fights stack up to ${GUILD_BOSS_FIGHT_CAP}.`;
     const ascHero = this.state.ascendantChestState(Date.parse(boss.week))?.hero;
     const secs = (ms: number) => (ms >= 60_000 ? untilText(ms) : `${Math.ceil(ms / 1000)}s`);
-    const btn = `<button type="button" class="hot rw-wide" data-g="fight" ${wait.kind !== 'ready' || this.fighting || !team.length ? 'disabled' : ''}>${
+    const btn = `<button type="button" class="hot rw-wide" data-g="fight" ${wait.kind !== 'ready' || out || this.fighting || !team.length ? 'disabled' : ''}>${
       this.fighting
         ? 'Fighting…'
-        : wait.kind === 'resting'
+        : out
+          ? `No fights left · ${GUILD_BOSS_ATTEMPTS} more in ${untilText(dayReset)}`
+          : wait.kind === 'resting'
           ? `Defeated! Back at level ${boss.level} in ${secs(wait.ms)}`
           : wait.kind === 'cooldown'
             ? `Catch your breath · fight again in ${secs(wait.ms)}`
-            : `Fight · about ${fmt(mine)} damage${paidLeft ? ` (${paidLeft} rewarded left today)` : ''}`
-    }</button><small class="g-boss-next">${paidLeft ? '' : `Rewarded fights come back in ${untilText(dayReset)}. Extra fights still add damage.`}</small>`;
+            : fightsLeft !== null
+              ? `Fight · about ${fmt(mine)} damage (${fightsLeft} fight${fightsLeft === 1 ? '' : 's'} left)`
+              : `Fight · about ${fmt(mine)} damage${paidLeft ? ` (${paidLeft} rewarded left today)` : ''}`
+    }</button><small class="g-boss-next">${fightsLeft !== null ? refill : paidLeft ? '' : `Rewarded fights come back in ${untilText(dayReset)}. Extra fights still add damage.`}</small>`;
     setHtml(
       $('g-boss'),
       `<div class="g-boss-top"><span class="g-boss-face" style="background:#${ELEMENT_COLORS[boss.element].toString(16).padStart(6, '0')}">${GUILD_BOSS_NAMES[boss.element][0]}</span>
         <div><b>${GUILD_BOSS_NAMES[boss.element]}</b><small>Level ${boss.level} · ${boss.element} · new boss in ${untilText(reset)}</small></div>
         <div class="g-boss-best"><b>${top}</b><small>beaten</small></div></div>
        <div class="g-boss-bar"><i style="width:${hp.gt(0) ? Math.max(0, Math.min(100, left.div(hp).times(100).toNumber())) : 0}%"></i><span>${fmt(left)} / ${fmt(hp)}</span></div>
-       <p>This week's guild event. The whole guild fights this boss with their Guild Boss teams (Ember levels), as often as they like: one fight every ${GUILD_BOSS_FIGHT_GAP_SECONDS / 60} minutes each. Each time it falls it rests ${GUILD_BOSS_REST_MINUTES} minutes, then comes back one level stronger. ${tip}</p>
+       <p>This week's guild event. The whole guild fights this boss with their Guild Boss teams. Everyone gets ${GUILD_BOSS_ATTEMPTS} fights a day, and unused fights stack up to ${GUILD_BOSS_FIGHT_CAP}. Each time it falls it rests ${GUILD_BOSS_REST_MINUTES} minutes, then comes back one level stronger. ${tip}</p>
        <ul class="g-boss-pay">
-         <li><b>First ${GUILD_BOSS_ATTEMPTS} fights a day</b> ${10 + boss.level} to ${2 * (10 + boss.level)} Guild Coins and as much Warsteel each (about ${coins} for yours) and gold</li>
+         <li><b>Each fight</b> ${10 + boss.level} to ${2 * (10 + boss.level)} Guild Coins and as much Warsteel each (about ${coins} for yours) and gold</li>
          <li><b>Each level beaten</b> ${guildBossKillCoins(boss.level)} Guild Coins and ${warsteelForKill(boss.level)} Warsteel${ascHero ? `, plus ${GUILD_BOSS_ASC_CRESTS} ${ascHero.name} crests for the first ${GUILD_BOSS_ASC_LEVELS} levels beaten (to level ${(boss.start_level ?? 1) + GUILD_BOSS_ASC_LEVELS - 1})` : ''}, for everyone who hit it this week</li>
          <li><b>End of the week</b> ${boss.level > (boss.start_level ?? 1) ? `${fmt(week.coins)} Guild Coins, ${fmt(warsteelForWeek(top))} Warsteel and ${week.chests} Hero Chest${week.chests === 1 ? '' : 's'} so far (level ${top})` : 'Guild Coins, Warsteel and Hero Chests by the highest level beaten'}, for everyone who hit it</li>
        </ul><div class="g-team"><div class="pvp-row"><b>Your Guild Boss team <small>CP ${fmt(this.state.fixedTeamCp(team.map((m) => m.def)))}</small></b><button type="button" class="wood-btn small" data-g="team">Change</button></div><span class="faces">${team.map((m) => this.teamFace(m.def)).join('')}</span></div>${btn}<small class="g-boss-next">Next week: ${GUILD_BOSS_NAMES[next]} (${next}), starting at level ${guildBossStartLevel(boss.level - 1)}</small>`,

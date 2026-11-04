@@ -1,16 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import sql from '../supabase/guilds.sql?raw';
-import { guildBossFightWait, utcWeekStart, guildBossElement } from '../src/formulas';
-import { GUILD_BOSS_ATTEMPTS, GUILD_BOSS_FIGHT_GAP_SECONDS, GUILD_BOSS_REST_MINUTES } from '../src/data';
+import { guildBossFightWait, guildBossFightsLeft, utcWeekStart, guildBossElement } from '../src/formulas';
+import { GUILD_BOSS_ATTEMPTS, GUILD_BOSS_FIGHT_CAP, GUILD_BOSS_FIGHT_GAP_SECONDS, GUILD_BOSS_REST_MINUTES } from '../src/data';
 
 describe('Guild Boss week', () => {
-  it('the game and the server agree on the fight gap, the rest and the paid fights', () => {
+  it('the game and the server agree on the fight gap, the rest and the fights a day', () => {
     const hit = sql.slice(sql.indexOf('create or replace function public.hit_guild_boss'));
     expect(hit).toContain(`interval '${GUILD_BOSS_FIGHT_GAP_SECONDS / 60} minutes'`);
     expect(hit).toContain(`interval '${GUILD_BOSS_REST_MINUTES} minutes'`);
-    expect(hit).toContain(`paid := used < ${GUILD_BOSS_ATTEMPTS};`);
-    // No daily cap on fights any more.
-    expect(hit).not.toContain('No attempts left');
+    expect(hit).toContain('if have < 1 then');
+    const bank = sql.slice(sql.indexOf('create or replace function public.guild_boss_fights'));
+    expect(bank).toContain(`least(${GUILD_BOSS_FIGHT_CAP}, fights + ${GUILD_BOSS_ATTEMPTS} * (today - day))`);
+    expect(bank).toContain(`greatest(0, ${GUILD_BOSS_ATTEMPTS} - used)`);
+    expect(sql).toContain('public.guild_boss_fights(), public.hit_guild_boss(numeric)');
+  });
+
+  it('gives 3 fights a day that stack up to 9', () => {
+    expect(GUILD_BOSS_ATTEMPTS).toBe(3);
+    expect(GUILD_BOSS_FIGHT_CAP).toBe(9);
+    expect(guildBossFightsLeft(2, '2026-11-04', '2026-11-04')).toBe(2);
+    expect(guildBossFightsLeft(0, '2026-11-04', '2026-11-05')).toBe(3);
+    expect(guildBossFightsLeft(1, '2026-11-04', '2026-11-06')).toBe(7);
+    expect(guildBossFightsLeft(3, '2026-11-04', '2026-11-30')).toBe(9);
+    expect(guildBossFightsLeft(5, '2026-11-05', '2026-11-04')).toBe(5);
   });
 
   it('waits out the rest first, then the player\'s own fight gap', () => {

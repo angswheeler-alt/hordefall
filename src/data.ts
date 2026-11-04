@@ -1206,12 +1206,13 @@ export const GUILD_WILD_COST = { common: 8, rare: 15, epic: 30 } as const;
 export const GUILD_WILD_PER_WEEK = 20;
 
 /**
- * Guild Boss (a weekly guild event). Members fight as often as they like, one fight every GUILD_BOSS_FIGHT_GAP_SECONDS;
- * the first GUILD_BOSS_ATTEMPTS fights a player makes each UTC day pay attempt rewards and research. After each kill the
- * boss rests GUILD_BOSS_REST_MINUTES, then comes back one level higher (Samuel, 2026-10-21). supabase/guilds.sql
- * (hit_guild_boss) enforces all three.
+ * Guild Boss (a weekly guild event). Each player gets GUILD_BOSS_ATTEMPTS fights a UTC day, and unused fights stack up
+ * to GUILD_BOSS_FIGHT_CAP (Samuel, 2026-11-04: limit it to 3 a day); one fight every GUILD_BOSS_FIGHT_GAP_SECONDS, and
+ * every fight pays attempt rewards and research. After each kill the boss rests GUILD_BOSS_REST_MINUTES, then comes back
+ * one level higher (Samuel, 2026-10-21). supabase/guilds.sql (guild_boss_fights, hit_guild_boss) enforces all of it.
  */
 export const GUILD_BOSS_ATTEMPTS = 3;
+export const GUILD_BOSS_FIGHT_CAP = 9;
 export const GUILD_BOSS_FIGHT_GAP_SECONDS = 120;
 export const GUILD_BOSS_REST_MINUTES = 30;
 /**
