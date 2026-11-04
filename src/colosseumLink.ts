@@ -69,7 +69,7 @@ export class ColosseumLink {
     void this.report();
     const s = this.state;
     const r = rankIndex(s.pvp.trophies);
-    const cp = s.teamCpOf(s.pvpAttackTeam());
+    const cp = s.fixedTeamCp(s.pvpAttackTeam());
     const { data, error } = await db.rpc('colosseum_opponents', {
       p_min: RANK_TROPHIES[r],
       p_max: r < LEGEND ? RANK_TROPHIES[r + 1] : 1_000_000,

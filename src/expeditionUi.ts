@@ -303,7 +303,7 @@ export class ExpeditionUI {
     const draw = () => {
       const tiles = s
         .expHeroes()
-        .map((h) => `<button type="button" class="g-pick${chosen.has(h.id) ? ' on' : ''}" data-exp-ph="${h.id}">${face(h)}<b>${esc(s.formDef(h).name)}</b><small>${(s.stars[h.id] ?? 0) + 1}★ · CP ${fmt(s.heroCombatPower(h))}</small></button>`)
+        .map((h) => `<button type="button" class="g-pick${chosen.has(h.id) ? ' on' : ''}" data-exp-ph="${h.id}">${face(h)}<b>${esc(s.formDef(h).name)}</b><small>${(s.stars[h.id] ?? 0) + 1}★ · CP ${fmt(s.fixedCombatPower(h))}</small></button>`)
         .join('');
       setHtml($('modal-body'), `<p>Pick up to ${EXP_PARTY_MAX} heroes (${chosen.size} picked). Foes are matched to your party's power when the run starts.</p><div class="g-picks">${tiles}</div>`);
     };

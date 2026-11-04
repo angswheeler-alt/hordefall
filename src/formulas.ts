@@ -271,9 +271,14 @@ export function relicCost(level: number, craft: number): number {
 
 // ---------- Guild Boss (mirrors supabase/guilds.sql) ----------
 
-/** Boss health for a level: about 15 attempts by five 1-star heroes at Ember level 30 x level. */
+/** Guild Boss health on level 1 (heroes fight it without gold or Ember levels): about three attempts by five new 1-star Commons. */
+export const GUILD_BOSS_HP_BASE = 5000;
+/** Guild Boss health grows this much a level, in step with stars, relics, weapons and Glyphs. */
+export const GUILD_BOSS_HP_GROWTH = 1.35;
+
+/** Boss health for a level: GUILD_BOSS_HP_BASE, x GUILD_BOSS_HP_GROWTH a level. */
 export function guildBossHp(level: number): Decimal {
-  return Decimal.pow(2, 1.5 * level).times(14400 * 30 * level).round();
+  return Decimal.pow(GUILD_BOSS_HP_GROWTH, Math.max(1, level) - 1).times(GUILD_BOSS_HP_BASE).round();
 }
 
 /**

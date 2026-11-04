@@ -443,11 +443,12 @@ create policy "Players read their own week claims" on public.guild_boss_week_cla
 drop function if exists public.guild_boss_today();
 drop function if exists public.claim_guild_boss(date);
 
--- Boss health for a level: about 15 attempts by a team of five 1-star heroes
--- at Ember level 30 x level (src/formulas.ts mirrors this as guildBossHp).
+-- Boss health for a level (2026-11-04): heroes fight the Guild Boss without gold or Ember levels,
+-- so health starts at 5,000 (about three attempts by five new 1-star Commons) and grows x1.35 a level,
+-- in step with stars, relics, weapons and Glyphs (src/formulas.ts mirrors this as guildBossHp).
 create or replace function public.guild_boss_hp(p_level integer) returns numeric
 language sql immutable as $$
-  select round(14400 * (30 * p_level) * power(2::numeric, 1.5 * p_level))
+  select round(5000 * power(1.35::numeric, greatest(1, p_level) - 1))
 $$;
 
 -- The boss element for a week (its Monday): water, fire, earth, light, dark in turn
@@ -462,13 +463,32 @@ $$;
 -- easy levels (src/formulas.ts mirrors this as guildBossStartLevel).
 alter table public.guild_boss_weeks add column if not exists start_level integer not null default 1;
 
+-- The week Guild Boss health switched to the no-levels curve above. That week's bosses restart at
+-- level 1 (once: the row stops a re-run from doing it again), and weeks before it don't set where a
+-- new week starts, since their levels were on the old, much steeper curve.
+create table if not exists public.guild_boss_curve (
+  id integer primary key default 1 check (id = 1),
+  changed_week date not null
+);
+alter table public.guild_boss_curve enable row level security;
+do $$
+declare wk date := date_trunc('week', now() at time zone 'utc')::date;
+begin
+  if not exists (select 1 from public.guild_boss_curve) then
+    insert into public.guild_boss_curve (changed_week) values (wk);
+    update public.guild_boss_weeks set level = 1, start_level = 1, hp = public.guild_boss_hp(1), damage = 0, rest_until = null
+      where week = wk;
+  end if;
+end $$;
+
 -- This week's boss for the caller's guild, made on the first look of the week.
 create or replace function public.guild_boss_week() returns public.guild_boss_weeks
 language plpgsql security definer set search_path = public as $$
 declare g uuid := public.my_guild(); wk date := date_trunc('week', now() at time zone 'utc')::date; row guild_boss_weeks; start integer;
 begin
   if g is null then raise exception 'Join a guild first.'; end if;
-  select greatest(1, coalesce(max(b.level) - 1, 0) - 10) into start from guild_boss_weeks b where b.guild_id = g and b.week = wk - 7;
+  select greatest(1, coalesce(max(b.level) - 1, 0) - 10) into start from guild_boss_weeks b where b.guild_id = g and b.week = wk - 7
+    and b.week >= coalesce((select c.changed_week from guild_boss_curve c), b.week);
   start := coalesce(start, 1);
   insert into guild_boss_weeks (guild_id, week, element, level, start_level, hp)
     values (g, wk, public.guild_boss_element(wk), start, start, public.guild_boss_hp(start))

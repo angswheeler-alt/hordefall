@@ -988,10 +988,14 @@ export class BattleScene extends Phaser.Scene {
     return ids ? ids.has(heroId) && (this.state.levels[heroId] ?? 0) > 0 : this.state.inLineup(heroId);
   }
 
-  /** A hero's fighting level: gold plus Ember levels, or in a Trial or the Colosseum only Ember levels (at least 1). */
+  /**
+   * A hero's fighting level: gold plus Ember levels on stages, only Ember levels (at least 1) in a Trial, and the
+   * fixed level in the Guild Boss, Colosseum, Rush and Expedition (no gold or Ember levels there).
+   */
   private levelOf(heroId: string) {
-    if (!this.trial && !this.pvp) return this.state.heroLevel(heroId);
-    return this.state.permanentLevel(heroId);
+    if (this.pvp || this.trial?.guild) return this.state.fixedLevel(heroId);
+    if (this.trial) return this.state.permanentLevel(heroId);
+    return this.state.heroLevel(heroId);
   }
 
   /** Whether a star skill is active: the hero is recruited and has at least `star` stars. */
@@ -1409,7 +1413,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /**
-   * Start a Colosseum battle: the run pauses, the attack team (`ids`, Ember levels only) starts at the
+   * Start a Colosseum battle: the run pauses, the attack team (`ids`, at the fixed level) starts at the
    * blue crystal and the opponent's team at the red one. Fallen fighters on both sides get back up after
    * the usual wait; the first crystal destroyed loses. `onEnd` gets the outcome once.
    */
@@ -1604,7 +1608,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /**
-   * Start a live Guild Boss fight: like a Trial, but the Guild Boss team fights (Ember levels only) and the boss
+   * Start a live Guild Boss fight: like a Trial, but the Guild Boss team fights (at the fixed level) and the boss
    * carries the guild's shared health. The boss hits for a share of the team's own health (guildBossHitAtk).
    * `onEnd` gets the health knocked off (in lane terms), whether the level fell, and the seconds fought, once.
    */
