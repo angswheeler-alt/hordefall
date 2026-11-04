@@ -90,7 +90,7 @@ import {
   guardShare,
   summonReady,
 } from './mobs';
-import { PLACEHOLDER_SIZE, placeholderUrl } from './mobPlaceholders';
+import { PLACEHOLDER_SIZE, placeholderBase64Url } from './mobPlaceholders';
 import { MUTANT_GOLD, rollMutation, type Mutation } from './mutations';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES, type BossAnim } from './bossAnims';
 import type { EffectKind } from './data';
@@ -518,7 +518,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     // Special mob kinds without art yet: a simple white placeholder, tinted by element on the lane.
-    for (const id of MOB_ART_PENDING) if (!MOB_ANIMS[id]) this.load.svg(`enemy-${id}`, placeholderUrl(id), { width: PLACEHOLDER_SIZE, height: PLACEHOLDER_SIZE });
+    for (const id of MOB_ART_PENDING) if (!MOB_ANIMS[id]) this.load.svg(`enemy-${id}`, placeholderBase64Url(id), { width: PLACEHOLDER_SIZE, height: PLACEHOLDER_SIZE });
     // Ultimate pictures (src/ultFx.ts); a row of frames is cut into frames in create().
     for (const [id, art] of Object.entries(ULT_FX_ART)) this.load.image(`ultfx-${id}`, art.url);
     for (const [id, a] of Object.entries(BOSS_ANIMS)) {

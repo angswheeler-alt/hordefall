@@ -61,3 +61,8 @@ export function placeholderSvg(id: MobId, body = '#ffffff'): string {
 export function placeholderUrl(id: MobId, body = '#ffffff'): string {
   return `data:image/svg+xml,${encodeURIComponent(placeholderSvg(id, body))}`;
 }
+
+/** The placeholder as a base64 data URL: Phaser's loader decodes data URLs with atob, so it needs this form. */
+export function placeholderBase64Url(id: MobId, body = '#ffffff'): string {
+  return `data:image/svg+xml;base64,${btoa(placeholderSvg(id, body))}`;
+}

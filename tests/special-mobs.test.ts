@@ -22,7 +22,7 @@ import {
   summonReady,
 } from '../src/mobs';
 import { JOURNAL_MOBS, MOB_NAMES, cleanStamps, journalPage, mobPageId } from '../src/journal';
-import { placeholderSvg, placeholderUrl } from '../src/mobPlaceholders';
+import { placeholderBase64Url, placeholderSvg, placeholderUrl } from '../src/mobPlaceholders';
 
 function fresh() {
   GameState.frozen = false;
@@ -188,6 +188,8 @@ describe('Journal, shinies and art', () => {
       // Single quotes only, so the picture can sit inside an HTML style attribute.
       expect(svg).not.toContain('"');
       expect(placeholderUrl(id).startsWith('data:image/svg+xml,')).toBe(true);
+      // Phaser's loader reads data URLs with atob, so the lane needs the base64 form.
+      expect(atob(placeholderBase64Url(id).split(',')[1])).toBe(placeholderSvg(id));
     }
   });
 });
