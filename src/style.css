@@ -1474,3 +1474,50 @@ i.ticket.rush-ticket { background: linear-gradient(180deg, #e7a6ff, #8a3ab8); bo
 .jr-cell.mutant:not(.unseen) .jr-pic, .jr-dhead.mutant .jr-pic { filter: drop-shadow(0 0 3px var(--mut)) drop-shadow(0 0 1px var(--mut)); }
 .jr-cell.mutant { border-color: color-mix(in srgb, var(--mut) 70%, #000); }
 .jr-mut-note { margin: 2px 0 6px; font-size: 12px; opacity: .85; text-align: center; }
+
+/* ---------- Expedition (src/expeditionUi.ts) ---------- */
+.mode-card.exp { background: linear-gradient(90deg, rgba(20,40,30,.8), rgba(20,40,30,.15) 55%), var(--art, none), #2a4a3a; image-rendering: pixelated; }
+.mode-card.exp .mode-trophy { filter: drop-shadow(0 0 8px rgba(255,230,160,.6)) drop-shadow(0 2px 0 #131927); }
+.exp-charge-ico { width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff6c8, #ffb84a 60%, #a3561c); border: 2px solid #4a2a05; }
+.exp { display: flex; flex-direction: column; gap: 8px; }
+.exp .rush-top { grid-template-columns: repeat(3, 1fr); }
+.exp h4 { margin: 4px 0 0; }
+.exp-charges { display: flex; align-items: center; gap: 8px; }
+.exp-charges small { color: var(--muted); font-size: 12px; }
+.exp-pips { display: flex; gap: 3px; }
+.exp-pips i { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,.15); border: 1px solid rgba(0,0,0,.6); }
+.exp-pips i.on { background: radial-gradient(circle at 35% 35%, #fff6c8, #ffb84a 60%, #a3561c); }
+.exp-hearts i { color: rgba(255,255,255,.2); font-style: normal; }
+.exp-hearts i.on { color: #ff5a6a; }
+.exp-party { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.exp-party .face, .exp-boon .face, .exp-foe .face { width: 36px; height: 36px; border-radius: 8px; border: 2px solid #000; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
+.exp-party .face.borrowed { border-color: #6ad1ff; box-shadow: 0 0 6px rgba(106,209,255,.7); }
+.exp-hire { display: inline-flex; flex-direction: column; align-items: center; max-width: 64px; }
+.exp-hire small { font-size: 9px; color: #9ad8ff; max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exp-say { margin: 2px 0; font-weight: 700; }
+.exp-boons { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; }
+.exp-boon { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 8px; border-radius: 8px; background: rgba(0,0,0,.3); border: 2px solid rgba(255,216,74,.45); color: inherit; font: inherit; }
+button.exp-boon { cursor: pointer; }
+button.exp-boon:disabled { opacity: .5; cursor: default; }
+.exp-boon b { font-size: 13px; color: #ffe08a; }
+.exp-boon small { font-size: 11px; color: var(--muted); }
+.exp-boon.small { padding: 4px 6px; border-width: 1px; }
+.exp-boon.rest { border-color: rgba(255,120,100,.6); }
+.exp-boon.hire { align-items: center; text-align: center; border-color: rgba(106,209,255,.6); }
+.exp-foe { display: flex; flex-direction: column; gap: 6px; }
+.exp-foe.elite { border: 2px solid rgba(200,120,255,.6); }
+.exp-foe.boss { border: 2px solid rgba(255,90,90,.7); }
+.exp-map { display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 8px; background: rgba(0,0,0,.25); }
+.exp-row { display: flex; align-items: center; gap: 6px; }
+.exp-row.now { background: rgba(255,216,74,.08); border-radius: 6px; }
+.exp-num { width: 18px; text-align: center; font-size: 11px; color: var(--muted); }
+.exp-node { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px; padding: 4px; border-radius: 6px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); color: inherit; font: inherit; }
+.exp-node small { font-size: 11px; }
+.exp-ico { font-size: 16px; line-height: 1; }
+.exp-node.ahead { opacity: .55; }
+.exp-node.skipped { opacity: .25; }
+.exp-node.taken { background: rgba(80,200,120,.2); border-color: rgba(80,200,120,.6); }
+.exp-node.here { background: rgba(255,216,74,.25); border-color: #ffd84a; }
+.exp-node.pick { cursor: pointer; border: 2px solid #ffd84a; background: rgba(255,216,74,.15); animation: exp-glow 1.2s ease-in-out infinite alternate; }
+@keyframes exp-glow { from { box-shadow: 0 0 0 rgba(255,216,74,0); } to { box-shadow: 0 0 8px rgba(255,216,74,.6); } }
+.g-pick.on { outline: 2px solid #ffd84a; background: rgba(255,216,74,.18); }

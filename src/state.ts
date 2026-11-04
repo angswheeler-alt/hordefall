@@ -25,6 +25,7 @@ import { GLYPH_BAG_CAP, GLYPH_FAMILIES, chestStar, cleanGlyph, emptyTotals, glyp
 import { RUSH_BRACKETS, RUSH_CREST_COINS, RUSH_CREST_LIMIT, RUSH_CREST_PACK, RUSH_DAILY_TICKETS, RUSH_DAYS, RUSH_FEATURED, RUSH_FIGHT_TICKETS, RUSH_FOES, RUSH_FREE_HEROES, RUSH_FREE_HOURS, RUSH_LOSS_COINS, RUSH_MAX_LEVEL, RUSH_SHOP, RUSH_STREAK_UP, RUSH_TIERS, RUSH_UNLOCK_LEVEL, chestKinds, cleanRush, freeAttacks, inBracket, newRush, rushWinPoints, type RushFoe, type RushReward, type RushShopId, type RushState } from './rush';
 import { SCOUT_KINDS, SCOUT_PRIORITY, SCOUT_UNLOCK_LEVEL, WILD_CREST_COST, cleanScout, pickScoutTeam, scoutProblems, type ScoutCand, heroScoutScore, missionEndsAt, newScout, nextHour, refreshBoard, scoutReward, scoutShare, type ScoutReward, type ScoutSlot, type ScoutState } from './scouting';
 import { allWhatsNewIds } from './whatsNew';
+import { EXP_CHARGE_CAP, EXP_HEARTS, EXP_MAX_LEVEL, EXP_PARTY_MAX, EXP_HIRE_MAX, EXP_STOPS, EXP_UNLOCK_LEVEL, autoReward, boonMults, cleanExpedition, daysBetween, foeShare, fullReward, levelMult, makeMap, mysteryOptions, newExpedition, partReward, rollBoons, type BoonTarget, type ExpHire, type ExpLender, type ExpNodeKind, type ExpReward, type ExpRun, type ExpState, type MysteryOption } from './expedition';
 
 /** Test mode plays a copy of the save under its own key, so the real one is never written. */
 const SAVE_KEY = TEST_MODE ? TEST_SAVE_KEY : 'hordefall-save-v1';
@@ -54,6 +55,22 @@ export interface RushFight {
   levelUp: boolean;
   level: number;
   tiers: RushPaid[];
+}
+
+/** How an Expedition ended (or an Auto-clear), already paid out. */
+export interface ExpEnd {
+  cleared: boolean;
+  level: number;
+  reward: ExpReward;
+  glyphs: Array<{ glyph?: Glyph; dust?: number }>;
+  newBest: boolean;
+  auto?: boolean;
+}
+
+/** Stats with ATK, HP and Defense multiplied separately (Expedition Boons). */
+function scaleStatsBy(st: HeroStats, m: { atk: number; hp: number; def: number }): HeroStats {
+  const big = (b: HeroStats['atk'], p: number) => ({ value: b.value.times(p), base: b.base.times(p) });
+  return { ...st, atk: big(st.atk, m.atk), hp: big(st.hp, m.hp), def: big(st.def, m.def) };
 }
 
 const EMPTY_GLYPHS: GlyphTotals = emptyTotals();
@@ -383,6 +400,8 @@ export class GameState {
   /** Rush (src/rush.ts): this event's progress, and Rush Coins (kept between events). */
   rush: RushState = newRush();
   rushCoins = 0;
+  /** Expedition (src/expedition.ts): charges, best level and the run under way. */
+  expedition: ExpState = newExpedition();
   /** Admin test mode runs a Rush every day, so it can be tried any time. Not saved. */
   rushForced = TEST_MODE;
   /** Earned by giving medals to guildmates; spent in the guild shop. */
@@ -2709,6 +2728,390 @@ export class GameState {
     return true;
   }
 
+  // ---------- Expedition (src/expedition.ts) ----------
+
+  expOpen(): boolean {
+    return this.keeperLevel() >= EXP_UNLOCK_LEVEL;
+  }
+
+  /** Add the charges of the days since the last visit (one a day, up to EXP_CHARGE_CAP). */
+  expSync(now = Date.now()): void {
+    if (!this.expOpen()) return;
+    const e = this.expedition;
+    const day = dayKey(now);
+    if (TEST_MODE) e.charges = EXP_CHARGE_CAP;
+    if (e.day === day) return;
+    e.charges = Math.min(EXP_CHARGE_CAP, e.charges + daysBetween(e.day, day));
+    e.day = day;
+    if (e.run && e.run.hearts <= 0) this.expEnd(false);
+    this.save();
+  }
+
+  /** The highest level the player may start: one past the best hand clear. */
+  expMaxLevel(): number {
+    return Math.min(EXP_MAX_LEVEL, this.expedition.best + 1);
+  }
+
+  /** Owned heroes by power, strongest first: the party picker. */
+  expHeroes(): HeroDef[] {
+    return HEROES.filter((h) => (this.levels[h.id] ?? 0) > 0)
+      .map((h) => ({ h, cp: this.heroCombatPower(h) }))
+      .sort((a, b) => b.cp.cmp(a.cp))
+      .map((x) => x.h);
+  }
+
+  /** The party a new run suggests: the lineup's strongest, up to EXP_PARTY_MAX. */
+  expDefaultParty(): string[] {
+    const lineup = new Set(this.pvpTeam().map((h) => h.id));
+    const own = this.expHeroes();
+    return [...own.filter((h) => lineup.has(h.id)), ...own.filter((h) => !lineup.has(h.id))].slice(0, EXP_PARTY_MAX).map((h) => h.id);
+  }
+
+  /** Why a run can't start, or null. */
+  expStartBlock(level: number, party: string[]): string | null {
+    if (!this.expOpen()) return `Opens at player level ${EXP_UNLOCK_LEVEL}`;
+    if (this.expedition.run) return 'An Expedition is under way';
+    if (this.expedition.charges <= 0) return 'No charges left: one comes back each day';
+    if (level < 1 || level > this.expMaxLevel()) return 'Clear the level before it first';
+    const ok = party.filter((id) => (this.levels[id] ?? 0) > 0);
+    if (!ok.length || ok.length !== party.length || party.length > EXP_PARTY_MAX || new Set(party).size !== party.length) return 'Pick 1 to 5 of your heroes';
+    return null;
+  }
+
+  /** Start a run: spends a charge. `lenders` are players whose heroes Taverns offer (travelers fill the rest). */
+  expStart(level: number, party: string[], lenders: ExpLender[] = [], now = Date.now()): ExpRun | null {
+    this.expSync(now);
+    if (this.expStartBlock(level, party) !== null) return null;
+    const e = this.expedition;
+    const seed = `exp:${e.runs}:${level}:${dayKey(now)}`;
+    const rand = seededRandom(`${seed}:lenders`);
+    const pool = PLAYABLE_HEROES.filter((h) => !isAscendant(h.id) && h.rarity !== 'legendary');
+    const avgStars = Math.round(party.reduce((t, id) => t + (this.stars[id] ?? 0), 0) / party.length);
+    const all: ExpLender[] = lenders.filter((l) => l.heroes.length).slice(0, 12);
+    while (all.length < 8) {
+      const heroes = Array.from({ length: 3 }, () => {
+        const h = pool[Math.floor(rand() * pool.length)];
+        return { id: h.id, stars: Math.min(this.maxStars(h.id), Math.max(0, avgStars + Math.floor(rand() * 3) - 1)) };
+      });
+      all.push({ name: ghostName(rand), source: 'traveler', heroes });
+    }
+    e.charges--;
+    e.runs++;
+    e.run = {
+      level,
+      seed,
+      map: makeMap(seed),
+      row: 0,
+      path: [],
+      at: -1,
+      hearts: EXP_HEARTS,
+      party: [...party],
+      hires: [],
+      boons: [],
+      basePower: this.teamCpOf(party.map((id) => HEROES.find((h) => h.id === id)!)).toString(),
+      bonusWild: 0,
+      bonusGems: 0,
+      elites: 0,
+      lenders: all,
+    };
+    this.save();
+    return e.run;
+  }
+
+  /** What a hero is, as a Boon sees it. */
+  private expTarget(def: HeroDef, hired: boolean): BoonTarget {
+    return { element: def.element, type: def.type, hired };
+  }
+
+  /** Everyone in the party, as Boons see them. */
+  expTargets(): BoonTarget[] {
+    const r = this.expedition.run;
+    if (!r) return [];
+    const def = (id: string) => HEROES.find((h) => h.id === id)!;
+    return [...r.party.map((id) => this.expTarget(def(id), false)), ...r.hires.map((h) => this.expTarget(def(h.id), true))];
+  }
+
+  /** Stat multipliers the run's Boons give one of the player's own heroes (BattleScene applies them). */
+  expBoost(def: HeroDef): { atk: number; hp: number; def: number } {
+    const r = this.expedition.run;
+    return r ? boonMults(r.boons, this.expTarget(def, false)) : { atk: 1, hp: 1, def: 1 };
+  }
+
+  /** A borrowed hero's fighter, Boons included. */
+  expHireUnit(h: ExpHire): { def: HeroDef; unit: PvpUnit; stats: HeroStats } {
+    const r = this.expedition.run;
+    const [base] = this.pvpFoeUnits({ name: h.owner, ghost: true, heroes: [{ id: h.id, stars: h.stars }], ember: h.ember, power: h.power, cp: h.cp });
+    const m = boonMults(r?.boons ?? [], this.expTarget(base.def, true));
+    const stats = scaleStatsBy(base.stats, m);
+    return { def: base.def, unit: { ...base.unit, atk: stats.atk.value, hp: stats.hp.value, def: stats.def.value }, stats };
+  }
+
+  /** The player's side as the no-luck fight sees it. */
+  private expMyUnits(): PvpUnit[] {
+    const r = this.expedition.run;
+    if (!r) return [];
+    const own = r.party.map((id) => {
+      const def = HEROES.find((h) => h.id === id)!;
+      const u = this.pvpUnit(def);
+      const m = this.expBoost(def);
+      return { ...u, atk: u.atk.times(m.atk), hp: u.hp.times(m.hp), def: u.def.times(m.def) };
+    });
+    return [...own, ...r.hires.map((h) => this.expHireUnit(h).unit)];
+  }
+
+  /** The current fight's foes as an opponent. */
+  expFoeOpponent(): PvpOpponent | null {
+    const f = this.expedition.run?.foe;
+    return f ? { name: f.name, ghost: true, heroes: f.heroes, ember: f.ember, power: f.power, cp: f.cp } : null;
+  }
+
+  /** A no-luck run of the current fight, for the forecast. */
+  expForecast(): PvpResult | null {
+    const foe = this.expFoeOpponent();
+    if (!foe) return null;
+    return simulatePvp(this.expMyUnits(), this.pvpFoeUnits(foe).map((u) => u.unit));
+  }
+
+  /** CP of the party now (Boons and hires included), for the run page. */
+  expPartyPower(): Decimal {
+    const r = this.expedition.run;
+    if (!r) return new Decimal(0);
+    const own = r.party.map((id) => {
+      const def = HEROES.find((h) => h.id === id)!;
+      return combatPower(scaleStatsBy(this.heroStats(def, this.permanentLevel(id)), this.expBoost(def)));
+    });
+    const hired = r.hires.map((h) => combatPower(this.expHireUnit(h).stats));
+    return [...own, ...hired].reduce((t, x) => t.plus(x), new Decimal(0));
+  }
+
+  /** Fit foes for a fight stop to the party's starting power. */
+  private expMakeFoe(r: ExpRun, kind: ExpNodeKind): NonNullable<ExpRun['foe']> {
+    const rand = seededRandom(`${r.seed}:foe:${r.row}:${r.at}`);
+    const size = Math.min(6, Math.max(3, r.party.length) + (kind === 'boss' ? 1 : 0));
+    const avgStars = Math.round(r.party.reduce((t, id) => t + (this.stars[id] ?? 0), 0) / r.party.length);
+    const pool = PLAYABLE_HEROES.filter((h) => !isAscendant(h.id) && (kind === 'boss' || h.rarity !== 'legendary'));
+    const heroes: Array<{ id: string; stars: number }> = [];
+    while (heroes.length < size) {
+      const h = pool[Math.floor(rand() * pool.length)];
+      if (heroes.some((x) => x.id === h.id)) continue;
+      heroes.push({ id: h.id, stars: Math.min(this.maxStars(h.id), Math.max(0, avgStars + Math.floor(rand() * 3) - 1)) });
+    }
+    const target = new Decimal(r.basePower).times(foeShare(r.row, kind) * levelMult(r.level));
+    const name = kind === 'boss' ? `Warlord ${ghostName(rand)}` : kind === 'elite' ? 'Elite guard' : 'Raiders';
+    const opp = GameState.fitGhost({ name, ghost: true, heroes, ember: 1, cp: '0' }, target);
+    return { name, heroes, ember: opp.ember, power: opp.power ?? 1, cp: opp.cp };
+  }
+
+  /** Hires a Tavern offers: three heroes of the lenders, fitted to the party's average hero. */
+  private expMakeHires(r: ExpRun, n: number, salt: string): ExpHire[] {
+    const rand = seededRandom(`${r.seed}:hire:${r.row}:${salt}`);
+    const taken = new Set([...r.party, ...r.hires.map((h) => h.id)]);
+    const offers: Array<{ l: ExpLender; id: string; stars: number }> = [];
+    for (const l of r.lenders) for (const x of l.heroes) if (!taken.has(x.id) && !isAscendant(x.id)) offers.push({ l, id: x.id, stars: x.stars });
+    const avg = new Decimal(r.basePower).div(r.party.length);
+    const out: ExpHire[] = [];
+    while (out.length < n && offers.length) {
+      const o = offers.splice(Math.floor(rand() * offers.length), 1)[0];
+      if (out.some((h) => h.id === o.id)) continue;
+      const stars = Math.min(this.maxStars(o.id), o.stars);
+      const fit = GameState.fitGhost({ name: o.l.name, ghost: true, heroes: [{ id: o.id, stars }], ember: 1, cp: '0' }, avg);
+      out.push({ owner: o.l.name, source: o.l.source, id: o.id, stars, ember: fit.ember, power: fit.power ?? 1, cp: fit.cp });
+    }
+    return out;
+  }
+
+  /** The stop the run is on, once picked. */
+  expNode(): ExpNodeKind | null {
+    const r = this.expedition.run;
+    return r && r.at >= 0 ? r.map[r.row][r.at] ?? null : null;
+  }
+
+  /** Pick a stop on the current row (the boss row has one). */
+  expPick(choice: number): boolean {
+    const r = this.expedition.run;
+    if (!r || r.at >= 0 || r.offer || r.fighting) return false;
+    const kind = r.map[r.row]?.[choice];
+    if (!kind) return false;
+    r.at = choice;
+    if (kind === 'fight' || kind === 'elite' || kind === 'boss') r.foe = this.expMakeFoe(r, kind);
+    else if (kind === 'camp') r.offer = { kind: 'camp', boons: rollBoons(`${r.seed}:camp:${r.row}`, this.expTargets()) };
+    else if (kind === 'recruit') r.offer = { kind: 'hire', hires: this.expMakeHires(r, 3, 'tavern') };
+    else r.offer = { kind: 'mystery', mystery: mysteryOptions(`${r.seed}:myst:${r.row}`).map((o) => o.id) };
+    this.save();
+    return true;
+  }
+
+  /** Move past the current stop. */
+  private expAdvance(r: ExpRun) {
+    r.path.push(r.at);
+    r.row++;
+    r.at = -1;
+    delete r.foe;
+  }
+
+  /** Start the current fight: star skills follow the party while it runs. */
+  expFightStart(): boolean {
+    const r = this.expedition.run;
+    if (!r || !r.foe || r.fighting || r.offer) return false;
+    r.fighting = true;
+    this.skillTeam = new Set(r.party);
+    this.save();
+    return true;
+  }
+
+  /** End the current fight. A win moves on and offers Boons (the boss ends the run); a loss costs a heart. */
+  expFightEnd(won: boolean): { won: boolean; heartsLeft: number; end: ExpEnd | null } | null {
+    const r = this.expedition.run;
+    if (!r || !r.fighting) return null;
+    r.fighting = false;
+    this.skillTeam = null;
+    const kind = this.expNode();
+    if (won) {
+      if (kind === 'boss') {
+        r.row = EXP_STOPS;
+        return { won, heartsLeft: r.hearts, end: this.expEnd(true) };
+      }
+      if (kind === 'elite') r.elites++;
+      this.expAdvance(r);
+      r.offer = { kind: 'boon', boons: rollBoons(`${r.seed}:boon:${r.row}`, this.expTargets()) };
+      this.save();
+      return { won, heartsLeft: r.hearts, end: null };
+    }
+    r.hearts--;
+    if (r.hearts <= 0) return { won, heartsLeft: 0, end: this.expEnd(false) };
+    this.save();
+    return { won, heartsLeft: r.hearts, end: null };
+  }
+
+  /** Take a Boon from the offer (after a fight or at a Camp). */
+  expTakeBoon(id: string): boolean {
+    const r = this.expedition.run;
+    const o = r?.offer;
+    if (!r || !o || (o.kind !== 'boon' && o.kind !== 'camp') || !o.boons?.includes(id)) return false;
+    r.boons.push(id);
+    delete r.offer;
+    if (o.kind === 'camp') this.expAdvance(r);
+    this.save();
+    return true;
+  }
+
+  /** Camp: rest for a heart instead of a Boon. */
+  expRest(): boolean {
+    const r = this.expedition.run;
+    if (!r || r.offer?.kind !== 'camp') return false;
+    r.hearts = Math.min(EXP_HEARTS, r.hearts + 1);
+    delete r.offer;
+    this.expAdvance(r);
+    this.save();
+    return true;
+  }
+
+  /** Hire one of the offered heroes (`replace` swaps out a hire when the party is full), or -1 to walk on. */
+  expHire(index: number, replace = -1): boolean {
+    const r = this.expedition.run;
+    if (!r || r.offer?.kind !== 'hire') return false;
+    if (index >= 0) {
+      const h = r.offer.hires?.[index];
+      if (!h) return false;
+      if (r.hires.length >= EXP_HIRE_MAX) {
+        if (!r.hires[replace]) return false;
+        r.hires.splice(replace, 1, h);
+      } else r.hires.push(h);
+    }
+    delete r.offer;
+    this.expAdvance(r);
+    this.save();
+    return true;
+  }
+
+  /** Whether a Mystery option can be taken (the risky ones need a spare heart). */
+  expMysteryOk(id: MysteryOption['id']): boolean {
+    const r = this.expedition.run;
+    if (!r || r.offer?.kind !== 'mystery' || !r.offer.mystery?.includes(id)) return false;
+    return (id !== 'shrine' && id !== 'gamble') || r.hearts > 1;
+  }
+
+  /** Answer a Mystery. Returns what happened, for the page. */
+  expMystery(id: MysteryOption['id']): string | null {
+    const r = this.expedition.run;
+    if (!r || !this.expMysteryOk(id)) return null;
+    delete r.offer;
+    let text = 'You walk on.';
+    if (id === 'shrine') {
+      r.hearts--;
+      this.expAdvance(r);
+      r.offer = { kind: 'boon', boons: rollBoons(`${r.seed}:shrine:${r.row}`, this.expTargets()) };
+      text = 'The shrine takes a heart and grants a Boon.';
+      this.save();
+      return text;
+    }
+    if (id === 'gamble') {
+      if (seededRandom(`${r.seed}:gamble:${r.row}`)() < 0.5) {
+        r.bonusWild++;
+        text = 'Treasure! +1 Wild Crest at the end of the run.';
+      } else {
+        r.hearts--;
+        text = 'A trap! You lose a heart.';
+      }
+    } else if (id === 'cache') {
+      r.bonusGems += 2;
+      text = 'You find 2 Gems in the ruins.';
+    } else if (id === 'stranger') {
+      const hires = this.expMakeHires(r, 1, 'stranger');
+      this.expAdvance(r);
+      if (hires.length) r.offer = { kind: 'hire', hires };
+      this.save();
+      return hires.length ? 'A wandering hero offers to join you for free.' : 'The stranger is gone.';
+    }
+    this.expAdvance(r);
+    this.save();
+    return text;
+  }
+
+  /** Give up the run: keeps the reward for the stops cleared. */
+  expAbandon(): ExpEnd | null {
+    const r = this.expedition.run;
+    if (!r || r.fighting) return null;
+    return this.expEnd(false);
+  }
+
+  /** End the run and pay it. */
+  private expEnd(cleared: boolean): ExpEnd {
+    const e = this.expedition;
+    const r = e.run!;
+    const base = cleared ? fullReward(r.level) : partReward(r.level, r.row);
+    const reward: ExpReward = { ...base, wild: base.wild + r.bonusWild + (cleared ? r.elites : 0), gems: base.gems + r.bonusGems };
+    const glyphs = this.expPay(reward);
+    if (cleared) {
+      e.clears++;
+      e.best = Math.max(e.best, r.level);
+    }
+    e.run = undefined;
+    this.skillTeam = null;
+    this.save();
+    return { cleared, level: r.level, reward, glyphs, newBest: cleared && e.best === r.level };
+  }
+
+  private expPay(r: ExpReward): Array<{ glyph?: Glyph; dust?: number }> {
+    this.gems += r.gems;
+    this.wildCrests += r.wild;
+    this.enhanceStones += r.stones;
+    return r.chest ? this.openGlyphChests(r.chest, 1) : [];
+  }
+
+  /** Auto-clear a level already cleared by hand: one charge, EXP_AUTO_SHARE of the reward. */
+  expAuto(level: number, now = Date.now()): ExpEnd | null {
+    this.expSync(now);
+    const e = this.expedition;
+    if (!this.expOpen() || e.run || e.charges <= 0 || level < 1 || level > e.best) return null;
+    e.charges--;
+    e.runs++;
+    const reward = autoReward(level);
+    const glyphs = this.expPay(reward);
+    this.save();
+    return { cleared: true, level, reward, glyphs, newBest: false, auto: true };
+  }
+
   // ---------- Rush (src/rush.ts) ----------
 
   rushOpen(): boolean {
@@ -3869,6 +4272,7 @@ export class GameState {
       glyphRolls: this.glyphRolls,
       rush: this.rush,
       rushCoins: this.rushCoins,
+      expedition: this.expedition,
       enhanceStones: this.enhanceStones,
       equipped: this.equipped,
       relicSlots: this.relicSlots,
@@ -4065,6 +4469,7 @@ export class GameState {
       this.glyphs = this.cleanGlyphs(d.glyphs);
       this.rush = cleanRush(d.rush, new Set(HEROES.map((h) => h.id)));
       this.rushCoins = int(d.rushCoins);
+      this.expedition = cleanExpedition(d.expedition, new Set(HEROES.map((h) => h.id)));
       // Older saves ran relics to level 50 across tiers I-V: keep those levels as Enhances.
       for (const def of RELICS) {
         const lv = this.relics[def.id] ?? 0;

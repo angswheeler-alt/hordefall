@@ -2,6 +2,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Account } from './account';
 import { cleanSnapHero, type GameState, type PvpCandidate, type PvpSnapHero } from './state';
 import { RANK_TROPHIES, LEGEND, rankIndex } from './colosseum';
+import type { ExpLender } from './expedition';
+import { HEROES } from './data';
 
 // The Colosseum's server side (supabase/colosseum.sql): uploads this player's defense team,
 // finds real players in the same rank to fight, and keeps the defense log and leaderboard.
@@ -83,6 +85,32 @@ export class ColosseumLink {
       const team = (Array.isArray(row.team) ? row.team : []).map(cleanSnapHero).filter((x): x is PvpSnapHero => !!x).slice(0, 10);
       if (team.length) out.push({ userId: row.user_id, name: String(row.username ?? 'Player').slice(0, 24), cp: row.team_cp, team });
     }
+    return out;
+  }
+
+  /**
+   * Players whose heroes an Expedition Tavern can offer: friends (their profile team, via social.sql) and
+   * Colosseum players near this player's rank. Empty when offline or on any error; travelers fill in.
+   */
+  async lenders(): Promise<ExpLender[]> {
+    const client = this.account.userId ? this.account.client : null;
+    if (!client) return [];
+    const out: ExpLender[] = [];
+    const known = new Set(HEROES.map((h) => h.id));
+    try {
+      const { data } = await client.rpc('my_friends');
+      const friends = ((data ?? []) as Array<{ user_id: string; username: string; status: string }>).filter((f) => f.status === 'friend').slice(0, 6);
+      const profiles = await Promise.all(friends.map((f) => client.rpc('get_profile', { p_user: f.user_id }).then((r) => r.data as { username?: string; team?: Array<{ id: string; stars: number }> } | null)));
+      for (const p of profiles) {
+        // Profile teams count stars from 1; the game counts from 0.
+        const heroes = (Array.isArray(p?.team) ? p!.team : []).filter((t) => t && known.has(t.id)).map((t) => ({ id: t.id, stars: Math.max(0, Math.floor(Number(t.stars) || 1) - 1) }));
+        if (heroes.length) out.push({ name: String(p?.username ?? 'Friend').slice(0, 24), source: 'friend', heroes });
+      }
+    } catch {
+      // No friends list (social.sql not run, or offline): fine.
+    }
+    const arena = await this.candidates().catch(() => []);
+    for (const c of arena.slice(0, 6)) out.push({ name: c.name, source: 'arena', heroes: c.team.map((t) => ({ id: t.id, stars: t.stars })) });
     return out;
   }
 
