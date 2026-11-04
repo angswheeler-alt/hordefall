@@ -37,12 +37,12 @@ describe('Hunting Journal pages', () => {
   it('has a page for every mob kind in every element, plus 15 bosses', () => {
     const mobs = JOURNAL_PAGES.filter((p) => p.group === 'mob');
     expect(mobs).toHaveLength(Object.keys(MOB_KINDS).length * MOB_ELEMENTS.length);
-    expect(mobs).toHaveLength(25);
+    expect(mobs).toHaveLength(45);
     for (const kind of Object.keys(MOB_KINDS)) for (const el of MOB_ELEMENTS) expect(journalPage(mobPageId(kind as never, el))).toBeTruthy();
     expect(JOURNAL_PAGES.filter((p) => p.group === 'boss')).toHaveLength(5);
     expect(JOURNAL_PAGES.filter((p) => p.group === 'trial')).toHaveLength(5);
     expect(JOURNAL_PAGES.filter((p) => p.group === 'guild')).toHaveLength(5);
-    expect(new Set(JOURNAL_PAGES.map((p) => p.id)).size).toBe(45);
+    expect(new Set(JOURNAL_PAGES.map((p) => p.id)).size).toBe(65);
   });
 
   it('mobs use 100 / 1,000 / 10,000 and tiers grow the bonus', () => {

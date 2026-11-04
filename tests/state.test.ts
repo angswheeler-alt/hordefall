@@ -151,13 +151,14 @@ describe('offline earnings', () => {
     s.stage = 3;
     expect(s.canBeatBoss(100).won).toBe(true);
     expect(s.canBeatBoss(150).won).toBe(false);
-    expect(s.canClearStage(133)).toBe(true);
-    expect(s.canClearStage(134)).toBe(false);
+    // From stage 100 Shieldbearers show up (src/mobs.ts), which moves this team's wall back one stage.
+    expect(s.canClearStage(132)).toBe(true);
+    expect(s.canClearStage(133)).toBe(false);
     const r = s.applyOffline(1e9)!;
     expect(r.bosses).toBe(2);
     // Past the stage 100 boss, it stops on the last normal stage the team can clear.
-    expect(s.stage).toBe(133);
-    expect(r.stages).toBe(130);
+    expect(s.stage).toBe(132);
+    expect(r.stages).toBe(129);
   });
 
   it('maxOfflineStage shows where a full offline stretch would stop, without moving', () => {
@@ -166,7 +167,7 @@ describe('offline earnings', () => {
     for (const h of HEROES) s.levels[h.id] = team.includes(h) ? 100 : 0;
     s.secondsPerStage = 1;
     s.stage = 3;
-    expect(s.maxOfflineStage()).toBe(133);
+    expect(s.maxOfflineStage()).toBe(132);
     expect(s.stage).toBe(3);
     s.autoAdvance = false;
     expect(s.maxOfflineStage()).toBe(3);

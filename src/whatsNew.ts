@@ -27,6 +27,7 @@ export const WHATS_NEW_SHOWN = 8;
 
 /** Newest first. */
 export const WHATS_NEW: WhatsNewEntry[] = [
+  { id: 'special-mobs', date: '2026-11-04', text: '<b>New enemies</b> deeper in: Shieldbearers, Bombers, Summoners and Burrowers, each with its own trick and Journal pages.' },
   { id: 'pvp-no-ults', date: '2026-11-04', text: '<b>Fair fights</b>: Ultimates are now off in the Colosseum and Rush, so PvP battles come down to your heroes.' },
   { id: 'ascendant-names', date: '2026-11-03', text: '<b>New names</b>: the Ascendant heroes are now Grimward, Ruffy, Juno, Hayle and Rivelle.' },
   { id: 'victory-run', date: '2026-11-03', text: '<b>Victory run</b>: after a stage clear your heroes keep running off the screen into the next fight.' },

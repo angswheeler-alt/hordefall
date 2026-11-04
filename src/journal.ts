@@ -1,9 +1,10 @@
 /**
  * The Hunting Journal (Samuel, 2026-11-03): every enemy has a page that counts how many the player has beaten.
  * Each page has three tiers; reaching one gives a small permanent damage bonus against that enemy only.
- * Pages: each of the 5 mob kinds in each of the 5 element colours (25), the 5 mutation traits (from stage 501,
- * src/mutations.ts), the 5 stage bosses (who are also the every-100th element bosses from stage 600), the 5 Trial
- * bosses and the 5 Guild Bosses: 45 pages.
+ * Pages: each of the 9 mob kinds in each of the 5 element colours (45; the 4 special kinds from src/mobs.ts
+ * first show up on stages 100, 300, 600 and 1,000), the 5 mutation traits (from stage 501, src/mutations.ts), the
+ * 5 stage bosses (who are also the every-100th element bosses from stage 600), the 5 Trial bosses and the 5 Guild
+ * Bosses: 65 pages.
  *
  * Shinies: about 1 in SHINY_ODDS regular mobs (balance check 2026-11-03: a normal run kills ~3,000 an hour, so 1 in 500 with 10 a day added ~35% to free Gems) in a normal run is a shiny, a recoloured one with a sparkle. Beating
  * one pays a small treasure (Gems, sometimes a Hero Chest) and puts a gold stamp on its page for an extra bonus.
@@ -29,7 +30,7 @@ export interface JournalPage {
 }
 
 /** Mob kinds in the order the Journal lists them (the order they first show up). */
-export const JOURNAL_MOBS: MobId[] = ['grunt', 'flyer', 'brute', 'scuttler', 'caster'];
+export const JOURNAL_MOBS: MobId[] = ['grunt', 'flyer', 'brute', 'scuttler', 'caster', 'shieldbearer', 'bomber', 'summoner', 'burrower'];
 
 export const MOB_NAMES: Record<MobId, string> = {
   grunt: 'Grunt',
@@ -37,6 +38,10 @@ export const MOB_NAMES: Record<MobId, string> = {
   brute: 'Brute',
   scuttler: 'Scuttler',
   caster: 'Caster',
+  shieldbearer: 'Shieldbearer',
+  bomber: 'Bomber',
+  summoner: 'Summoner',
+  burrower: 'Burrower',
 };
 
 /** Regular mobs die by the thousand, bosses far less often, so each group has its own tiers. */

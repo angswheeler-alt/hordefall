@@ -17,6 +17,8 @@ import { ascendantDef, isAscendant, ASCENDANT_HEROES } from './heroes/ascendant'
 import { HERO_ANIMS } from './heroAnims';
 import { TEST_MODE, TEST_SAVE_KEY } from './config';
 import { mutationLoad } from './mutations';
+import { mobLoad } from './mobs';
+import { isMelee } from './reach';
 import { SHINY_GEMS, cleanJournal, cleanStamps, isShinyRoll, journalBonus, journalPage, journalTier, shinyTreasure, trialPageId } from './journal';
 import { FORGE_MATS, WEAPON_GLYPHS, clampWeaponLevel, weaponMult, weaponUpgradeCost, type ForgeCost, type ForgeMat } from './weapons';
 import { GLYPH_BAG_CAP, GLYPH_FAMILIES, chestStar, cleanGlyph, emptyTotals, glyphBound, glyphLevelCost, glyphSalvage, glyphTotals, rollGlyph, type Glyph, type GlyphChestKind, type GlyphFamily, type GlyphTotals } from './glyphs';
@@ -1969,29 +1971,35 @@ export class GameState {
    * team on a stage it keeps losing. A cautious estimate like canBeatBoss: plain hits with average crits,
    * the stage's mobs and crystal as one pile of HP, and a few mobs hitting the team at once.
    */
-  canClearStage(stage: number, team = this.stageTeam()): boolean {
+  canClearStage(stage: number, team: { dps: Decimal; hp: Decimal; def: Decimal; melee?: number } = this.stageTeam()): boolean {
     if (team.dps.lte(0)) return false;
-    // Past stage 500 some mobs are mutants (src/mutations.ts): count their average extra HP and damage.
+    // Past stage 500 some mobs are mutants (src/mutations.ts), and from stage 100 the special kinds show up
+    // (src/mobs.ts; a Shieldbearer is slower to beat for a team without melee): count their average extra HP and damage.
     const load = mutationLoad(stage);
-    const killTime = enemyHp(stage).times(OFFLINE_STAGE_HP * load.hp).div(team.dps).toNumber();
-    const incoming = defended(enemyAtk(stage).times(load.atk), team.def).times(OFFLINE_STAGE_ATTACKERS / OFFLINE_MOB_COOLDOWN);
+    const kinds = mobLoad(stage, team.melee ?? 0.5);
+    const killTime = enemyHp(stage).times(OFFLINE_STAGE_HP * load.hp * kinds.hp).div(team.dps).toNumber();
+    const incoming = defended(enemyAtk(stage).times(load.atk * kinds.atk), team.def).times(OFFLINE_STAGE_ATTACKERS / OFFLINE_MOB_COOLDOWN);
     const wipeTime = incoming.gt(0) ? team.hp.div(incoming).toNumber() : Infinity;
     return killTime <= Math.min(wipeTime, OFFLINE_STAGE_TIME);
   }
 
-  /** The lineup's damage per second, total HP and average Defense, for canClearStage. */
-  stageTeam(): { dps: Decimal; hp: Decimal; def: Decimal } {
-    const team = HEROES.filter((h) => this.inLineup(h.id)).map((def) => this.heroStats(def));
+  /** The lineup's damage per second, total HP, average Defense and share of damage from melee heroes, for canClearStage. */
+  stageTeam(): { dps: Decimal; hp: Decimal; def: Decimal; melee: number } {
+    const team = HEROES.filter((h) => this.inLineup(h.id)).map((def) => ({ def, stats: this.heroStats(def) }));
     let dps = new Decimal(0);
+    let meleeDps = new Decimal(0);
     let hp = new Decimal(0);
     let def = new Decimal(0);
-    for (const stats of team) {
+    for (const { def: hero, stats } of team) {
       const crit = 1 + Math.max(0, Math.min(1, stats.critRate)) * Math.max(0, stats.critDmg);
-      dps = dps.plus(stats.atk.value.times(stats.attacksPerSec.value * crit));
+      const d = stats.atk.value.times(stats.attacksPerSec.value * crit);
+      dps = dps.plus(d);
+      if (isMelee(hero)) meleeDps = meleeDps.plus(d);
       hp = hp.plus(stats.hp.value);
       def = def.plus(stats.def.value);
     }
-    return { dps, hp, def: team.length ? def.div(team.length) : def };
+    const melee = dps.gt(0) ? meleeDps.div(dps).toNumber() : 0;
+    return { dps, hp, def: team.length ? def.div(team.length) : def, melee };
   }
 
   /** Heroes owned with at least this many Ember levels. */

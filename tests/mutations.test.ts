@@ -14,6 +14,7 @@ import {
   mutationLoad,
   rollMutation,
 } from '../src/mutations';
+import { mobLoad } from '../src/mobs';
 
 function fresh() {
   GameState.frozen = false;
@@ -77,7 +78,8 @@ describe('mutation balance', () => {
 });
 
 describe('offline progress with mutants', () => {
-  const team = (stage: number, share: number) => ({ dps: enemyHp(stage).times(15 / 8).times(share), hp: new Decimal('1e300'), def: new Decimal(0) });
+  // Special mob kinds (src/mobs.ts) are counted out here, so only the mutants move the line.
+  const team = (stage: number, share: number) => ({ dps: enemyHp(stage).times(15 / 8).times(share * mobLoad(stage).hp), hp: new Decimal('1e300'), def: new Decimal(0) });
 
   it('a team just able to clear plain mobs is stopped by mutants past stage 500', () => {
     const s = fresh();
