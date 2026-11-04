@@ -1634,7 +1634,9 @@ export class BattleScene extends Phaser.Scene {
     this.openBossLane(fight);
     const alive = this.heroes.filter((h) => h.def);
     const avg = (f: (h: Unit) => Decimal) => (alive.length ? alive.reduce((t, h) => t.plus(f(h)), new Decimal(0)).div(alive.length) : new Decimal(1));
-    const art = BOSS_ANIMS[setup.element] ? setup.element : BOSS_ANIMS[TRIAL_BOSS_ART[setup.element]] ? TRIAL_BOSS_ART[setup.element] : undefined;
+    // Each element's Guild Boss has its own art (guild_<element>); older builds fall back to the stage or Trial boss.
+    const own = `guild_${setup.element}`;
+    const art = BOSS_ANIMS[own] ? own : BOSS_ANIMS[setup.element] ? setup.element : BOSS_ANIMS[TRIAL_BOSS_ART[setup.element]] ? TRIAL_BOSS_ART[setup.element] : undefined;
     const boss = this.placeBoss({ art, element: setup.element, hp: setup.maxHp, atk: guildBossHitAtk(avg((h) => h.maxHp), avg((h) => h.defense), setup.level), label: setup.name, page: guildPageId(setup.element) });
     boss.hp = Decimal.min(setup.maxHp, setup.hp);
     this.drawHpBar(boss);
