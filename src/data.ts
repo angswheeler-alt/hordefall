@@ -1214,6 +1214,12 @@ export const GUILD_WILD_PER_WEEK = 20;
 export const GUILD_BOSS_ATTEMPTS = 3;
 export const GUILD_BOSS_FIGHT_GAP_SECONDS = 120;
 export const GUILD_BOSS_REST_MINUTES = 30;
+/**
+ * The level every recruited hero fights at in modes without levels: Guild Boss, Colosseum, Rush and Expedition.
+ * Gold levels only count on stages and Ember levels only on stages and in Trials (user rule, 2026-11-04), so in these
+ * modes stars, rarity, relics, weapons, Glyphs and research decide.
+ */
+export const FIXED_LEVEL = 1;
 export const GUILD_BOSS_SECONDS = 30;
 /**
  * A Guild Boss fight is live in the battle lane (Samuel, 2026-10-31): the Guild Boss team runs at the boss and has

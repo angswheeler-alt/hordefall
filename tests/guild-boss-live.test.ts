@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import Decimal from 'break_infinity.js';
-import { guildBossHitAtk, guildBossLane, guildBossKnocked, guildBossHp, defended, GUILD_BOSS_KILL_MARGIN } from '../src/formulas';
+import { guildBossHitAtk, guildBossLane, guildBossKnocked, defended, GUILD_BOSS_KILL_MARGIN } from '../src/formulas';
 import { GUILD_BOSS_HIT_SHARE, GUILD_BOSS_HIT_PER_LEVEL, GUILD_BOSS_HIT_LEVEL_CAP } from '../src/data';
 
 describe('Guild Boss live fight', () => {
@@ -73,7 +73,7 @@ describe('Guild Boss live fight', () => {
 
 describe('guildBossKnocked', () => {
   it('counts a full fight on a high-level boss even when start minus left rounds to 0', () => {
-    const hp = guildBossHp(59);
+    const hp = new Decimal('1e34');
     const dealt = new Decimal('6.34e17');
     // The boss's own health can't show a hit this small next to ~1e34.
     const left = hp.minus(dealt);

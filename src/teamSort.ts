@@ -10,18 +10,18 @@ export const TEAM_SORT_LABELS: Record<TeamSort, string> = { cp: 'Power', level: 
 const RARITY_RANK: Record<Rarity, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
 
 /**
- * Heroes best first by the chosen sort; ties fall back to Combat Power, then name. `emberLevels` sorts
- * by Ember level alone (the Colosseum and Guild Boss teams fight at Ember levels).
+ * Heroes best first by the chosen sort; ties fall back to Combat Power, then name. `fixed` is for the Colosseum and
+ * Guild Boss teams, which fight without gold or Ember levels: Power is Combat Power at the fixed level and Level sorts by Power.
  */
-export function sortHeroes(heroes: readonly HeroDef[], by: TeamSort, s: GameState, emberLevels = false): HeroDef[] {
+export function sortHeroes(heroes: readonly HeroDef[], by: TeamSort, s: GameState, fixed = false): HeroDef[] {
   const key = (h: HeroDef): number => {
-    if (by === 'level') return emberLevels ? (s.emberLevels[h.id] ?? 0) : s.heroLevel(h.id);
+    if (by === 'level') return fixed ? 0 : s.heroLevel(h.id);
     if (by === 'stars') return (s.stars[h.id] ?? 0) * 10 + (s.awaken[h.id] ?? 0);
     if (by === 'rarity') return RARITY_RANK[h.rarity];
     return 0;
   };
   return heroes
-    .map((h) => ({ h, k: key(h), cp: s.heroCombatPower(h) }))
+    .map((h) => ({ h, k: key(h), cp: fixed ? s.fixedCombatPower(h) : s.heroCombatPower(h) }))
     .sort((a, b) => b.k - a.k || b.cp.cmp(a.cp) || a.h.name.localeCompare(b.h.name))
     .map((x) => x.h);
 }

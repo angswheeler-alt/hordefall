@@ -118,11 +118,12 @@ describe('Manage Team sort', () => {
 });
 
 describe('Manage Team sort on the Colosseum and Guild Boss tabs', () => {
-  it('sorts by Ember level there, since those teams fight at Ember levels', () => {
+  it('ignores gold and Ember levels there, since those teams fight without them', () => {
     const s = roster(2);
     const owned = HEROES.filter((h) => (s.levels[h.id] ?? 0) > 0);
     s.emberLevels[others[0].id] = 30; // lowest gold level, the only Ember levels
-    expect(sortHeroes(owned, 'level', s, true)[0].id).toBe(others[0].id);
+    const fixed = sortHeroes(owned, 'level', s, true).map((h) => s.fixedCombatPower(h).toNumber());
+    expect(fixed).toEqual([...fixed].sort((a, b) => b - a));
     expect(sortHeroes(owned, 'level', s)[0].id).toBe(others[7].id);
   });
 });

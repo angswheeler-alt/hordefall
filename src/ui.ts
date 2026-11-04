@@ -356,11 +356,11 @@ export class UI {
         : '';
     const hint =
       tab === 'attack'
-        ? 'You fight Colosseum battles with this team, at Ember levels and stars. Your stage team stays as it is.'
+        ? 'You fight Colosseum battles with this team. Gold and Ember levels don\'t count here: stars, relics, weapons and Glyphs do. Your stage team stays as it is.'
         : tab === 'defense'
           ? 'Other players fight this team in the Colosseum. Losing on defense never costs trophies.'
           : tab === 'guild'
-            ? `This week's Guild Boss is ${cap(boss)}: heroes marked Strong hit it extra hard. They fight at Ember levels and stars.`
+            ? `This week's Guild Boss is ${cap(boss)}: heroes marked Strong hit it extra hard. Gold and Ember levels don't count here: stars, relics, weapons and Glyphs do.`
             : '';
     let body: string;
     let scrollKey = '';
@@ -381,11 +381,11 @@ export class UI {
       const chips = [null, ...TRIAL_ROTATION]
         .map((e) => `<button type="button" class="tm-chip${this.teamFilter === e ? ' on' : ''}" data-filter="${e ?? ''}"${e ? ` style="--el:${hex(ELEMENT_COLORS[e])}"` : ''}>${e ? cap(e) : 'All'}</button>`)
         .join('');
-      const level = (h: HeroDef) => (stage ? `Lv ${s.heroLevel(h.id).toLocaleString()}` : `Ember Lv ${Math.max(1, s.emberLevels[h.id] ?? 0).toLocaleString()}`);
+      const level = (h: HeroDef) => (stage ? `Lv ${s.heroLevel(h.id).toLocaleString()}` : cap(h.rarity));
       const edgeTag = (h: HeroDef) => (edge(h) > 1 ? '<i class="tm-edge strong">Strong</i>' : edge(h) < 1 ? '<i class="tm-edge weak">Weak</i>' : '');
       // A power bar under each CP: how strong this hero is next to the strongest one listed, so heroes
       // whose numbers carry different letters (14.4Qa vs 1.19Qi) still compare at a glance.
-      const cps = new Map(shown.map((h) => [h.id, s.heroCombatPower(h)] as const));
+      const cps = new Map(shown.map((h) => [h.id, stage ? s.heroCombatPower(h) : s.fixedCombatPower(h)] as const));
       const topCp = [...cps.values()].reduce((a, b) => (b.gt(a) ? b : a), new Decimal(0));
       const bar = (cp: Decimal) => {
         const w = topCp.gt(0) ? Math.max(3, Math.round(cp.div(topCp).toNumber() * 100)) : 0;
@@ -412,7 +412,7 @@ export class UI {
     const title = stage ? `Team ${count}/${s.teamSlots}` : `${TEAM_TAB_TITLE[tab]} ${count}/${s.teamSlots}`;
     this.showModal(
       title,
-      `<button type="button" class="tm-x" data-team-close aria-label="Close">✕</button>${tabBar}<p class="tm-total">${stage ? 'Total Combat Power' : 'Team Combat Power'} <b>${fmt(s.teamCpOf(team))}</b></p>${hint ? `<p class="tm-hint">${hint}</p>` : ''}${note ? `<p class="team-note">${note}</p>` : ''}<div class="tm-slots">${slots}</div>${this.teamSummaryHtml(team)}${stage ? this.ultSlotsHtml() : ''}<div class="tm-scroll">${body}</div>`,
+      `<button type="button" class="tm-x" data-team-close aria-label="Close">✕</button>${tabBar}<p class="tm-total">${stage ? 'Total Combat Power' : 'Team Combat Power'} <b>${fmt(stage ? s.teamCpOf(team) : s.fixedTeamCp(team))}</b></p>${hint ? `<p class="tm-hint">${hint}</p>` : ''}${note ? `<p class="team-note">${note}</p>` : ''}<div class="tm-slots">${slots}</div>${this.teamSummaryHtml(team)}${stage ? this.ultSlotsHtml() : ''}<div class="tm-scroll">${body}</div>`,
       'Done',
     );
     $('modal').classList.add('team-mode');
@@ -1806,7 +1806,7 @@ export class UI {
     (emberBtn.querySelector('.cost') as HTMLElement).textContent = `${fmt(eShown.cost)} Ember${eShown.cost === 1 ? '' : 's'}`;
     emberBtn.disabled = eShown.cost > s.embers;
     $('sheet-buyamt').textContent = buyAmountLabel(s.buyAmount);
-    $('sheet-ember-note').textContent = 'Ember levels stay on this hero through Rekindle and out of the team, and count in Trials and PvP. Only a reset takes them off.';
+    $('sheet-ember-note').textContent = 'Ember levels stay on this hero through Rekindle and out of the team, and count on stages and in Trials. Only a reset takes them off.';
     $('sheet-ember-reset').hidden = ember <= 0;
     emberBtn.title = s.rekindles === 0 ? `Earn Embers by Rekindling after stage ${REKINDLE_STAGE}` : '';
 
@@ -2201,7 +2201,7 @@ export class UI {
     document.body.classList.add('in-trial');
     $('trial-hud').hidden = false;
     $('trial-hud-name').textContent = `${setup.name} · Level ${setup.level} (${cap(setup.element)})`;
-    $('trial-hud-note').textContent = `Your Guild Boss team fights at its Ember levels for ${GUILD_BOSS_SECONDS} seconds once it reaches the boss. Fallen heroes stay down until the fight ends. Every hit counts for the guild; leaving early keeps the damage so far.`;
+    $('trial-hud-note').textContent = `Your Guild Boss team fights without gold or Ember levels (stars, relics, weapons and Glyphs count) for ${GUILD_BOSS_SECONDS} seconds once it reaches the boss. Fallen heroes stay down until the fight ends. Every hit counts for the guild; leaving early keeps the damage so far.`;
     $('trial-leave').textContent = 'Leave';
     scene.startGuildBoss(setup, (knocked, beaten, seconds) => {
       $('trial-leave').textContent = 'Back';
@@ -2329,7 +2329,7 @@ export class UI {
       <small>Daily ${RANK_DAILY[r]} · Weekly ${RANK_WEEKLY[r]} Starmotes at this rank. On Monday the weekly reward pays, then you drop to ${rankName(rankIndex(droppedTrophies(p.trophies)))}.</small>
       ${foes}
       <div class="pvp-row"><button class="wood-btn small" data-pvp="board">Leaderboard &amp; log</button><button class="wood-btn small" data-pvp="refresh" ${refreshIn ? 'disabled' : ''}>${refreshIn ? `New opponents in ${Math.floor(refreshIn / 60)}:${String(refreshIn % 60).padStart(2, '0')}` : 'New opponents'}</button>${ticketBtn}</div>
-      <div class="pvp-team"><div class="pvp-row"><b>Attack team <small>CP ${fmt(s.teamCpOf(s.pvpAttackTeam()))}</small></b><button class="wood-btn small" data-pvp="team" data-kind="attack">Edit</button></div><span class="faces">${s.pvpAttackTeam().map((h) => this.pvpFace(h)).join('')}</span><small>You fight with this team. Your stage team stays as it is.</small></div>
+      <div class="pvp-team"><div class="pvp-row"><b>Attack team <small>CP ${fmt(s.fixedTeamCp(s.pvpAttackTeam()))}</small></b><button class="wood-btn small" data-pvp="team" data-kind="attack">Edit</button></div><span class="faces">${s.pvpAttackTeam().map((h) => this.pvpFace(h)).join('')}</span><small>You fight with this team. Your stage team stays as it is.</small></div>
       <div class="pvp-team"><div class="pvp-row"><b>Defense team</b><button class="wood-btn small" data-pvp="team" data-kind="defense">Edit</button></div><span class="faces">${s.pvpDefenseTeam().map((h) => this.pvpFace(h)).join('')}</span><small>Other players fight this team. Losing on defense never costs trophies.</small></div>`,
     );
   }
@@ -2338,7 +2338,7 @@ export class UI {
     const s = this.state;
     const foe = s.pvp.picks[slot];
     const team = s.pvpAttackTeam();
-    const mine = s.teamCpOf(team);
+    const mine = s.fixedTeamCp(team);
     // The forecast runs a whole fight, so it is worked out once per opponent, team and streak.
     const key = `${s.pvp.refreshes}:${slot}:${team.map((h) => h.id).join(',')}:${s.pvp.streak}`;
     if (this.pvpForecastKey !== key) {
@@ -2437,7 +2437,7 @@ export class UI {
     $('trial-hud').hidden = false;
     $('trial-hud-name').textContent = `Colosseum vs ${foe.name}`;
     const defender = foe.userId;
-    $('trial-hud-note').textContent = 'Fighters fight at their Ember levels with no Ultimates and get back up after 10 seconds. Destroy the red crystal before they destroy yours.';
+    $('trial-hud-note').textContent = 'No gold or Ember levels here: stars, relics, weapons and Glyphs decide. No Ultimates; fighters get back up after 10 seconds. Destroy the red crystal before they destroy yours.';
     $('trial-leave').textContent = 'Leave';
     scene.startPvp(ids, s.pvpFoeUnits(foe).map((f) => ({ def: f.def, stats: f.stats })), bonus, (won) => {
       $('trial-leave').textContent = 'Back';
@@ -2528,7 +2528,7 @@ export class UI {
     document.body.classList.add('in-trial');
     $('trial-hud').hidden = false;
     $('trial-hud-name').textContent = `Rush vs ${foe.name}`;
-    $('trial-hud-note').textContent = 'One hero a side, at Ember levels, no Ultimates; melee heroes can hit flyers here. Destroy the red crystal before they destroy yours.';
+    $('trial-hud-note').textContent = 'One hero a side, no gold or Ember levels, no Ultimates; melee heroes can hit flyers here. Destroy the red crystal before they destroy yours.';
     $('trial-leave').textContent = 'Leave';
     const units = s.pvpFoeUnits(s.rushOpponent(foe)).map((f) => ({ def: f.def, stats: f.stats }));
     scene.startPvp([heroId], units, 0, (won) => {
@@ -2557,7 +2557,7 @@ export class UI {
     document.body.classList.add('in-trial');
     $('trial-hud').hidden = false;
     $('trial-hud-name').textContent = `Expedition: ${foe.name}`;
-    $('trial-hud-note').textContent = 'Your party and borrowed heroes fight at Ember levels with their Boons, no Ultimates. Destroy the red crystal before they destroy yours.';
+    $('trial-hud-note').textContent = 'Your party and borrowed heroes fight with their Boons, no gold or Ember levels and no Ultimates. Destroy the red crystal before they destroy yours.';
     $('trial-leave').textContent = 'Leave';
     const allies = r.hires.map((h) => {
       const u = s.expHireUnit(h);

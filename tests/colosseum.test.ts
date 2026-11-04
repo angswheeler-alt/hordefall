@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import Decimal from 'break_infinity.js';
 import { GameState, cleanSnapHero, type PvpCandidate } from '../src/state';
-import { HEROES, AWAKEN_UNLOCK_LEVEL } from '../src/data';
+import { HEROES, AWAKEN_UNLOCK_LEVEL, FIXED_LEVEL } from '../src/data';
 import { keeperThreshold } from '../src/formulas';
 import {
   RANK_TROPHIES, RANK_DAILY, RANK_WEEKLY, LEGEND, PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_CP_MIN, PVP_CP_MAX, PVP_LOSS_TROPHIES, PVP_FIRST_WIN_MOTES, PVP_QUICK_CP,
@@ -94,7 +94,7 @@ describe('Colosseum tickets and fights', () => {
     b.rollPvpOpponents(WED);
     expect(a.pvp.picks).toEqual(b.pvp.picks);
     expect(a.pvp.picks).toHaveLength(3);
-    const mine = a.teamCpOf(a.pvpAttackTeam()).toNumber();
+    const mine = a.fixedTeamCp(a.pvpAttackTeam()).toNumber();
     for (const p of a.pvp.picks) {
       const ratio = Number(p.cp) / mine;
       expect(ratio).toBeGreaterThan(PVP_CP_MIN * 0.98);
@@ -157,7 +157,7 @@ describe('Colosseum tickets and fights', () => {
   it('open Quick Battle only when the attack team is clearly stronger, and pay it as a win', () => {
     const s = opened();
     s.rollPvpOpponents(WED);
-    const mine = s.teamCpOf(s.pvpAttackTeam());
+    const mine = s.fixedTeamCp(s.pvpAttackTeam());
     // An opponent near the player's own power: no Quick Battle.
     expect(s.pvp.picks.every((p) => new Decimal(p.cp).times(PVP_QUICK_CP).gt(mine))).toBe(true);
     expect(s.canQuickPvp(0, WED)).toBe(false);
@@ -231,13 +231,15 @@ describe('Colosseum real opponents', () => {
     return { userId: `u${cpScale}`, name: `Player ${cpScale}`, cp: new Decimal(snap.p_team_cp).times(cpScale).toString(), team: snap.p_team };
   };
 
-  it('upload the defense team with permanent stats only', () => {
+  it('upload the defense team without gold or Ember levels', () => {
     const s = opened();
     s.levels[starter.id] = 500; // gold levels don't count
+    s.emberLevels[starter.id] = 300; // nor do Ember levels
     const snap = s.pvpSnapshot();
     expect(snap.p_team).toHaveLength(1);
     expect(snap.p_team[0].id).toBe(starter.id);
-    expect(snap.p_team[0].hp).toBe(s.heroStats(starter, s.permanentLevel(starter.id)).hp.value.toString());
+    expect(snap.p_team[0].hp).toBe(s.heroStats(starter, FIXED_LEVEL).hp.value.toString());
+    expect(snap.p_team_cp).toBe(s.fixedTeamCp([starter]).toString());
     expect(snap.p_cp_log).toBeGreaterThan(0);
   });
 

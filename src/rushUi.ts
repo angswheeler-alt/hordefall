@@ -244,7 +244,7 @@ export class RushUI {
     const tile = (h: HeroDef) => {
       const free = s.rushFree(h.id, Date.now(), bracket);
       const block = s.rushBlock(bracket, foe, h.id);
-      return `<button type="button" class="g-pick rush-pick" data-rh="${h.id}" ${block ? 'disabled' : ''}><span class="face art" style="${faceStyle(h)}">${h.name[0]}</span><b>${esc(s.formDef(h).name)}</b><small>${stars(s.stars[h.id] ?? 0)} · CP ${fmt(s.heroCombatPower(h))}</small><small>${free > 0 ? `Free x${free}` : `${RUSH_FIGHT_TICKETS} tickets`}${featured.has(h.id) ? ' · <b class="rush-plus">+20%</b>' : ''}</small></button>`;
+      return `<button type="button" class="g-pick rush-pick" data-rh="${h.id}" ${block ? 'disabled' : ''}><span class="face art" style="${faceStyle(h)}">${h.name[0]}</span><b>${esc(s.formDef(h).name)}</b><small>${stars(s.stars[h.id] ?? 0)} · CP ${fmt(s.fixedCombatPower(h))}</small><small>${free > 0 ? `Free x${free}` : `${RUSH_FIGHT_TICKETS} tickets`}${featured.has(h.id) ? ' · <b class="rush-plus">+20%</b>' : ''}</small></button>`;
     };
     const opp = hero(f.hero);
     this.ui.showModal(

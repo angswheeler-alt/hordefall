@@ -5,7 +5,7 @@ import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM,
 import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicCost, guildRelicEffect, warsteelForFight, warsteelForKill, warsteelForWeek, type GuildRelicDef, type GuildRelicEffect } from './guildRelics';
 import { utcWeekStart, guildBossElement, relicCost, bossHp, bossAtk, enemyHp, enemyAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, isBossStage } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
-import { RENAMED_HEROES, PLAYABLE_HEROES, RELEASED_HEROES, ASCENDANT_CHEST, START_GOLD } from './data';
+import { FIXED_LEVEL, RENAMED_HEROES, PLAYABLE_HEROES, RELEASED_HEROES, ASCENDANT_CHEST, START_GOLD } from './data';
 import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills';
 import { isKnight, combatPower, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
@@ -106,7 +106,7 @@ export interface PvpOpponent {
   ghost: boolean;
   heroes: Array<{ id: string; stars: number }>;
   ember: number;
-  /** ATK, HP and Defense multiplier that fine-tunes a Ghost onto its target CP (Ember levels jump in steps). */
+  /** ATK, HP and Defense multiplier that fine-tunes a Ghost onto its target CP (the fixed level gives every Ghost the same base). */
   power?: number;
   cp: string;
   /** A real player's defense team: their id and each hero's saved stats (see pvpSnapshot). */
@@ -532,9 +532,24 @@ export class GameState {
     return counts;
   }
 
-  /** A hero's permanent level: Ember levels only (at least 1) once recruited, 0 if not. Used by Trials and Combat Power. */
+  /** A hero's permanent level: Ember levels only (at least 1) once recruited, 0 if not. Used by Trials and Combat Power (never by modes without levels, see fixedLevel). */
   permanentLevel(id: string): number {
     return (this.levels[id] ?? 0) > 0 ? Math.max(1, this.emberLevels[id] ?? 0) : 0;
+  }
+
+  /** A hero's level in modes without levels (Guild Boss, Colosseum, Rush, Expedition): FIXED_LEVEL once recruited, 0 if not. */
+  fixedLevel(id: string): number {
+    return (this.levels[id] ?? 0) > 0 ? FIXED_LEVEL : 0;
+  }
+
+  /** A hero's strength in modes without levels: Combat Power at FIXED_LEVEL (stars, relics, weapons, Glyphs and the rest). */
+  fixedCombatPower(def: HeroDef): Decimal {
+    return combatPower(this.heroStats(def, this.fixedLevel(def.id)));
+  }
+
+  /** fixedCombatPower of a set of heroes: Colosseum matching, Rush, Guild Boss and Expedition strength. */
+  fixedTeamCp(team: HeroDef[]): Decimal {
+    return team.reduce((t, h) => t.plus(this.fixedCombatPower(h)), new Decimal(0));
   }
 
   /** A hero's Combat Power (src/stats.ts combatPower). Gold levels don't count, only what lasts: Ember levels, stars, relics and the rest. */
@@ -919,7 +934,7 @@ export class GameState {
    */
   bestTeamIds(kind: 'stage' | 'attack' | 'defense' | 'guild', now = Date.now()): string[] {
     const boss = guildBossElement(utcWeekStart(now));
-    const score = (h: HeroDef) => (kind === 'guild' ? this.heroCombatPower(h).times(elementMultiplier(h.element, boss)) : this.heroCombatPower(h));
+    const score = (h: HeroDef) => (kind === 'guild' ? this.fixedCombatPower(h).times(elementMultiplier(h.element, boss)) : kind === 'stage' ? this.heroCombatPower(h) : this.fixedCombatPower(h));
     return HEROES.filter((h) => (this.levels[h.id] ?? 0) > 0)
       .map((h) => ({ h, v: score(h) }))
       .sort((a, b) => b.v.cmp(a.v))
@@ -1206,14 +1221,14 @@ export class GameState {
     return HEROES.filter((h) => this.inLineup(h.id));
   }
 
-  /** CP of the fighting team only (what Colosseum matching uses). */
+  /** Strength of the fighting team at the fixed level (what Ghost fitting uses). */
   teamCombatPower(): Decimal {
-    return this.pvpTeam().reduce((t, h) => t.plus(this.heroCombatPower(h)), new Decimal(0));
+    return this.fixedTeamCp(this.pvpTeam());
   }
 
-  /** A hero as a Colosseum fighter: permanent stats only, like CP. */
+  /** A hero as a Colosseum fighter: at the fixed level, no gold or Ember levels. */
   pvpUnit(def: HeroDef): PvpUnit {
-    const st = this.heroStats(def, this.permanentLevel(def.id));
+    const st = this.heroStats(def, this.fixedLevel(def.id));
     return { id: def.id, element: def.element, atk: st.atk.value, hp: st.hp.value, def: st.def.value, attacksPerSec: st.attacksPerSec.value, critRate: st.critRate, critDmg: st.critDmg, melee: def.range <= 60, flying: this.formDef(def).flying };
   }
 
@@ -1290,7 +1305,7 @@ export class GameState {
     return lines;
   }
 
-  /** A Ghost team: heroes, stars and one Ember level for all, chosen so its CP lands near `target`. */
+  /** A Ghost team: heroes and stars, with a power multiplier chosen so its CP lands near `target`. */
   buildGhost(seed: string, target: Decimal): PvpOpponent {
     const rand = seededRandom(seed);
     const name = ghostName(rand);
@@ -1307,33 +1322,26 @@ export class GameState {
     return GameState.fitGhost({ name, ghost: true, heroes, ember: 1, cp: '0' }, target);
   }
 
-  /** Set a Ghost's Ember level and power multiplier so its CP lands near `target`. */
+  /**
+   * Set a Ghost's power multiplier so its CP lands near `target`. Ghosts fight at the fixed level like everyone in
+   * these modes, so `ember` is always 1 (kept in the data for older saves); the multiplier does all the fitting.
+   */
   static fitGhost(opp: PvpOpponent, target: Decimal): PvpOpponent {
-    const cpAt = (ember: number) => GameState.ghostState({ ...opp, ember }).teamCombatPower();
-    // Grow the Ember level until the team passes the target, then narrow down.
-    let lo = 1;
-    let hi = 1;
-    while (cpAt(hi).lt(target) && hi < 1e7) {
-      lo = hi;
-      hi *= 2;
-    }
-    while (hi - lo > 1) {
-      const mid = Math.floor((lo + hi) / 2);
-      if (cpAt(mid).lt(target)) lo = mid;
+    opp.ember = 1;
+    const g = GameState.ghostState(opp);
+    const base = opp.heroes.map((x) => g.heroStats(HEROES.find((h) => h.id === x.id)!, g.fixedLevel(x.id)));
+    const cpWith = (power: number) => base.reduce((t, st) => t.plus(combatPower(scaleStats(st, power))), new Decimal(0));
+    // Search the multiplier on a log scale, from a hundredth up to 1e30, for the largest one still under the target.
+    let lo = Math.log(0.01);
+    let hi = Math.log(1e30);
+    if (cpWith(Math.exp(lo)).gte(target)) hi = lo;
+    for (let i = 0; i < 60 && hi - lo > 1e-4; i++) {
+      const mid = (lo + hi) / 2;
+      if (cpWith(Math.exp(mid)).lt(target)) lo = mid;
       else hi = mid;
     }
-    // Take the Ember level just under the target, then scale its stats the rest of the way.
-    opp.ember = cpAt(hi).lte(target) ? hi : lo;
-    const cpWith = (power: number) => GameState.opponentCp({ ...opp, power });
-    let pLo = 1;
-    let pHi = 1;
-    while (cpWith(pHi).lt(target) && pHi < 64) pHi *= 2;
-    for (let i = 0; i < 20 && pHi > pLo; i++) {
-      const mid = (pLo + pHi) / 2;
-      if (cpWith(mid).lt(target)) pLo = mid;
-      else pHi = mid;
-    }
-    opp.power = Math.round(pLo * 1000) / 1000;
+    const p = Math.exp(lo);
+    opp.power = Number(p.toPrecision(4));
     opp.cp = cpWith(opp.power).toString();
     return opp;
   }
@@ -1343,7 +1351,7 @@ export class GameState {
     const g = GameState.ghostState(opp);
     return opp.heroes.reduce((t, x) => {
       const def = HEROES.find((h) => h.id === x.id)!;
-      return t.plus(combatPower(scaleStats(g.heroStats(def, g.permanentLevel(def.id)), opp.power ?? 1)));
+      return t.plus(combatPower(scaleStats(g.heroStats(def, g.fixedLevel(def.id)), opp.power ?? 1)));
     }, new Decimal(0));
   }
 
@@ -1368,7 +1376,7 @@ export class GameState {
   rollPvpOpponents(now = Date.now(), real: PvpCandidate[] = []) {
     const p = this.pvp;
     const rand = seededRandom(`pvp:${p.refreshes}:${p.trophies}`);
-    const mine = this.teamCpOf(this.pvpAttackTeam());
+    const mine = this.fixedTeamCp(this.pvpAttackTeam());
     const pressure = 1 + RANK_PRESSURE * rankIndex(p.trophies);
     const shuffle = <T>(xs: T[]) => {
       for (let i = xs.length - 1; i > 0; i--) {
@@ -1438,19 +1446,19 @@ export class GameState {
   /** The defense team as the server keeps it, for other players to fight. */
   pvpSnapshot(): { p_trophies: number; p_team_cp: string; p_cp_log: number; p_team: PvpSnapHero[] } {
     const team = this.pvpDefenseTeam();
-    const cp = this.teamCpOf(team);
+    const cp = this.fixedTeamCp(team);
     return {
       p_trophies: this.pvp.trophies,
       p_team_cp: cp.toString(),
       p_cp_log: cp.gt(1) ? Math.max(0, cp.log10()) : 0,
       p_team: team.map((h) => {
-        const st = this.heroStats(h, this.permanentLevel(h.id));
+        const st = this.heroStats(h, this.fixedLevel(h.id));
         return { id: h.id, stars: this.stars[h.id] ?? 0, awaken: this.awaken[h.id] ?? 0, atk: st.atk.value.toString(), hp: st.hp.value.toString(), def: st.def.value.toString(), aps: st.attacksPerSec.value, crit: st.critRate, critDmg: st.critDmg, move: st.moveSpeed.value };
       }),
     };
   }
 
-  /** CP of a set of heroes. */
+  /** Combat Power of a set of heroes (Ember levels, like the hero sheet); modes without levels use fixedTeamCp. */
   teamCpOf(team: HeroDef[]): Decimal {
     return team.reduce((t, h) => t.plus(this.heroCombatPower(h)), new Decimal(0));
   }
@@ -1470,7 +1478,7 @@ export class GameState {
     }
     return foe.heroes.map((x) => {
       const def = HEROES.find((h) => h.id === x.id)!;
-      const stats = scaleStats(g.heroStats(def, g.permanentLevel(def.id)), foe.power ?? 1);
+      const stats = scaleStats(g.heroStats(def, g.fixedLevel(def.id)), foe.power ?? 1);
       return { def, unit: { ...g.pvpUnit(def), atk: stats.atk.value, hp: stats.hp.value, def: stats.def.value }, stats };
     });
   }
@@ -1489,7 +1497,7 @@ export class GameState {
   pvpClearlyStronger(slot: number, forecast?: PvpResult | null): boolean {
     const foe = this.pvp.picks[slot];
     if (!foe) return false;
-    const mine = this.teamCpOf(this.pvpAttackTeam());
+    const mine = this.fixedTeamCp(this.pvpAttackTeam());
     const theirs = new Decimal(foe.cp || 0);
     if (!theirs.gt(0) || mine.lt(theirs.times(PVP_QUICK_CP))) return false;
     const fc = forecast === undefined ? this.pvpForecast(slot) : forecast;
@@ -2509,9 +2517,9 @@ export class GameState {
     return picked.length ? picked : this.pvpTeam();
   }
 
-  /** The Guild Boss team with its strength (Ember levels and stars, like the Trial team). */
+  /** The Guild Boss team with its strength (at the fixed level: no gold or Ember levels). */
   guildBossTeam() {
-    return this.guildBossHeroes().map((def) => ({ def, ...this.heroPower(def, Math.max(1, this.emberLevels[def.id] ?? 0)) }));
+    return this.guildBossHeroes().map((def) => ({ def, ...this.heroPower(def, this.fixedLevel(def.id)) }));
   }
 
   /** Set the Guild Boss team (recruited heroes only, up to teamSlots). */
@@ -2523,7 +2531,7 @@ export class GameState {
     return true;
   }
 
-  /** Damage one Guild Boss attempt deals: the Guild Boss team (Ember levels) hitting for the whole fight. */
+  /** Damage one Guild Boss attempt deals: the Guild Boss team (fixed level) hitting for the whole fight. */
   guildBossDamage(element: Element): Decimal {
     let dps = new Decimal(0);
     for (const m of this.guildBossTeam()) dps = dps.plus(m.atk.div(m.def.attackCooldown).times(elementMultiplier(m.def.element, element)));
@@ -2755,7 +2763,7 @@ export class GameState {
   /** Owned heroes by power, strongest first: the party picker. */
   expHeroes(): HeroDef[] {
     return HEROES.filter((h) => (this.levels[h.id] ?? 0) > 0)
-      .map((h) => ({ h, cp: this.heroCombatPower(h) }))
+      .map((h) => ({ h, cp: this.fixedCombatPower(h) }))
       .sort((a, b) => b.cp.cmp(a.cp))
       .map((x) => x.h);
   }
@@ -2808,7 +2816,7 @@ export class GameState {
       party: [...party],
       hires: [],
       boons: [],
-      basePower: this.teamCpOf(party.map((id) => HEROES.find((h) => h.id === id)!)).toString(),
+      basePower: this.fixedTeamCp(party.map((id) => HEROES.find((h) => h.id === id)!)).toString(),
       bonusWild: 0,
       bonusGems: 0,
       elites: 0,
@@ -2878,7 +2886,7 @@ export class GameState {
     if (!r) return new Decimal(0);
     const own = r.party.map((id) => {
       const def = HEROES.find((h) => h.id === id)!;
-      return combatPower(scaleStatsBy(this.heroStats(def, this.permanentLevel(id)), this.expBoost(def)));
+      return combatPower(scaleStatsBy(this.heroStats(def, this.fixedLevel(id)), this.expBoost(def)));
     });
     const hired = r.hires.map((h) => combatPower(this.expHireUnit(h).stats));
     return [...own, ...hired].reduce((t, x) => t.plus(x), new Decimal(0));
@@ -3182,7 +3190,7 @@ export class GameState {
   /** Recruited heroes that fit a bracket, strongest first. */
   rushHeroes(bracket: number): HeroDef[] {
     return HEROES.filter((h) => (this.levels[h.id] ?? 0) > 0 && inBracket(this.stars[h.id] ?? 0, bracket))
-      .map((h) => ({ h, cp: this.heroCombatPower(h) }))
+      .map((h) => ({ h, cp: this.fixedCombatPower(h) }))
       .sort((a, b) => b.cp.cmp(a.cp))
       .map((x) => x.h);
   }
@@ -3204,7 +3212,7 @@ export class GameState {
     if (list.length || !this.rushOn(now)) return list;
     const mine = this.rushHeroes(bracket);
     if (!mine.length) return list;
-    const best = this.heroCombatPower(mine[0]);
+    const best = this.fixedCombatPower(mine[0]);
     const rand = seededRandom(`rush:${this.rush.id}:${bracket}:${this.rush.rolls}`);
     const b = RUSH_BRACKETS[bracket];
     const pool = PLAYABLE_HEROES.filter((h) => !isAscendant(h.id));
@@ -3251,7 +3259,7 @@ export class GameState {
     if (this.rushBlock(bracket, foe, heroId, now) !== null) return false;
     const f = this.rush.foes[bracket][foe];
     const h = HEROES.find((x) => x.id === heroId)!;
-    if (this.heroCombatPower(h).lt(new Decimal(f.cp || 0).times(PVP_QUICK_CP))) return false;
+    if (this.fixedCombatPower(h).lt(new Decimal(f.cp || 0).times(PVP_QUICK_CP))) return false;
     const fc = this.rushForecast(bracket, foe, heroId);
     return !!fc && fc.won && fc.left[0][0] >= PVP_QUICK_HP;
   }
@@ -4283,6 +4291,7 @@ export class GameState {
       relicShop: this.relicShop,
       legendaryMedals: this.legendaryMedals,
       rarityMix: 1,
+      fixedLevels: 1,
       forms: { ...this.forms },
       goldPerSec: this.goldPerSec,
       secondsPerStage: this.secondsPerStage,
@@ -4493,6 +4502,15 @@ export class GameState {
       this.goldPerSec = d.goldPerSec ?? 0;
       this.secondsPerStage = d.secondsPerStage ?? 20;
       this.lastSeen = d.lastSeen ?? Date.now();
+      // Colosseum and Rush opponents rolled before these modes dropped gold and Ember levels were fitted to Ember levels:
+      // roll them again (unless a fight is running).
+      if (!d.fixedLevels) {
+        if (this.pvp.active < 0) {
+          this.pvp.picks = [];
+          this.pvp.refreshAt = 0;
+        }
+        if (!this.rush.active) this.rush.foes = [];
+      }
       this.fitObservatory();
       this.sanitize();
       // Keep whatever this version doesn't know (rev belongs to the cloud copy, not the device save).

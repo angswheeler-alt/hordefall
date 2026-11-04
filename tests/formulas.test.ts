@@ -1,3 +1,4 @@
+import guildsSql from '../supabase/guilds.sql?raw';
 import { describe, expect, it } from 'vitest';
 import Decimal from 'break_infinity.js';
 import { defended, bulkCost, goldPerKill, enemyHp, easyStart, EASY_START_STAGES, fmt, upgradeCost, stallBulkCost, emberYield, emberCost, keeperLevel, keeperThreshold, relicCost, guildBossHp, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, guildBossElement, researchPointsFor, researchRank } from '../src/formulas';
@@ -114,8 +115,12 @@ describe('Ember economy', () => {
 
 describe('Guild Boss', () => {
   it('health matches the server formula in supabase/guilds.sql', () => {
-    expect(guildBossHp(1).toNumber()).toBe(1221881);
-    expect(guildBossHp(10).toNumber()).toBe(141557760000);
+    // round(5000 * 1.35^(level - 1)), heroes fight it without gold or Ember levels.
+    expect(guildBossHp(1).toNumber()).toBe(5000);
+    expect(guildBossHp(2).toNumber()).toBe(6750);
+    expect(guildBossHp(10).toNumber()).toBe(74469);
+    expect(guildBossHp(0).toNumber()).toBe(5000);
+    expect(guildsSql).toContain('round(5000 * power(1.35::numeric, greatest(1, p_level) - 1))');
   });
 
   it('every attempt pays the base, and a full share doubles it', () => {
