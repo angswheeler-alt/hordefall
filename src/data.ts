@@ -1150,6 +1150,12 @@ export const RELIC_SETS: RelicSetDef[] = [
   { id: 'dreadmoon', name: 'Dreadmoon', element: 'dark', bonus: [['stunTime', 35], ['cost', 1150], ['atk', 16000]], text: 'Stuns last 35% longer, hero levels cost far less, team +16,000% ATK' },
   { id: 'hallowed', name: 'Hallowed', element: null, bonus: [['embers', 75], ['atk', 32000], ['hp', 32000]], text: '+75% Embers from Rekindle, team +32,000% ATK and HP' },
 ];
+/**
+ * Set bonuses grow with the set's levels (Samuel, 2026-11-04: crafting a set gave its whole bonus at level 1, so
+ * every 5★ set bonus landed within a month). A complete set gives RELIC_SET_START_SHARE of its bonus while its
+ * lowest piece is level 1, rising evenly to the full bonus once every piece is level RELIC_BASE_MAX.
+ */
+export const RELIC_SET_START_SHARE = 0.25;
 /** Levels a relic reaches before Enhance Stones; reaching it on an N★ relic opens (N+1)★ relics. */
 export const RELIC_BASE_MAX = 20;
 /** Each Enhance raises the cap by this many levels, up to RELIC_ENHANCE_COSTS.length times. */
