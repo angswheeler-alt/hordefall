@@ -5,6 +5,7 @@
 import { ELEMENT_COLORS, ELEMENT_BOSSES, TRIAL_BOSS_ART, type Element } from './data';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES } from './bossAnims';
 import { MOB_ANIMS } from './mobAnims';
+import { mobArtUrl } from './mobArt';
 import type { GameState, SummonDrop } from './state';
 import {
   JOURNAL_MOBS,
@@ -81,7 +82,7 @@ function picStyle(page: JournalPage): string {
     const scale = Math.min(PIC / a.frame[0], PIC / a.frame[1]);
     const w = Math.round(a.frame[0] * scale);
     const h = Math.round(a.frame[1] * scale);
-    return `background-image:url(mobs/${page.mob}_${page.element}_walk.png);background-size:${w * a.walk}px ${h}px;background-position:${(PIC - w) / 2}px ${PIC - h}px`;
+    return `background-image:url(${mobArtUrl(`${page.mob}_${page.element}_walk.png`)});background-size:${w * a.walk}px ${h}px;background-position:${(PIC - w) / 2}px ${PIC - h}px`;
   }
   const art = pageBossArt(page);
   if (!art) return '';

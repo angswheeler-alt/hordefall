@@ -3,7 +3,7 @@ import { MOB_ART_PENDING, MOB_ELEMENTS, MOB_KINDS, pickMob } from '../src/mobs';
 import { MOB_ANIMS } from '../src/mobAnims';
 
 // Every generated mob image, by file name (Vite lists them without loading them).
-const files = new Set(Object.keys(import.meta.glob('../public/mobs/*.png')).map((f) => f.split('/').pop()));
+const files = new Set(Object.keys(import.meta.glob(['../public/mobs/*.png', '../src/assets/mobs/*.png'])).map((f) => f.split('/').pop()));
 
 describe('mob kinds', () => {
   it('starts with grunts only', () => {

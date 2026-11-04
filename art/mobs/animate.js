@@ -22,7 +22,11 @@ const PREVIEW = path.join(ROOT, 'preview');
 const ANIMS_TS = path.join(ROOT, '..', '..', 'src', 'mobAnims.ts');
 const TARGET_HEIGHT = 50; // same scale as the heroes
 // How big each mob stands next to a typical hero (x TARGET_HEIGHT).
-const MOB_SIZE = { grunt: 0.8, brute: 1.25, caster: 0.85, flyer: 0.75, scuttler: 0.65 };
+const MOB_SIZE = { grunt: 0.8, brute: 1.25, caster: 0.85, flyer: 0.75, scuttler: 0.65, shieldbearer: 0.95, bomber: 0.7, summoner: 1, burrower: 0.8 };
+// Mobs added after the artifact neared its file cap: their strips go to src/assets/mobs, where src/mobArt.ts
+// imports them (the artifact build inlines them into game.js instead of shipping 15 more files each).
+const ASSET_MOBS = new Set(['shieldbearer', 'bomber', 'summoner', 'burrower']);
+const ASSET_DIR = path.join(ROOT, '..', '..', 'src', 'assets', 'mobs');
 const PALETTE = 20;
 // Each element repaints the grey body along its own ramp, darkest to brightest, with the shadows shifted toward
 // a deeper hue and the highlights toward a warmer one so the colour reads rich instead of flat. `wing` repaints
@@ -106,7 +110,8 @@ function buildMob(id) {
   };
   const frames = Object.fromEntries(Object.entries(small).map(([k, list]) => [k, list.map(draw)]));
 
-  fs.mkdirSync(OUT_DIR, { recursive: true });
+  const outDir = ASSET_MOBS.has(id) ? ASSET_DIR : OUT_DIR;
+  fs.mkdirSync(outDir, { recursive: true });
   fs.mkdirSync(PREVIEW, { recursive: true });
   const strip = list => {
     const s = new Canvas(FW * list.length, FH);
@@ -116,9 +121,9 @@ function buildMob(id) {
   const stand = frames.idle[0];
   const w = strip(frames.walk), a = strip(frames.attack);
   for (const el of Object.keys(ELEMENT_RAMPS)) {
-    recolor(stand, el).save(path.join(OUT_DIR, `${id}_${el}.png`));
-    recolor(w, el).save(path.join(OUT_DIR, `${id}_${el}_walk.png`));
-    recolor(a, el).save(path.join(OUT_DIR, `${id}_${el}_attack.png`));
+    recolor(stand, el).save(path.join(outDir, `${id}_${el}.png`));
+    recolor(w, el).save(path.join(outDir, `${id}_${el}_walk.png`));
+    recolor(a, el).save(path.join(outDir, `${id}_${el}_attack.png`));
   }
 
   let headTop = 0;

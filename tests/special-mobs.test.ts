@@ -22,6 +22,8 @@ import {
   summonReady,
 } from '../src/mobs';
 import { JOURNAL_MOBS, MOB_NAMES, cleanStamps, journalPage, mobPageId } from '../src/journal';
+import { MOB_ANIMS } from '../src/mobAnims';
+import { isAssetMob } from '../src/mobArt';
 import { placeholderBase64Url, placeholderSvg, placeholderUrl } from '../src/mobPlaceholders';
 
 function fresh() {
@@ -179,9 +181,15 @@ describe('Journal, shinies and art', () => {
     expect(cleanStamps([mobPageId('summoner', 'dark'), 'mob_bogus_dark'])).toEqual([mobPageId('summoner', 'dark')]);
   });
 
-  it('draws a placeholder for every kind still waiting on its art', () => {
-    expect(MOB_ART_PENDING).toEqual(SPECIAL_MOBS);
-    for (const id of MOB_ART_PENDING) {
+  it('has real art for every special kind now, with placeholders kept for kinds still to come', () => {
+    expect(MOB_ART_PENDING).toEqual([]);
+    for (const id of SPECIAL_MOBS) {
+      expect(MOB_ANIMS[id]).toBeDefined();
+      for (const el of MOB_ELEMENTS) for (const f of [`${id}_${el}`, `${id}_${el}_walk`, `${id}_${el}_attack`]) expect(isAssetMob(`${f}.png`), f).toBe(true);
+    }
+    // A Bomber's strip ends in its blast (flash, cloud, smoke), which the lane plays when it blows up.
+    expect(MOB_ANIMS.bomber.attack).toBe(5);
+    for (const id of SPECIAL_MOBS) {
       const svg = placeholderSvg(id, '#ff0000');
       expect(svg.startsWith('<svg')).toBe(true);
       expect(svg).toContain('#ff0000');

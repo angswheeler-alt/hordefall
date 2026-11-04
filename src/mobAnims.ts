@@ -12,9 +12,13 @@ export interface MobAnim {
 }
 
 export const MOB_ANIMS: Record<string, MobAnim> = {
+  bomber: { frame: [52,50], feet: [24,49], headTop: 14, walk: 5, attack: 5, hitFrame: 3 },
   brute: { frame: [94,89], feet: [46,88], headTop: 26, walk: 5, attack: 5, hitFrame: 3 },
+  burrower: { frame: [68,56], feet: [37,55], headTop: 15, walk: 5, attack: 5, hitFrame: 3 },
   caster: { frame: [47,49], feet: [26,48], headTop: 6, walk: 5, attack: 5, hitFrame: 2 },
   flyer: { frame: [77,49], feet: [37,48], headTop: 11, walk: 5, attack: 5, hitFrame: 1 },
   grunt: { frame: [52,61], feet: [27,60], headTop: 20, walk: 5, attack: 5, hitFrame: 0 },
   scuttler: { frame: [57,37], feet: [21,36], headTop: 4, walk: 5, attack: 5, hitFrame: 3 },
+  shieldbearer: { frame: [59,60], feet: [30,59], headTop: 12, walk: 5, attack: 5, hitFrame: 2 },
+  summoner: { frame: [87,57], feet: [39,56], headTop: 6, walk: 5, attack: 4, hitFrame: 2 },
 };
