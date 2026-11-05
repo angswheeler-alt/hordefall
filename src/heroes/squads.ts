@@ -3,7 +3,8 @@ import type { HeroProfile } from '../profiles';
 import { VS, ULT } from '../heroText';
 
 /**
- * Troop Commons of four factions: Crabkin, Magmites, Mudmasks and Bonekin: archers, fighters, spears and a giant.
+ * Troop Commons of four factions: Crabkin, Magmites, Mudmasks and Bonekin: archers, fighters, spears and a giant
+ * (Bonekin have a spear instead of an archer, since Dark's Common archer is Rook).
  * Every troop hero is one unit in battle (they used to be squads of 3 small fighters splitting the stats; now the
  * one unit carries the hero's full ATK and HP).
  */
@@ -113,9 +114,12 @@ export const SQUAD_HEROES: HeroDef[] = [
     sp2: { name: 'Bog Grip', text: '+20% damage to bosses.', effect: { kind: 'bossDamage', value: 1.2 } },
     aura: { name: 'War Drums', text: 'Earth heroes +10% ATK.', effect: { kind: 'atk', value: 1.1, team: true, element: 'earth' } } }), name: 'Rootling Lancer', bio: 'A little walking sapling with a sharpened stick spear.' },
 
-  archers(BONE, 'bonearchers', { atk: 5.4, hp: 40, range: 185,
+  // Was 'Bonekin Archer' (a Ranger) until 2026-11-05: Dark already had Rook as its Common Ranger, so the skeleton
+  // troop became the Dark Lancer. The id stays 'bonearchers' so saves keep their stars and levels.
+  { ...spears(BONE, 'bonearchers', { atk: 5.8, hp: 54,
     sp2: { name: 'Hollow Eyes', text: '+30% critical damage.', effect: { kind: 'critDmg', value: 0.3 } },
     aura: { name: 'Grave Volley', text: 'Dark heroes +5% critical hit chance.', effect: { kind: 'crit', value: 0.05, team: true, element: 'dark' } } }),
+    name: 'Bonekin Lancer', bio: 'A little skeleton in a dented helmet, with a long bone-tipped spear.' },
   { ...fighters(BONE, 'boneswords', 'Duelist', { atk: 5.8, hp: 56, speed: 160,
     sp2: { name: 'Rattle Back', text: 'Comes back 20% faster after falling.', effect: { kind: 'respawn', value: 0.8 } },
     aura: { name: 'Bone March', text: 'Dark heroes move 15% faster.', effect: { kind: 'moveSpeed', value: 1.15, team: true, element: 'dark' } } }), name: 'Plague Rat Duelist', bio: 'A scrawny hooded rat with a rusty short sword.' },
@@ -137,7 +141,7 @@ export const SQUAD_PROFILES: Record<string, HeroProfile> = {
   mudarchers: { poisonChance: 0.15, crit: 0.15, critDmg: 1.7, specialty: 'Goblin archer: 15% chance to poison, softer crits (+170%)' },
   muddaggers: { poisonChance: 0.1, dodge: 0.1, crit: 0.35, hpMult: 0.9, specialty: 'Kobold cutthroat: 35% crit and 10% poison chance, less HP' },
   mudspears: { poisonChance: 0.1, stunChance: 0.3, crit: 0.15, specialty: 'Rootling lancer: 30% stun and 10% poison chance' },
-  bonearchers: { crit: 0.1, critDmg: 2.2, specialty: 'Skeleton archer: crits hit for +220% but land less often (10%)' },
+  bonearchers: { stunChance: 0.3, crit: 0.1, critDmg: 2.2, specialty: 'Skeleton lancer: 30% chance to stun, crits hit for +220% but land less often (10%)' },
   boneswords: { dodge: 0.1, crit: 0.1, hpMult: 1.05, specialty: 'Rat fighter: 10% dodge and +5% HP, only 10% crit' },
   bonebrute: { crit: 0.15, critDmg: 1.6, defMult: 2, specialty: 'Ghoul giant: 2x Defense for a Barbarian, softer crits (+160%)' },
 };

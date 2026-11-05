@@ -27,6 +27,7 @@ export const WHATS_NEW_SHOWN = 8;
 
 /** Newest first. */
 export const WHATS_NEW: WhatsNewEntry[] = [
+  { id: 'bonekin-lancer', date: '2026-11-05', text: '<b>Bonekin Lancer</b>: the Dark skeleton archer is now a spear fighter, so Dark has its own Common Lancer. Stars and levels are kept.' },
   { id: 'guild-asc-pick', date: '2026-11-04', text: '<b>Guild Boss crests</b>: pick which Ascendant hero gets the crests from each level your guild beats, every week.' },
   { id: 'next-boss-element', date: '2026-11-04', text: '<b>Next boss</b>: under the stage number you now see the next boss stage and its element, so you can plan your team.' },
   { id: 'relic-set-levels', date: '2026-11-04', text: '<b>Relic sets</b>: a set bonus now starts at 25% and grows to full as every piece reaches Lv 20.' },
