@@ -41,6 +41,7 @@ import { RushUI, rushResultHtml } from './rushUi';
 import { ExpeditionUI, expEndHtml } from './expeditionUi';
 import type { ExpLender } from './expedition';
 import { RESET_PHRASE, resetPhraseOk } from './resetPhrase';
+import { attachTeamDrag } from './teamDrag';
 import { sortHeroes, nextTeamSort, TEAM_SORT_LABELS, type TeamSort } from './teamSort';
 
 /** The teams Manage Team edits: stages, Colosseum attack and defense, and the Guild Boss. */
@@ -230,6 +231,24 @@ export class UI {
     }
   }
 
+  /** Put the Heroes tab rows in the player's team order (set by dragging in Manage Team). Only touches the page when it changes. */
+  private heroOrderKey = '';
+  private orderHeroRows() {
+    const order = this.state.lineupOrdered().map((h) => h.id);
+    const key = order.join(',');
+    if (key === this.heroOrderKey) return;
+    this.heroOrderKey = key;
+    const host = $('heroes');
+    const byId = new Map(this.rows.map((r) => [r.def.id, r.root] as const));
+    // Team rows go first, in order; the hidden rows of everyone else follow.
+    let anchor: ChildNode | null = host.firstChild;
+    for (const id of order) {
+      const el = byId.get(id)!;
+      if (el !== anchor) host.insertBefore(el, anchor);
+      else anchor = el.nextSibling;
+    }
+  }
+
   /** Collection page: every hero in element-coloured tiles, grouped by element. */
   private openCollection() {
     $('coll').hidden = false;
@@ -303,7 +322,7 @@ export class UI {
   /** Hero ids in one of the teams. */
   private teamIdsOf(tab: TeamTab): string[] {
     const s = this.state;
-    const team = tab === 'attack' ? s.pvpAttackTeam() : tab === 'defense' ? s.pvpDefenseTeam() : tab === 'guild' ? s.guildBossHeroes() : s.pvpTeam();
+    const team = tab === 'attack' ? s.pvpAttackTeam() : tab === 'defense' ? s.pvpDefenseTeam() : tab === 'guild' ? s.guildBossHeroes() : s.lineupOrdered();
     return team.map((h) => h.id);
   }
 
@@ -343,7 +362,8 @@ export class UI {
       if (h) {
         const ult = stage && s.hasUltSlot(h.id) ? '<i class="tm-ult-badge" title="Ultimate on">ULT</i>' : '';
         const act = swapping ? `data-swap-out="${h.id}"` : `data-peek="${h.id}"`;
-        return `<button type="button" class="tm-slot on${swapping ? ' swap' : ''}" ${act} aria-label="${swapping ? `Swap ${swapping.name} in for ${h.name}` : h.name}">${face(h)}${ult}<small>${h.name}</small></button>`;
+        const drag = stage && !swapping && count > 1 ? ` data-drag="${h.id}"` : '';
+        return `<button type="button" class="tm-slot on${swapping ? ' swap' : ''}" ${act}${drag} aria-label="${swapping ? `Swap ${swapping.name} in for ${h.name}` : h.name}">${face(h)}${ult}<small>${h.name}</small></button>`;
       }
       if (i < s.teamSlots) return '<span class="tm-slot empty"><span class="face"></span><small>Empty</small></span>';
       // The next slot can be bought here; the ones after it show as locked.
@@ -413,7 +433,7 @@ export class UI {
     const title = stage ? `Team ${count}/${s.teamSlots}` : `${TEAM_TAB_TITLE[tab]} ${count}/${s.teamSlots}`;
     this.showModal(
       title,
-      `<button type="button" class="tm-x" data-team-close aria-label="Close">✕</button>${tabBar}<p class="tm-total">${stage ? 'Total Combat Power' : 'Team Combat Power'} <b>${fmt(stage ? s.teamCpOf(team) : s.fixedTeamCp(team))}</b></p>${hint ? `<p class="tm-hint">${hint}</p>` : ''}${note ? `<p class="team-note">${note}</p>` : ''}<div class="tm-slots">${slots}</div>${this.teamSummaryHtml(team)}${stage ? this.ultSlotsHtml() : ''}<div class="tm-scroll">${body}</div>`,
+      `<button type="button" class="tm-x" data-team-close aria-label="Close">✕</button>${tabBar}<p class="tm-total">${stage ? 'Total Combat Power' : 'Team Combat Power'} <b>${fmt(stage ? s.teamCpOf(team) : s.fixedTeamCp(team))}</b></p>${hint ? `<p class="tm-hint">${hint}</p>` : ''}${note ? `<p class="team-note">${note}</p>` : ''}<div class="tm-slots">${slots}</div>${stage && !swapping && count > 1 && !peek ? '<p class="tm-drag-tip">Hold and drag a hero to change the order. The Heroes tab lists them the same way.</p>' : ''}${this.teamSummaryHtml(team)}${stage ? this.ultSlotsHtml() : ''}<div class="tm-scroll">${body}</div>`,
       'Done',
     );
     $('modal').classList.add('team-mode');
@@ -1275,6 +1295,11 @@ export class UI {
       if (tile) this.openSheet(tile.dataset.coll!);
     });
     $('team-btn').addEventListener('click', () => this.openTeamOn('stage'));
+    attachTeamDrag($('modal-body'), (ids) => {
+      this.state.setTeamOrder(ids);
+      this.openTeam();
+      this.render();
+    });
     $('modal-body').addEventListener('click', (e) => {
       const t = e.target as HTMLElement;
       const s = this.state;
@@ -3271,6 +3296,7 @@ export class UI {
 
     let heroesBadge = false;
     let teamReady = false;
+    this.orderHeroRows();
     for (const r of this.rows) {
       const level = s.levels[r.def.id] ?? 0;
       const emberLevel = s.emberLevels[r.def.id] ?? 0;
