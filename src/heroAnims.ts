@@ -105,6 +105,7 @@ export const HERO_ANIMS: Record<string, HeroAnim> = {
   moss: { frame: [51,47], feet: [20,46], headTop: 3, run: 5, attack: 5, hitFrame: 3 },
   mourn: { frame: [75,56], feet: [25,55], headTop: 4, run: 5, attack: 5, hitFrame: 3 },
   mudarchers: { frame: [54,55], feet: [21,54], headTop: 4, run: 5, attack: 5, hitFrame: 3 },
+  mudbrute: { frame: [78,92], feet: [33,91], headTop: 28, run: 6, attack: 5, hitFrame: 3 },
   muddaggers: { frame: [83,59], feet: [46,58], headTop: 12, run: 5, attack: 5, hitFrame: 3 },
   mudspears: { frame: [77,54], feet: [32,53], headTop: 3, run: 5, attack: 5, hitFrame: 3 },
   nerissa: { frame: [60,49], feet: [29,48], headTop: 2, run: 5, attack: 5, hitFrame: 2 },
