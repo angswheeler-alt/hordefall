@@ -22,6 +22,7 @@ import { rarityOdds, SHOP_HEROES, medalPackCost } from './state';
 import { FORM_RARITIES, MAX_FORM, resolveForm, formArtKey } from './ascendant';
 import { ascendantDef, isAscendant } from './heroes/ascendant';
 import type { BattleScene, GuildBossFightSetup } from './BattleScene';
+import { meterTops, type PvpMeterRow } from './battleMeter';
 
 /** The note under the battle screen's title during a Trial (the HTML default). */
 const TRIAL_HUD_NOTE = 'Your team fights at its Ember levels. Fallen heroes stay down until the Trial ends. Beat the boss before time runs out.';
@@ -2464,20 +2465,25 @@ export class UI {
       ['taken', 'Taken'],
       ['healed', 'Healed'],
     ] as const;
-    const top = Object.fromEntries(kinds.map(([k]) => [k, m.mine.reduce((x, r) => Decimal.max(x, r[k]), new Decimal(0))])) as Record<(typeof kinds)[number][0], Decimal>;
+    // Both teams' bars share one scale, so a strong enemy hero shows as a long bar next to yours.
+    const top = meterTops([...m.mine, ...m.foeRows]);
     const share = (v: Decimal, max: Decimal) => (max.gt(0) ? Math.round(v.div(max).toNumber() * 100) : 0);
-    const rows = m.mine
-      .map((r) => {
-        const def = HEROES.find((h) => h.id === r.id);
-        if (!def) return '';
-        const bars = kinds.map(([k]) => `<div class="pm-bar ${k}"><i style="width:${share(r[k], top[k])}%"></i><span>${fmt(r[k])}</span></div>`).join('');
-        return `<div class="pm-row"><span class="face art" style="${faceStyle(def)}">${HERO_ANIMS[heroArtKey(def.id)] ? '' : def.name[0]}</span><b>${def.name}</b>${bars}</div>`;
-      })
-      .join('');
+    // Enemy heroes show their base art, like other players' heroes everywhere else.
+    const line = (r: PvpMeterRow, foe: boolean) => {
+      const def = HEROES.find((h) => h.id === r.id);
+      if (!def) return '';
+      const art = foe ? def.id : heroArtKey(def.id);
+      const bars = kinds.map(([k]) => `<div class="pm-bar ${k}"><i style="width:${share(r[k], top[k])}%"></i><span>${fmt(r[k])}</span></div>`).join('');
+      return `<div class="pm-row${foe ? ' foe' : ''}"><span class="face art" style="${faceStyle(def, art)}">${HERO_ANIMS[art] ? '' : def.name[0]}</span><b>${def.name}</b>${bars}</div>`;
+    };
+    const rows = m.mine.map((r) => line(r, false)).join('');
+    const foeRows = m.foeRows.map((r) => line(r, true)).join('');
     const sum = (k: (typeof kinds)[number][0]) => m.mine.reduce((x, r) => x.plus(r[k]), new Decimal(0));
-    const html = `<div class="pm-head"><span></span><span></span>${kinds.map(([, n]) => `<span>${n}</span>`).join('')}</div>${rows}
-      <div class="pm-total"><span>Your team</span>${kinds.map(([k]) => `<span class="${k}">${fmt(sum(k))}</span>`).join('')}</div>
-      <div class="pm-total foes"><span>${m.trial ? 'Boss' : 'Their team'}</span>${kinds.map(([k]) => `<span class="${k}">${fmt(m.foes[k])}</span>`).join('')}</div>`;
+    const mineTotal = `<div class="pm-total"><span>Your team</span>${kinds.map(([k]) => `<span class="${k}">${fmt(sum(k))}</span>`).join('')}</div>`;
+    const foeTotal = `<div class="pm-total foes"><span>${m.trial ? 'Boss' : 'Their team'}</span>${kinds.map(([k]) => `<span class="${k}">${fmt(m.foes[k])}</span>`).join('')}</div>`;
+    const html = `<div class="pm-head"><span></span><span></span>${kinds.map(([, n]) => `<span>${n}</span>`).join('')}</div>${rows}${mineTotal}${
+      foeRows ? `<div class="pm-side foes">Enemy heroes</div>${foeRows}` : ''
+    }${foeTotal}`;
     if (box.innerHTML !== html) box.innerHTML = html;
   }
 
