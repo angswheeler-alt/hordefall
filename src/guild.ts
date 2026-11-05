@@ -882,7 +882,7 @@ export class Guild {
     }</button><small class="g-boss-next">${fightsLeft !== null ? refill : paidLeft ? '' : `Rewarded fights come back in ${untilText(dayReset)}. Extra fights still add damage.`}</small>`;
     setHtml(
       $('g-boss'),
-      `<div class="g-boss-top"><span class="g-boss-face" style="background:#${ELEMENT_COLORS[boss.element].toString(16).padStart(6, '0')}">${GUILD_BOSS_NAMES[boss.element][0]}</span>
+      `${ascPick}<div class="g-boss-top"><span class="g-boss-face" style="background:#${ELEMENT_COLORS[boss.element].toString(16).padStart(6, '0')}">${GUILD_BOSS_NAMES[boss.element][0]}</span>
         <div><b>${GUILD_BOSS_NAMES[boss.element]}</b><small>Level ${boss.level} · ${boss.element} · new boss in ${untilText(reset)}</small></div>
         <div class="g-boss-best"><b>${top}</b><small>beaten</small></div></div>
        <div class="g-boss-bar"><i style="width:${hp.gt(0) ? Math.max(0, Math.min(100, left.div(hp).times(100).toNumber())) : 0}%"></i><span>${fmt(left)} / ${fmt(hp)}</span></div>
@@ -891,7 +891,7 @@ export class Guild {
          <li><b>Each fight</b> ${10 + boss.level} to ${2 * (10 + boss.level)} Guild Coins and as much Warsteel each (about ${coins} for yours) and gold</li>
          <li><b>Each level beaten</b> ${guildBossKillCoins(boss.level)} Guild Coins and ${warsteelForKill(boss.level)} Warsteel${ascHero ? `, plus ${GUILD_BOSS_ASC_CRESTS} ${ascHero.name} crests for the first ${GUILD_BOSS_ASC_LEVELS} levels beaten (to level ${(boss.start_level ?? 1) + GUILD_BOSS_ASC_LEVELS - 1})` : ''}, for everyone who hit it this week</li>
          <li><b>End of the week</b> ${boss.level > (boss.start_level ?? 1) ? `${fmt(week.coins)} Guild Coins, ${fmt(warsteelForWeek(top))} Warsteel and ${week.chests} Hero Chest${week.chests === 1 ? '' : 's'} so far (level ${top})` : 'Guild Coins, Warsteel and Hero Chests by the highest level beaten'}, for everyone who hit it</li>
-       </ul>${ascPick}<div class="g-team"><div class="pvp-row"><b>Your Guild Boss team <small>CP ${fmt(this.state.fixedTeamCp(team.map((m) => m.def)))}</small></b><button type="button" class="wood-btn small" data-g="team">Change</button></div><span class="faces">${team.map((m) => this.teamFace(m.def)).join('')}</span></div>${btn}<small class="g-boss-next">Next week: ${GUILD_BOSS_NAMES[next]} (${next}), starting at level ${guildBossStartLevel(boss.level - 1)}</small>`,
+       </ul><div class="g-team"><div class="pvp-row"><b>Your Guild Boss team <small>CP ${fmt(this.state.fixedTeamCp(team.map((m) => m.def)))}</small></b><button type="button" class="wood-btn small" data-g="team">Change</button></div><span class="faces">${team.map((m) => this.teamFace(m.def)).join('')}</span></div>${btn}<small class="g-boss-next">Next week: ${GUILD_BOSS_NAMES[next]} (${next}), starting at level ${guildBossStartLevel(boss.level - 1)}</small>`,
     );
     const r = this.rewards;
     const levelCoins = r.kills.reduce((n, k) => n + guildBossKillCoins(k.level), 0);
