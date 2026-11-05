@@ -3,7 +3,7 @@ import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, MILESTONE_STEP, milestoneReward, dayKey, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
 import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_CHEST_GEMS, GOLD_CHEST_GEMS_PER_DAY, GUILD_BOSS_ASC_CRESTS, GUILD_BOSS_ASC_LEVELS, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_DEALS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TRIAL_EVENT_DAYS, TRIAL_EVENT_MEDAL_MULT, TICKET_CRATE, HERO_VOUCHER, MONTHLY_CREST_PACK, ALL_TRIALS_DAYS, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, AUTO_BOSS_SECONDS, NORMAL_STAGE_LOSSES, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, OFFLINE_STAGE_HP, OFFLINE_STAGE_ATTACKERS, OFFLINE_MOB_COOLDOWN, OFFLINE_STAGE_TIME, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_SET_START_SHARE, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, trialFirstWin, STAR_CRESTS, MAX_STARS, REGULAR_MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, RAISED_RARITY_OLD_COST, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_WARSTEEL_PACKS_PER_DAY, GUILD_CHESTS_PER_WEEK, GUILD_WARSTEEL_PACK, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, AWAKEN_STARMOTES, MAX_AWAKEN, AWAKEN_STAT_MULT, AWAKEN_UNLOCK_LEVEL, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
 import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicCost, guildRelicEffect, warsteelForFight, warsteelForKill, warsteelForWeek, type GuildRelicDef, type GuildRelicEffect } from './guildRelics';
-import { utcWeekStart, guildBossElement, relicCost, bossHp, bossAtk, enemyHp, enemyAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, isBossStage } from './formulas';
+import { utcWeekStart, guildBossElement, relicCost, bossHp, bossAtk, enemyHp, enemyAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberCost, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, isBossStage } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { FIXED_LEVEL, RENAMED_HEROES, PLAYABLE_HEROES, RELEASED_HEROES, ASCENDANT_CHEST, START_GOLD } from './data';
 import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills';
@@ -2318,7 +2318,7 @@ export class GameState {
   }
 
   pendingEmbers() {
-    return Math.floor(emberYield(this.runBestStage, REKINDLE_STAGE, this.keeperBonus()) * (1 + this.relicBonus('embers')) * (1 + this.obsBonus('embers')));
+    return Math.floor(emberYield(this.runBestStage, REKINDLE_STAGE, this.keeperBonus(), this.bestStage) * (1 + this.relicBonus('embers')) * (1 + this.obsBonus('embers')));
   }
 
   /**
@@ -2355,6 +2355,28 @@ export class GameState {
     this.goldPerSec = 0;
     this.save();
     return { embers: gained, wheel: wheel.lines, levelsGained, stones, start, sigils: this.sigilsEarned() - sigilsBefore };
+  }
+
+  /**
+   * Ember levels the team could buy with the current Embers plus `extra`, always
+   * buying the cheapest next level across the lineup. Shown on the Rekindle page.
+   */
+  emberLevelsAffordable(extra: number): number {
+    const team = HEROES.filter((h) => this.inLineup(h.id));
+    if (!team.length) return 0;
+    const lv = team.map((h) => this.emberLevels[h.id] ?? 0);
+    let left = this.embers + extra;
+    let bought = 0;
+    while (bought < 100000) {
+      let i = 0;
+      for (let j = 1; j < lv.length; j++) if (lv[j] < lv[i]) i = j;
+      const c = emberCost(lv[i]);
+      if (c > left) break;
+      left -= c;
+      lv[i]++;
+      bought++;
+    }
+    return bought;
   }
 
   /** Buy `count` Ember levels (or as many as the Embers pay for); all or nothing for x1 / x10. */

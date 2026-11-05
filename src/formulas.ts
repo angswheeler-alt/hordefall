@@ -67,15 +67,30 @@ export function effectiveLevel(goldLevel: number, emberLevel: number): number {
   return goldLevel > 0 ? goldLevel + emberLevel : 0;
 }
 
-/** Embers granted for a Rekindle with this as the highest stage reached in the run. */
-/** Ember payout multiplier from the run's best stage (x1 just past the Rekindle stage). */
-export function emberStageBonus(runBestStage: number, rekindleStage: number): number {
-  return Math.pow(1.06, runBestStage - rekindleStage - 1);
+/**
+ * Gentler drop below the record (Samuel, 2026-11-05): a run that stops short of
+ * the lifetime best stage pays as if it reached halfway between, for up to
+ * EMBER_SOFT_ZONE stages short (about 3% less per stage instead of 6%). Past
+ * that the full 6% drop comes back, so tiny runs can't cash in on an old record.
+ */
+export const EMBER_SOFT_ZONE = 60;
+
+/** The stage a run is paid as: its own best, lifted toward the lifetime best when it falls a little short. */
+export function emberPayStage(runBestStage: number, lifetimeBest = runBestStage): number {
+  const short = lifetimeBest - runBestStage;
+  if (short <= 0) return runBestStage;
+  return lifetimeBest - Math.min(short, EMBER_SOFT_ZONE) / 2 - Math.max(0, short - EMBER_SOFT_ZONE);
 }
 
-export function emberYield(runBestStage: number, rekindleStage: number, keeperBonus = 1): number {
+/** Ember payout multiplier from the run's best stage (x1 just past the Rekindle stage). */
+export function emberStageBonus(runBestStage: number, rekindleStage: number, lifetimeBest = runBestStage): number {
+  return Math.pow(1.06, emberPayStage(runBestStage, lifetimeBest) - rekindleStage - 1);
+}
+
+/** Embers granted for a Rekindle with this as the highest stage reached in the run. */
+export function emberYield(runBestStage: number, rekindleStage: number, keeperBonus = 1, lifetimeBest = runBestStage): number {
   if (runBestStage <= rekindleStage) return 0;
-  return Math.floor(40 * emberStageBonus(runBestStage, rekindleStage) * keeperBonus);
+  return Math.floor(40 * emberStageBonus(runBestStage, rekindleStage, lifetimeBest) * keeperBonus);
 }
 
 /** Lifetime Embers needed to reach Keeper level `level + 1`: 100, 200, 400, ... */
