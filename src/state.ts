@@ -428,6 +428,8 @@ export class GameState {
   deals: { crateWeek: number; voucherWeek: number } = { crateWeek: -1, voucherWeek: -1 };
   /** Ascendant Chests bought this Guild Boss week (Monday UTC). */
   ascChest: { week: string; bought: number } = { week: '', bought: 0 };
+  /** Ascendant hero the player picked for Guild Boss crests ('' = that week's Ascendant Chest hero). Samuel, 2026-11-04. */
+  guildAscPick = '';
   /** Gems from floating gold chests today (capped at GOLD_CHEST_GEMS_PER_DAY). */
   chestGems: { day: string; got: number } = { day: '', got: 0 };
   vouchers = 0;
@@ -3646,6 +3648,27 @@ export class GameState {
     return true;
   }
 
+  /**
+   * The Ascendant hero Guild Boss level crests go to (Samuel, 2026-11-04: pick your hero, so free players can feed one
+   * hero every week): the player's pick when it is a released Ascendant hero, else the week's Ascendant Chest hero.
+   */
+  guildAscHero(week: string, pool: AscendantDef[] = releasedAscendants()): HeroDef | undefined {
+    return pool.find((a) => a.base.id === this.guildAscPick)?.base ?? ascendantOfWeek(week, pool);
+  }
+
+  /** Released Ascendant heroes the Guild Boss crests can go to. */
+  guildAscChoices(pool: AscendantDef[] = releasedAscendants()): HeroDef[] {
+    return pool.map((a) => a.base);
+  }
+
+  /** Pick the hero for Guild Boss Ascendant crests ('' = the week's hero). Unknown ids are refused. */
+  setGuildAscPick(id: string, pool: AscendantDef[] = releasedAscendants()): boolean {
+    if (id && !pool.some((a) => a.base.id === id)) return false;
+    this.guildAscPick = id;
+    this.save();
+    return true;
+  }
+
   /** Pay one Guild Boss attempt: Guild Coins (more for a bigger share of the boss) and some gold. */
   payGuildBossAttempt(level: number, damage: Decimal, hp: Decimal): { coins: number; gold: Decimal; warsteel: number } {
     const coins = Math.round(guildBossAttemptCoins(level, damage, hp, GUILD_BOSS_PAR_ATTEMPTS) * (1 + this.guildRelicBonus('coins')));
@@ -3672,7 +3695,7 @@ export class GameState {
       warsteel += warsteelForKill(level);
       // The server pays each level once, so the first GUILD_BOSS_ASC_LEVELS levels beaten in a week cap its Ascendant crests.
       // `n` is the level's place in the week (1 = the level the week started at); older servers send only the level.
-      const hero = (n ?? level) <= GUILD_BOSS_ASC_LEVELS ? ascendantOfWeek(week, pool) : undefined;
+      const hero = (n ?? level) <= GUILD_BOSS_ASC_LEVELS ? this.guildAscHero(week, pool) : undefined;
       if (!hero) continue;
       this.addCrests(hero.id, GUILD_BOSS_ASC_CRESTS);
       const row = ascendant.find((a) => a.heroId === hero.id);
@@ -4232,6 +4255,7 @@ export class GameState {
       boughtTickets: this.boughtTickets,
       deals: this.deals,
       ascChest: { ...this.ascChest },
+      guildAscPick: this.guildAscPick,
       chestGems: { ...this.chestGems },
       vouchers: this.vouchers,
       monthlyPack: this.monthlyPack,
@@ -4409,6 +4433,7 @@ export class GameState {
       this.boughtTickets = Math.min(BOUGHT_TICKET_CAP, Math.max(0, Math.floor(Number(d.boughtTickets) || 0)));
       if (d.deals && typeof d.deals === 'object') this.deals = { crateWeek: Number.isFinite(Number(d.deals.crateWeek)) ? Number(d.deals.crateWeek) : -1, voucherWeek: Number.isFinite(Number(d.deals.voucherWeek)) ? Number(d.deals.voucherWeek) : -1 };
       if (d.chestGems && typeof d.chestGems === 'object') this.chestGems = { day: String(d.chestGems.day ?? ''), got: Math.max(0, Math.floor(Number(d.chestGems.got) || 0)) };
+      this.guildAscPick = typeof d.guildAscPick === 'string' && isAscendant(d.guildAscPick) ? d.guildAscPick : '';
       if (d.ascChest && typeof d.ascChest === 'object') this.ascChest = { week: String(d.ascChest.week ?? ''), bought: Math.max(0, Math.floor(Number(d.ascChest.bought) || 0)) };
       this.vouchers = Math.max(0, Math.floor(Number(d.vouchers) || 0));
       this.monthlyPack = typeof d.monthlyPack === 'string' ? d.monthlyPack : '';

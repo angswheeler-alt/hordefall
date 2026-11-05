@@ -1280,7 +1280,8 @@ export const ASCENDANT_CHEST: ReadonlyArray<{ gems: number; crests: number }> = 
  * Each Guild Boss level a player helps beat also pays that week's Ascendant hero (the one the Ascendant Chest sells)
  * GUILD_BOSS_ASC_CRESTS crests, for the first GUILD_BOSS_ASC_LEVELS levels: up to 100 a week (Samuel, 2026-10-28;
  * halved from 10 a level on 2026-11-03 because the Guild Boss paid too many crests).
- * A free, slower road to the final form next to the Gem-only chest.
+ * A free, slower road to the final form next to the Gem-only chest. Since 2026-11-04 (Samuel) the player picks which
+ * Ascendant hero gets these crests (GameState.guildAscPick), so a free player can feed one hero every week.
  */
 export const GUILD_BOSS_ASC_CRESTS = 5;
 export const GUILD_BOSS_ASC_LEVELS = 20;
