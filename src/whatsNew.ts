@@ -27,6 +27,7 @@ export const WHATS_NEW_SHOWN = 8;
 
 /** Newest first. */
 export const WHATS_NEW: WhatsNewEntry[] = [
+  { id: 'rekindle-near-record', date: '2026-11-05', text: '<b>Rekindle</b>: runs that stop a little short of your best stage now pay far more Embers, and the page shows the levels they buy.' },
   { id: 'quiet-updates', date: '2026-11-05', text: '<b>Smooth updates</b>: when a new version is out, the game saves and restarts itself only while you rest on the stage screen.' },
   { id: 'stump-brute', date: '2026-11-05', text: '<b>Stump Brute</b>: a new Earth Common, a big walking tree stump that soaks up hits at the front.' },
   { id: 'bonekin-lancer', date: '2026-11-05', text: '<b>Bonekin Lancer</b>: the Dark skeleton archer is now a spear fighter, so Dark has its own Common Lancer. Stars and levels are kept.' },

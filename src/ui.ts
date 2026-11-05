@@ -2627,8 +2627,10 @@ export class UI {
     const base = s.pendingEmbers();
     $('rk-embers').textContent = `+${fmt(base)}`;
     $('rk-stage').textContent = s.runBestStage.toLocaleString();
-    const stageBonus = emberStageBonus(s.runBestStage, REKINDLE_STAGE);
+    const stageBonus = emberStageBonus(s.runBestStage, REKINDLE_STAGE, s.bestStage);
     $('rk-stagebonus').textContent = `x${stageBonus < 100 ? stageBonus.toFixed(2) : fmt(stageBonus)}`;
+    $('rk-levels').textContent = `+${(s.emberLevelsAffordable(base) - s.emberLevelsAffordable(0)).toLocaleString()}`;
+    $('rk-levels').title = s.runBestStage < s.bestStage ? `Your record is stage ${s.bestStage.toLocaleString()}. Runs a little short of it still pay well.` : '';
     $('rk-keeperbonus').textContent = `x${s.keeperBonus().toFixed(2)}`;
     const lens = s.obsBonus('embers');
     $('rk-obs-row').hidden = $('rk-obsbonus').hidden = lens <= 0;

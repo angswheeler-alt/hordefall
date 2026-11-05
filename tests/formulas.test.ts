@@ -1,7 +1,7 @@
 import guildsSql from '../supabase/guilds.sql?raw';
 import { describe, expect, it } from 'vitest';
 import Decimal from 'break_infinity.js';
-import { defended, bulkCost, goldPerKill, enemyHp, easyStart, EASY_START_STAGES, fmt, upgradeCost, stallBulkCost, emberYield, emberCost, keeperLevel, keeperThreshold, relicCost, guildBossHp, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, guildBossElement, researchPointsFor, researchRank } from '../src/formulas';
+import { emberPayStage, EMBER_SOFT_ZONE, defended, bulkCost, goldPerKill, enemyHp, easyStart, EASY_START_STAGES, fmt, upgradeCost, stallBulkCost, emberYield, emberCost, keeperLevel, keeperThreshold, relicCost, guildBossHp, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, guildBossElement, researchPointsFor, researchRank } from '../src/formulas';
 import { HEROES, STALLS, elementBoss, bossElement, bossLabel, stageBoss, bossWeakness, bossHasElement, bossImmuneTo, STRONG_VS } from '../src/data';
 
 const hero = HEROES.find((h) => h.unlockCost !== 0)!;
@@ -67,6 +67,26 @@ describe('progression curves', () => {
   it('Rekindle pays nothing at or below the Rekindle stage', () => {
     expect(emberYield(125, 125)).toBe(0);
     expect(emberYield(126, 125)).toBeGreaterThan(0);
+  });
+
+  it('a run short of the record loses about 3% per stage, then 6% past the soft zone', () => {
+    expect(emberYield(1000, 125, 1, 1000)).toBe(emberYield(1000, 125));
+    expect(emberYield(1100, 125, 1, 1000)).toBe(emberYield(1100, 125));
+    expect(emberPayStage(970, 1000)).toBe(985);
+    expect(emberPayStage(1000 - EMBER_SOFT_ZONE, 1000)).toBe(1000 - EMBER_SOFT_ZONE / 2);
+    expect(emberPayStage(900, 1000)).toBe(930);
+    const share = emberYield(970, 125, 1, 1000) / emberYield(1000, 125);
+    expect(share).toBeGreaterThan(0.38);
+    expect(share).toBeLessThan(0.45);
+    // Never more than the record pays, always more than the old rule, and falls with every stage short.
+    let prev = Infinity;
+    for (let run = 1000; run >= 200; run -= 5) {
+      const y = emberYield(run, 125, 1, 1000);
+      expect(y).toBeLessThanOrEqual(prev);
+      expect(y).toBeGreaterThanOrEqual(emberYield(run, 125));
+      prev = y;
+    }
+    expect(emberYield(125, 125, 1, 1000)).toBe(0);
   });
 
   it('Keeper levels follow the thresholds', () => {
