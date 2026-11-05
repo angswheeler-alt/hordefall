@@ -40,7 +40,7 @@ export const HERO_ANIMS: Record<string, HeroAnim> = {
   barnacle: { frame: [71,60], feet: [31,59], headTop: 6, run: 5, attack: 5, hitFrame: 3 },
   blaze: { frame: [69,101], feet: [34,100], headTop: 25, run: 5, attack: 5, hitFrame: 2 },
   bluster: { frame: [81,52], feet: [34,51], headTop: 4, run: 4, attack: 5, hitFrame: 3 },
-  bonearchers: { frame: [61,54], feet: [30,53], headTop: 3, run: 5, attack: 5, hitFrame: 2 },
+  bonearchers: { frame: [71,54], feet: [30,53], headTop: 2, run: 6, attack: 5, hitFrame: 3 },
   bonebrute: { frame: [99,87], feet: [52,86], headTop: 19, run: 5, attack: 5, hitFrame: 4 },
   boneswords: { frame: [83,57], feet: [47,56], headTop: 5, run: 5, attack: 5, hitFrame: 3 },
   boomer: { frame: [70,57], feet: [30,56], headTop: 9, run: 5, attack: 5, hitFrame: 3 },
