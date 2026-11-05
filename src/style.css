@@ -958,6 +958,8 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .pm-total > span:first-child { grid-column: span 2; }
 .pm-total { padding-top: 6px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .pm-total.foes { color: #ff9a8a; padding-top: 2px; }
+.pm-side { margin: 10px 0 2px; padding-top: 6px; border-top: 1px solid rgba(255,154,138,.35); color: #ff9a8a; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; font-size: 10px; }
+.pm-row.foe b { color: #ffc2b8; }
 @media (prefers-reduced-motion: reduce) { .pm-bar i { transition: none; } }
 
 /* Battle tab hub: one big card per mode, each opening its own page */

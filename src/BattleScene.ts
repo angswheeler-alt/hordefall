@@ -67,6 +67,7 @@ import { exitRunStep, marchCap, marchStep } from './movement';
 import { respawnTime, reviveIn, stageStartRevives } from './respawn';
 import { chestsAllowed, chestTapArea, laneMode, CHEST_SCALE, CHEST_Y_MAX, CHEST_Y_MIN } from './chests';
 import { PVP_RESPAWN_MULT, ultsAllowed } from './colosseum';
+import { addToMeter, meterRow, type PvpMeterRow } from './battleMeter';
 import { WEAPON_LOOK_COLORS, weaponLook } from './weapons';
 import { ULT_FX_ART, ULT_FX_HEIGHT, ultFxStyle } from './ultFx';
 import { HERO_ANIMS } from './heroAnims';
@@ -409,6 +410,8 @@ interface PvpLive {
   meter: Map<string, PvpMeterRow>;
   /** The same totals for the whole opposing team. */
   foeMeter: PvpMeterRow;
+  /** The same totals for each enemy hero (by hero id). */
+  foeRows: Map<string, PvpMeterRow>;
   /** Name over the lane ("Colosseum", "Rush"). */
   label: string;
   /** Rush: one hero a side, so melee heroes can hit flyers too (otherwise a melee hero could never beat a flyer). */
@@ -417,15 +420,7 @@ interface PvpLive {
   boost?: (def: HeroDef) => { atk: number; hp: number; def: number };
 }
 
-/** One line of the Colosseum battle meter. */
-export interface PvpMeterRow {
-  id: string;
-  dealt: Decimal;
-  taken: Decimal;
-  healed: Decimal;
-}
-
-const meterRow = (id: string): PvpMeterRow => ({ id, dealt: new Decimal(0), taken: new Decimal(0), healed: new Decimal(0) });
+export type { PvpMeterRow } from './battleMeter';
 
 /** Each crystal holds this many times its team's total HP. */
 const PVP_CRYSTAL_HP = 1.5;
@@ -1407,17 +1402,16 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** The battle meter of the current (or just finished) Colosseum battle or Trial: the player's fighters, then the foes' totals. */
-  battleMeter(): { mine: PvpMeterRow[]; foes: PvpMeterRow; trial: boolean } | null {
+  battleMeter(): { mine: PvpMeterRow[]; foes: PvpMeterRow; foeRows: PvpMeterRow[]; trial: boolean } | null {
     const p = this.pvp ?? this.trial;
-    return p ? { mine: [...p.meter.values()], foes: p.foeMeter, trial: !!this.trial } : null;
+    return p ? { mine: [...p.meter.values()], foes: p.foeMeter, foeRows: this.pvp ? [...this.pvp.foeRows.values()] : [], trial: !!this.trial } : null;
   }
 
   /** Count damage or healing on the Colosseum or Trial meter: `unit` is who did (or took) it. */
   private meter(unit: Unit | null | undefined, kind: 'dealt' | 'taken' | 'healed', amount: Decimal) {
     const p = this.pvp ?? this.trial;
-    if (!p || p.done || !unit || amount.lte(0)) return;
-    const row = unit.side === 'hero' ? (unit.def ? p.meter.get(unit.def.id) : undefined) : p.foeMeter;
-    if (row) row[kind] = row[kind].plus(amount);
+    if (!p || p.done || !unit) return;
+    addToMeter(p, unit, kind, amount);
   }
 
   /**
@@ -1430,7 +1424,7 @@ export class BattleScene extends Phaser.Scene {
     this.nextStageTimer?.remove();
     this.nextStageTimer = undefined;
     this.clearChests();
-    this.pvp = { ids: new Set(ids), bonus, mine: { hp: new Decimal(1), max: new Decimal(1) }, theirs: { hp: new Decimal(1), max: new Decimal(1) }, timeLeft: PVP_LIVE_TIME, done: false, onEnd, meter: new Map(ids.map((id) => [id, meterRow(id)])), foeMeter: meterRow('foes'), label: opts.label ?? 'Colosseum', anyReach: !!opts.anyReach, boost: opts.boost };
+    this.pvp = { ids: new Set(ids), bonus, mine: { hp: new Decimal(1), max: new Decimal(1) }, theirs: { hp: new Decimal(1), max: new Decimal(1) }, timeLeft: PVP_LIVE_TIME, done: false, onEnd, meter: new Map(ids.map((id) => [id, meterRow(id)])), foeMeter: meterRow('foes'), foeRows: new Map(foes.map((f) => [f.def.id, meterRow(f.def.id)])), label: opts.label ?? 'Colosseum', anyReach: !!opts.anyReach, boost: opts.boost };
     const ults = new Map(this.heroes.map((h) => [h.def?.id, h.ultReadyAt]));
     for (const h of this.heroes) h.view.destroy();
     this.heroes = [];
