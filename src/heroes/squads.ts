@@ -4,7 +4,7 @@ import { VS, ULT } from '../heroText';
 
 /**
  * Troop Commons of four factions: Crabkin, Magmites, Mudmasks and Bonekin: archers, fighters, spears and a giant
- * (Bonekin have a spear instead of an archer, since Dark's Common archer is Rook).
+ * (Bonekin have a spear instead of an archer, since Dark's Common archer is Rook; Earth's giant is the Stump Brute).
  * Every troop hero is one unit in battle (they used to be squads of 3 small fighters splitting the stats; now the
  * one unit carries the hero's full ATK and HP).
  */
@@ -113,6 +113,12 @@ export const SQUAD_HEROES: HeroDef[] = [
   { ...spears(MUD, 'mudspears', { atk: 5.8, hp: 52,
     sp2: { name: 'Bog Grip', text: '+20% damage to bosses.', effect: { kind: 'bossDamage', value: 1.2 } },
     aura: { name: 'War Drums', text: 'Earth heroes +10% ATK.', effect: { kind: 'atk', value: 1.1, team: true, element: 'earth' } } }), name: 'Rootling Lancer', bio: 'A little walking sapling with a sharpened stick spear.' },
+  // Added 2026-11-05 so every element has a tanky Common (the Brute); Earth was the only one without.
+  giant(MUD, 'mudbrute', { name: 'Stump Brute', atk: 5.6, hp: 74, basic: 'Log Club',
+    bio: 'One big walking tree stump with mossy shoulders, swinging a whole log as a club.',
+    sp1: { name: 'Timber Slam', text: 'Every 4th attack smashes the ground for 2x damage to every enemy near the target.', effect: { kind: 'slam', value: 2, every: 4 } },
+    sp2: { name: 'Thick Bark', text: 'Takes 15% less damage.', effect: { kind: 'damageTaken', value: 0.85 } },
+    aura: { name: 'Deep Roots', text: 'Earth heroes +15% Defense.', effect: { kind: 'def', value: 1.15, team: true, element: 'earth' } } }),
 
   // Was 'Bonekin Archer' (a Ranger) until 2026-11-05: Dark already had Rook as its Common Ranger, so the skeleton
   // troop became the Dark Lancer. The id stays 'bonearchers' so saves keep their stars and levels.
@@ -141,6 +147,7 @@ export const SQUAD_PROFILES: Record<string, HeroProfile> = {
   mudarchers: { poisonChance: 0.15, crit: 0.15, critDmg: 1.7, specialty: 'Goblin archer: 15% chance to poison, softer crits (+170%)' },
   muddaggers: { poisonChance: 0.1, dodge: 0.1, crit: 0.35, hpMult: 0.9, specialty: 'Kobold cutthroat: 35% crit and 10% poison chance, less HP' },
   mudspears: { poisonChance: 0.1, stunChance: 0.3, crit: 0.15, specialty: 'Rootling lancer: 30% stun and 10% poison chance' },
+  mudbrute: { crit: 0.1, effectRes: 0.3, hpMult: 1.1, specialty: 'Stump giant: +10% HP and 30% Effect Resistance, but only 10% crit' },
   bonearchers: { stunChance: 0.3, crit: 0.1, critDmg: 2.2, specialty: 'Skeleton lancer: 30% chance to stun, crits hit for +220% but land less often (10%)' },
   boneswords: { dodge: 0.1, crit: 0.1, hpMult: 1.05, specialty: 'Rat fighter: 10% dodge and +5% HP, only 10% crit' },
   bonebrute: { crit: 0.15, critDmg: 1.6, defMult: 2, specialty: 'Ghoul giant: 2x Defense for a Barbarian, softer crits (+160%)' },

@@ -308,7 +308,7 @@ create or replace function public.guild_requestable_heroes() returns text[]
 language sql immutable as $$
   select array[
     'rook', 'bubbles', 'wyrmling', 'seedling', 'glint', 'mendbot', 'glimmer', 'quill', 'swiftwing', 'flit', 'drakebot',
-    'crabarchers', 'crabscrappers', 'crabspears', 'crabbrute', 'magmaarchers', 'magmascrappers', 'magmabrute', 'mudarchers', 'muddaggers', 'mudspears',
+    'crabarchers', 'crabscrappers', 'crabspears', 'crabbrute', 'magmaarchers', 'magmascrappers', 'magmabrute', 'mudarchers', 'muddaggers', 'mudspears', 'mudbrute',
     'bonearchers', 'boneswords', 'bonebrute'
   ]::text[]
 $$;
