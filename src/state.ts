@@ -372,6 +372,8 @@ export class GameState {
   /** Ultimate slots owned, and the heroes the player put in them (others in the team fill any open slot). */
   ultSlots = ULT_SLOTS_START;
   ultPicks: string[] = [];
+  /** The order the player dragged their stage team into (Manage Team); the Heroes tab lists them this way. Display only. */
+  teamOrder: string[] = [];
   /** Team heroes the player took out of the Ultimate slots; they don't fill open slots. */
   ultSkip: string[] = [];
   /** The Relic Shop's offers (relic ids), when New relics can be used again, and whether it was ever stocked. */
@@ -890,6 +892,24 @@ export class GameState {
     return (this.levels[id] ?? 0) > 0 && !this.benched[id];
   }
 
+  /** The lineup in the player's order: heroes in teamOrder first, anyone else after in roster order. */
+  lineupOrdered(): HeroDef[] {
+    const team = HEROES.filter((h) => this.inLineup(h.id));
+    const at = (id: string) => {
+      const i = this.teamOrder.indexOf(id);
+      return i < 0 ? this.teamOrder.length + HEROES.findIndex((h) => h.id === id) : i;
+    };
+    return team.sort((a, b) => at(a.id) - at(b.id));
+  }
+
+  /** Save the stage team's order (lineup heroes only; anyone left out keeps their place after these). */
+  setTeamOrder(ids: string[]) {
+    const seen = new Set<string>();
+    const picked = ids.filter((id) => this.inLineup(id) && !seen.has(id) && seen.add(id));
+    const rest = this.teamOrder.filter((id) => !seen.has(id) && HEROES.some((h) => h.id === id));
+    this.teamOrder = [...picked, ...rest];
+  }
+
   lineupCount(): number {
     return HEROES.filter((h) => this.inLineup(h.id)).length;
   }
@@ -936,6 +956,8 @@ export class GameState {
     this.benched[outId] = true;
     delete this.benched[inId];
     this.ultPicks = this.ultPicks.map((id) => (id === outId ? inId : id));
+    // The hero coming in takes the place of the one going out in the player's order.
+    this.teamOrder = this.teamOrder.filter((id) => id !== inId).map((id) => (id === outId ? inId : id));
     return refund;
   }
 
@@ -4342,6 +4364,7 @@ export class GameState {
       teamSlots: this.teamSlots,
       ultSlots: this.ultSlots,
       ultPicks: this.ultPicks,
+      teamOrder: this.teamOrder,
       ultSkip: this.ultSkip,
       relicShop: this.relicShop,
       legendaryMedals: this.legendaryMedals,
@@ -4551,6 +4574,7 @@ export class GameState {
       const heroIds = (v: unknown): string[] => (Array.isArray(v) ? v.filter((id: unknown): id is string => typeof id === 'string' && HEROES.some((h) => h.id === id)) : []);
       this.ultPicks = heroIds(d.ultPicks);
       this.ultSkip = heroIds(d.ultSkip);
+      this.teamOrder = [...new Set(heroIds(d.teamOrder))];
       this.legendaryMedals = d.legendaryMedals ?? 0;
       this.forms = d.forms && typeof d.forms === 'object' ? { ...d.forms } : {};
       if (!d.rarityMix) this.unlockRaisedRarity();

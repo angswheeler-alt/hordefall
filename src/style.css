@@ -1539,3 +1539,10 @@ button.exp-boon:disabled { opacity: .5; cursor: default; }
 [data-battle-pane="hub"] .mode-orbs { top: 30px; bottom: auto; left: 0; right: 0; justify-content: center; gap: 4px; }
 [data-battle-pane="hub"] .mode-orb { width: 15px; height: 15px; }
 [data-battle-pane="hub"] .mode-alert { right: 6px; top: 6px; bottom: auto; width: 20px; height: 20px; font-size: 13px; }
+
+/* Manage Team: hold and drag a team face to reorder (src/teamDrag.ts). */
+#modal.team-mode .tm-slot[data-drag] { -webkit-touch-callout: none; }
+#modal.team-mode .tm-slots.drag-on { overflow-x: hidden; touch-action: none; }
+#modal.team-mode .tm-slots.drag-on .tm-slot { transition: transform 0.12s ease; }
+#modal.team-mode .tm-slots.drag-on .tm-slot.dragging { transition: none; position: relative; z-index: 2; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); outline: 2px solid #ffd76a; }
+#modal.team-mode .tm-drag-tip { margin: -2px 0 6px; font-size: 10px; opacity: 0.7; text-align: center; }
