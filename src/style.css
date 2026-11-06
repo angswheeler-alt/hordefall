@@ -1346,7 +1346,6 @@ i.ticket.rush-ticket { background: linear-gradient(180deg, #e7a6ff, #8a3ab8); bo
 .obs-sigils span { color: var(--muted); font-size: 13px; }
 .obs-list { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 4px; }
 .obs-row { display: grid; grid-template-columns: 34px 1fr auto; gap: 4px 10px; align-items: center; padding: 10px; border-radius: 12px; background: rgba(10,14,36,.55); border: 1px solid #34407a; }
-.obs-row.off { opacity: .6; }
 .obs-star { width: 34px; height: 34px; grid-row: span 2; }
 .obs-star path { fill: var(--c); filter: drop-shadow(0 0 4px var(--c)); }
 .obs-row.empty .obs-star path { fill: #2a3260; filter: none; stroke: var(--c); stroke-width: 1.2; }

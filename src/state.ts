@@ -9,7 +9,7 @@ import { FIXED_LEVEL, RENAMED_HEROES, PLAYABLE_HEROES, RELEASED_HEROES, ASCENDAN
 import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills';
 import { isKnight, combatPower, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
-import { OBSERVATORY, OBSERVATORY_RESPEC_GEMS, obsDef, sigilCost, sigilsSpent, sigilsEarned, cleanObservatory, cleanObsOff, type ObsBranch } from './observatory';
+import { OBSERVATORY, OBSERVATORY_RESPEC_GEMS, obsDef, sigilCost, sigilsSpent, sigilsEarned, cleanObservatory, type ObsBranch } from './observatory';
 import { PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_TICKET_GEMS, PVP_TICKET_BUYS, PVP_REFRESH_MINUTES, PVP_CP_MIN, PVP_CP_MAX, PVP_REAL_MIN, PVP_REAL_MAX, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_FIRST_WIN_MOTES, PVP_STREAK_DMG, PVP_STREAK_MAX, PVP_QUICK_CP, PVP_QUICK_HP, RANK_PRESSURE, RANK_DAILY, RANK_WEEKLY, rankIndex, rankName, droppedTrophies, seededRandom, ghostName, simulatePvp, type PvpUnit, type PvpResult } from './colosseum';
 import { TUTORIAL_DONE, OLD_TUTORIAL_DONE, TIP_IDS } from './tutorialSteps';
 import { ascendBlocker, ascendNeeds, clampForm, formArtKey, resolveForm, COUNTERED_BY, type AscendBlocker, type AscendContext, type AscendantDef } from './ascendant';
@@ -443,8 +443,6 @@ export class GameState {
   guildResearch: Partial<Record<ResearchBranch, number>> = {};
   /** Observatory ranks bought with Sigils (observatory.ts). */
   observatory: Partial<Record<ObsBranch, number>> = {};
-  /** Constellations the player switched off (their Sigils stay in them). */
-  obsOff: ObsBranch[] = [];
   /** Hunting Journal (journal.ts): kills per page (Guild Boss pages count fights). */
   journal: Record<string, number> = {};
   /** Journal pages with a gold stamp (a shiny of that mob beaten). */
@@ -2197,7 +2195,6 @@ export class GameState {
   fitObservatory(): boolean {
     if (this.sigilsPlaced() <= this.sigilsEarned()) return false;
     this.observatory = {};
-    this.obsOff = [];
     this.obsRefunded = true;
     this.tickets = Math.min(this.ticketCap(), this.tickets);
     return true;
@@ -2207,9 +2204,9 @@ export class GameState {
     return this.observatory[id] ?? 0;
   }
 
-  /** A constellation's effect right now: 0 when switched off. */
+  /** A constellation's effect right now. Bought ranks are always on (old saves' obsOff is ignored). */
   obsBonus(id: ObsBranch) {
-    return this.obsOff.includes(id) ? 0 : obsDef(id).per * this.obsRank(id);
+    return obsDef(id).per * this.obsRank(id);
   }
 
   /** Raise a constellation one rank with Sigils. */
@@ -2223,21 +2220,11 @@ export class GameState {
     return true;
   }
 
-  /** Switch a constellation's buff off or back on, for free. */
-  toggleObservatory(id: ObsBranch): boolean {
-    if (!obsDef(id) || this.obsRank(id) <= 0) return false;
-    this.obsOff = this.obsOff.includes(id) ? this.obsOff.filter((x) => x !== id) : [...this.obsOff, id];
-    this.tickets = Math.min(this.ticketCap(), this.tickets);
-    this.save();
-    return true;
-  }
-
   /** Take every Sigil back out of the chart for OBSERVATORY_RESPEC_GEMS Gems. */
   respecObservatory(): boolean {
     if (!OBSERVATORY.some((d) => this.obsRank(d.id) > 0) || this.gems < OBSERVATORY_RESPEC_GEMS) return false;
     this.gems -= OBSERVATORY_RESPEC_GEMS;
     this.observatory = {};
-    this.obsOff = [];
     this.tickets = Math.min(this.ticketCap(), this.tickets);
     this.save();
     return true;
@@ -4321,7 +4308,6 @@ export class GameState {
       guildCredits: this.guildCredits,
       guildResearch: this.guildResearch,
       observatory: this.observatory,
-      obsOff: this.obsOff,
       obsRefunded: this.obsRefunded,
       journal: this.journal,
       journalStamps: this.journalStamps,
@@ -4448,7 +4434,6 @@ export class GameState {
       this.emberLevels = { ...this.emberLevels, ...(d.emberLevels ?? {}) };
       this.rekindles = d.rekindles ?? 0;
       this.observatory = cleanObservatory(d.observatory);
-      this.obsOff = cleanObsOff(d.obsOff);
       this.obsRefunded = d.obsRefunded === true;
       this.journal = cleanJournal(d.journal);
       this.journalStamps = cleanStamps(d.journalStamps);

@@ -1173,9 +1173,8 @@ export class UI {
       const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-obs]');
       if (!btn || btn.disabled) return;
       const id = btn.dataset.obs as ObsBranch;
-      const ok = btn.dataset.act === 'buy' ? this.state.buyObservatory(id) : this.state.toggleObservatory(id);
-      if (!ok) return;
-      play(btn.dataset.act === 'buy' ? 'unlock' : 'coin');
+      if (!this.state.buyObservatory(id)) return;
+      play('unlock');
       this.renderObservatory();
       this.render();
     });
@@ -2637,15 +2636,13 @@ export class UI {
       $('obs-list'),
       OBSERVATORY.map((d) => {
         const rank = s.obsRank(d.id);
-        const off = s.obsOff.includes(d.id);
         const maxed = rank >= d.max;
         const cost = sigilCost(rank);
-        const now = rank > 0 ? `<b>${d.text(rank)}</b>${off ? ' (off)' : ''}` : 'Not started';
+        const now = rank > 0 ? `<b>${d.text(rank)}</b>` : 'Not started';
         const next = maxed ? 'Fully charted' : `Next: ${d.text(rank + 1)}`;
         const pips = Array.from({ length: d.max }, (_, i) => `<i class="${i < rank ? 'on' : ''}"></i>`).join('');
         const buy = maxed ? '' : `<button class="obs-buy" data-obs="${d.id}" data-act="buy" ${sigils < cost ? 'disabled' : ''}>+1 · ${cost} Sigil${cost === 1 ? '' : 's'}</button>`;
-        const toggle = rank > 0 ? `<button class="toggle${off ? '' : ' on'}" data-obs="${d.id}" data-act="toggle">${off ? 'Off' : 'On'}</button>` : '';
-        return `<div class="obs-row${off ? ' off' : ''}${rank ? '' : ' empty'}" style="--c:${d.color}">${star}<div class="obs-name">${d.name}<small>${rank}/${d.max}</small></div><div class="obs-btns">${buy}${toggle}</div><div class="obs-fx">${now}<br>${next}<div class="obs-pips">${pips}</div></div></div>`;
+        return `<div class="obs-row${rank ? '' : ' empty'}" style="--c:${d.color}">${star}<div class="obs-name">${d.name}<small>${rank}/${d.max}</small></div><div class="obs-btns">${buy}</div><div class="obs-fx">${now}<br>${next}<div class="obs-pips">${pips}</div></div></div>`;
       }).join(''),
     );
     const any = OBSERVATORY.some((d) => s.obsRank(d.id) > 0);

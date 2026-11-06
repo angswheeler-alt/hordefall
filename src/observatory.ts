@@ -1,9 +1,9 @@
 /**
  * The Observatory (GDD section 8): a personal star chart that opens after the first Rekindle.
  * Sigils come from Rekindles (1 each) and player levels (1 per SIGIL_LEVEL_STEP levels past 1), so older saves get
- * theirs at once. Sigils buy ranks in five constellations, each a small permanent buff. A
- * constellation can be switched off for free (its Sigils stay in it); taking every Sigil back
- * costs OBSERVATORY_RESPEC_GEMS. Never pays Gems.
+ * theirs at once. Sigils buy ranks in five constellations, each a small permanent buff that
+ * is always on (Samuel, 2026-11-06: no on/off switch). Taking every Sigil back costs
+ * OBSERVATORY_RESPEC_GEMS. Never pays Gems.
  */
 
 export type ObsBranch = 'embers' | 'speed' | 'offline' | 'tickets' | 'skip';
@@ -67,8 +67,4 @@ export function cleanObservatory(v: unknown): Partial<Record<ObsBranch, number>>
     if (r > 0) out[d.id] = Math.min(d.max, r);
   }
   return out;
-}
-
-export function cleanObsOff(v: unknown): ObsBranch[] {
-  return Array.isArray(v) ? OBSERVATORY.map((d) => d.id).filter((id) => v.includes(id)) : [];
 }
