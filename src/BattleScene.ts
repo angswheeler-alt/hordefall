@@ -1773,7 +1773,9 @@ export class BattleScene extends Phaser.Scene {
 
   update(_time: number, deltaMs: number) {
     const realDt = Math.min(deltaMs / 1000, 0.1);
-    this.trackIncome(realDt);
+    // Only the normal stage run sets the gold rate offline pays: Trials and Colosseum/Guild Boss fights pay no
+    // enemy gold, so counting them would drag the rate toward zero right before the player leaves.
+    if (laneMode({ trial: this.trial, pvp: this.pvp }) === 'stage') this.trackIncome(realDt);
     if (!this.transitioning) this.stageRealTime += realDt;
     // Battle time for the daily challenge, in whole minutes.
     this.playSeconds += realDt;

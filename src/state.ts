@@ -2490,9 +2490,13 @@ export class GameState {
     return true;
   }
 
-  /** Gold worth `minutes` of income, with a floor so new players still get something. */
-  goldFor(minutes: number): Decimal {
-    return Decimal.max(new Decimal(this.goldPerSec).times(minutes * 60), goldPerKill(this.stage).times(20 * minutes));
+  /**
+   * Gold worth `minutes` of income, with a floor so new players still get something. The recorded rate has
+   * boosts taken out (recordIncome), so `boost` puts back whatever boost should count: the one running now
+   * by default, or the average over the away time for offline gold.
+   */
+  goldFor(minutes: number, boost = this.goldBoostMult()): Decimal {
+    return Decimal.max(new Decimal(this.goldPerSec).times(minutes * 60 * boost), goldPerKill(this.stage).times(20 * minutes));
   }
 
   /** Pay out a reward. Free Hero Chests roll like bought ones. */
@@ -3831,6 +3835,16 @@ export class GameState {
     return this.boostMult('banner', now) * (this.goldBoostUntil > now ? GOLD_BOOST_MULT : 1);
   }
 
+  /** The average goldBoostMult between two times (ms): boosts only count for the part of the stretch they ran. */
+  goldBoostAverage(from: number, to: number): number {
+    if (to <= from) return this.goldBoostMult(from);
+    const cuts = [from, to, this.boosts.banner, this.goldBoostUntil].filter((t) => t > from && t < to);
+    const points = [...new Set([from, to, ...cuts])].sort((a, b) => a - b);
+    let total = 0;
+    for (let i = 1; i < points.length; i++) total += this.goldBoostMult(points[i - 1]) * (points[i] - points[i - 1]);
+    return total / (to - from);
+  }
+
   /** Gems a floating gold chest pays now, counted toward today's cap (0 once the cap is reached). */
   takeChestGems(now = Date.now()): number {
     const today = dayKey(now);
@@ -4197,9 +4211,10 @@ export class GameState {
     this.gold = this.gold.plus(amount);
   }
 
-  recordIncome(amount: Decimal, dtSeconds: number) {
-    // Exponential moving average over roughly a minute of play.
-    const instant = amount.toNumber() / Math.max(dtSeconds, 0.001);
+  recordIncome(amount: Decimal, dtSeconds: number, now = Date.now()) {
+    // Exponential moving average over roughly a minute of play, with gold boosts taken out so a short boost
+    // isn't paid again for every hour away (goldFor puts the right boost back).
+    const instant = amount.toNumber() / Math.max(dtSeconds, 0.001) / this.goldBoostMult(now);
     if (!Number.isFinite(instant)) return;
     const alpha = Math.min(1, dtSeconds / 60);
     this.goldPerSec = this.goldPerSec * (1 - alpha) + instant * alpha;
@@ -4754,14 +4769,17 @@ export class GameState {
    * what the stage pays), and stage progress at the recent clear speed through
    * stages and bosses the team can beat (offlineReach). Capped at 12 hours.
    */
-  applyOffline(seconds: number): OfflineReport | null {
+  applyOffline(seconds: number, now = Date.now()): OfflineReport | null {
     const real = Math.min(seconds, OFFLINE_CAP_HOURS * 3600);
     if (real < 60) return null;
+    // Gold boosts count only for the part of the (capped) away time they were still running.
+    const left = now - seconds * 1000;
+    const boost = this.goldBoostAverage(left, left + real * 1000);
     // Dreaming Moon: away time counts for more (the 12 h cap is on real time).
     const capped = real * this.offlineSpeed();
     const market = this.marketAutoPerSec().times(capped);
     // The recent rate, but never below what the stage pays, so leaving right after opening still earns.
-    const gold = this.goldFor(capped / 60).plus(market);
+    const gold = this.goldFor(capped / 60, boost).plus(market);
     // Stalls waiting for a tap fill up while you're away.
     for (const def of STALLS) if (this.stalls[def.id].level > 0 && !this.stallAuto(def.id)) this.stalls[def.id].progress = this.stallCycle(def);
     const start = this.stage;

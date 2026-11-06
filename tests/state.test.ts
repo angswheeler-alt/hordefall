@@ -189,6 +189,26 @@ describe('offline earnings', () => {
     expect(s.canClearStage(s.stage + 1)).toBe(false);
   });
 
+  it('pays a gold boost only for the part of the away time it was still running', () => {
+    const s = fresh();
+    const now = 1_000_000_000_000;
+    s.stage = 19;
+    // Earned 200 gold/s live with a x2 Gold Boost on: the stored rate is the unboosted 100.
+    s.goldBoostUntil = now + 30 * 60_000;
+    s.goldPerSec = 0;
+    s.recordIncome(new Decimal(200 * 60), 60, now);
+    expect(s.goldPerSec).toBeCloseTo(100, 6);
+    // Away 4 h right after: the boost covers the first 30 min only, so the average is 1.125x, not 2x.
+    const leftAt = now;
+    expect(s.goldBoostAverage(leftAt, leftAt + 4 * 3600_000)).toBeCloseTo(1.125, 6);
+    s.goldPerSec = 100;
+    const r = s.applyOffline(4 * 3600, leftAt + 4 * 3600_000)!;
+    expect(r.gold.toNumber()).toBeCloseTo(100 * 4 * 3600 * 1.125, 0);
+    // With no boost the stretch pays the plain rate.
+    s.goldBoostUntil = 0;
+    expect(s.goldBoostAverage(leftAt, leftAt + 3600_000)).toBe(1);
+  });
+
   it('pays at least what the stage pays, even with no recent gold rate', () => {
     const s = fresh();
     s.goldPerSec = 0;
