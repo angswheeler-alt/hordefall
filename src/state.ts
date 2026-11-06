@@ -4705,11 +4705,12 @@ export class GameState {
    * (canClearStage), and a boss only falls if the team could actually beat it
    * (canBeatBoss). Changes nothing.
    */
-  offlineReach(seconds: number): { stages: number; bosses: number } {
+  offlineReach(seconds: number): { stages: number; bosses: number; used: number; outOfTime: boolean } {
     let bosses = 0;
     let left = seconds;
     const start = this.stage;
-    if (!this.autoAdvance || this.secondsPerStage <= 0) return { stages: 0, bosses: 0 };
+    if (!this.autoAdvance || this.secondsPerStage <= 0) return { stages: 0, bosses: 0, used: 0, outOfTime: false };
+    let outOfTime = false;
     let stage = this.stage;
     let walled = false;
     const team = this.stageTeam();
@@ -4728,20 +4729,38 @@ export class GameState {
       }
       stage += run;
       left -= run * this.secondsPerStage;
-      if (walled || run < room) break;
+      if (walled) break;
+      if (run < room) {
+        outOfTime = true;
+        break;
+      }
       const fight = this.canBeatBoss(boss);
       const cost = (stage < boss ? this.secondsPerStage : 0) + Math.max(this.secondsPerStage, fight.seconds);
-      if (!fight.won || left < cost) break;
+      if (!fight.won) break;
+      if (left < cost) {
+        outOfTime = true;
+        break;
+      }
       left -= cost;
       stage = boss + 1;
       bosses++;
     }
-    return { stages: stage - start, bosses };
+    return { stages: stage - start, bosses, used: seconds - left, outOfTime };
   }
 
   /** The highest stage a full offline stretch (the 12 h cap) would reach from here. */
   maxOfflineStage(): number {
-    return this.stage + this.offlineReach(OFFLINE_CAP_HOURS * 3600 * this.offlineSpeed()).stages;
+    return this.maxOffline().stage;
+  }
+
+  /**
+   * Where a full offline stretch stops, and how many real seconds away it takes to get there (Dreaming Moon
+   * counted). `outOfTime` is true when the 12 h cap runs out before the team hits a wall.
+   */
+  maxOffline(): { stage: number; seconds: number; outOfTime: boolean } {
+    const speed = this.offlineSpeed();
+    const r = this.offlineReach(OFFLINE_CAP_HOURS * 3600 * speed);
+    return { stage: this.stage + r.stages, seconds: r.outOfTime ? OFFLINE_CAP_HOURS * 3600 : r.used / speed, outOfTime: r.outOfTime };
   }
 
   /** How much each real second away counts for offline (Dreaming Moon). */
