@@ -81,18 +81,11 @@ describe('Observatory', () => {
     expect(s.tickets).toBe(TICKET_CAP + 2);
   });
 
-  it('switching off removes the buff but keeps the Sigils placed', () => {
+  it('bought buffs are always on: there is no switch', () => {
     const s = withSigils(1);
     s.buyObservatory('tickets');
-    s.tickets = TICKET_CAP + 1;
-    expect(s.toggleObservatory('tickets')).toBe(true);
-    expect(s.ticketCap()).toBe(TICKET_CAP);
-    expect(s.tickets).toBe(TICKET_CAP);
-    expect(s.sigils()).toBe(0);
-    s.toggleObservatory('tickets');
     expect(s.ticketCap()).toBe(TICKET_CAP + 1);
-    // Nothing to switch on an empty constellation.
-    expect(s.toggleObservatory('speed')).toBe(false);
+    expect((s as unknown as Record<string, unknown>).toggleObservatory).toBeUndefined();
   });
 
   it('battle and offline speed grow with their ranks', () => {
@@ -138,29 +131,26 @@ describe('Observatory', () => {
     const s = withSigils(3);
     s.buyObservatory('skip');
     s.buyObservatory('skip');
-    s.toggleObservatory('skip');
     s.gems = OBSERVATORY_RESPEC_GEMS - 1;
     expect(s.respecObservatory()).toBe(false);
     s.gems = OBSERVATORY_RESPEC_GEMS;
     expect(s.respecObservatory()).toBe(true);
     expect(s.gems).toBe(0);
     expect(s.sigils()).toBe(9);
-    expect(s.obsOff).toEqual([]);
     expect(s.respecObservatory()).toBe(false); // nothing placed
   });
 
-  it('saves and loads ranks and switches, and drops junk', () => {
+  it('saves and loads ranks, and drops junk', () => {
     const s = withSigils(10);
     s.buyObservatory('tickets');
     s.buyObservatory('speed');
-    s.toggleObservatory('speed');
     s.tickets = TICKET_CAP + 1;
     s.save();
     const t = new GameState();
     t.load();
     expect(t.obsRank('tickets')).toBe(1);
     expect(t.obsRank('speed')).toBe(1);
-    expect(t.obsOff).toEqual(['speed']);
+    expect(t.gameSpeedBonus()).toBeCloseTo(1.025);
     expect(t.tickets).toBe(TICKET_CAP + 1);
 
     const raw = JSON.parse(localStorage.getItem('hordefall-save-v1')!);
@@ -171,14 +161,14 @@ describe('Observatory', () => {
     const u = new GameState();
     u.load();
     expect(u.observatory).toEqual({ tickets: OBSERVATORY.find((d) => d.id === 'tickets')!.max });
-    expect(u.obsOff).toEqual(['tickets']);
+    // An old save with a buff switched off loads with it on.
+    expect(u.ticketCap()).toBe(TICKET_CAP + OBSERVATORY.find((d) => d.id === 'tickets')!.max);
   });
 
   it('gives every placed Sigil back for free when a save has more placed than earned', () => {
     const s = withSigils(10);
     s.buyObservatory('tickets');
     s.buyObservatory('tickets');
-    s.toggleObservatory('tickets');
     s.save();
     const raw = JSON.parse(localStorage.getItem('hordefall-save-v1')!);
     raw.rekindles = 2; // only 2 Sigils earned, 9 placed
@@ -186,7 +176,6 @@ describe('Observatory', () => {
     const t = new GameState();
     t.load();
     expect(t.observatory).toEqual({});
-    expect(t.obsOff).toEqual([]);
     expect(t.obsRefunded).toBe(true);
     expect(t.sigils()).toBe(2);
     t.rekindles = 3;
