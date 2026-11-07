@@ -28,6 +28,7 @@ export const WHATS_NEW_SHOWN = 8;
 /** Newest first. */
 export const WHATS_NEW: WhatsNewEntry[] = [
   { id: 'forge-mastery', date: '2026-11-07', text: '<b>Weapon Mastery</b>: maxed weapons keep growing with Ore, Crystal and Cores, and guild relics can be Tempered past level 20.' },
+  { id: 'element-boss-hint', date: '2026-11-07', text: '<b>Element bosses</b>: the boss button now says which element you need, and Run stats show today\'s gold chest Gems.' },
   { id: 'milestone-forge', date: '2026-11-07', text: '<b>Stage Milestones</b>: weapon forge materials instead of gold, plus Gems and Wild Crests every 100th stage.' },
   { id: 'offline-time-to-max', date: '2026-11-06', text: '<b>Offline</b>: the Home card now shows how long you need to be away to reach your max offline stage.' },
   { id: 'team-order-drag', date: '2026-11-05', text: '<b>Team order</b>: in Manage Team, hold and drag a hero to reorder your team. The Heroes tab follows that order.' },
