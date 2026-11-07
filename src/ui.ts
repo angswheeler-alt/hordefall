@@ -12,7 +12,7 @@ import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
 import { HERO_ANIMS } from './heroAnims';
 import { setMuted, setVolumes } from './sfx';
-import { BOSS_ANIMS } from './bossAnims';
+import { BOSS_ANIMS, BOSS_ANIM_FRAMES } from './bossAnims';
 import { offlineNote } from './offlineNote';
 import { guildBossElement, utcWeekStart, bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberRefund, emberBulk, emberStageBonus, keeperThreshold, fmt, fmtDuration, compareTag, NUMBER_LETTERS_NOTE } from './formulas';
 import type { WelcomeSection } from './welcome';
@@ -37,8 +37,8 @@ import { holdToRepeat } from './hold';
 import { ScoutUI } from './scoutUi';
 import { WILD_CREST_COST } from './scouting';
 import { GlyphUI } from './glyphUi';
-import { JournalUI, bossFaceStyle, journalRulesText } from './journalUi';
-import { heroFaceCss, heroWholeCss } from './portrait';
+import { JournalUI, journalRulesText } from './journalUi';
+import { bossPicHtml, heroFaceCss, heroWholeCss } from './portrait';
 import { RushUI, rushResultHtml } from './rushUi';
 import { ExpeditionUI, expEndHtml } from './expeditionUi';
 import type { ExpLender } from './expedition';
@@ -135,9 +135,9 @@ interface UltButton {
 
 /** HTML overlay for everything that isn't the lane: gold, hero upgrades, toggles. */
 
-/** CSS for a Trial boss portrait: the first idle frame in a `size` px box. */
-function bossFace(el: Element, size: number): Partial<CSSStyleDeclaration> {
-  return bossFaceStyle(BOSS_ANIMS[TRIAL_BOSS_ART[el]] ? TRIAL_BOSS_ART[el] : el, size);
+/** A Trial boss portrait (first idle frame, centred) to put inside a .boss-box. */
+function bossFace(el: Element): string {
+  return bossPicHtml(BOSS_ANIMS[TRIAL_BOSS_ART[el]] ? TRIAL_BOSS_ART[el] : el, BOSS_ANIM_FRAMES.idle);
 }
 
 export class UI {
@@ -2070,7 +2070,7 @@ export class UI {
         const next = days.length ? DAY_NAMES[[...days].sort((a, b) => ((a - today + 7) % 7) - ((b - today + 7) % 7)).find((d) => d !== today) ?? days[0]] : '';
         const ready = isOpen && unlocked;
         const note = ready ? 'Open today' : isOpen ? 'Locked' : `Opens ${next}`;
-        const face = (size: number) => Object.entries(bossFace(e, size)).map(([k, v]) => `${k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}:${v}`).join(';');
+        const face = bossFace(e);
         return { e, isOpen, ready, note, days, face, best: s.trialBest[e] ?? 0, name: TRIAL_BOSS_NAMES[e], color: hex(ELEMENT_COLORS[e]) };
       });
       type Gate = (typeof gates)[number];
@@ -2079,7 +2079,7 @@ export class UI {
       const week = (g: Gate) => '<span class="tg-week">' + [1, 2, 3, 4, 5, 6, 0].map((d) => `<i class="${g.days.includes(d) ? 'on' : ''}${d === today ? ' now' : ''}">${DAY_NAMES[d][0]}</i>`).join('') + '</span>';
       // One banner per element boss: portrait, best level, the week's open days and an Enter button.
       const body = '<div class="tb-list">' + gates.map((g) =>
-        `<button ${attrs(g, 'tb-card')}><span class="tb-frame"><span class="trial-portrait" style="${g.face(68)}"></span></span>` +
+        `<button ${attrs(g, 'tb-card')}><span class="tb-frame"><span class="trial-portrait boss-box">${g.face}</span></span>` +
         `<span class="tb-text"><b>${g.name}</b><small>${cap(g.e)} Trial · Best level ${g.best} / ${TRIAL_TIERS}</small>${week(g)}</span>` +
         `<span class="tb-go">${g.ready ? 'Enter' : g.isOpen ? 'Locked' : g.note}</span></button>`).join('') + '</div>';
       $('tr-list').innerHTML = (unlocked ? '' : '<p class="trial-lock">Trials open once you beat the stage 50 boss.</p>') + body +
@@ -2093,8 +2093,9 @@ export class UI {
       $('tr-detail').dataset.el = el;
       const face = $('tr-face');
       face.style.setProperty('--el', hex(ELEMENT_COLORS[el]));
-      face.textContent = BOSS_ANIMS[el] ? '' : TRIAL_BOSS_NAMES[el][0];
-      Object.assign(face.style, bossFace(el, 48));
+      const pic = bossFace(el);
+      if (pic) face.innerHTML = pic;
+      else face.textContent = TRIAL_BOSS_NAMES[el][0];
       $('tr-name').textContent = `${TRIAL_BOSS_NAMES[el]} (${cap(el)})`;
     }
     const level = TRIAL_LEVELS[tier - 1];

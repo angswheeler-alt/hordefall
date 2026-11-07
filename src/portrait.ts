@@ -25,17 +25,12 @@ function toCss(b: ArtBounds, scale: number, ox: number, oy: number, boxH: number
 
 /**
  * Head-and-shoulders portrait in a square box: zoomed so the top of the figure fills the box (less for wide
- * creatures, never so far that more than the whole figure shows), with the head in the middle. A boss wider
- * than it is tall is shown whole and centred both ways.
+ * creatures, never so far that more than the whole figure shows), centred on the part that shows.
  */
 export function portraitFit(b: ArtBounds, frames = 1): FitCss {
   const [, , x0, y0, x1, y1, headX] = b;
   const w = x1 - x0;
   const h = y1 - y0;
-  if (frames > 1 && w > h * 1.1) {
-    const s = 0.94 / w;
-    return toCss(b, s, 0.5 - ((x0 + x1) / 2) * s, 0.5 - ((y0 + y1) / 2) * s, 1, frames);
-  }
   const s = Math.max(Math.min(1 / (h * 0.62), 1 / (w * 0.95)), 1 / (h * 1.05));
   return toCss(b, s, 0.5 - headX * s, 0.05 - y0 * s, 1, frames);
 }
@@ -53,5 +48,23 @@ const inline = (c: FitCss | null) => (c ? `;background-size:${c.backgroundSize};
 export const heroFaceCss = (art: string) => inline(HERO_BOUNDS[art] ? portraitFit(HERO_BOUNDS[art]) : null);
 /** Inline CSS for a hero's whole figure in a box `boxH` tall per 1 wide (the Collection tiles). */
 export const heroWholeCss = (art: string, boxH: number) => inline(HERO_BOUNDS[art] ? wholeFit(HERO_BOUNDS[art], boxH) : null);
-/** Boss portrait (first idle frame) as CSS properties; null when the boss has no measured art. */
-export const bossFit = (id: string, frames: number): FitCss | null => (BOSS_BOUNDS[id] ? portraitFit(BOSS_BOUNDS[id], frames) : null);
+/**
+ * Box (fractions of a square) for a boss's first idle frame: the whole boss, centred both ways, a little margin.
+ * The picture is drawn on its own element sized to one frame, so the strip's next frame never shows beside it.
+ */
+export function bossBox(b: ArtBounds): { left: number; top: number; width: number; height: number } {
+  const [fw, fh, x0, y0, x1, y1] = b;
+  const s = 0.9 / Math.max(x1 - x0, y1 - y0);
+  return { left: 0.5 - ((x0 + x1) / 2) * s, top: 0.5 - ((y0 + y1) / 2) * s, width: fw * s, height: fh * s };
+}
+
+/**
+ * A boss portrait to put inside a box with `position: relative; overflow: hidden` (class .boss-pic in
+ * style.css); '' when the boss has no measured art. `frames` is how many frames the idle strip holds.
+ */
+export function bossPicHtml(id: string, frames: number): string {
+  const b = BOSS_BOUNDS[id];
+  if (!b) return '';
+  const r = bossBox(b);
+  return `<i class="boss-pic" aria-hidden="true" style="background-image:url(bosses/${id}_idle.png);background-size:${frames * 100}% 100%;left:${pct(r.left * 100)};top:${pct(r.top * 100)};width:${pct(r.width * 100)};height:${pct(r.height * 100)}"></i>`;
+}
