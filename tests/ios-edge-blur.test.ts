@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import css from '../src/style.css?raw';
+import html from '../index.html?raw';
 
 // iOS 26+ blurs a band under the status bar in home-screen apps; the page
 // must start below it and an opaque strip must cover it (src/style.css).
-const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
-const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
 describe('iOS top edge blur', () => {
   it('has the opaque cover strip in the page', () => {
