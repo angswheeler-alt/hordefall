@@ -10,6 +10,20 @@
   --ok: #4cd97a;
   --ember: #ff8a3d;
   color-scheme: dark;
+  /* Top inset for page content: the status bar plus, on iOS 26+ installed apps, the blur band below it. */
+  --edge-pad: 0px;
+  --safe-top: calc(env(safe-area-inset-top, 0px) + var(--edge-pad));
+}
+/* iOS 26+ draws a fixed "scroll edge" blur from the bottom of the status bar down about 36 px in a
+   home-screen web app, smearing whatever sits there (it made the Stage label and Auto boss fuzzy).
+   Cover that band with a solid strip and start the page below it. Anchor positioning shipped with
+   Safari 26, so it tells iOS 26+ apart from older iOS, which never had the blur. */
+#edge-cover { display: none; }
+@media (display-mode: standalone) {
+  @supports (anchor-name: --a) and (-webkit-touch-callout: none) {
+    :root { --edge-pad: 36px; }
+    #edge-cover { display: block; position: fixed; left: 0; right: 0; top: 0; height: var(--safe-top); background: var(--bg); z-index: 60; pointer-events: none; }
+  }
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
@@ -17,7 +31,7 @@ body { -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
 /* A slow tap on a phone is a long-press: it selects text or opens the callout menu instead of clicking. Games don't need either. */
 body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; }
-#app { max-width: 720px; margin: 0 auto; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+#app { max-width: 720px; margin: 0 auto; padding: var(--safe-top) 0 env(safe-area-inset-bottom); }
 #topbar { display: flex; align-items: center; gap: 16px; padding: 10px 14px; position: sticky; top: 0; z-index: 5; background: var(--bg); }
 .stat { display: flex; align-items: center; gap: 6px; font-size: 20px; }
 .stat.small { font-size: 13px; color: var(--muted); }
@@ -576,7 +590,7 @@ i.stone { display: inline-block; width: 12px; height: 12px; background: linear-g
 .hero-sub .collection-btn { margin-right: auto; }
 #coll { position: fixed; inset: 0; z-index: 14; background: var(--wood-lo); background-image: repeating-linear-gradient(0deg, rgba(0,0,0,.08) 0 2px, transparent 2px 28px); overflow-y: auto; }
 .coll-page { max-width: 720px; margin: 0 auto; padding: 12px 12px calc(24px + env(safe-area-inset-bottom, 0px)); }
-.coll-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; position: sticky; top: 0; padding: calc(4px + env(safe-area-inset-top, 0px)) 0 8px; background: var(--wood-lo); z-index: 1; }
+.coll-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; position: sticky; top: 0; padding: calc(4px + var(--safe-top)) 0 8px; background: var(--wood-lo); z-index: 1; }
 .coll-head h2 { margin: 0; font-size: 22px; color: #e4eaf8; text-shadow: 0 2px 0 var(--wood-deep); }
 .coll-head span { margin-left: auto; color: #b0c1e8; font-weight: 700; }
 .coll-legend { margin: 0 0 4px; padding: 6px 10px; border-radius: 6px; background: rgba(0,0,0,.25); color: #ffd58a; font-size: 12px; font-weight: 700; line-height: 1.35; }
@@ -1095,7 +1109,7 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 #modal .ak-skills p { margin: 2px 0 0; font-size: 12px; line-height: 1.4; }
 
 /* Admin test mode (src/testMode.ts): a banner over the battle and test controls on the hero page. */
-#test-banner { position: fixed; top: max(4px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 40; display: flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border-radius: 999px; background: #8a1f2bdd; border: 1px solid #ff8a8a; color: #fff; font-size: 11px; white-space: nowrap; pointer-events: auto; }
+#test-banner { position: fixed; top: max(4px, var(--safe-top)); left: 50%; transform: translateX(-50%); z-index: 40; display: flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border-radius: 999px; background: #8a1f2bdd; border: 1px solid #ff8a8a; color: #fff; font-size: 11px; white-space: nowrap; pointer-events: auto; }
 #test-banner b { letter-spacing: .06em; }
 #test-banner button { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid #ffb3b3; background: #5a1019; color: #fff; }
 .test-tools { border: 1px dashed #ff8a8a; border-radius: 8px; }
@@ -1107,7 +1121,7 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .test-row button:disabled { opacity: .4; }
 
 /* Full-screen overlays keep clear of the iPhone status bar and home bar (installed app draws under them). */
-#modal, #rk, #settings, #social, #acct-dialog { padding-top: max(16px, env(safe-area-inset-top, 0px)); padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)); }
+#modal, #rk, #settings, #social, #acct-dialog { padding-top: max(16px, var(--safe-top)); padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)); }
 .screen-info { margin: 10px 0 0; color: #7f8db3; font-size: 10px; line-height: 1.3; user-select: text; -webkit-user-select: text; }
 
 /* Instant tap feedback (src/taps.ts): the button under a finger dims and sinks the moment it is touched,
@@ -1119,7 +1133,7 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 
 /* Manage Team, compact (user 2026-10-31 "remodel the manage team section"): a slimmer header, the team as
    one row of small faces, and smaller hero cards so many more heroes fit on screen. */
-#modal.team-mode { padding-top: max(10px, env(safe-area-inset-top, 0px)); padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
+#modal.team-mode { padding-top: max(10px, var(--safe-top)); padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
 #modal.team-mode .card { max-width: 520px; padding: 10px 10px 8px; height: 100%; max-height: none; }
 #modal.team-mode h2 { font-size: 18px; margin: 2px 40px 2px; }
 #modal.team-mode .tm-x { top: 6px; right: 6px; width: 30px; height: 30px; font-size: 14px; }
