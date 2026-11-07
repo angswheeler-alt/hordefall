@@ -94,6 +94,12 @@ export function glyphMain(g: Pick<Glyph, 'family' | 'star' | 'level'>): { stat: 
   return { stat, value: base * (1 + Math.max(0, Math.min(GLYPH_MAX_LEVEL, g.level)) / GLYPH_MAX_LEVEL) };
 }
 
+/** Everything a Glyph gives, main stat first, as short display rows ("ATK", "+12%"). Shown on every Glyph card before it is equipped. */
+export function glyphStatRows(g: Pick<Glyph, 'family' | 'star' | 'level' | 'subs'>): Array<{ name: string; value: string; main: boolean }> {
+  const m = glyphMain(g);
+  return [{ name: GLYPH_STAT_NAMES[m.stat], value: glyphPct(m.value), main: true }, ...g.subs.map(([k, v]) => ({ name: GLYPH_STAT_NAMES[k], value: glyphPct(v), main: false }))];
+}
+
 /** Dust to level a Glyph from `level` to `level + 1`; null at max. */
 export function glyphLevelCost(star: number, level: number): number | null {
   if (level >= GLYPH_MAX_LEVEL) return null;
