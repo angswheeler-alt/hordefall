@@ -27,6 +27,7 @@ export const WHATS_NEW_SHOWN = 8;
 
 /** Newest first. */
 export const WHATS_NEW: WhatsNewEntry[] = [
+  { id: 'milestone-forge', date: '2026-11-07', text: '<b>Stage Milestones</b>: weapon forge materials instead of gold, plus Gems and Wild Crests every 100th stage.' },
   { id: 'offline-time-to-max', date: '2026-11-06', text: '<b>Offline</b>: the Home card now shows how long you need to be away to reach your max offline stage.' },
   { id: 'team-order-drag', date: '2026-11-05', text: '<b>Team order</b>: in Manage Team, hold and drag a hero to reorder your team. The Heroes tab follows that order.' },
   { id: 'pvp-enemy-meter', date: '2026-11-05', text: '<b>Battle meter</b>: fights against other players now show the damage dealt, taken and healed by each enemy hero too.' },

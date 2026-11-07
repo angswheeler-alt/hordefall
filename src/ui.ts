@@ -2764,10 +2764,9 @@ export class UI {
       if (!got) return;
       play('chest');
       this.scene()?.syncHeroes();
-      const paid = milestoneText({ chests: got.chests, stones: got.stones, tickets: got.tickets, goldMinutes: 0 });
-      const gold = got.gold.gt(0) ? `${paid ? ' + ' : ''}${fmt(got.gold)} gold` : '';
+      const paid = milestoneText(got);
       const what = got.count === 1 ? 'a Stage Milestone' : `${got.count} Stage Milestones`;
-      this.showModal('Stage Milestone', `You claimed ${what}: <b>${paid}${gold}</b>.${dropCards(got.drops)}`, 'Collect');
+      this.showModal('Stage Milestone', `You claimed ${what}: <b>${paid}</b>. Forge materials upgrade weapons on a hero's Weapon tab.${dropCards(got.drops)}`, 'Collect');
       this.render();
     });
     // Daily challenges live on Home, Recruit Trials and achievements in the Shop: listen on the whole panel area.
