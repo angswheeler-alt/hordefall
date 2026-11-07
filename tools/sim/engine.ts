@@ -502,7 +502,7 @@ export async function runSim(cfg: SimConfig) {
         const keep = Math.floor((s.essences[el] ?? 0) / 2);
         for (let g = 0; g < 500 && (s.essences[el] ?? 0) - s.attuneNextCost(el) >= keep; g++) if (!s.buyAttune(el, 1)) break;
       }
-      while (s.alchemyCore()) { /* weekly limit stops it */ }
+      while (s.enhanceStones > 1000 && s.alchemyCore()) { /* weekly limit stops it */ }
       const els = ['water', 'earth', 'fire', 'light', 'dark'].sort((a, b) => (s.essences[b] ?? 0) - (s.essences[a] ?? 0));
       for (let g = 0; g < 5; g++) if (!s.alchemyDust(els[0])) break;
       const most = s.swapMost(els[0], els[4]);

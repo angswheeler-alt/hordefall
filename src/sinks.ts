@@ -2,17 +2,17 @@
  * Long-term uses for Essence and Enhance Stones (Samuel, 2026-11-07, "1-3"): once relics are maxed, both
  * piled up with nothing to buy (~1e12 Essence and ~45,000 Stones by day 365 in the simulator).
  *
- * 1. Elemental Attunement: each element's own Essence buys ranks that add ATTUNE_STEP ATK and HP to that
+ * 1. Elemental Attunement: each element's own Essence buys ranks that add ATTUNE_STEP ATK and HP (1%) to that
  *    element's heroes. Costs grow ATTUNE_GROWTH a rank, so it never ends but stays a slow goal.
  * 2. Relic Tempering: past a relic's last Enhance, Stones add one level's worth of its effect at a time
- *    (+5% of its level-20 effect), up to RELIC_TEMPER_CAP, like Weapon Mastery.
+ *    (+2.5% of its level-20 effect), up to RELIC_TEMPER_CAP, like Weapon Mastery.
  * 3. Alchemist's Table: trade spares at a poor rate, each with a weekly limit so it never becomes a loophole.
  */
 import type { Element } from './data';
 
-export const ATTUNE_STEP = 0.02;
-export const ATTUNE_BASE = 10_000;
-export const ATTUNE_GROWTH = 1.15;
+export const ATTUNE_STEP = 0.01;
+export const ATTUNE_BASE = 1_000_000;
+export const ATTUNE_GROWTH = 1.2;
 
 /** Essence for the next Attunement rank of an element. */
 export function attuneCost(rank: number): number {
@@ -42,6 +42,8 @@ export function clampAttune(n: unknown): number {
 }
 
 export const RELIC_TEMPER_CAP = 20;
+/** Each Temper counts as this many relic levels (0.5 = +2.5% of its level-20 effect). */
+export const RELIC_TEMPER_LEVELS = 0.5;
 export const RELIC_TEMPER_BASE = 10;
 export const RELIC_TEMPER_GROWTH = 1.1;
 
@@ -65,8 +67,10 @@ export const ALCHEMY_DUST_RUNS = 2;
 export const ALCHEMY_DUST_MIN = 500;
 export const ALCHEMY_DUST_PER_WEEK = 5;
 /** Epic Forge Core for Enhance Stones, ALCHEMY_CORES_PER_WEEK times a week. */
-export const ALCHEMY_CORE_STONES = 150;
-export const ALCHEMY_CORES_PER_WEEK = 3;
+export const ALCHEMY_CORE_STONES = 200;
+export const ALCHEMY_CORES_PER_WEEK = 2;
+/** The Alchemist's Table opens at this best stage. */
+export const ALCHEMY_UNLOCK_STAGE = 2000;
 
 export interface AlchemyState {
   week: string;

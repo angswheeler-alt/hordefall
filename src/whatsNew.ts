@@ -27,7 +27,7 @@ export const WHATS_NEW_SHOWN = 8;
 
 /** Newest first. */
 export const WHATS_NEW: WhatsNewEntry[] = [
-  { id: 'essence-stone-sinks', date: '2026-11-07', text: '<b>Relics</b>: new Attunement (Essence for +2% ATK/HP per element), Tempering for maxed relics, and an Alchemist for spare Essence and Stones.' },
+  { id: 'essence-stone-sinks', date: '2026-11-07', text: '<b>Relics</b>: new Attunement (Essence for +1% ATK/HP per rank), Tempering for maxed relics, and an Alchemist for spare Essence and Stones.' },
   { id: 'boss-relics', date: '2026-11-07', text: '<b>Boss relics</b>: each Guild Boss drops its own rare items. Use them to build its two relics. Guild relics past Lv 10 need them too.' },
   { id: 'element-boss-soft', date: '2026-11-07', text: '<b>Element bosses</b>: heroes of other elements now deal 20% damage to them instead of none. The weak element still hits fully.' },
   { id: 'rarity-star-embers', date: '2026-11-07', text: '<b>Hero balance</b>: rarer heroes have much stronger base stats, stars make Ember levels count more, and Ember levels cost less.' },

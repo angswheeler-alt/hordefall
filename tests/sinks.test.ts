@@ -3,13 +3,18 @@ import { GameState } from '../src/state';
 import { HEROES, RELICS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, RELIC_ENHANCE_LEVELS, TRIAL_LEVELS } from '../src/data';
 import {
   ALCHEMY_CORES_PER_WEEK, ALCHEMY_CORE_STONES, ALCHEMY_DUST, ALCHEMY_DUST_MIN, ALCHEMY_DUST_PER_WEEK, ALCHEMY_SWAP_MIN, ALCHEMY_SWAP_RATE, ALCHEMY_SWAP_RUNS,
-  ATTUNE_STEP, RELIC_TEMPER_CAP, attuneBulk, attuneCost, relicTemperCost,
+  ALCHEMY_UNLOCK_STAGE, ATTUNE_STEP, RELIC_TEMPER_CAP, RELIC_TEMPER_LEVELS, attuneBulk, attuneCost, relicTemperCost,
 } from '../src/sinks';
 
 beforeEach(() => localStorage.clear());
 
 const MON = new Date(2026, 10, 2, 12).getTime(); // a Monday
 const DAY = 86_400_000;
+const open = () => {
+  const s = new GameState();
+  s.reachStage(ALCHEMY_UNLOCK_STAGE);
+  return s;
+};
 
 describe('Elemental Attunement', () => {
   it('spends the element\'s own Essence and adds ATK and HP to that element only', () => {
@@ -61,7 +66,7 @@ describe('Relic Tempering', () => {
     s.enhanceStones = 1e6;
     expect(s.temperRelic(def.id)).toBe(true);
     expect(s.enhanceStones).toBe(1e6 - relicTemperCost(def.stars, 0));
-    expect(s.relicEffect(def, 'atk')).toBeCloseTo(before * (top + 1) / top);
+    expect(s.relicEffect(def, 'atk')).toBeCloseTo(before * (top + RELIC_TEMPER_LEVELS) / top);
     for (let i = 1; i < RELIC_TEMPER_CAP; i++) expect(s.temperRelic(def.id)).toBe(true);
     expect(s.temperRelic(def.id)).toBe(false);
     expect(s.temperCost(def)).toBeNull();
@@ -87,8 +92,18 @@ describe('Relic Tempering', () => {
 });
 
 describe('Alchemist\'s Table', () => {
-  it('swaps Essence 3 to 1 up to a weekly limit that follows the best Trial level', () => {
+  it('opens at its stage', () => {
     const s = new GameState();
+    s.essences.fire = 1e9;
+    s.enhanceStones = 1e4;
+    expect(s.alchemyOpen()).toBe(false);
+    expect(s.alchemyCore(MON)).toBe(false);
+    expect(s.alchemyDust('fire', MON)).toBe(false);
+    expect(s.swapMost('fire', 'dark', MON)).toBe(0);
+  });
+
+  it('swaps Essence 3 to 1 up to a weekly limit that follows the best Trial level', () => {
+    const s = open();
     expect(s.swapLeft(MON)).toBe(ALCHEMY_SWAP_MIN);
     s.trialBest.fire = 20;
     const cap = ALCHEMY_SWAP_RUNS * TRIAL_LEVELS[19].essence;
@@ -105,7 +120,7 @@ describe('Alchemist\'s Table', () => {
   });
 
   it('sells Glyph Dust and Epic Forge Cores a few times a week', () => {
-    const s = new GameState();
+    const s = open();
     s.essences.water = 1e9;
     s.enhanceStones = 10_000;
     for (let i = 0; i < ALCHEMY_DUST_PER_WEEK; i++) expect(s.alchemyDust('water', MON)).toBe(true);

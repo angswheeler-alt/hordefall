@@ -44,7 +44,7 @@ import { ExpeditionUI, expEndHtml } from './expeditionUi';
 import type { ExpLender } from './expedition';
 import { RESET_PHRASE, resetPhraseOk } from './resetPhrase';
 import { attachTeamDrag } from './teamDrag';
-import { ALCHEMY_CORES_PER_WEEK, ALCHEMY_CORE_STONES, ALCHEMY_DUST, ALCHEMY_DUST_PER_WEEK, ALCHEMY_SWAP_RATE, ATTUNE_STEP, RELIC_TEMPER_CAP } from './sinks';
+import { ALCHEMY_UNLOCK_STAGE, ALCHEMY_CORES_PER_WEEK, ALCHEMY_CORE_STONES, ALCHEMY_DUST, ALCHEMY_DUST_PER_WEEK, ALCHEMY_SWAP_RATE, ATTUNE_STEP, RELIC_TEMPER_CAP } from './sinks';
 import { sortHeroes, nextTeamSort, TEAM_SORT_LABELS, type TeamSort } from './teamSort';
 
 /** The teams Manage Team edits: stages, Colosseum attack and defense, and the Guild Boss. */
@@ -873,7 +873,7 @@ export class UI {
       r.eff.textContent = this.relicEffectText(r.def, s.relicPowerLevel(r.def));
       if (cost !== null) setHtml(r.cost, this.relicCostHtml(r.def, cost));
       else if (enhance !== null) setHtml(r.cost, `<span class="${s.enhanceStones < enhance ? 'short' : ''}" title="Enhance Stones"><i class="stone"></i>${enhance} → cap +5</span>`);
-      else if (temper !== null) setHtml(r.cost, `<span class="${s.enhanceStones < temper ? 'short' : ''}" title="Enhance Stones"><i class="stone"></i>${fmt(temper)} → +5% of its Lv ${RELIC_BASE_MAX} effect</span>`);
+      else if (temper !== null) setHtml(r.cost, `<span class="${s.enhanceStones < temper ? 'short' : ''}" title="Enhance Stones"><i class="stone"></i>${fmt(temper)} → +2.5% of its Lv ${RELIC_BASE_MAX} effect</span>`);
       else setHtml(r.cost, '<span>Max level</span>');
       r.up.textContent = cost !== null ? 'Upgrade' : enhance !== null ? 'Enhance' : temper !== null ? 'Temper' : 'Maxed';
       r.up.disabled = cost !== null ? !can : enhance !== null ? s.enhanceStones < enhance : temper === null || s.enhanceStones < temper;
@@ -976,6 +976,9 @@ export class UI {
       r.one.disabled = have < cost;
       r.max.disabled = have < cost;
     }
+    const alcBtn = document.querySelector<HTMLButtonElement>('[data-relic-go="alchemy"]')!;
+    alcBtn.disabled = !s.alchemyOpen();
+    alcBtn.textContent = s.alchemyOpen() ? 'Alchemist' : `Alchemist · stage ${ALCHEMY_UNLOCK_STAGE.toLocaleString()}`;
     const a = s.alchemyNow();
     const from = $<HTMLSelectElement>('alc-from').value as Element;
     const to = $<HTMLSelectElement>('alc-to').value as Element;

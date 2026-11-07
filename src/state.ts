@@ -25,7 +25,7 @@ import { GLYPH_BAG_CAP, GLYPH_FAMILIES, chestStar, cleanGlyph, emptyTotals, glyp
 import { RUSH_BRACKETS, RUSH_CREST_COINS, RUSH_CREST_LIMIT, RUSH_CREST_PACK, RUSH_DAILY_TICKETS, RUSH_DAYS, RUSH_FEATURED, RUSH_FIGHT_TICKETS, RUSH_FOES, RUSH_FREE_HEROES, RUSH_FREE_HOURS, RUSH_LOSS_COINS, RUSH_MAX_LEVEL, RUSH_SHOP, RUSH_STREAK_UP, RUSH_TIERS, RUSH_UNLOCK_LEVEL, chestKinds, cleanRush, freeAttacks, inBracket, newRush, rushWinPoints, type RushFoe, type RushReward, type RushShopId, type RushState } from './rush';
 import { SCOUT_KINDS, SCOUT_PRIORITY, SCOUT_UNLOCK_LEVEL, WILD_CREST_COST, cleanScout, pickScoutTeam, scoutProblems, type ScoutCand, heroScoutScore, missionEndsAt, newScout, nextHour, refreshBoard, scoutReward, scoutShare, type ScoutReward, type ScoutSlot, type ScoutState } from './scouting';
 import { allWhatsNewIds } from './whatsNew';
-import { ALCHEMY_CORES_PER_WEEK, ALCHEMY_CORE_STONES, ALCHEMY_DUST, ALCHEMY_DUST_PER_WEEK, ALCHEMY_SWAP_RATE, RELIC_TEMPER_CAP, attuneBonus, attuneBulk, attuneCost, clampAttune, clampTemper, cleanAlchemy, dustCost, newAlchemy, relicTemperCost, swapCap, type AlchemyState } from './sinks';
+import { ALCHEMY_UNLOCK_STAGE, ALCHEMY_CORES_PER_WEEK, ALCHEMY_CORE_STONES, ALCHEMY_DUST, ALCHEMY_DUST_PER_WEEK, ALCHEMY_SWAP_RATE, RELIC_TEMPER_CAP, RELIC_TEMPER_LEVELS, attuneBonus, attuneBulk, attuneCost, clampAttune, clampTemper, cleanAlchemy, dustCost, newAlchemy, relicTemperCost, swapCap, type AlchemyState } from './sinks';
 import { EXP_CHARGE_CAP, EXP_HEARTS, EXP_MAX_LEVEL, EXP_PARTY_MAX, EXP_HIRE_MAX, EXP_STOPS, EXP_UNLOCK_LEVEL, autoReward, boonMults, cleanExpedition, daysBetween, foeShare, fullReward, levelMult, makeMap, mysteryOptions, newExpedition, partReward, rollBoons, type BoonTarget, type ExpHire, type ExpLender, type ExpNodeKind, type ExpReward, type ExpRun, type ExpState, type MysteryOption } from './expedition';
 
 /** Test mode plays a copy of the save under its own key, so the real one is never written. */
@@ -732,7 +732,7 @@ export class GameState {
   /** Level a relic's effect counts as: its level plus its Tempers (each Temper is one more level's worth). */
   relicPowerLevel(def: RelicDef): number {
     const level = this.relics[def.id] ?? 0;
-    return level > 0 ? level + this.temperCount(def.id) : 0;
+    return level > 0 ? level + this.temperCount(def.id) * RELIC_TEMPER_LEVELS : 0;
   }
 
   temperCount(id: string): number {
@@ -784,6 +784,10 @@ export class GameState {
 
   // ---------- Alchemist's Table (src/sinks.ts) ----------
 
+  alchemyOpen(): boolean {
+    return this.bestStage >= ALCHEMY_UNLOCK_STAGE;
+  }
+
   /** This week's trades (resets each Monday). */
   alchemyNow(now = Date.now()): AlchemyState {
     const week = weekKey(now);
@@ -804,7 +808,7 @@ export class GameState {
 
   /** Most Essence of `to` a swap from `from` can give right now. */
   swapMost(from: Element, to: Element, now = Date.now()): number {
-    if (from === to) return 0;
+    if (from === to || !this.alchemyOpen()) return 0;
     return Math.min(this.swapLeft(now), Math.floor((this.essences[from] ?? 0) / ALCHEMY_SWAP_RATE));
   }
 
@@ -827,7 +831,7 @@ export class GameState {
   alchemyDust(from: Element, now = Date.now()): boolean {
     const a = this.alchemyNow(now);
     const cost = this.alchemyDustCost();
-    if (a.dust >= ALCHEMY_DUST_PER_WEEK || (this.essences[from] ?? 0) < cost) return false;
+    if (!this.alchemyOpen() || a.dust >= ALCHEMY_DUST_PER_WEEK || (this.essences[from] ?? 0) < cost) return false;
     this.essences[from] = (this.essences[from] ?? 0) - cost;
     this.glyphDust += ALCHEMY_DUST;
     a.dust++;
@@ -838,7 +842,7 @@ export class GameState {
   /** Buy one Epic Forge Core with Enhance Stones. */
   alchemyCore(now = Date.now()): boolean {
     const a = this.alchemyNow(now);
-    if (a.cores >= ALCHEMY_CORES_PER_WEEK || this.enhanceStones < ALCHEMY_CORE_STONES) return false;
+    if (!this.alchemyOpen() || a.cores >= ALCHEMY_CORES_PER_WEEK || this.enhanceStones < ALCHEMY_CORE_STONES) return false;
     this.enhanceStones -= ALCHEMY_CORE_STONES;
     this.forge.coreE += 1;
     a.cores++;
