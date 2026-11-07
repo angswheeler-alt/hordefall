@@ -5,7 +5,7 @@ import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM,
 import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicCost, guildRelicEffect, warsteelForFight, warsteelForKill, warsteelForWeek, type GuildRelicDef, type GuildRelicEffect } from './guildRelics';
 import { utcWeekStart, guildBossElement, relicCost, bossHp, bossAtk, enemyHp, enemyAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberCost, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, isBossStage } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
-import { FIXED_LEVEL, RENAMED_HEROES, PLAYABLE_HEROES, RELEASED_HEROES, ASCENDANT_CHEST, START_GOLD } from './data';
+import { FIXED_LEVEL, RENAMED_HEROES, PLAYABLE_HEROES, RELEASED_HEROES, ASCENDANT_CHEST, START_GOLD, isElementBossStage, bossWeakness } from './data';
 import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills';
 import { isKnight, combatPower, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
@@ -199,7 +199,7 @@ export interface TrialResult {
   /** Seconds the fight lasted (capped at the time limit). */
   seconds: number;
   essence: number;
-  /** Enhance Stones won (Trial level 6 and up). */
+  /** Enhance Stones won (Trial level 16 and up). */
   stones: number;
   /** One Hero Crest per medal, to these heroes (a hero can appear twice). */
   medals: string[];
@@ -888,6 +888,17 @@ export class GameState {
 
   inLineup(id: string): boolean {
     return (this.levels[id] ?? 0) > 0 && !this.benched[id];
+  }
+
+  /**
+   * On an element boss stage (every 100th from 600, only its weakness can hurt it): the element the lineup is
+   * missing, or null when the lineup has a hero of that element or the stage is not an element boss.
+   */
+  missingBossElement(stage: number): Element | null {
+    if (!isElementBossStage(stage)) return null;
+    const weak = bossWeakness(stage);
+    if (!weak || HEROES.some((h) => h.element === weak && this.inLineup(h.id))) return null;
+    return weak;
   }
 
   /** The lineup in the player's order: heroes in teamOrder first, anyone else after in roster order. */
@@ -3832,6 +3843,11 @@ export class GameState {
     return total / (to - from);
   }
 
+  /** Gems from floating gold chests so far today (out of GOLD_CHEST_GEMS_PER_DAY). */
+  chestGemsToday(now = Date.now()): number {
+    return this.chestGems.day === dayKey(now) ? this.chestGems.got : 0;
+  }
+
   /** Gems a floating gold chest pays now, counted toward today's cap (0 once the cap is reached). */
   takeChestGems(now = Date.now()): number {
     const today = dayKey(now);
@@ -4794,11 +4810,12 @@ export class GameState {
 }
 
 /**
- * Enhance Stones for a Trial win: none below level 6, 1 from level 6, 2 from level 26, 3 from level 36.
- * About half the old payout (Samuel, 2026-10-31): players had ~13,500 unspent Stones by day 90.
+ * Enhance Stones for a Trial win: none below level 16, 1 from level 16, 2 from level 36.
+ * Halved 2026-10-31, trimmed again 2026-11-07 (economy audit, tools/sim): free players still held ~72,000
+ * unspent Stones at day 365.
  */
 export function trialStones(tier: number): number {
-  return tier >= 36 ? 3 : tier >= 26 ? 2 : tier >= 6 ? 1 : 0;
+  return tier >= 36 ? 2 : tier >= 16 ? 1 : 0;
 }
 
 /** Pick from `[value, weight]` pairs by weight. */
