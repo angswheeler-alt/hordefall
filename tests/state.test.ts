@@ -641,13 +641,12 @@ describe('trial level unlocks', () => {
 });
 
 describe('trial quick battle', () => {
-  // Pinned to a plain Wednesday: on a month's first weekend Trials pay double crests, which these counts don't expect.
+  // A plain Tuesday: on a month's first weekend Trials pay double crests, which these counts don't expect.
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(2026, 10, 11, 12));
+    vi.setSystemTime(new Date('2026-11-10T12:00:00Z'));
   });
   afterEach(() => vi.useRealTimers());
-
   function strong() {
     const s = fresh();
     s.bestStage = 51;

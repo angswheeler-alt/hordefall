@@ -12,6 +12,7 @@ import { fmt, parseAmount, guildBossFightWait, guildBossFightsLeft, guildBossLan
 import type { GameState } from './state';
 import type { Account } from './account';
 import { faceStyle, dropCards, type UI } from './ui';
+import { bossFaceStyle } from './journalUi';
 import { play } from './sfx';
 import { busyWhile, setHtml } from './taps';
 import { amountSliderHtml, bindAmountSlider } from './amountSlider';
@@ -880,9 +881,12 @@ export class Guild {
               ? `Fight · about ${fmt(mine)} damage (${fightsLeft} fight${fightsLeft === 1 ? '' : 's'} left)`
               : `Fight · about ${fmt(mine)} damage${paidLeft ? ` (${paidLeft} rewarded left today)` : ''}`
     }</button><small class="g-boss-next">${fightsLeft !== null ? refill : paidLeft ? '' : `Rewarded fights come back in ${untilText(dayReset)}. Extra fights still add damage.`}</small>`;
+    // The boss's own picture, centred on it; its initial until the art exists.
+    const pic = bossFaceStyle(`guild_${boss.element}`);
+    const bossPic = pic.backgroundImage ? `;background-image:${pic.backgroundImage};background-size:${pic.backgroundSize};background-position:${pic.backgroundPosition}` : '';
     setHtml(
       $('g-boss'),
-      `${ascPick}<div class="g-boss-top"><span class="g-boss-face" style="background:#${ELEMENT_COLORS[boss.element].toString(16).padStart(6, '0')}">${GUILD_BOSS_NAMES[boss.element][0]}</span>
+      `${ascPick}<div class="g-boss-top"><span class="g-boss-face${bossPic ? ' art' : ''}" style="background-color:#${ELEMENT_COLORS[boss.element].toString(16).padStart(6, '0')}${bossPic}">${bossPic ? '' : GUILD_BOSS_NAMES[boss.element][0]}</span>
         <div><b>${GUILD_BOSS_NAMES[boss.element]}</b><small>Level ${boss.level} · ${boss.element} · new boss in ${untilText(reset)}</small></div>
         <div class="g-boss-best"><b>${top}</b><small>beaten</small></div></div>
        <div class="g-boss-bar"><i style="width:${hp.gt(0) ? Math.max(0, Math.min(100, left.div(hp).times(100).toNumber())) : 0}%"></i><span>${fmt(left)} / ${fmt(hp)}</span></div>
