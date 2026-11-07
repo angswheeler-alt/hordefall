@@ -611,7 +611,7 @@ describe('live trial fights', () => {
   });
 
   it('Trial levels 26-30 ramp gently after level 25 (2026-11-01 balance review)', () => {
-    expect(TRIAL_LEVELS.slice(24, 31).map((l) => l.req![1])).toEqual([2850, 3300, 3700, 4100, 4500, 4900, 6300]);
+    expect(TRIAL_LEVELS.slice(24, 31).map((l) => l.req![1])).toEqual([2850, 3300, 3550, 3800, 4050, 4300, 4600]);
     for (let i = 1; i < TRIAL_LEVELS.length; i++) expect(TRIAL_LEVELS[i].difficulty).toBeGreaterThan(TRIAL_LEVELS[i - 1].difficulty);
   });
 
@@ -1602,7 +1602,7 @@ describe('Gold chest Gems', () => {
 });
 
 describe('Trial Enhance Stones', () => {
-  it('pays about half the old Stones per win: 1 from level 6, 2 from 26, 3 from 36', () => {
-    expect([1, 5, 6, 15, 16, 25, 26, 35, 36, 40].map(trialStones)).toEqual([0, 0, 1, 1, 1, 1, 2, 2, 3, 3]);
+  it('pays 1 Stone per win from level 16, 2 from 36', () => {
+    expect([1, 5, 6, 15, 16, 25, 26, 35, 36, 40].map(trialStones)).toEqual([0, 0, 0, 0, 1, 1, 1, 1, 2, 2]);
   });
 });

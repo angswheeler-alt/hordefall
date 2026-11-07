@@ -1362,7 +1362,9 @@ export class BattleScene extends Phaser.Scene {
       this.time.delayedCall(1400, () => this.banner('Back a stage to farm', '#ffd27a'));
     }
     this.banner(reason, '#ff6b6b');
-    if (isBossStage(stage) && !this.state.autoBoss) this.time.delayedCall(1400, () => this.banner('Tap FIGHT BOSS to retry', '#ffd27a'));
+    const need = this.state.missingBossElement(stage);
+    if (need) this.time.delayedCall(1400, () => this.banner(`ONLY ${need.toUpperCase()} CAN HURT IT\nADD A ${need.toUpperCase()} HERO`, '#ffd27a'));
+    else if (isBossStage(stage) && !this.state.autoBoss) this.time.delayedCall(1400, () => this.banner('Tap FIGHT BOSS to retry', '#ffd27a'));
     play('defeat');
     this.state.save();
     this.lostStage = true;

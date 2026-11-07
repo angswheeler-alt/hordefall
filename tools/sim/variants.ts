@@ -59,11 +59,22 @@ export const VARIANTS: Record<string, { text: string; edits: Edit[] }> = {
   'elementBossSoft': { text: 'Every-100th element bosses take 20% damage from other elements instead of none (softens the user rule from PR #95)', edits: [
     ['data.ts', 'export function bossImmuneTo(stage: number, attacker: Element | null): boolean {\n  if (!isElementBossStage(stage)) return false;', 'export const ELEMENT_BOSS_OTHER_SHARE = 0.2;\nexport function bossImmuneTo(stage: number, attacker: Element | null): boolean {\n  if (!isElementBossStage(stage) || attacker !== null) return false;'],
   ] },
+  'rarity2': { text: 'Rarity sets base power with about two stars per step: Rare x2.25, Epic x5, Legendary x11 ATK/HP', edits: [
+    ['formulas.ts', 'return levelScale(level).times(def.baseAtk * HERO_ATK_MULT);', "return levelScale(level).times(def.baseAtk * HERO_ATK_MULT * ({ common: 1, rare: 2.25, epic: 5, legendary: 11 } as Record<string, number>)[def.rarity]);"],
+    ['formulas.ts', 'return levelScale(level).times(def.baseHp);', "return levelScale(level).times(def.baseHp * ({ common: 1, rare: 2.25, epic: 5, legendary: 11 } as Record<string, number>)[def.rarity]);"],
+  ] },
+  'starEmber05': { text: 'Each star above 1★ makes a hero\'s Ember levels count 0.5% more in battle (7★ = +3%)', edits: [
+    ['state.ts', '    return effectiveLevel(this.levels[id] ?? 0, this.emberLevels[id] ?? 0);', '    return effectiveLevel(this.levels[id] ?? 0, Math.floor((this.emberLevels[id] ?? 0) * (1 + 0.005 * (this.stars[id] ?? 0))));'],
+  ] },
+  'starEmber1': { text: 'Each star above 1★ makes a hero\'s Ember levels count 1% more in battle (7★ = +6%)', edits: [
+    ['state.ts', '    return effectiveLevel(this.levels[id] ?? 0, this.emberLevels[id] ?? 0);', '    return effectiveLevel(this.levels[id] ?? 0, Math.floor((this.emberLevels[id] ?? 0) * (1 + 0.01 * (this.stars[id] ?? 0))));'],
+  ] },
 };
 
 /** Bundles: several variants applied together (the audit's recommended set). */
 export const BUNDLES: Record<string, { text: string; parts: string[] }> = {
   revised: { text: 'Recommended set: rarityStats + trialReqSmooth + trialStonesHalf', parts: ['rarityStats', 'trialReqSmooth', 'trialStonesHalf'] },
+  final: { text: 'Build set: trialReqSmooth + trialStonesHalf + ember1.068 + starEmber05 + rarity2', parts: ['trialReqSmooth', 'trialStonesHalf', 'ember1.068', 'starEmber05', 'rarity2'] },
 };
 for (const [k, b] of Object.entries(BUNDLES)) VARIANTS[k] = { text: b.text, edits: b.parts.flatMap((p) => VARIANTS[p].edits) };
 
