@@ -1,5 +1,6 @@
 """Placeholder pixel icons for the six guild relics (24x24, scaled x4 to 96x96) -> src/assets/relics/g_*.png.
-Run: python3 art/icons/make_guild_relic_icons.py. Replace with real art by dropping a PNG with the same name."""
+Run: python3 art/icons/make_guild_relic_icons.py. Replace with real art by dropping a PNG with the same name.
+Since 2026-11-07 the game uses Samuel's art for all six (raw on the project drive, art/guild-relics/raw): do not re-run this."""
 from PIL import Image, ImageDraw
 import os
 
