@@ -1575,5 +1575,13 @@ i.bitem.t2 { border-radius: 0; clip-path: polygon(50% 100%, 0 40%, 12% 8%, 35% 4
 .boss-items { flex-wrap: wrap; margin: 4px 0 2px; }
 .boss-pity { display: block; opacity: .7; margin-bottom: 4px; }
 .relic-cost { flex-wrap: wrap; }
+
+/* Elemental Attunement + Alchemist's Table (src/sinks.ts) */
+.attune .relic-art i[class^="ess-"] { width: 34px; height: 34px; background: center / contain no-repeat; image-rendering: pixelated; }
+.alc-card { background: linear-gradient(180deg, var(--plank), #222c44); border: 2px solid var(--wood-deep); border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; color: #e4eaf8; }
+.alc-card b { display: block; font-size: 15px; }
+.alc-card small { display: block; color: #b8c6e8; font-size: 12px; line-height: 1.35; margin: 2px 0 6px; }
+.alc-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+.alc-row select { flex: 1; min-width: 0; font: inherit; font-size: 14px; padding: 6px; border-radius: 8px; background: #141a2b; color: #e4eaf8; border: 1px solid var(--wood-deep); }
 .bitem-img { width: 18px; height: 18px; vertical-align: -4px; margin-right: 3px; image-rendering: auto; }
 .relic-cost .bitem-img { width: 16px; height: 16px; }

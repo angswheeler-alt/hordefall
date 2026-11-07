@@ -495,6 +495,19 @@ export async function runSim(cfg: SimConfig) {
       book('relicUp', () => s.upgradeRelic(up.id));
     }
     for (const r of RELICS) if (s.relics[r.id] && s.enhanceCost(r) !== null) book('relicEnhance', () => s.enhanceRelic(r.id));
+    // Essence / Stones sinks (src/sinks.ts), when the game has them: Tempering, half of spare Essence into Attunement, weekly Alchemist trades.
+    if (typeof s.temperRelic === 'function') {
+      for (const r of RELICS) if (s.relics[r.id]) for (let g = 0; g < 40 && s.temperCost(r) !== null; g++) if (!book('relicTemper', () => s.temperRelic(r.id))) break;
+      for (const el of ['water', 'earth', 'fire', 'light', 'dark']) {
+        const keep = Math.floor((s.essences[el] ?? 0) / 2);
+        for (let g = 0; g < 500 && (s.essences[el] ?? 0) - s.attuneNextCost(el) >= keep; g++) if (!s.buyAttune(el, 1)) break;
+      }
+      while (s.enhanceStones > 1000 && s.alchemyCore()) { /* weekly limit stops it */ }
+      const els = ['water', 'earth', 'fire', 'light', 'dark'].sort((a, b) => (s.essences[b] ?? 0) - (s.essences[a] ?? 0));
+      for (let g = 0; g < 5; g++) if (!s.alchemyDust(els[0])) break;
+      const most = s.swapMost(els[0], els[4]);
+      if (most > 0) s.alchemySwap(els[0], els[4], most);
+    }
     for (const r of RELICS) if (s.relics[r.id] && !s.equipped.includes(r.id)) s.toggleRelic(r.id);
   }
 
