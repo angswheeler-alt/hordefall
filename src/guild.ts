@@ -1,6 +1,6 @@
 import { sendReport, reportQuestion } from './report';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { warsteelForKill, warsteelForWeek } from './guildRelics';
+import { warsteelForKill, warsteelForWeek, BOSS_ITEM_NAMES, BOSS_ITEM_CHANCE, type BossItemCounts } from './guildRelics';
 import { isAscendant } from './heroes/ascendant';
 import {
   HEROES, RELEASED_HEROES, GUILD_MAX_MEMBERS, GUILD_REQUEST_GOAL, GUILD_REQUEST_HOURS, GUILD_REQUEST_OPEN_HOURS, GUILD_DONATE_MAX, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP,
@@ -17,6 +17,11 @@ import { BOSS_ANIM_FRAMES } from './bossAnims';
 import { play } from './sfx';
 import { busyWhile, setHtml } from './taps';
 import { amountSliderHtml, bindAmountSlider } from './amountSlider';
+
+/** " · +1 Leviathan Scale" style text for boss items gained. */
+function bossItemsText(element: Element, got: BossItemCounts): string {
+  return got.map((n, t) => (n > 0 ? ` · <b>+${n} ${BOSS_ITEM_NAMES[element][t]}</b>` : '')).join('');
+}
 
 // Guilds: browse, create and join; the weekly Guild Boss event; Guild Research; weekly Guild Quests; members and ranks;
 // chat; crest requests and donations for Guild Coins; and a guild shop. The rules are enforced
@@ -409,14 +414,15 @@ export class Guild {
       const hp = big(r.hp);
       // Only the first few fights a day pay (the server says which); the rest still add damage.
       const paid = r.paid ?? r.attempt <= GUILD_BOSS_ATTEMPTS;
-      const pay = paid ? this.state.payGuildBossAttempt(r.level, damage, hp) : null;
+      const element = this.boss?.element;
+      const pay = paid ? this.state.payGuildBossAttempt(r.level, damage, hp, element) : null;
       play(r.kills ? 'chest' : 'coin');
       const pct = hp.gt(0) ? damage.div(hp).times(100).toNumber() : 0;
       const share = pct >= 100 ? 'all of its health' : `${pct >= 0.1 ? pct.toFixed(1) : '<0.1'}% of its health`;
       const focus = GUILD_RESEARCH.find((b) => b.id === this.guild?.research_focus);
       let html = `<p>Your team dealt <b>${fmt(damage)}</b> damage (${share}).</p>`;
       html += pay
-        ? `<p>+${pay.coins} Guild Coins · +${fmt(pay.warsteel)} Warsteel · +${fmt(pay.gold)} gold${focus ? ` · +${guildResearchPerAttempt(r.level)} ${focus.name} research` : ''}</p>`
+        ? `<p>+${pay.coins} Guild Coins · +${fmt(pay.warsteel)} Warsteel · +${fmt(pay.gold)} gold${focus ? ` · +${guildResearchPerAttempt(r.level)} ${focus.name} research` : ''}${element ? bossItemsText(element, pay.items) : ''}</p>`
         : `<p>Today's ${GUILD_BOSS_ATTEMPTS} rewarded fights are used up, so this one only adds damage. Level and weekly rewards still count it.</p>`;
       if (r.kills) {
         html += `<p><b>You beat level ${r.level}!</b> It rests for ${GUILD_BOSS_REST_MINUTES} minutes, then comes back at level ${r.next_level} and stronger. Everyone who hit it this week can claim the level rewards.</p>`;
@@ -449,7 +455,7 @@ export class Guild {
       const chests = r.weekly.reduce((n, w) => n + guildBossWeekReward(w.top, w.beaten ?? w.top).chests, 0);
       this.ui.showModal(
         'Guild Boss rewards',
-        `<p>${lines.join(' · ')}</p><p>+${fmt(got.coins)} Guild Coins${got.warsteel ? ` · +${fmt(got.warsteel)} Warsteel` : ''}${chests ? ` · ${chests} Hero Chest${chests === 1 ? '' : 's'}` : ''}${got.ascendant.map((a) => ` · +${a.crests} ${HEROES.find((h) => h.id === a.heroId)?.name ?? a.heroId} crests`).join('')}</p>${dropCards(got.drops)}`,
+        `<p>${lines.join(' · ')}</p><p>+${fmt(got.coins)} Guild Coins${got.warsteel ? ` · +${fmt(got.warsteel)} Warsteel` : ''}${chests ? ` · ${chests} Hero Chest${chests === 1 ? '' : 's'}` : ''}${got.ascendant.map((a) => ` · +${a.crests} ${HEROES.find((h) => h.id === a.heroId)?.name ?? a.heroId} crests`).join('')}${got.items.map((i) => bossItemsText(i.element, i.got)).join('')}</p>${dropCards(got.drops)}`,
         'Collect',
       );
       this.ui.render();
@@ -893,6 +899,7 @@ export class Guild {
        <p>This week's guild event. The whole guild fights this boss with their Guild Boss teams. Everyone gets ${GUILD_BOSS_ATTEMPTS} fights a day, and unused fights stack up to ${GUILD_BOSS_FIGHT_CAP}. Each time it falls it rests ${GUILD_BOSS_REST_MINUTES} minutes, then comes back one level stronger. ${tip}</p>
        <ul class="g-boss-pay">
          <li><b>Each fight</b> ${10 + boss.level} to ${2 * (10 + boss.level)} Guild Coins and as much Warsteel each (about ${coins} for yours) and gold</li>
+         <li><b>Boss items</b> each rewarded fight and each level beaten rolls ${BOSS_ITEM_NAMES[boss.element].map((n, t) => `${n} ${Math.round(BOSS_ITEM_CHANCE[t] * 100)}%`).join(', ')}. They build this boss's relics (Relics tab, Guild relics)</li>
          <li><b>Each level beaten</b> ${guildBossKillCoins(boss.level)} Guild Coins and ${warsteelForKill(boss.level)} Warsteel${ascHero ? `, plus ${GUILD_BOSS_ASC_CRESTS} ${ascHero.name} crests for the first ${GUILD_BOSS_ASC_LEVELS} levels beaten (to level ${(boss.start_level ?? 1) + GUILD_BOSS_ASC_LEVELS - 1})` : ''}, for everyone who hit it this week</li>
          <li><b>End of the week</b> ${boss.level > (boss.start_level ?? 1) ? `${fmt(week.coins)} Guild Coins, ${fmt(warsteelForWeek(top))} Warsteel and ${week.chests} Hero Chest${week.chests === 1 ? '' : 's'} so far (level ${top})` : 'Guild Coins, Warsteel and Hero Chests by the highest level beaten'}, for everyone who hit it</li>
        </ul><div class="g-team"><div class="pvp-row"><b>Your Guild Boss team <small>CP ${fmt(this.state.fixedTeamCp(team.map((m) => m.def)))}</small></b><button type="button" class="wood-btn small" data-g="team">Change</button></div><span class="faces">${team.map((m) => this.teamFace(m.def)).join('')}</span></div>${btn}<small class="g-boss-next">Next week: ${GUILD_BOSS_NAMES[next]} (${next}), starting at level ${guildBossStartLevel(boss.level - 1)}</small>`,
