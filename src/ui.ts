@@ -66,6 +66,13 @@ const heroArt = (id: string) => (HERO_ANIMS[id] ? `url('${new URL(`heroes/${id}.
 const iconUrls = (files: Record<string, string>) => Object.fromEntries(Object.entries(files).map(([f, url]) => [f.split('/').pop()!.slice(0, -4), url]));
 const STALL_ICONS = iconUrls(import.meta.glob('./assets/stalls/*.png', { eager: true, query: '?url', import: 'default' }));
 const RELIC_ICONS = iconUrls(import.meta.glob('./assets/relics/*.png', { eager: true, query: '?url', import: 'default' }));
+// Guild Boss items (the user's art, 2026-11-07): <element>_<common|rare|veryrare>.png.
+const BOSS_ITEM_ICONS = iconUrls(import.meta.glob('./assets/bossitems/*.png', { eager: true, query: '?url', import: 'default' }));
+const BOSS_ITEM_TIER_FILES = ['common', 'rare', 'veryrare'] as const;
+/** A small boss item picture for counts and costs. */
+export function bossItemIcon(element: Element, tier: number): string {
+  return `<img class="bitem-img" src="${BOSS_ITEM_ICONS[`${element}_${BOSS_ITEM_TIER_FILES[tier]}`]}" alt="" draggable="false">`;
+}
 /**
  * The picture key a hero is shown with: an Ascendant hero's current form art, else its own id.
  * UI sets the resolver at start-up so every face (Collection, team, pickers, popups) follows ascension.
@@ -933,7 +940,7 @@ export class UI {
   /** Small boss item icons with counts, e.g. "3 Leviathan Scale". */
   private bossItemsHtml(element: Element, counts: BossItemCounts, have?: BossItemCounts) {
     return counts
-      .map((n, t) => (n > 0 ? `<span class="${have && have[t] < n ? 'short' : ''}" title="${BOSS_ITEM_NAMES[element][t]}"><i class="bitem t${t}" style="--el:${hex(ELEMENT_COLORS[element])}"></i>${n} ${BOSS_ITEM_NAMES[element][t]}</span>` : ''))
+      .map((n, t) => (n > 0 ? `<span class="${have && have[t] < n ? 'short' : ''}" title="${BOSS_ITEM_NAMES[element][t]}">${bossItemIcon(element, t)}${n} ${BOSS_ITEM_NAMES[element][t]}</span>` : ''))
       .join('');
   }
 
@@ -966,7 +973,7 @@ export class UI {
         </div>`;
       }).join('');
       return `<div class="boss-relic-group" style="--el:${hex(ELEMENT_COLORS[el])}"><div class="boss-relic-head"><b>${GUILD_BOSS_NAMES[el]}</b><small>${el[0].toUpperCase() + el.slice(1)} weeks</small></div>
-        <div class="relic-cost boss-items">${have.map((n, t) => `<span title="${names[t]} · ${pct[t]} a roll"><i class="bitem t${t}" style="--el:${hex(ELEMENT_COLORS[el])}"></i>${fmt(n)} ${names[t]}</span>`).join('')}</div>
+        <div class="relic-cost boss-items">${have.map((n, t) => `<span title="${names[t]} · ${pct[t]} a roll">${bossItemIcon(el, t)}${fmt(n)} ${names[t]}</span>`).join('')}</div>
         <small class="boss-pity">${names[2]} certain within ${s.bossHeartPityLeft(el)} more rolls</small>${rows}</div>`;
     }).join('');
     setHtml(
