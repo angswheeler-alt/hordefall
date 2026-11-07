@@ -52,10 +52,20 @@ export const VARIANTS: Record<string, { text: string; edits: Edit[] }> = {
   'trialStonesHalf': { text: 'Trial Enhance Stones: 1 per win only from level 16 (was from level 6), 2 from 36', edits: [
     ['state.ts', 'return tier >= 36 ? 3 : tier >= 26 ? 2 : tier >= 6 ? 1 : 0;', 'return tier >= 36 ? 2 : tier >= 16 ? 1 : 0;'],
   ] },
+  'ember1.068': { text: 'Ember level cost growth 1.07 -> 1.068 per level (a milder speed-up than 1.065)', edits: [['formulas.ts', 'export const EMBER_COST_GROWTH = 1.07;', 'export const EMBER_COST_GROWTH = 1.068;']] },
+  'starEmber': { text: 'Each star above 1★ makes a hero\'s Ember levels count 2% more in battle (7★ = +12%), so stars keep mattering for stages', edits: [
+    ['state.ts', '    return effectiveLevel(this.levels[id] ?? 0, this.emberLevels[id] ?? 0);', '    return effectiveLevel(this.levels[id] ?? 0, Math.floor((this.emberLevels[id] ?? 0) * (1 + 0.02 * (this.stars[id] ?? 0))));'],
+  ] },
   'elementBossSoft': { text: 'Every-100th element bosses take 20% damage from other elements instead of none (softens the user rule from PR #95)', edits: [
     ['data.ts', 'export function bossImmuneTo(stage: number, attacker: Element | null): boolean {\n  if (!isElementBossStage(stage)) return false;', 'export const ELEMENT_BOSS_OTHER_SHARE = 0.2;\nexport function bossImmuneTo(stage: number, attacker: Element | null): boolean {\n  if (!isElementBossStage(stage) || attacker !== null) return false;'],
   ] },
 };
+
+/** Bundles: several variants applied together (the audit's recommended set). */
+export const BUNDLES: Record<string, { text: string; parts: string[] }> = {
+  revised: { text: 'Recommended set: rarityStats + trialReqSmooth + trialStonesHalf', parts: ['rarityStats', 'trialReqSmooth', 'trialStonesHalf'] },
+};
+for (const [k, b] of Object.entries(BUNDLES)) VARIANTS[k] = { text: b.text, edits: b.parts.flatMap((p) => VARIANTS[p].edits) };
 
 /** Make (or remake) the patched copy; returns its src path. Throws if an edit doesn't match exactly once. */
 export function makeVariant(name: string, root = new URL('../..', import.meta.url).pathname): string {

@@ -1,0 +1,503 @@
+<title>Hordefall Balance Audit</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column (about 72ch) with wide tables and charts that scroll inside their own boxes; sticky section nav on wide screens. */
+:root {
+  --bg: #eef1f6; --panel: #ffffff; --ink: #1b2233; --muted: #5b667c; --rule: #d3d9e4;
+  --accent: #d2611f; --accent-soft: #fbe6d8; --slate: #3c5a8a; --slate-soft: #e1e8f4;
+  --good: #2f7d4f; --good-soft: #dff1e6; --warn: #a86b00; --warn-soft: #fbefd2; --bad: #b83232; --bad-soft: #f8dede;
+  --c-a: #6b7fa6; --c-b: #2f6fd0; --c-c: #d2611f; --c-d: #8a5bb5; --c-e: #2f9d8a;
+  --display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121722; --panel: #1a2130; --ink: #e5e9f2; --muted: #98a3ba; --rule: #2c3547;
+  --accent: #f08a4b; --accent-soft: #3a2518; --slate: #8fb0e6; --slate-soft: #1f2a40;
+  --good: #6cc792; --good-soft: #17301f; --warn: #e6b14f; --warn-soft: #33290f; --bad: #ef7c7c; --bad-soft: #3a1b1b;
+  --c-a: #9aaccc; --c-b: #6ea3f2; --c-c: #f08a4b; --c-d: #b993dd; --c-e: #5cc9b5; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #121722; --panel: #1a2130; --ink: #e5e9f2; --muted: #98a3ba; --rule: #2c3547;
+  --accent: #f08a4b; --accent-soft: #3a2518; --slate: #8fb0e6; --slate-soft: #1f2a40;
+  --good: #6cc792; --good-soft: #17301f; --warn: #e6b14f; --warn-soft: #33290f; --bad: #ef7c7c; --bad-soft: #3a1b1b;
+  --c-a: #9aaccc; --c-b: #6ea3f2; --c-c: #f08a4b; --c-d: #b993dd; --c-e: #5cc9b5; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.6 var(--body); }
+.wrap { max-width: 980px; margin: 0 auto; padding-block: 28px 80px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; line-height: 1.2; margin: 0; }
+h1 { font-size: clamp(30px, 5vw, 44px); font-weight: 700; letter-spacing: .01em; }
+h2 { font-size: 24px; font-weight: 600; margin-top: 8px; }
+h3 { font-size: 17px; font-weight: 600; }
+p { margin: 0; max-width: 72ch; }
+.eyebrow { font: 600 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+section { display: grid; gap: 14px; padding-top: 44px; scroll-margin-top: 12px; }
+.lede { font-size: 17px; }
+header { display: grid; gap: 14px; padding-bottom: 18px; border-bottom: 1px solid var(--rule); }
+nav.toc { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; }
+nav.toc a { color: var(--slate); text-decoration: none; border-bottom: 1px dotted var(--slate); }
+nav.toc a:focus-visible, a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+a { color: var(--slate); }
+.score { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 18px; }
+.gauge { width: 112px; height: 112px; }
+.gauge text { font-family: var(--display); fill: var(--ink); }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.kpi { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; display: grid; gap: 2px; }
+.kpi b { font: 600 22px/1.2 var(--display); }
+.kpi span { font-size: 12.5px; color: var(--muted); }
+.tbox { overflow-x: auto; background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+th, td { padding: 6px 9px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; vertical-align: top; }
+th:first-child, td:first-child { text-align: left; }
+td.tw, th.tw { white-space: normal; text-align: left; min-width: 220px; }
+thead th { font: 600 11.5px/1.3 var(--mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); background: var(--slate-soft); position: sticky; top: 0; }
+tbody tr:last-child td { border-bottom: 0; }
+.pill { display: inline-block; font: 600 11px/1 var(--mono); letter-spacing: .04em; padding: 4px 7px; border-radius: 99px; text-transform: uppercase; }
+.p-ok { background: var(--good-soft); color: var(--good); }
+.p-warn { background: var(--warn-soft); color: var(--warn); }
+.p-bad { background: var(--bad-soft); color: var(--bad); }
+.p-info { background: var(--slate-soft); color: var(--slate); }
+.p-prop { background: var(--accent-soft); color: var(--accent); }
+.up { color: var(--good); } .down { color: var(--bad); }
+.chart { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 12px; overflow-x: auto; }
+.chart svg { display: block; width: 100%; height: auto; min-width: 560px; }
+.chart text { font: 11px var(--mono); fill: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; padding: 4px 4px 0; }
+.legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 6px; border-radius: 2px; }
+.problems { display: grid; gap: 12px; }
+.prob { background: var(--panel); border: 1px solid var(--rule); border-left: 4px solid var(--rule); border-radius: 8px; padding: 14px 16px; display: grid; gap: 8px; }
+.prob.sev-critical { border-left-color: var(--bad); } .prob.sev-high { border-left-color: var(--accent); } .prob.sev-medium { border-left-color: var(--warn); } .prob.sev-low { border-left-color: var(--slate); }
+.prob h3 { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.prob dl { display: grid; grid-template-columns: 120px 1fr; gap: 4px 12px; margin: 0; font-size: 14px; }
+.prob dt { color: var(--muted); font-size: 12.5px; padding-top: 2px; }
+.prob dd { margin: 0; min-width: 0; }
+code { font: 12.5px var(--mono); background: var(--slate-soft); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.note { background: var(--slate-soft); border-radius: 8px; padding: 12px 14px; font-size: 14px; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.card { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
+.card ul, .note ul { margin: 0; padding-left: 18px; }
+.card li, .note li { margin: 3px 0; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tabs button { font: 600 12.5px var(--mono); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--rule); background: var(--panel); color: var(--ink); cursor: pointer; }
+.tabs button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+ol.road { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+@media (max-width: 560px) { .score { grid-template-columns: 1fr; } .prob dl { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">Economy, progression and balance audit · 7 November 2026</span>
+  <h1>Hordefall Balance Audit</h1>
+  <p class="lede">A year of play simulated with the game's own code: five kinds of player, five upgrade strategies, 30 economy experiments and a Monte Carlo of crest luck. Nothing in the live game, the database or any save was touched.</p>
+  <nav class="toc" aria-label="Sections">
+    <a href="#verdict">Verdict</a><a href="#method">Method</a><a href="#audit">Systems</a><a href="#timeline">Timeline</a><a href="#strategies">Strategies</a><a href="#gems">Gems</a><a href="#luck">Crest luck</a><a href="#modes">Modes</a><a href="#experiments">Experiments</a><a href="#problems">Top problems</a><a href="#changes">Changes</a><a href="#revised">Revised year</a><a href="#experience">Player experience</a><a href="#roadmap">Roadmap</a>
+  </nav>
+</header>
+
+<section id="verdict">
+  <span class="eyebrow">Verdict</span>
+  <div class="score">
+    <svg class="gauge" viewBox="0 0 112 112" role="img" aria-label="Health score">
+      <circle cx="56" cy="56" r="46" fill="none" stroke="var(--rule)" stroke-width="10"/>
+      <circle id="gauge-arc" cx="56" cy="56" r="46" fill="none" stroke="var(--accent)" stroke-width="10" stroke-linecap="round" transform="rotate(-90 56 56)" stroke-dasharray="0 999"/>
+      <text id="gauge-num" x="56" y="62" text-anchor="middle" font-size="30" font-weight="700">–</text>
+      <text x="56" y="80" text-anchor="middle" font-size="10" fill="var(--muted)" style="fill:var(--muted)">out of 10</text>
+    </svg>
+    <div style="display:grid;gap:8px;min-width:0">
+      <h2 style="margin:0" id="verdict-title">Complete, generous early, and then a long slow race between two growth rates</h2>
+      <p id="verdict-text">Every system the design calls for is live, the first month is fast and rewarding, and no free player runs short of Gems. The weak part is the long game. After about day 90, stage progress is decided almost entirely by Ember cost growth against enemy growth, so playing six times as much, spending Gems well or paying $300 a month ends the year within a few hundred stages of a casual player. Stars, rarity and most rewards barely move the stage, players sit on one wall for weeks, Trial levels 30 to 40 are out of reach, and several currencies pile up with nothing to buy.</p>
+    </div>
+  </div>
+  <div class="kpis" id="kpis"></div>
+</section>
+
+<section id="method">
+  <span class="eyebrow">How this was done</span>
+  <h2>A separate simulator that runs the real game code</h2>
+  <p>The simulator in <code>tools/sim/</code> loads the game's own <code>GameState</code>, formulas and reward tables and plays them on a fast clock with fixed random seeds. It has no network, no Supabase and no saves. Economy experiments edit a copy of the source code, never the game itself. Every number on this page comes from those runs or straight from the code.</p>
+  <div class="cols">
+    <div class="card"><h3>Player profiles</h3><ul id="profile-list"></ul></div>
+    <div class="card"><h3>What is real and what is modelled</h3><ul>
+      <li><b>Real code:</b> every cost, reward, drop table, odds, hero stat, Ember and Rekindle formula, Trials, relics, weapons, Scouting, Glyphs, Rush, Colosseum rewards, Guild Shop, Observatory, Market Row, offline earnings.</li>
+      <li><b>Modelled:</b> battles are maths (damage per second against the wave and boss model, same rule as the game's boss check), not Phaser. The guild is assumed to be 20 players about as strong as you. Colosseum foes come from the game's own offline opponent roll.</li>
+      <li><b>Hypothetical:</b> there is no real-money shop, so paying players get 100 Gems per US dollar, spread over the year.</li>
+      <li><b>Not simulated:</b> Expedition (hidden in the game), Ultimate casting, Hunting Journal kill bonuses.</li>
+    </ul></div>
+  </div>
+  <p class="small muted">Profiles A to D ran 3 seeds for 365 days; paying profiles and strategies ran 1 seed. Medians are shown; ranges are the lowest and highest seed. Crest luck used 5,000 simulated players.</p>
+</section>
+
+<section id="audit">
+  <span class="eyebrow">Phase 1 · Systems audit</span>
+  <h2>What is in the game today</h2>
+  <div class="tbox"><table id="audit-table"><thead><tr><th>System</th><th>Status</th><th>Opens</th><th class="tw">Notes</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section id="timeline">
+  <span class="eyebrow">Phase 3 · Progression timeline</span>
+  <h2>Best stage over the first year</h2>
+  <p>Fast at first, then a long slow climb. Every profile ends the year within about 450 stages of the others, and the walls show up as flat steps on each hundredth stage.</p>
+  <div class="chart"><svg id="curve" viewBox="0 0 760 330" role="img" aria-label="Best stage by day for each profile"></svg><div class="legend" id="curve-legend"></div></div>
+  <div class="tabs" id="tl-tabs" role="group" aria-label="Profile"></div>
+  <div class="tbox"><table id="tl-table"></table></div>
+  <h3>When things first happen (day, median)</h3>
+  <div class="tbox"><table id="firsts-table"></table></div>
+</section>
+
+<section id="strategies">
+  <span class="eyebrow">Phase 5 · Upgrade strategies</span>
+  <h2>Spread the upgrades and cover every element</h2>
+  <p id="strat-lede"></p>
+  <div class="tbox"><table id="strat-table"></table></div>
+</section>
+
+<section id="gems">
+  <span class="eyebrow">Phase 6 · Gem economy</span>
+  <h2>Where Gems come from and where they go</h2>
+  <div class="chart"><svg id="gem-bars" viewBox="0 0 760 300" role="img" aria-label="Gems earned in a year by source"></svg><div class="legend" id="gem-legend"></div></div>
+  <h3>Best value per Gem</h3>
+  <div class="tbox"><table id="gem-ev"></table></div>
+  <div class="card" id="gem-advice"></div>
+</section>
+
+<section id="luck">
+  <span class="eyebrow">Crest luck · 5,000 players</span>
+  <h2>How long one hero takes, and how much luck moves it</h2>
+  <p id="luck-lede"></p>
+  <div class="tbox"><table id="luck-table"></table></div>
+</section>
+
+<section id="modes">
+  <span class="eyebrow">Phase 7 · Game modes</span>
+  <h2>Every mode, what it pays and how it feels</h2>
+  <div class="tbox"><table id="mode-table"><thead><tr><th>Mode</th><th>Opens</th><th>Verdict</th><th class="tw">A year for the active player (B)</th><th class="tw">What makes you stronger there</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section id="experiments">
+  <span class="eyebrow">Phase 9 · Controlled experiments</span>
+  <h2>What moves the needle</h2>
+  <p>Each experiment changes one value in a copy of the code and replays the active player (B) with the same seed, compared with the current game on that seed. The bar is the change in best stage on day 90 (day 180 for the long ones).</p>
+  <div class="chart"><svg id="exp-bars" viewBox="0 0 760 640" role="img" aria-label="Change in best stage per experiment"></svg></div>
+  <div class="tbox"><table id="exp-table"></table></div>
+</section>
+
+<section id="problems">
+  <span class="eyebrow">Phase 8 · Ranked problems</span>
+  <h2>Top 10 balance problems</h2>
+  <div class="problems" id="problem-list"><article class="prob sev-critical"><h3><span class="pill p-bad">critical</span>1. Late-game progress is a race between two growth rates</h3><dl>
+<dt>What is wrong</dt><dd>From about day 90, every profile gains roughly 80 to 100 stages a month and the year ends with all of them between stage 4,900 and 5,350.</dd><dt>Why</dt><dd>Rekindle pays 6% more Embers per stage, but one more stage needs about two more Ember levels, which cost 14.5% more. Each run pays relatively less than the last, so progress flattens into a slow log curve that more play time barely bends.</dd><dt>Formula or value</dt><dd><code>EMBER_COST_GROWTH = 1.07</code>, <code>ENEMY_GROWTH = 1.07</code>, payout <code>40·1.06^(stage−126)</code>, power per level <code>2^(L/20)</code> (×1.035 a level, about half a stage). At day 90: Ember growth 1.065 gives stage 7,950 and 1.075 gives 3,000 (current 4,350); enemy growth 1.068 gives 6,900 and 1.072 gives 3,150.</dd><dt>Player impact</dt><dd>Casual A plays 25 minutes a day and ends on 4,900; optimized C plays 2.5 hours with 5 times the Rekindles and ends on 5,300. Effort matters a lot in month one and very little after month three.</dd><dt>Recommended</dt><dd>Decide how fast the late game should be, then move only these two values. A mild option is <code>EMBER_COST_GROWTH</code> 1.07 → 1.068 (re-simulated below). A structural option is to let stars scale Ember levels (problem 2).</dd><dt>Expected effect</dt><dd>See the revised year: Ember growth 1.068 lifts the whole late curve; the star link widens the gap between invested and casual players.</dd></dl></article>
+<article class="prob sev-high"><h3><span class="pill p-prop">high</span>2. Stars, relics, weapons, Gems and money hardly move the stage</h3><dl>
+<dt>What is wrong</dt><dd>Every upgrade except Ember levels is a flat multiplier, and enemies grow 7% a stage, so even big multipliers are worth only a few stages.</dd><dt>Why</dt><dd>A star is ×1.5, which is ln 1.5 / ln 1.07 ≈ 6 stages. A full 1★ → 7★ hero is ×11 ≈ 36 stages. Late in the year the player is at stage 5,000.</dd><dt>Formula or value</dt><dd>Stars ×1.5 (<code>STAR_STAT_MULT</code>), pink stars ×1.5, weapons ×1.15 a level. Experiments: star costs −30% → −50 stages; +20% → −150; chest odds, Gem income ±20%, pack prices −20% → within ±50.</dd><dt>Player impact</dt><dd>The $300-a-month player has a full 7★ team on day 187, which no free player reaches in the year, and still ends on stage 5,000, below free B (5,350). A big star-up does not get a player past the wall they are stuck on.</dd><dt>Recommended</dt><dd>Proposed: each star above 1★ makes that hero's Ember levels count 2% more in battle (<code>heroLevel</code>, 7★ = +12%). Keep stars mattering where levels don't (Colosseum, Guild Boss, Rush), as today.</dd><dt>Expected effect</dt><dd>Stars turn into hundreds of stages late in the year instead of dozens, so collecting and paying feel worth it. See the starEmber run below.</dd></dl></article>
+<article class="prob sev-high"><h3><span class="pill p-prop">high</span>3. Element bosses are hard walls with no way around them</h3><dl>
+<dt>What is wrong</dt><dd>From stage 600, every 100th boss takes damage only from its weakness element. A team without that element can never pass.</dd><dt>Why</dt><dd>This is the owner's rule from PR #95. It is fine for a mixed team, but nothing else in the game punishes a team choice this hard.</dd><dt>Formula or value</dt><dd><code>bossImmuneTo()</code> in <code>data.ts</code>. A one-element team stays on stage 700 for 180 days; a rarest-heroes team stays on 2,000. With 20% damage from other elements (experiment) they reach 4,400 and 4,500.</dd><dt>Player impact</dt><dd>A player who builds a favourite team hits a permanent stop and may not know why; Gems pile up (24,000 by day 180) because nothing they buy helps.</dd><dt>Recommended</dt><dd>Keep the rule, and make the reason impossible to miss: the boss button and the loss screen say "Only Dark heroes can hurt Aureth" with the player's best Dark hero. If the owner agrees, also let other elements do 20% damage (<code>elementBossSoft</code>).</dd><dt>Expected effect</dt><dd>No change for normal teams (+100 stages for B at day 180); stuck teams go from never passing to normal progress.</dd></dl></article>
+<article class="prob sev-high"><h3><span class="pill p-prop">high</span>4. Rarity barely changes power</h3><dl>
+<dt>What is wrong</dt><dd>An Epic has about 10% more base power than a Common, but costs 8 times the crests to unlock and drops far less often.</dd><dt>Why</dt><dd>Base stats come from the hero Type, not rarity. Stars are the only big multiplier, and Commons get stars fastest.</dd><dt>Formula or value</dt><dd>Median power at level 100: Epic ≈ Common +10%. Unlock 10 / 30 / 80 crests; chest odds 70 / 22 / 8.</dd><dt>Player impact</dt><dd>Every simulated team at day 365 is mostly 7★ Commons. The $300-a-month player owns four 7★ Ascendant heroes and one 6★ and leaves all of them on the bench. The rarest-heroes strategy is the worst one.</dd><dt>Recommended</dt><dd>Proposed: base ATK and HP ×1 / ×1.5 / ×2.25 / ×3.4 for Common / Rare / Epic / Legendary (<code>heroAtk</code>, <code>heroHp</code> in <code>formulas.ts</code>), about one star per rarity step.</dd><dt>Expected effect</dt><dd>Same stage pace (−150 at day 90, inside the noise) but rarer heroes, Legendaries and Ascendant forms become upgrades worth chasing.</dd></dl></article>
+<article class="prob sev-medium"><h3><span class="pill p-warn">medium</span>5. Trial levels 30 to 40 are out of reach</h3><dl>
+<dt>What is wrong</dt><dd>Every profile stops at Trial level 27 to 29 for the rest of the year.</dd><dt>Why</dt><dd>Levels need 5 heroes at an Ember level. The needs jump from 4,900 (level 30) to 6,300 (31) and on to 14,000 (40), while players reach about 4,600 in a year.</dd><dt>Formula or value</dt><dd><code>TRIAL_REQS</code> in <code>data.ts</code>: [5, 3700], [5, 4100], [5, 4500], [5, 4900], [5, 6300], [5, 6900], [5, 7550] …</dd><dt>Player impact</dt><dd>The Trials list shows ten levels nobody will see; after about day 120 Trials stop offering anything new.</dd><dt>Recommended</dt><dd>Proposed: levels 27 to 33 need 3,550 / 3,800 / 4,050 / 4,300 / 4,600 / 4,900 / 5,300 (<code>trialReqSmooth</code>). Look at 34 to 40 again once the late pace is decided.</dd><dt>Expected effect</dt><dd>A new Trial level every month or two through year one.</dd></dl></article>
+<article class="prob sev-medium"><h3><span class="pill p-warn">medium</span>6. Several currencies pile up with nothing to buy</h3><dl>
+<dt>What is wrong</dt><dd>By day 365 the active player holds about 72,000 Enhance Stones, 366,000 Ore and Crystal, 135,000 Warsteel and 10^12 Essence.</dd><dt>Why</dt><dd>Their sinks run out: team weapons are all level 9 by about day 170, relic enhancements finish, guild relics cap.</dd><dt>Formula or value</dt><dd>Trial Stones 1 a win from level 6, 2 from 26, 3 from 36. Weapons max at level 9.</dd><dt>Player impact</dt><dd>Rewards that buy nothing feel worthless, and the reward screens fill with numbers that don't matter.</dd><dt>Recommended</dt><dd>Proposed: Trial Stones 1 a win from level 16 and 2 from 36 (<code>trialStonesHalf</code>). Later, add a long sink for Ore, Crystal and Warsteel (not simulated, a design task).</dd><dt>Expected effect</dt><dd>Stones on hand at day 90 drop from 12,500 to 7,300 with no change in progress.</dd></dl></article>
+<article class="prob sev-medium"><h3><span class="pill p-warn">medium</span>7. A particular Rare or Epic hero is a lottery</h3><dl>
+<dt>What is wrong</dt><dd>From random drops alone, an active player unlocks a chosen Epic around day 213 and only 44% get it to 3★ in a year.</dd><dt>Why</dt><dd>Chests and Trials spread crests over 107 heroes; only targeted crests (Wild Crests, shop offers, packs, vouchers) can be aimed.</dd><dt>Formula or value</dt><dd>Hero Chest: 1.8 Gems per Common crest but 1,016 Gems per crest of one chosen Epic.</dd><dt>Player impact</dt><dd>Players who open chests for a favourite Epic are let down; the good buys are not the obvious ones.</dd><dt>Recommended</dt><dd>Not a value change: label chests as "random hero", point players to Wild Crests and the Hero Shop, and consider a pity counter later.</dd><dt>Expected effect</dt><dd>Fewer wasted Gems for players like D.</dd></dl></article>
+<article class="prob sev-medium"><h3><span class="pill p-warn">medium</span>8. Big spenders run out of things to buy</h3><dl>
+<dt>What is wrong</dt><dd>At $300 a month (hypothetical) the player has 39,890 Gems unspent at day 365 after maxing every weekly Ascendant Chest.</dd><dt>Why</dt><dd>Gem sinks are capped per week or per slot. There is no real-money shop yet.</dd><dt>Formula or value</dt><dd>Ascendant Chest 10 buys a week (5,350 Gems); monthly pack once a month.</dd><dt>Player impact</dt><dd>Only matters once purchases exist.</dd><dt>Recommended</dt><dd>Plan the real-money shop around time-limited packs and cosmetics rather than more of the same sinks.</dd><dt>Expected effect</dt><dd>Design input for later, no change now.</dd></dl></article>
+<article class="prob sev-low"><h3><span class="pill p-info">low</span>9. Gem income depends mostly on tapping chests</h3><dl>
+<dt>What is wrong</dt><dd>Gold chests are 58% of an active player's Gems. A casual player earns about 23,000 a year against 83,000 for an optimized one.</dd><dt>Why</dt><dd>Gold chest Gems (5 each, 150 a day) only come while playing with the screen on.</dd><dt>Formula or value</dt><dd><code>GOLD_CHEST_GEMS_PER_DAY = 150</code>; floating chests every 25 to 45 s, 10% gold.</dd><dt>Player impact</dt><dd>Casual players miss the biggest Gem source without knowing it.</dd><dt>Recommended</dt><dd>Keep the cap; show "Gems from chests today: 85 / 150" on the Home panel so players know it is there.</dd><dt>Expected effect</dt><dd>More casual players collect it.</dd></dl></article>
+<article class="prob sev-low"><h3><span class="pill p-info">low</span>10. Gold-side upgrades and boosts do almost nothing</h3><dl>
+<dt>What is wrong</dt><dd>Gold ±20%, hero level cost ±30% and boss HP −20% all change day-90 stage by 50 to 150, inside the run-to-run noise.</dd><dt>Why</dt><dd>Gold levels reset every Rekindle; Embers carry the run.</dd><dt>Formula or value</dt><dd>Hourglass 40 Gems, Gold Boost 50 Gems, Rekindle boost 80/160 Gems.</dd><dt>Player impact</dt><dd>Players who buy boosts (profile D spent 3,050 Gems on them) get nothing measurable.</dd><dt>Recommended</dt><dd>Move boosts lower in the shop or make the Rekindle boost pay Embers ×2 for Gems only when it is worth it. Market Row stays as the owner decided.</dd><dt>Expected effect</dt><dd>Fewer wasted Gems.</dd></dl></article></div>
+</section>
+
+<section id="changes">
+  <span class="eyebrow">Recommended changes · proposed, not applied</span>
+  <h2>Exact changes to consider</h2>
+  <p>None of these are in the game. Each one is a proposal with the exact value to change; the simulator already has each as a variant so they can be re-checked.</p>
+  <div class="tbox"><table id="change-table"><thead><tr><th>#</th><th class="tw">Change</th><th class="tw">Where in the code</th><th class="tw">Expected effect</th></tr></thead><tbody><tr><td>1</td><td class="tw">Trial levels 27–33 need Ember 3,550 / 3,800 / 4,050 / 4,300 / 4,600 / 4,900 / 5,300 instead of 3,700 … 7,550.</td><td class="tw"><code>data.ts</code> <code>TRIAL_REQS</code></td><td class="tw">New Trial levels keep coming through year one. In the revised bundle.</td></tr><tr><td>2</td><td class="tw">Base ATK and HP ×1 / ×1.5 / ×2.25 / ×3.4 by rarity (Common / Rare / Epic / Legendary).</td><td class="tw"><code>formulas.ts</code> <code>heroAtk</code>, <code>heroHp</code></td><td class="tw">Rarer and Ascendant heroes earn their place; stage pace unchanged. In the revised bundle.</td></tr><tr><td>3</td><td class="tw">Trial Enhance Stones: 1 a win from level 16, 2 from 36 (was 1 from 6, 2 from 26, 3 from 36).</td><td class="tw"><code>state.ts</code> Trial Stones tiers</td><td class="tw">About 40% fewer idle Stones; no progress change. In the revised bundle.</td></tr><tr><td>4</td><td class="tw">Each star above 1★ makes a hero's Ember levels count 2% more in battle.</td><td class="tw"><code>state.ts</code> <code>heroLevel</code></td><td class="tw">Stars and spending matter for stages. Option, run separately.</td></tr><tr><td>5</td><td class="tw">Ember level cost growth 1.07 → 1.068.</td><td class="tw"><code>formulas.ts</code> <code>EMBER_COST_GROWTH</code></td><td class="tw">Faster, steadier late game for everyone. Option, run separately.</td></tr><tr><td>6</td><td class="tw">Element bosses: a clear "only Dark heroes can hurt Aureth" hint on the boss button and loss screen; optionally 20% damage from other elements.</td><td class="tw"><code>data.ts</code> <code>bossImmuneTo</code>, boss UI</td><td class="tw">Stuck teams know why or get through. Hint is UI only; the 20% option was tested.</td></tr><tr><td>7</td><td class="tw">A long sink for Ore, Crystal and Warsteel.</td><td class="tw">New design</td><td class="tw">Not simulated: needs a design first.</td></tr></tbody></table></div>
+</section>
+
+<section id="revised">
+  <span class="eyebrow">Re-simulated with the changes</span>
+  <h2>The year with the recommended changes</h2>
+  <p id="rev-lede"></p>
+  <div class="chart"><svg id="rev-curve" viewBox="0 0 760 330" role="img" aria-label="Best stage by day, current game against the revised economy"></svg><div class="legend" id="rev-legend"></div></div>
+  <div class="tbox"><table id="rev-table"></table></div>
+  <h3>The two late-game options, run on their own</h3>
+  <p class="small muted">Not part of the revised bundle above. Each changes one thing on top of the current game.</p>
+  <div class="tbox"><table id="opt-table"></table></div>
+</section>
+
+<section id="experience">
+  <span class="eyebrow">Long-term experience</span>
+  <h2>What playing feels like over a year</h2>
+  <div class="tbox"><table id="exp-feel"><thead><tr><th>When</th><th class="tw">Casual (A)</th><th class="tw">Active (B)</th><th class="tw">Paying $50 a month (E2)</th></tr></thead><tbody><tr><td>Day 1</td><td class="tw">Stage 150 and four heroes; Trials open; no Rekindle yet (first one on day 2).</td><td class="tw">Stage 250, first three Rekindles, Trials and the Observatory open. A strong first day.</td><td class="tw">Same as B, with extra Gems for team slots right away.</td></tr><tr><td>Week 1</td><td class="tw">Stage 450, 8 relics, first 4★ hero by week 5. Slow but steady.</td><td class="tw">Stage 1,300, Colosseum, Rush, Scouting and the guild all open. Lots of new things every day.</td><td class="tw">Stage 1,450. Paying buys stars sooner, not stages.</td></tr><tr><td>Month 1</td><td class="tw">Stage 1,850, team of 6 at 3★. Still climbing fast.</td><td class="tw">Stage 3,200, team at 4★, Trial level 24. The best stretch of the game.</td><td class="tw">Stage 3,400, all ten team slots by day 40.</td></tr><tr><td>Month 3</td><td class="tw">Stage 3,600. The first long walls appear.</td><td class="tw">Stage 4,300 and every slot bought. Progress slows to about 3 stages a day; first walls of two weeks.</td><td class="tw">Stage 4,000. Ascendant heroes climb forms but stay on the bench.</td></tr><tr><td>Month 6</td><td class="tw">Stage 4,400, 111 days on stage 4,500. Most likely to quit here.</td><td class="tw">Stage 4,800. Trial levels stop; Stones and Ore pile up; the first 7★ hero around day 200.</td><td class="tw">Stage 4,500. A full 6★ team and no stage lead over free players.</td></tr><tr><td>Month 12</td><td class="tw">Stage 4,900, 6★ team. Close to everyone else.</td><td class="tw">Stage 5,350, team almost all 7★, first Legendary on day 267, 451 Rekindles.</td><td class="tw">Stage 5,000, all 7★ team since day 350, Gems with nowhere to go at higher spend.</td></tr></tbody></table></div>
+</section>
+
+<section id="roadmap">
+  <span class="eyebrow">Roadmap</span>
+  <h2>What to do, in order</h2>
+  <div class="cols" id="road"><div class="card"><h3><span class="pill p-bad">Critical</span></h3><ul><li>Decide the late-game pace: keep it, or try Ember growth 1.068 and/or the star link (options 4 and 5).</li><li>Make element-boss walls explain themselves (UI hint).</li></ul></div><div class="card"><h3><span class="pill p-prop">High</span></h3><ul><li>Rarity base stats (change 2).</li><li>Smooth Trial levels 27–33 (change 1).</li></ul></div><div class="card"><h3><span class="pill p-warn">Medium</span></h3><ul><li>Trim Trial Stones (change 3).</li><li>Design a sink for Ore, Crystal and Warsteel.</li><li>Show chest Gem progress on Home; move boosts down the shop.</li></ul></div><div class="card"><h3><span class="pill p-info">Long-term</span></h3><ul><li>Real-money shop built around new sinks, not more of the capped ones.</li><li>Look at Trial levels 34–40 and Ascendant final forms once the late pace is set.</li><li>Re-run this simulator after each balance change (tools/sim).</li></ul></div></div>
+  <p class="small muted">Rerun everything: <code>tools/sim/batch.sh</code> with a job list, then <code>summarize.py</code>, <code>report_data.py</code> and <code>build_report.py</code>. See <code>tools/sim/README.md</code>.</p>
+</section>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const $ = (id) => document.getElementById(id);
+const fmt = (v, d = 0) => v === null || v === undefined || Number.isNaN(v) ? '–' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: 0 });
+const big = (v) => v === null || v === undefined ? '–' : v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e4 ? Math.round(v / 1e3) + 'k' : fmt(v);
+const P = DATA.profiles;
+const NAMES = { A: 'A · Casual F2P', B: 'B · Active F2P', C: 'C · Optimized F2P', D: 'D · Inefficient F2P', E1: 'E · $10 a month', E2: 'E · $50 a month', E3: 'E · $300 a month' };
+const DESC = {
+  A: '25 min a day in 2 sessions, misses 12% of days, does some dailies, no guild.',
+  B: '90 min a day in 4 sessions, all dailies, a guild, sensible Gem use.',
+  C: '2.5 h a day in 6 sessions, best Gem buys (packs, tickets, 3 Ascendant Chests a week), Rekindles quickly.',
+  D: '1 h a day, Gems on boosts and chests, upgrades everything a bit, Rekindles late, weak guild.',
+  E1: 'Plays like C for 90 min a day and buys $10 of Gems a month (hypothetical 100 Gems per $).',
+  E2: 'Same, $50 a month.', E3: 'Same, $300 a month.'
+};
+const COLORS = { A: 'var(--c-a)', B: 'var(--c-b)', C: 'var(--c-c)', D: 'var(--c-d)', E1: 'var(--c-e)', E2: 'var(--c-e)', E3: 'var(--c-e)' };
+const SCORE = 6.0;
+
+// gauge + KPIs
+(function () {
+  const c = 2 * Math.PI * 46;
+  $('gauge-arc').setAttribute('stroke-dasharray', `${(SCORE / 10) * c} ${c}`);
+  $('gauge-num').textContent = SCORE.toFixed(1);
+  const d365 = (p) => P[p].checks['day 365'];
+  const k = [
+    [fmt(P.A.checks['day 30'].best) + ' → ' + fmt(P.C.checks['day 30'].best), 'Best stage on day 30, casual vs optimized'],
+    [fmt(d365('A').best) + ' → ' + fmt(d365('C').best), 'Best stage on day 365, casual vs optimized'],
+    ['~' + fmt((d365('B').best - P.B.checks['day 180'].best) / 6) + ' / mo', 'Stages gained a month in the second half of the year (B)'],
+    [fmt(d365('E3').gems), 'Gems unspent after a year at $300 a month'],
+    [fmt(d365('B').trialMax) + ' of 40', 'Highest Trial level after a year (B)'],
+    [big(d365('B').stones), 'Enhance Stones piled up, unused (B)'],
+  ];
+  $('kpis').innerHTML = k.map(([b, s]) => `<div class="kpi"><b>${b}</b><span>${s}</span></div>`).join('');
+  $('profile-list').innerHTML = Object.keys(NAMES).map((p) => `<li><b>${NAMES[p]}:</b> ${DESC[p]}</li>`).join('');
+})();
+
+// audit table
+(function () {
+  const S = (t) => ({ ok: '<span class="pill p-ok">Live</span>', part: '<span class="pill p-warn">Partial</span>', hid: '<span class="pill p-info">Hidden</span>', none: '<span class="pill p-bad">Missing</span>' })[t];
+  const f = (k) => { const v = P.B.firsts[k]; return v === undefined ? '' : v < 1 ? 'Day 1' : 'Day ' + Math.round(v); };
+  const rows = [
+    ['Stages, bosses, element bosses', 'ok', 'Start', 'Enemies ×1.07 a stage, boss HP ×280 a mob. From 600, every 100th boss takes damage only from its weakness element.'],
+    ['Hero levels (gold)', 'ok', 'Start', 'Cost ×1.08 a level; lost on Rekindle. Gold matters only early in each run.'],
+    ['Rekindle and Embers (Prism)', 'ok', 'Stage 125', 'Embers 40·1.06^(stage−126); Ember level cost ceil(1.07^L). The main engine of long-term progress.'],
+    ['Hero crests, unlocks, stars', 'ok', 'Start', 'Unlock C10/R30/E80; stars 10/50/250/600/1,500/2,500/5,000; ×1.5 stats each, 7★ cap (8★ Ascendant).'],
+    ['Pink stars (awakening)', 'ok', f('colosseum'), 'Bought with Starmotes from the Colosseum; ×1.5 each.'],
+    ['Legendary heroes', 'ok', 'Top-star overflow', '10 extra crests at the top star = 1 Legendary crest; 80 to unlock.'],
+    ['Ascendant heroes and chest', 'ok', 'Guild', 'Forms at 3★/5★/8★; Ascendant Chest for Gems only, price rises 10 buys a week.'],
+    ['Daily Trials', 'ok', 'Stage 51', '2 crests a win; 40 levels, levels 10 to 40 need Ember levels on 2 to 5 heroes.'],
+    ['Relics, sets, Relic Shop', 'ok', 'Stage 25', '7 + 11 sets; Essence only; up to 22 slots bought with Gems.'],
+    ['Weapons and Scouting', 'ok', f('scouting'), 'Levels 1 to 9 from Ore, Crystal and Cores; Scouting pays them and Glyph Chests.'],
+    ['Glyphs and Rush', 'ok', f('rush'), 'Glyphs socket into heroes; Rush is a timed event with points, Gems and a shop.'],
+    ['Colosseum (PvP)', 'ok', f('colosseum'), 'Async fights against saved teams; trophies; Starmotes. Opponents need the server.'],
+    ['Guild: Boss, research, shop, quests, requests', 'ok', 'After 1st Rekindle', 'Server side. The simulator assumes 20 members about as strong as you.'],
+    ['Observatory', 'ok', 'After 1st Rekindle', 'Sigils from Rekindles and player level; 5 stars, free to move.'],
+    ['Market Row', 'ok', 'Start', '30 stalls; gold only. Small share of gold after the first days.'],
+    ['Daily challenges, login, Lucky Spin, achievements, Bootcamp, stage milestones, Crest Bundle', 'ok', 'Start', 'The steady F2P income.'],
+    ['Gem shop (slots, Hero Shop, packs, vouchers, crate, boosts)', 'ok', 'Start', 'All Gem sinks are in place.'],
+    ['Hunting Journal, shinies, mutation mobs', 'ok', 'Start / 501', 'Shinies 1 in 2,000, up to 5 a day.'],
+    ['Offline earnings', 'ok', 'Start', '12 h cap; clears stages it can beat.'],
+    ['Expedition', 'hid', '–', 'Code is in the game but switched off (owner\'s choice, 4 Nov). Not simulated.'],
+    ['Real-money shop', 'none', '–', 'No purchases exist. Paying players here are hypothetical.'],
+    ['Ads', 'none', '–', 'Not built.'],
+  ];
+  $('audit-table').querySelector('tbody').innerHTML = rows.map((r) => `<tr><td class="tw" style="min-width:180px">${r[0]}</td><td>${S(r[1])}</td><td>${r[2]}</td><td class="tw">${r[3]}</td></tr>`).join('');
+})();
+
+// line chart helper
+function lineChart(svg, series, opts = {}) {
+  const W = 760, H = 330, L = 56, R = 34, T = 14, B = 34;
+  const maxX = opts.maxX ?? Math.max(...series.map((s) => s.data.length));
+  const maxY = opts.maxY ?? Math.ceil(Math.max(...series.flatMap((s) => s.data.filter((v) => v !== null))) / 1000) * 1000;
+  const x = (i) => L + (i / (maxX - 1)) * (W - L - R);
+  const y = (v) => T + (1 - v / maxY) * (H - T - B);
+  let g = '';
+  for (let v = 0; v <= maxY; v += 1000) g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--rule)" stroke-width="1"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
+  for (const d of [1, 30, 60, 90, 180, 270, 365].filter((d) => d <= maxX)) g += `<line x1="${x(d - 1)}" x2="${x(d - 1)}" y1="${T}" y2="${H - B}" stroke="var(--rule)" stroke-dasharray="2 4"/><text x="${x(d - 1)}" y="${H - B + 18}" text-anchor="middle">day ${d}</text>`;
+  for (const s of series) {
+    const pts = s.data.map((v, i) => v === null ? null : `${x(i).toFixed(1)},${y(v).toFixed(1)}`).filter(Boolean).join(' ');
+    g += `<polyline points="${pts}" fill="none" stroke="${s.color}" stroke-width="${s.width ?? 2}" ${s.dash ? `stroke-dasharray="${s.dash}"` : ''} stroke-linejoin="round"/>`;
+    const last = s.data.length - 1;
+    g += `<circle cx="${x(last)}" cy="${y(s.data[last])}" r="3.5" fill="${s.color}"/>`;
+  }
+  svg.innerHTML = g;
+}
+function legend(el, items) { el.innerHTML = items.map((s) => `<span><i style="background:${s.color};${s.dash ? 'opacity:.7' : ''}"></i>${s.name}</span>`).join(''); }
+
+// timeline chart + tables
+(function () {
+  const series = ['A', 'B', 'C', 'D', 'E2'].filter((p) => P[p]).map((p) => ({ name: NAMES[p], color: COLORS[p], data: P[p].curve, dash: p === 'E2' ? '6 4' : null }));
+  lineChart($('curve'), series, { maxY: 6000 });
+  legend($('curve-legend'), series);
+  const rows = [
+    ['Best stage', 'best', 0], ['Rekindles', 'rekindles', 0], ['Heroes owned', 'owned', 0], ['Team size', 'teamSize', 0], ['Team stars (avg)', 'teamStarsAvg', 1], ['Pink stars (avg)', 'pinkAvg', 1],
+    ['Hero level (avg)', 'heroLvAvg', 0], ['Ember level (avg)', 'emberLvAvg', 0], ['Weapon level (avg)', 'weaponAvg', 1], ['Glyphs socketed', 'glyphsSocketed', 0],
+    ['Relics owned', 'relicsOwned', 0], ['Relic stars open', 'relicStarsOpen', 0], ['Relic level (avg)', 'relicLvAvg', 1], ['Relic slots', 'relicSlots', 0], ['Team slots', 'teamSlots', 0],
+    ['Gems on hand', 'gems', 0], ['Enhance Stones on hand', 'stones', 0], ['Essence (log10)', 'essenceLog', 1], ['Starmotes on hand', 'motes', 0], ['Warsteel on hand', 'warsteel', 0],
+    ['Top Trial level', 'trialMax', 0], ['Legendary crests', 'legendaryMedals', 0], ['Colosseum trophies', 'trophies', 0], ['Guild Boss top level', 'guildBossTop', 0],
+  ];
+  const tags = ['active 0.5h', 'active 2h', 'day 1', 'day 3', 'day 7', 'day 14', 'day 30', 'day 60', 'day 90', 'day 180', 'day 365'];
+  const label = { 'active 0.5h': '30 min played', 'active 2h': '2 h played' };
+  function show(p) {
+    const c = P[p].checks;
+    let h = `<thead><tr><th>${NAMES[p]}</th>${tags.map((t) => `<th>${label[t] ?? t.replace('day', 'Day')}</th>`).join('')}</tr></thead><tbody>`;
+    h += `<tr><td class="muted">Calendar day</td>${tags.map((t) => `<td class="muted">${c[t] ? (c[t].day < 1 ? 'd1' : 'd' + Math.round(c[t].day)) : '–'}</td>`).join('')}</tr>`;
+    for (const [n, k, d] of rows) h += `<tr><td>${n}</td>${tags.map((t) => { const v = c[t]?.[k]; if (k === 'best' && c[t] && P[p].seeds > 1 && c[t].lo !== c[t].hi) return `<td>${fmt(v)}<span class="muted small"> (${fmt(c[t].lo)}–${fmt(c[t].hi)})</span></td>`; return `<td>${['stones', 'warsteel'].includes(k) ? big(v) : fmt(v, d)}</td>`; }).join('')}</tr>`;
+    const forge = c['day 365']?.forge; if (forge) h += `<tr><td>Ore / Crystal on hand (day 365)</td><td colspan="${tags.length}" style="text-align:left">${big(forge.ore)} each · Cores C ${big(forge.coreC)} / R ${big(forge.coreR)} / E ${big(forge.coreE)}</td></tr>`;
+    h += `<tr><td>Team on day 365</td><td colspan="${tags.length}" class="tw small">${(c['day 365']?.team ?? []).join(', ')}</td></tr>`;
+    h += `<tr><td>Ascendant heroes</td><td colspan="${tags.length}" class="tw small">${(c['day 365']?.ascendant ?? []).join(', ') || 'none'}</td></tr>`;
+    $('tl-table').innerHTML = h + '</tbody>';
+    document.querySelectorAll('#tl-tabs button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.p === p)));
+  }
+  $('tl-tabs').innerHTML = Object.keys(P).map((p) => `<button type="button" data-p="${p}" aria-pressed="false">${NAMES[p]}</button>`).join('');
+  $('tl-tabs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) show(b.dataset.p); });
+  show('B');
+  const F = [['rekindle', 'First Rekindle'], ['stage1000', 'Stage 1,000'], ['stage2000', 'Stage 2,000'], ['stage3000', 'Stage 3,000'], ['stage5000', 'Stage 5,000'], ['first5star', 'First 5★ hero'], ['first6star', 'First 6★'], ['first7star', 'First 7★'], ['team5star', 'Whole team 5★'], ['team6star', 'Whole team 6★'], ['team7star', 'Whole team 7★'], ['firstLegendary', 'First Legendary'], ['team10', '10 team slots'], ['weapon9', 'First weapon level 9'], ['teamWeapon9', 'Team weapons all 9'], ['relic6open', 'Relic 6★ open'], ['relic7open', 'Relic 7★ open'], ['trial25', 'Trial level 25'], ['allHeroesOwned', 'Every hero owned']];
+  let h = `<thead><tr><th>Milestone</th>${Object.keys(P).map((p) => `<th>${p}</th>`).join('')}</tr></thead><tbody>`;
+  for (const [k, n] of F) h += `<tr><td>${n}</td>${Object.keys(P).map((p) => { const v = P[p].firsts[k]; return `<td>${v === undefined ? '<span class="muted">not in year</span>' : v < 1 ? 'day 1' : fmt(v)}</td>`; }).join('')}</tr>`;
+  $('firsts-table').innerHTML = h + '</tbody>';
+})();
+
+// strategies
+(function () {
+  const S = DATA.strategies; const base = P.B;
+  const list = [['balanced', 'Balanced (cheapest upgrade first, one hero of each element)', base], ['concentrated', 'Concentrated (one carry gets 8× the Embers)', S.concentrated], ['collection', 'Collection (unlock everything)', S.collection], ['element', 'Element (one element only)', S.element], ['rarity', 'Rarity (rarest heroes first)', S.rarity]].filter((r) => r[2]);
+  const tags = ['day 7', 'day 30', 'day 90', 'day 180'];
+  let h = `<thead><tr><th>Strategy (active player B)</th>${tags.map((t) => `<th>${t.replace('day', 'Day')}</th>`).join('')}<th>First 7★</th><th>Team stars d180</th><th>Gems on hand d180</th></tr></thead><tbody>`;
+  for (const [, n, g] of list) h += `<tr><td class="tw">${n}</td>${tags.map((t) => `<td>${fmt(g.checks[t]?.best)}</td>`).join('')}<td>${g.firsts.first7star ? 'day ' + fmt(g.firsts.first7star) : '<span class="muted">none</span>'}</td><td>${fmt(g.checks['day 180']?.teamStarsAvg, 1)}</td><td>${fmt(g.checks['day 180']?.gems)}</td></tr>`;
+  $('strat-table').innerHTML = h + '</tbody>';
+  $('strat-lede').textContent = `The balanced approach wins on stage. Going all-in on one carry reaches a 7★ hero about 100 days sooner (day ${fmt(S.concentrated?.firsts.first7star)} against ${fmt(base.firsts.first7star)}) but ends about 300 stages behind at day 180. A team of one element is stuck at stage 700 forever and a team of the rarest heroes at stage 2,000, because the element bosses every 100 stages only take damage from their weakness element. Nothing dominates by enough to make the game solved, but ignoring elements is a trap.`;
+})();
+
+// gems
+(function () {
+  const order = ['goldChests', 'dailies', 'shiny', 'login', 'spin', 'milestones', 'achievements', 'rush', 'bootcamp', 'paid'];
+  const lab = { goldChests: 'Gold chests', dailies: 'Daily challenges', shiny: 'Shinies', login: 'Login calendar', spin: 'Lucky Spin', milestones: 'Stage milestones', achievements: 'Achievements', rush: 'Rush', bootcamp: 'Bootcamp', paid: 'Bought (hypothetical)' };
+  const col = { goldChests: 'var(--accent)', dailies: 'var(--c-b)', shiny: 'var(--c-d)', login: 'var(--c-e)', spin: 'var(--warn)', milestones: 'var(--c-a)', achievements: 'var(--slate)', rush: 'var(--good)', bootcamp: 'var(--muted)', paid: 'var(--ink)' };
+  const ps = ['A', 'B', 'C', 'D', 'E1', 'E2'];
+  const W = 760, H = 300, L = 150, R = 60, T = 8, rowH = (H - T - 20) / ps.length;
+  const tot = (p) => order.reduce((a, k) => a + (P[p].checks['day 365'].gemsIn?.[k] ?? 0), 0);
+  const max = Math.max(...ps.map(tot));
+  const x = (v) => (v / max) * (W - L - R);
+  let g = '';
+  ps.forEach((p, i) => {
+    let at = L; const yy = T + i * rowH + 6;
+    g += `<text x="${L - 8}" y="${yy + rowH / 2}" text-anchor="end">${NAMES[p]}</text>`;
+    for (const k of order) { const v = P[p].checks['day 365'].gemsIn?.[k] ?? 0; if (!v) continue; g += `<rect x="${at}" y="${yy}" width="${Math.max(0.5, x(v) - 1)}" height="${rowH - 12}" fill="${col[k]}" rx="2"><title>${lab[k]}: ${fmt(v)}</title></rect>`; at += x(v); }
+    g += `<text x="${at + 6}" y="${yy + rowH / 2}">${big(tot(p))}</text>`;
+  });
+  $('gem-bars').innerHTML = g;
+  legend($('gem-legend'), order.map((k) => ({ name: lab[k], color: col[k] })));
+  const ev = [
+    ['Monthly Crest Pack (500 Wild Crests)', '2 / 4 / 8', 'best'], ['Hero Shop offer', '2 / 4 / 8', 'best'], ['Hero Voucher (weekly)', '2.5 / 5 / 8.3', 'good'], ['Featured big bundle', '2.4 (any rarity)', 'good'],
+    ['Crest pack (100 of one hero)', '3 / 5 / 10', 'good'], ['Ticket Crate (30 tickets)', '3.3 per random crest of an element', 'good'], ['Ascendant Chest, buys 1 to 3', '5 to 6.7 (only way to Ascendant crests)', 'good'],
+    ['Trial ticket (10 Gems)', '5 per random crest + Essence + Stones', 'ok'], ['Ascendant Chest, buys 7 to 10', '10.8 to 12.5', 'ok'],
+    ['Hero Chest (30 Gems)', '1.8 / 9.5 / 39 for any hero; 45 / 530 / 1,016 for one chosen hero', 'poor'], ['Hourglass, Gold Boost, Rekindle boost', 'Gold is never the limit after day 1', 'poor'],
+  ];
+  const pill = { best: 'p-ok', good: 'p-info', ok: 'p-warn', poor: 'p-bad' };
+  $('gem-ev').innerHTML = `<thead><tr><th>Buy</th><th class="tw">Gems per crest (C / R / E)</th><th></th></tr></thead><tbody>${ev.map((r) => `<tr><td class="tw">${r[0]}</td><td class="tw">${r[1]}</td><td><span class="pill ${pill[r[2]]}">${r[2]}</span></td></tr>`).join('')}</tbody>`;
+  const b = P.B.checks['day 365'], c = P.C.checks['day 365'], a = P.A.checks['day 365'];
+  const sum = (o) => Object.values(o ?? {}).reduce((x, y) => x + y, 0);
+  $('gem-advice').innerHTML = `<h3>What the numbers say</h3><ul>
+    <li>A free player earns about <b>${big(sum(a.gemsIn))}</b> Gems a year casually, <b>${big(sum(b.gemsIn))}</b> actively and <b>${big(sum(c.gemsIn))}</b> when optimized. Gold chests are the biggest single source (${Math.round(100 * b.gemsIn.goldChests / sum(b.gemsIn))}% for B), so tapping chests is worth more than anything else a casual player can do.</li>
+    <li>The one-time buys come first: team slots (6,050 Gems in all) and relic slots (10,750). They are done by about day ${fmt(P.B.firsts.team10)} for B.</li>
+    <li>After that, the Monthly Crest Pack and Hero Shop offers for heroes you are starring are the best buys. Hero Chests are 5 to 20 times worse per useful crest.</li>
+    <li>Nobody runs short of Gems for long: every free profile spends almost everything and still finds things to buy. Only the big spender runs out of things to buy (${fmt(P.E3.checks['day 365'].gems)} Gems unspent at $300 a month).</li>
+    <li>Saving advice for players: keep 100 to 200 Gems for the weekly voucher, never buy boosts, and use Wild Crests on the hero nearest a star.</li></ul>`;
+})();
+
+// crest luck
+(function () {
+  const mc = DATA.mc.B || DATA.mc.A; if (!mc) return;
+  const u = mc.modes.untargeted, t = mc.modes.targeted;
+  const name = { common: 'Common', rare: 'Rare', epic: 'Epic' };
+  const ms = [['unlock', 'Unlock'], ['2', '2★'], ['3', '3★'], ['4', '4★'], ['5', '5★'], ['6', '6★'], ['7', '7★']];
+  const cell = (v) => v.p50 === null ? (v.reachedShare > 0 ? `<span class="muted">${Math.round(v.reachedShare * 100)}% of players</span>` : '<span class="muted">nobody</span>') : `${fmt(v.p50)} <span class="muted small">(${fmt(v.p10)}–${v.p90 === null ? '>365' : fmt(v.p90)})</span>`;
+  let h = `<thead><tr><th>One hero, active player's crest flow</th>${ms.map((m) => `<th>${m[1]}</th>`).join('')}</tr></thead><tbody>`;
+  for (const r of ['common', 'rare', 'epic']) h += `<tr><td>${name[r]}, from random drops only</td>${ms.map((m) => `<td>${cell(u[r + ':' + m[0]])}</td>`).join('')}</tr>`;
+  h += `<tr><td>Epic, with ${mc.inputs.TARGETED} chosen crests a day aimed at it</td>${ms.map((m) => `<td>${cell(t['epic:' + m[0]])}</td>`).join('')}</tr>`;
+  $('luck-table').innerHTML = h + '</tbody>';
+  $('luck-lede').innerHTML = `Days until one particular hero reaches each star, median with the luckiest and unluckiest 10%. Inputs are the active player's average daily crests: ${mc.inputs.TRIALS} Trial wins, ${mc.inputs.CHESTS} free Hero Chests, the Daily Crest Bundle and ${mc.inputs.TARGETED} chosen crests (Wild Crests, vouchers, packs). Luck moves a Common by about ±2 weeks; it decides whether a specific Rare or Epic happens at all. Owning every hero takes about ${fmt(mc.roster.owned90[1])} of ${mc.roster.of} by day 90 and all of them by day 365.`;
+})();
+
+// modes
+(function () {
+  const b = P.B.checks['day 365'];
+  const sum = (o) => Object.values(o ?? {}).reduce((x, y) => x + y, 0);
+  const rows = [
+    ['Stages + Rekindle', 'Start / 125', 'ok', `Best stage ${fmt(b.best)}, ${fmt(b.rekindles)} Rekindles, Ember level ${fmt(b.emberLvAvg)}.`, 'Embers above all; stars, relics and weapons a little.'],
+    ['Daily Trials', 'Stage 51', 'warn', `${fmt(b.trialWins)} wins, ${big(b.crestsIn?.trials)} crests (41% of all crests), ${big(b.stonesIn?.trials)} Enhance Stones. Stops climbing at level ${b.trialMax} of 40.`, 'Ember levels unlock levels; stars win them.'],
+    ['Colosseum', 'Day 2', 'ok', `${fmt(b.pvp?.[0])} fights, ${fmt(b.pvp?.[1])} wins, ${fmt(b.trophies)} trophies; Starmotes pay for pink stars.`, 'Stars, pink stars, relics, weapons, Glyphs. Not gold or Ember levels.'],
+    ['Guild Boss', 'After 1st Rekindle', 'warn', `Top level ${fmt(b.guildBossTop)}. Pays Guild Coins and Ascendant crests; depends heavily on the guild.`, 'Same as Colosseum; guild research.'],
+    ['Rush', 'Day 2', 'ok', `${(b.rushPoints ?? []).length} events, about ${big((b.rushPoints ?? []).reduce((a, x) => a + Math.max(0, x), 0) / Math.max(1, (b.rushPoints ?? []).length))} points each; 150 Gems an event.`, 'Same as Colosseum.'],
+    ['Scouting + weapons', 'Day 2', 'bad', `Team weapons all level 9 by day ${fmt(P.B.firsts.teamWeapon9)}; then ${big(b.forge?.ore)} Ore and Crystal pile up with nothing to buy.`, 'Weapon level ×1.15 a level.'],
+    ['Relics + Relic Shop', 'Stage 25', 'warn', `${fmt(b.relicsOwned)} relics, 7★ open by day ${fmt(P.B.firsts.relic7open)}, 8★ never. Essence piles up (10^${fmt(b.essenceLog, 1)}).`, 'Essence from Trials; Enhance Stones.'],
+    ['Glyphs', 'Day 2', 'ok', `${fmt(b.glyphsSocketed)} Glyphs socketed by day 365.`, 'Glyph Chests from Rush and Scouting.'],
+    ['Observatory', 'After 1st Rekindle', 'ok', 'Fills slowly from Rekindles and player level; free to move.', '–'],
+    ['Market Row', 'Start', 'bad', 'Under 1% of gold after the first week (owner declined changes).', 'Stall levels.'],
+    ['Expedition', '–', 'info', 'Hidden. Not simulated.', '–'],
+  ];
+  const v = { ok: '<span class="pill p-ok">Healthy</span>', warn: '<span class="pill p-warn">Needs work</span>', bad: '<span class="pill p-bad">Weak</span>', info: '<span class="pill p-info">Hidden</span>' };
+  $('mode-table').querySelector('tbody').innerHTML = rows.map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${v[r[2]]}</td><td class="tw">${r[3]}</td><td class="tw">${r[4]}</td></tr>`).join('');
+})();
+
+// experiments
+(function () {
+  const E = DATA.experiments; const T = DATA.variantText || {};
+  const BB = DATA.baseB1 || P.B; // same seed as the experiments
+  const base90 = BB.checks['day 90'].best, base180 = BB.checks['day 180'].best;
+  const rows = Object.entries(E).filter(([k]) => !k.includes('-B-element') && !k.includes('-B-rarity') && !k.includes('-B-concentrated')).map(([k, g]) => {
+    const v = k.split('-B-')[0]; const long = k.includes('180d');
+    const tag = long ? 'day 180' : 'day 90'; const base = long ? base180 : base90;
+    const c = g.checks[tag]; const bc = BB.checks[tag];
+    return { v, k, tag, d: c.best - base, best: c.best, stars: c.teamStarsAvg - bc.teamStarsAvg, trial: c.trialMax - bc.trialMax, ember: c.emberLvAvg - bc.emberLvAvg, gems: c.gems, stones: c.stones - bc.stones };
+  }).sort((a, b) => b.d - a.d);
+  const W = 760, L = 190, R = 70, rowH = 20, H = rowH * rows.length + 30;
+  $('exp-bars').setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const m = Math.max(50, ...rows.map((r) => Math.abs(r.d)));
+  const mid = L + (W - L - R) / 2; const sc = (W - L - R) / 2 / m;
+  let g = `<line x1="${mid}" x2="${mid}" y1="0" y2="${H - 24}" stroke="var(--muted)"/>`;
+  rows.forEach((r, i) => { const y = 6 + i * rowH; const w = r.d * sc; g += `<text x="${L - 8}" y="${y + 12}" text-anchor="end">${r.v}${r.tag === 'day 180' ? ' (d180)' : ''}</text><rect x="${w >= 0 ? mid : mid + w}" y="${y + 2}" width="${Math.max(1, Math.abs(w))}" height="${rowH - 6}" rx="2" fill="${r.d > 0 ? 'var(--good)' : r.d < 0 ? 'var(--bad)' : 'var(--muted)'}"/><text x="${w >= 0 ? mid + w + 6 : mid + w - 6}" y="${y + 12}" text-anchor="${w >= 0 ? 'start' : 'end'}">${r.d > 0 ? '+' : ''}${fmt(r.d)}</text>`; });
+  g += `<text x="${mid}" y="${H - 6}" text-anchor="middle">change in best stage against the current game</text>`;
+  $('exp-bars').innerHTML = g;
+  let h = `<thead><tr><th>Experiment</th><th class="tw">What changes</th><th>Best stage</th><th>Change</th><th>Team stars</th><th>Ember lv</th><th>Trial lv</th><th>Stones</th></tr></thead><tbody>`;
+  const sg = (v, d = 0) => `<span class="${v > 0 ? 'up' : v < 0 ? 'down' : 'muted'}">${v > 0 ? '+' : ''}${fmt(v, d)}</span>`;
+  for (const r of rows) h += `<tr><td>${r.v}</td><td class="tw small" style="min-width:320px">${T[r.v] ?? ''}</td><td>${fmt(r.best)} <span class="muted small">${r.tag}</span></td><td>${sg(r.d)}</td><td>${sg(r.stars, 1)}</td><td>${sg(r.ember)}</td><td>${sg(r.trial)}</td><td>${sg(r.stones)}</td></tr>`;
+  $('exp-table').innerHTML = h + '</tbody>';
+})();
+
+// revised
+(function () {
+  const R = DATA.revised; const keys = Object.keys(R); if (!keys.length) { $('rev-lede').textContent = 'The re-simulation with these changes is still running. This section fills in when it finishes.'; return; }
+  const pick = (p, v = 'revised') => keys.find((k) => k === v + '-' + p + '-365d');
+  const series = [];
+  for (const p of ['A', 'B', 'D', 'E2']) {
+    if (!P[p]) continue;
+    series.push({ name: NAMES[p] + ' now', color: COLORS[p], data: P[p].curve, dash: '5 4', width: 1.5 });
+    const k = pick(p); if (k) series.push({ name: NAMES[p] + ' revised', color: COLORS[p], data: R[k].curve, width: 2.4 });
+  }
+  lineChart($('rev-curve'), series, { maxY: 6000 });
+  legend($('rev-legend'), series);
+  const tags = ['day 7', 'day 30', 'day 90', 'day 180', 'day 365'];
+  const met = [['Best stage', 'best', 0], ['Team stars', 'teamStarsAvg', 1], ['Top Trial level', 'trialMax', 0], ['Enhance Stones on hand', 'stones', 0]];
+  let h = `<thead><tr><th>Profile</th><th>Measure</th>${tags.map((t) => `<th>${t.replace('day', 'Day')}</th>`).join('')}</tr></thead><tbody>`;
+  for (const p of ['A', 'B', 'C', 'D', 'E2']) { const k = pick(p); if (!k || !P[p]) continue; for (const [n, m, d] of met) h += `<tr><td>${m === 'best' ? NAMES[p] : ''}</td><td>${n}</td>${tags.map((t) => { const a = P[p].checks[t]?.[m], b = R[k].checks[t]?.[m]; const df = (b ?? 0) - (a ?? 0); return `<td>${m === 'stones' ? big(a) + ' → ' + big(b) : fmt(a, d) + ' → <b>' + fmt(b, d) + '</b>'}${m === 'best' && df ? ` <span class="${df > 0 ? 'up' : 'down'} small">${df > 0 ? '+' : ''}${fmt(df)}</span>` : ''}</td>`; }).join('')}</tr>`; }
+  $('rev-table').innerHTML = h + '</tbody>';
+  const d = (p, t) => { const k = pick(p); return k ? R[k].checks[t].best - P[p].checks[t].best : null; };
+  $('rev-lede').innerHTML = `The revised bundle is changes 1 to 3: rarity base stats, smoother Trial levels and fewer Trial Stones. It is a one-seed run per profile against the three-seed median, so differences under about 150 stages are noise. Dashed lines are the current game, solid lines the revised one.`;
+  // options table
+  const opts = [['Current game', null], ['Revised bundle (1–3)', 'revised'], ['Stars scale Ember levels (4)', 'starEmber'], ['Ember growth 1.068 (5)', 'ember1.068']];
+  const tg = ['day 30', 'day 90', 'day 180', 'day 365'];
+  let o = `<thead><tr><th>Option</th><th>Profile</th>${tg.map((t) => `<th>${t.replace('day', 'Day')}</th>`).join('')}<th>Top Trial</th><th>Team stars d365</th></tr></thead><tbody>`;
+  for (const p of ['A', 'B', 'E2']) for (const [n, v] of opts) {
+    const g = v ? R[pick(p, v)] : P[p]; if (!g) continue;
+    o += `<tr><td>${n}</td><td>${p}</td>${tg.map((t) => `<td>${fmt(g.checks[t]?.best)}</td>`).join('')}<td>${fmt(g.checks['day 365']?.trialMax)}</td><td>${fmt(g.checks['day 365']?.teamStarsAvg, 1)}</td></tr>`;
+  }
+  $('opt-table').innerHTML = o + '</tbody>';
+})();
+</script>

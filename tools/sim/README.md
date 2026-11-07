@@ -61,3 +61,13 @@ These are where the simulator is simpler than the real game. Read results with t
 - **Ultimates** are not cast, so extra Ultimate slots have no value in the simulator.
 - **Expedition is hidden** in the game, so it is not simulated.
 - Player behaviour (when to Rekindle, what to buy) follows simple rules in `engine.ts`; a human may do better or worse.
+
+## Report page
+
+```bash
+npx vite-node tools/sim/variant-text.ts       # variant descriptions for the page
+python3 tools/sim/report_data.py              # .sim/base, .sim/exp, .sim/rev, mc-*.json -> .sim/report-data.json
+python3 tools/sim/build_report.py .sim/report.html
+```
+
+`report-template.html` holds the 2026-11-07 audit text; the tables and charts are drawn from the data.
