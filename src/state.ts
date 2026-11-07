@@ -2,7 +2,7 @@ import { normalizeBuyAmount, type BuyAmount } from './amountSlider';
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, MILESTONE_STEP, milestoneReward, dayKey, type MilestoneReward, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
 import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_CHEST_GEMS, GOLD_CHEST_GEMS_PER_DAY, GUILD_BOSS_ASC_CRESTS, GUILD_BOSS_ASC_LEVELS, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_DEALS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TRIAL_EVENT_DAYS, TRIAL_EVENT_MEDAL_MULT, TICKET_CRATE, HERO_VOUCHER, MONTHLY_CREST_PACK, ALL_TRIALS_DAYS, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, AUTO_BOSS_SECONDS, NORMAL_STAGE_LOSSES, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, OFFLINE_STAGE_HP, OFFLINE_STAGE_ATTACKERS, OFFLINE_MOB_COOLDOWN, OFFLINE_STAGE_TIME, elementMultiplier, bossElement, bossHasElement, bossImmuneTo, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_SET_START_SHARE, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, trialFirstWin, STAR_CRESTS, MAX_STARS, REGULAR_MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, RAISED_RARITY_OLD_COST, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_WARSTEEL_PACKS_PER_DAY, GUILD_CHESTS_PER_WEEK, GUILD_WARSTEEL_PACK, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, AWAKEN_STARMOTES, MAX_AWAKEN, AWAKEN_STAT_MULT, AWAKEN_UNLOCK_LEVEL, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
-import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicCost, guildRelicEffect, warsteelForFight, warsteelForKill, warsteelForWeek, type GuildRelicDef, type GuildRelicEffect } from './guildRelics';
+import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_TEMPER_CAP, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicCost, guildRelicEffect, warsteelForFight, warsteelForKill, warsteelForWeek, type GuildRelicDef, type GuildRelicEffect } from './guildRelics';
 import { utcWeekStart, guildBossElement, relicCost, bossHp, bossAtk, enemyHp, enemyAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberCost, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, isBossStage } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { FIXED_LEVEL, RENAMED_HEROES, PLAYABLE_HEROES, RELEASED_HEROES, ASCENDANT_CHEST, START_GOLD } from './data';
@@ -20,7 +20,7 @@ import { mutationLoad } from './mutations';
 import { mobLoad } from './mobs';
 import { isMelee } from './reach';
 import { SHINY_GEMS, cleanJournal, cleanStamps, isShinyRoll, journalBonus, journalPage, journalTier, shinyTreasure, trialPageId } from './journal';
-import { FORGE_MATS, WEAPON_GLYPHS, clampWeaponLevel, weaponMult, weaponUpgradeCost, type ForgeCost, type ForgeMat } from './weapons';
+import { FORGE_MATS, WEAPON_GLYPHS, WEAPON_MAX_LEVEL, clampWeaponLevel, clampMastery, masteryCost, masteryMult, weaponMult, weaponUpgradeCost, type ForgeCost, type ForgeMat } from './weapons';
 import { GLYPH_BAG_CAP, GLYPH_FAMILIES, chestStar, cleanGlyph, emptyTotals, glyphBound, glyphLevelCost, glyphSalvage, glyphTotals, rollGlyph, type Glyph, type GlyphChestKind, type GlyphFamily, type GlyphTotals } from './glyphs';
 import { RUSH_BRACKETS, RUSH_CREST_COINS, RUSH_CREST_LIMIT, RUSH_CREST_PACK, RUSH_DAILY_TICKETS, RUSH_DAYS, RUSH_FEATURED, RUSH_FIGHT_TICKETS, RUSH_FOES, RUSH_FREE_HEROES, RUSH_FREE_HOURS, RUSH_LOSS_COINS, RUSH_MAX_LEVEL, RUSH_SHOP, RUSH_STREAK_UP, RUSH_TIERS, RUSH_UNLOCK_LEVEL, chestKinds, cleanRush, freeAttacks, inBracket, newRush, rushWinPoints, type RushFoe, type RushReward, type RushShopId, type RushState } from './rush';
 import { SCOUT_KINDS, SCOUT_PRIORITY, SCOUT_UNLOCK_LEVEL, WILD_CREST_COST, cleanScout, pickScoutTeam, scoutProblems, type ScoutCand, heroScoutScore, missionEndsAt, newScout, nextHour, refreshBoard, scoutReward, scoutShare, type ScoutReward, type ScoutSlot, type ScoutState } from './scouting';
@@ -385,6 +385,8 @@ export class GameState {
   guildRelicEquipped: string[] = [];
   /** Weapons (src/weapons.ts): level per hero, 1 when missing. */
   weapons: Record<string, number> = {};
+  /** Weapon Mastery ranks past the max weapon level (src/weapons.ts), 0 when missing. */
+  weaponMastery: Record<string, number> = {};
   /** Scouting board (src/scouting.ts) and the weapon materials it pays. */
   scout: ScoutState = newScout();
   /** Glyphs the last collected Scouting mission's chests gave (for its pop-up). Not saved. */
@@ -518,7 +520,7 @@ export class GameState {
     const hpRelics = (1 + this.relicBonus('hp') + this.relicBonus(`${def.element}Hp`)) * (1 + this.guildRelicBonus('hp'));
     const fx = this.effects();
     const prof = heroProfile(def);
-    const weapon = weaponMult(this.weaponLevel(base.id));
+    const weapon = weaponMult(this.weaponLevel(base.id)) * masteryMult(this.masteryRank(base.id));
     const g = this.glyphBonus(base.id);
     return {
       atk: heroAtk(def, level).times(starMult * prof.atkMult * mulEffect(fx, 'atk', def.id) * atkRelics * weapon * (1 + g.atk)),
@@ -2618,6 +2620,34 @@ export class GameState {
     return true;
   }
 
+  masteryRank(id: string): number {
+    return clampMastery(this.weaponMastery[id] ?? 0);
+  }
+
+  /** Materials for the next Weapon Mastery rank, or null before the weapon is maxed. */
+  masteryCost(id: string): ForgeCost | null {
+    return this.weaponLevel(id) >= WEAPON_MAX_LEVEL ? masteryCost(this.masteryRank(id)) : null;
+  }
+
+  /** Why Mastery can't go up now, or null if it can. */
+  masteryBlock(id: string): string | null {
+    if (this.weaponLevel(id) < WEAPON_MAX_LEVEL) return `Weapon level ${WEAPON_MAX_LEVEL} first`;
+    const cost = this.masteryCost(id);
+    if (!cost) return 'Max rank';
+    if ((this.levels[id] ?? 0) <= 0) return 'Recruit this hero first';
+    if (!this.canPay(cost)) return 'Not enough materials';
+    return null;
+  }
+
+  upgradeMastery(id: string): boolean {
+    const cost = this.masteryCost(id);
+    if (!cost || this.masteryBlock(id) !== null) return false;
+    for (const m of FORGE_MATS) this.forge[m] -= cost[m] ?? 0;
+    this.weaponMastery[id] = this.masteryRank(id) + 1;
+    this.save();
+    return true;
+  }
+
   // ---------- Glyphs (src/glyphs.ts) ----------
 
   /** Glyph slots the hero's weapon has open, and the highest Glyph star it holds. */
@@ -3630,10 +3660,10 @@ export class GameState {
     return GUILD_RELICS.some((r) => (this.guildRelics[r.id] ?? 0) >= GUILD_RELIC_TIER2_LEVEL);
   }
 
-  /** Warsteel for the guild relic's next level (crafting when not owned), or null at max level. */
+  /** Warsteel for the guild relic's next level (crafting when not owned, tempering past the max level), or null at the cap. */
   guildRelicNextCost(def: GuildRelicDef): number | null {
     const level = this.guildRelics[def.id] ?? 0;
-    return level >= GUILD_RELIC_MAX_LEVEL ? null : guildRelicCost(def, level);
+    return level >= GUILD_RELIC_MAX_LEVEL + GUILD_RELIC_TEMPER_CAP ? null : guildRelicCost(def, level);
   }
 
   /** Craft or level up a guild relic with Warsteel. A newly crafted one goes into a free guild slot. */
@@ -4348,6 +4378,7 @@ export class GameState {
       guildRelics: this.guildRelics,
       guildRelicEquipped: this.guildRelicEquipped,
       weapons: this.weapons,
+      weaponMastery: this.weaponMastery,
       scout: this.scout,
       forge: this.forge,
       wildCrests: this.wildCrests,
@@ -4536,7 +4567,7 @@ export class GameState {
       this.guildRelics = Object.fromEntries(
         Object.entries(d.guildRelics ?? {})
           .filter(([id, lv]) => GUILD_RELICS.some((r) => r.id === id) && typeof lv === 'number' && lv > 0)
-          .map(([id, lv]) => [id, Math.min(GUILD_RELIC_MAX_LEVEL, Math.floor(lv as number))]),
+          .map(([id, lv]) => [id, Math.min(GUILD_RELIC_MAX_LEVEL + GUILD_RELIC_TEMPER_CAP, Math.floor(lv as number))]),
       ) as Record<string, number>;
       this.guildRelicEquipped = Array.isArray(d.guildRelicEquipped)
         ? [...new Set(d.guildRelicEquipped.filter((id: unknown): id is string => typeof id === 'string' && this.guildRelics[id] > 0))].slice(0, GUILD_RELIC_SLOTS)
@@ -4545,6 +4576,11 @@ export class GameState {
         Object.entries(d.weapons ?? {})
           .filter(([id, lv]) => HEROES.some((h) => h.id === id) && typeof lv === 'number' && lv > 1)
           .map(([id, lv]) => [id, clampWeaponLevel(lv)]),
+      );
+      this.weaponMastery = Object.fromEntries(
+        Object.entries(d.weaponMastery ?? {})
+          .filter(([id, r]) => HEROES.some((h) => h.id === id) && typeof r === 'number' && r >= 1)
+          .map(([id, r]) => [id, clampMastery(r)]),
       );
       this.scout = cleanScout(d.scout, new Set(HEROES.map((h) => h.id)));
       for (const m of FORGE_MATS) this.forge[m] = Math.max(0, Math.floor(Number(d.forge?.[m]) || 0));

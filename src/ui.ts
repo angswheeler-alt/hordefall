@@ -902,13 +902,13 @@ export class UI {
       const can = open && cost !== null && s.warsteel >= cost;
       if (can && (on || !level)) worthALook = true;
       if (level && !on && freeSlot) worthALook = true;
-      const status = !open ? `Opens when a guild relic reaches level ${GUILD_RELIC_TIER2_LEVEL}` : level ? `Lv ${level}/${GUILD_RELIC_MAX_LEVEL}` : 'Not crafted';
+      const status = !open ? `Opens when a guild relic reaches level ${GUILD_RELIC_TIER2_LEVEL}` : level > GUILD_RELIC_MAX_LEVEL ? `Lv ${GUILD_RELIC_MAX_LEVEL} · Tempered +${level - GUILD_RELIC_MAX_LEVEL}` : level ? `Lv ${level}/${GUILD_RELIC_MAX_LEVEL}` : 'Not crafted';
       const eff = level ? `${this.guildRelicText(def, level)}` : `At Lv ${GUILD_RELIC_MAX_LEVEL}: ${this.guildRelicText(def, GUILD_RELIC_MAX_LEVEL)}`;
       const costHtml = cost === null ? '<span>Max level</span>' : `<span class="${s.warsteel < cost ? 'short' : ''}" title="Warsteel"><i class="warsteel"></i>${fmt(cost)}</span>`;
       return `<div class="relic guild-relic${on ? ' on' : ''}${level ? '' : ' uncrafted'}${open ? '' : ' locked'}">
         <div class="relic-art guild" aria-hidden="true"><img class="relic-img" src="${RELIC_ICONS[def.id]}" alt="" draggable="false"></div>
         <div class="relic-info"><b>${def.name} <small class="tier" style="display:inline">· ${status}</small></b><span class="eff">${eff}</span><small>${def.blurb}</small><div class="relic-cost">${costHtml}</div></div>
-        <div class="relic-btns"><button class="wood-btn small" data-grelic="${def.id}" data-act="up" ${can ? '' : 'disabled'}>${cost === null ? 'Maxed' : level ? 'Upgrade' : 'Craft'}</button>${
+        <div class="relic-btns"><button class="wood-btn small" data-grelic="${def.id}" data-act="up" ${can ? '' : 'disabled'}>${cost === null ? 'Maxed' : level >= GUILD_RELIC_MAX_LEVEL ? 'Temper' : level ? 'Upgrade' : 'Craft'}</button>${
           level ? `<button class="wood-btn small" data-grelic="${def.id}" data-act="equip" ${on || freeSlot ? '' : 'disabled'}>${on ? 'Take off' : 'Equip'}</button>` : ''
         }</div>
       </div>`;

@@ -4,7 +4,7 @@ import { GameState } from '../src/state';
 import { HEROES } from '../src/data';
 import { guildBossLane } from '../src/formulas';
 import {
-  GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, GUILD_RELIC_CRAFT,
+  GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_TEMPER_CAP, GUILD_RELIC_TEMPER_SHARE, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, GUILD_RELIC_CRAFT,
   guildRelicCost, guildRelicTotalCost, guildRelicEffect, warsteelForFight, warsteelForKill, warsteelForWeek,
 } from '../src/guildRelics';
 
@@ -49,7 +49,7 @@ describe('guild relics', () => {
     expect(guildRelicEffect(standard, 'hp', GUILD_RELIC_MAX_LEVEL)).toBe(0);
   });
 
-  it('crafts with Warsteel only, fills the guild slots, and caps at max level', () => {
+  it('crafts with Warsteel only, fills the guild slots, and tempers past max level up to the cap', () => {
     const s = fresh();
     const gems = s.gems;
     expect(s.upgradeGuildRelic('g_standard')).toBe(false);
@@ -60,8 +60,20 @@ describe('guild relics', () => {
     expect(s.guildRelics.g_standard).toBe(1);
     expect(s.guildRelicEquipped).toEqual(['g_standard']);
     raise(s, 'g_standard', GUILD_RELIC_MAX_LEVEL);
+    const temper = s.guildRelicNextCost(byId('g_standard'))!;
+    expect(temper).toBe(guildRelicCost(byId('g_standard'), GUILD_RELIC_MAX_LEVEL));
+    s.warsteel = temper;
+    expect(s.upgradeGuildRelic('g_standard')).toBe(true);
+    expect(s.guildRelics.g_standard).toBe(GUILD_RELIC_MAX_LEVEL + 1);
+    s.guildRelics.g_standard = GUILD_RELIC_MAX_LEVEL + GUILD_RELIC_TEMPER_CAP;
     expect(s.guildRelicNextCost(byId('g_standard'))).toBeNull();
     expect(s.upgradeGuildRelic('g_standard')).toBe(false);
+  });
+
+  it('tempered levels add a small share of the full effect each', () => {
+    const standard = byId('g_standard');
+    const full = guildRelicEffect(standard, 'guildBoss', GUILD_RELIC_MAX_LEVEL);
+    expect(guildRelicEffect(standard, 'guildBoss', GUILD_RELIC_MAX_LEVEL + 10)).toBeCloseTo(full * (1 + 10 * GUILD_RELIC_TEMPER_SHARE));
   });
 
   it('opens tier 2 once any guild relic reaches level 10', () => {
@@ -151,13 +163,13 @@ describe('guild relics', () => {
     expect(t.guildRelics).toEqual({ g_aegis: 4 });
     expect(t.guildRelicEquipped).toEqual(['g_aegis']);
     const raw = JSON.parse(localStorage.getItem('hordefall-save-v1')!);
-    raw.guildRelics = { g_aegis: 99, nope: 3, g_spear: 0 };
+    raw.guildRelics = { g_aegis: 9999, nope: 3, g_spear: 0 };
     raw.guildRelicEquipped = ['g_aegis', 'g_spear', 'nope', 'g_aegis'];
     raw.warsteel = -5;
     localStorage.setItem('hordefall-save-v1', JSON.stringify(raw));
     const u = new GameState();
     u.load();
-    expect(u.guildRelics).toEqual({ g_aegis: GUILD_RELIC_MAX_LEVEL });
+    expect(u.guildRelics).toEqual({ g_aegis: GUILD_RELIC_MAX_LEVEL + GUILD_RELIC_TEMPER_CAP });
     expect(u.guildRelicEquipped).toEqual(['g_aegis']);
     expect(u.warsteel).toBe(0);
   });
