@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isAscendant } from '../src/heroes/ascendant';
 import Decimal from 'break_infinity.js';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS } from '../src/profiles';
@@ -641,6 +641,12 @@ describe('trial level unlocks', () => {
 });
 
 describe('trial quick battle', () => {
+  // A plain Tuesday: on a month's first weekend Trials pay double crests, which these counts don't expect.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-10T12:00:00Z'));
+  });
+  afterEach(() => vi.useRealTimers());
   function strong() {
     const s = fresh();
     s.bestStage = 51;

@@ -38,6 +38,7 @@ import { ScoutUI } from './scoutUi';
 import { WILD_CREST_COST } from './scouting';
 import { GlyphUI } from './glyphUi';
 import { JournalUI, bossFaceStyle, journalRulesText } from './journalUi';
+import { heroFaceCss, heroWholeCss } from './portrait';
 import { RushUI, rushResultHtml } from './rushUi';
 import { ExpeditionUI, expEndHtml } from './expeditionUi';
 import type { ExpLender } from './expedition';
@@ -58,6 +59,8 @@ const escHtml = (text: string) => String(text).replace(/[&<>"']/g, (c) => `&#${c
  * Hero portrait URL, made absolute: a relative url() inside a CSS variable resolves against the
  * stylesheet that uses it (assets/ in a build), not the page, so portraits went missing there.
  */
+// The Collection tile's picture box (.ct-art: inset 4% 4% 14% of a square) is this tall per 1 wide.
+const CT_ART_H = 82 / 92;
 const heroArt = (id: string) => (HERO_ANIMS[id] ? `url('${new URL(`heroes/${id}.png`, document.baseURI).href}')` : 'none');
 // Stall and relic icons (art/icons/make_icons.py), bundled so the single-file build carries them too.
 const iconUrls = (files: Record<string, string>) => Object.fromEntries(Object.entries(files).map(([f, url]) => [f.split('/').pop()!.slice(0, -4), url]));
@@ -77,7 +80,7 @@ export const heroArtKey = (id: string) => formArt(id);
 // Legendaries get --leg:1, a gold-and-orange ring.
 // `art` picks another picture; by default an Ascendant hero shows its current form's art (see setFormArt).
 export const faceStyle = (def: HeroDef, art = heroArtKey(def.id)) =>
-  `background-color:${hex(ELEMENT_COLORS[def.element])};--art:${heroArt(art)}${HERO_ANIMS[art] ? '' : ';color:#fff !important;text-shadow:0 1px 0 #000 !important'}${isAscendant(def.id) ? ';--asc:1' : def.rarity === 'legendary' ? ';--leg:1' : ''}`;
+  `background-color:${hex(ELEMENT_COLORS[def.element])};--art:${heroArt(art)}${HERO_ANIMS[art] ? heroFaceCss(art) : ';color:#fff !important;text-shadow:0 1px 0 #000 !important'}${isAscendant(def.id) ? ';--asc:1' : def.rarity === 'legendary' ? ';--leg:1' : ''}`;
 const SWORD = '<i class="ico ico-atk" aria-hidden="true"></i>';
 const HEART = '<i class="ico ico-hp" aria-hidden="true"></i>';
 const ULT_ICONS: Record<string, string> = {
@@ -283,7 +286,7 @@ export class UI {
           const pct = need ? Math.min(100, (crests / need) * 100) : 0;
           const stars = recruited ? `<span class="ct-stars">★${(s.stars[h.id] ?? 0) + 1}</span>` : '';
           const foot = maxed ? '<span class="ct-maxed">Maxed</span>' : `<div class="ct-bar"><i style="width:${pct}%"></i></div><span class="ct-count">${crests.toLocaleString()}</span>`;
-          return `<div class="ct${recruited ? '' : ' locked'}${s.canUnlock(h) ? ' ready' : ''}${s.inLineup(h.id) ? ' team' : ''}${isAscendant(h.id) ? ' asc' : h.rarity === 'legendary' ? ' leg' : ''}"><button type="button" class="ct-tile" data-coll="${h.id}" aria-label="${h.name}" style="--el:${hex(ELEMENT_COLORS[el])}"><span class="ct-art" style="--art:${heroArt(heroArtKey(h.id))}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span>${stars}<span class="ct-name">${h.name}${rarityTag(s.formDef(h))}</span></button>${foot}</div>`;
+          return `<div class="ct${recruited ? '' : ' locked'}${s.canUnlock(h) ? ' ready' : ''}${s.inLineup(h.id) ? ' team' : ''}${isAscendant(h.id) ? ' asc' : h.rarity === 'legendary' ? ' leg' : ''}"><button type="button" class="ct-tile" data-coll="${h.id}" aria-label="${h.name}" style="--el:${hex(ELEMENT_COLORS[el])}"><span class="ct-art" style="--art:${heroArt(heroArtKey(h.id))}${heroWholeCss(heroArtKey(h.id), CT_ART_H)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span>${stars}<span class="ct-name">${h.name}${rarityTag(s.formDef(h))}</span></button>${foot}</div>`;
         })
         .join('');
       return `<section class="ct-group">${tiles}</section>`;

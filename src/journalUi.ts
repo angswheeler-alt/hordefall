@@ -4,6 +4,7 @@
  */
 import { ELEMENT_COLORS, ELEMENT_BOSSES, TRIAL_BOSS_ART, type Element } from './data';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES } from './bossAnims';
+import { bossFit } from './portrait';
 import { MOB_ANIMS } from './mobAnims';
 import { mobArtUrl } from './mobArt';
 import type { GameState, SummonDrop } from './state';
@@ -38,22 +39,11 @@ interface UiHooks {
   render(): void;
 }
 
-/** CSS for a boss portrait: the first idle frame of BOSS_ANIMS[id] in a `size` px box. */
-export function bossFaceStyle(id: string, size: number): Partial<CSSStyleDeclaration> {
-  const a = BOSS_ANIMS[id];
-  if (!a) return {};
-  const [x0, x1] = a.idleX ?? [0, a.frame[0]];
-  const tall = a.frame[1] - a.headTop;
-  // A long four-legged boss (head off to one side, a shrine or chimneys on top) is shown whole, centred on
-  // itself; an upright one is zoomed in a little past the frame width so the head and shoulders fill the box.
-  const whole = a.frame[0] > 100;
-  const scale = whole ? (size / Math.max(x1 - x0, tall)) * 1.05 : (size / a.frame[0]) * 1.35;
-  const top = whole ? -a.headTop * scale + (size - tall * scale) / 2 : -Math.max(0, a.headTop - 4) * scale;
-  return {
-    backgroundImage: `url(bosses/${id}_idle.png)`,
-    backgroundSize: `${a.frame[0] * BOSS_ANIM_FRAMES.idle * scale}px auto`,
-    backgroundPosition: `${size / 2 - ((x0 + x1) / 2) * scale}px ${top}px`,
-  };
+/** CSS for a boss portrait: the first idle frame of BOSS_ANIMS[id], centred on the boss (src/portrait.ts). */
+export function bossFaceStyle(id: string, _size?: number): Partial<CSSStyleDeclaration> {
+  const fit = BOSS_ANIMS[id] ? bossFit(id, BOSS_ANIM_FRAMES.idle) : null;
+  if (!fit) return {};
+  return { backgroundImage: `url(bosses/${id}_idle.png)`, ...fit };
 }
 
 /** The boss art a page shows (the same art the lane uses for that fight). */
