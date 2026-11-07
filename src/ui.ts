@@ -3296,7 +3296,7 @@ export class UI {
     bossBtn.hidden = s.autoAdvance;
     const retryIn = s.bossRetryIn();
     const bossNeed = s.missingBossElement(isBossStage(s.stage) ? s.stage : s.stage + 1);
-    bossBtn.textContent = `${isBossStage(s.stage + 1) || isBossStage(s.stage) ? 'Fight boss' : 'Challenge boss'}${bossNeed ? ` · needs ${bossNeed[0].toUpperCase()}${bossNeed.slice(1)}` : retryIn === null ? '' : retryIn > 0 ? ` · ${fmtSecs(retryIn)}` : ' · next clear'}`;
+    bossBtn.textContent = `${isBossStage(s.stage + 1) || isBossStage(s.stage) ? 'Fight boss' : 'Challenge boss'}${bossNeed ? ` · weak to ${bossNeed[0].toUpperCase()}${bossNeed.slice(1)}` : retryIn === null ? '' : retryIn > 0 ? ` · ${fmtSecs(retryIn)}` : ' · next clear'}`;
     $('autoboss').classList.toggle('on', s.autoBoss);
 
     let heroesBadge = false;

@@ -2,7 +2,7 @@ import guildsSql from '../supabase/guilds.sql?raw';
 import { describe, expect, it } from 'vitest';
 import Decimal from 'break_infinity.js';
 import { emberPayStage, EMBER_SOFT_ZONE, defended, bulkCost, goldPerKill, enemyHp, easyStart, EASY_START_STAGES, fmt, upgradeCost, stallBulkCost, emberYield, emberCost, keeperLevel, keeperThreshold, relicCost, guildBossHp, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, guildBossElement, researchPointsFor, researchRank } from '../src/formulas';
-import { HEROES, STALLS, elementBoss, bossElement, bossLabel, stageBoss, bossWeakness, bossHasElement, bossImmuneTo, STRONG_VS } from '../src/data';
+import { HEROES, STALLS, elementBoss, bossElement, bossLabel, stageBoss, bossWeakness, bossHasElement, bossImmuneTo, elementBossShare, ELEMENT_BOSS_OTHER_SHARE, STRONG_VS } from '../src/data';
 
 const hero = HEROES.find((h) => h.unlockCost !== 0)!;
 
@@ -214,16 +214,19 @@ describe('element-locked bosses (every 100th stage from 600)', () => {
   it('bosses between the 100s (650, 750...) take any hit', () => {
     for (let s = 650; s <= 1550; s += 100) for (const e of ALL) expect(bossImmuneTo(s, e)).toBe(false);
   });
-  it('the named bosses only take damage from the counter element', () => {
-    // Fire boss: only Water. Water: only Earth. Earth: only Fire. Dark: only Light. Light: only Dark.
+  it('the named bosses take full damage from the counter element and 20% from the rest', () => {
+    // Fire boss: Water. Water: Earth. Earth: Fire. Dark: Light. Light: Dark.
     const only = { fire: 'water', water: 'earth', earth: 'fire', dark: 'light', light: 'dark' } as const;
     for (let s = 600; s <= 1500; s += 100) {
       const counter = only[bossElement(s)];
-      for (const e of ALL) expect(bossImmuneTo(s, e)).toBe(e !== counter);
+      for (const e of ALL) {
+        expect(bossImmuneTo(s, e)).toBe(false);
+        expect(elementBossShare(s, e)).toBe(e === counter ? 1 : ELEMENT_BOSS_OTHER_SHARE);
+      }
       expect(bossImmuneTo(s, null)).toBe(true);
     }
-    expect(bossImmuneTo(600, 'water')).toBe(false);
-    expect(bossImmuneTo(600, 'fire')).toBe(true);
+    expect(ELEMENT_BOSS_OTHER_SHARE).toBe(0.2);
+    expect(elementBossShare(650, 'fire')).toBe(1);
   });
 });
 
