@@ -70,8 +70,9 @@ export const COUNTERED_BY: Record<Element, Element> = { earth: 'fire', fire: 'wa
 export function standardSteps(finalStage: number): [AscensionStep, AscensionStep, AscensionStep] {
   return [
     { evolutions: 2, trialTier: 5, bestStage: 200, essence: 500, stones: 30 },
-    { evolutions: 4, trialTier: 10, bestStage: 500, essence: 5000, stones: 100 },
-    { evolutions: 7, trialTier: 15, bestStage: finalStage, essence: 50000, stones: 300 },
+    { evolutions: 4, trialTier: 15, bestStage: 500, essence: 1_000_000, stones: 150 },
+    // 2026-11-07: by the 8★ form (year two) Essence is in the billions, so its price keeps up; Trial level 30 is reached in months.
+    { evolutions: 7, trialTier: 30, bestStage: finalStage, essence: 1_000_000_000, stones: 600 },
   ];
 }
 

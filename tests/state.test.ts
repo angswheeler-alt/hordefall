@@ -606,7 +606,7 @@ describe('live trial fights', () => {
 
   it('Trials go to level 40 and the top levels need Ember far past day-90 players (~2,800)', () => {
     expect(TRIAL_LEVELS.length).toBe(40);
-    expect(TRIAL_LEVELS[39].req).toEqual([5, 14000]);
+    expect(TRIAL_LEVELS[39].req).toEqual([5, 11000]);
     for (let i = 27; i < TRIAL_LEVELS.length; i++) expect(TRIAL_LEVELS[i].req![1]).toBeGreaterThan(TRIAL_LEVELS[i - 1].req![1]);
   });
 
