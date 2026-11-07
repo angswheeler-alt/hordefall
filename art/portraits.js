@@ -4,7 +4,7 @@
 //
 // Reads public/heroes/<id>.png (the standing pose) and the first frame of public/bosses/<id>_idle.png and
 // rewrites src/portraitBounds.ts with [frameW, frameH, x0, y0, x1, y1, headX]: the canvas size, the box
-// around every visible pixel (x1/y1 exclusive), and the middle of the head (the top quarter of the figure).
+// around every visible pixel (x1/y1 exclusive), and the middle of what a portrait shows (pixel-weighted, or HEAD_X below).
 const fs = require('fs');
 const path = require('path');
 const { readPNG } = require('./backgrounds/png');
@@ -12,18 +12,22 @@ const { readPNG } = require('./backgrounds/png');
 const ROOT = path.join(__dirname, '..');
 const OUT = path.join(ROOT, 'src', 'portraitBounds.ts');
 const BOSS_IDLE_FRAMES = 5;
+// Pictures where big wings outweigh the body: the head's x, measured by eye (user 2026-11-07: Hayle off centre).
+const HEAD_X = { asc_light_f2: 45, asc_light_f3: 37, asc_light_f4: 37 };
 
-function bounds(img, fw) {
+function bounds(id, img, fw) {
   const fh = img.h;
   let x0 = fw, y0 = fh, x1 = 0, y1 = 0;
   for (let y = 0; y < fh; y++) for (let x = 0; x < fw; x++) {
     if (img.get(x, y)[3] < 40) continue;
     x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x + 1); y1 = Math.max(y1, y + 1);
   }
-  const headRows = Math.max(4, Math.round((y1 - y0) * 0.25));
+  // Middle of the part a portrait shows (the top 62% of the figure), weighted by how many pixels each column
+  // holds there, so a thin spear or bow reaching out to one side barely moves it.
+  const rows = Math.max(4, Math.round((y1 - y0) * 0.62));
   let sum = 0, n = 0;
-  for (let y = y0; y < y0 + headRows; y++) for (let x = x0; x < x1; x++) if (img.get(x, y)[3] >= 40) { sum += x; n++; }
-  const headX = n ? Math.round((sum / n) * 10) / 10 : (x0 + x1) / 2;
+  for (let y = y0; y < y0 + rows; y++) for (let x = x0; x < x1; x++) if (img.get(x, y)[3] >= 40) { sum += x; n++; }
+  const headX = HEAD_X[id] ?? (n ? Math.round((sum / n) * 10) / 10 : (x0 + x1) / 2);
   return [fw, fh, x0, y0, x1, y1, headX];
 }
 
@@ -31,13 +35,13 @@ const heroes = {};
 for (const f of fs.readdirSync(path.join(ROOT, 'public', 'heroes')).sort()) {
   if (!/^[a-z0-9_]+\.png$/.test(f) || /_(run|attack)\.png$/.test(f)) continue;
   const img = readPNG(path.join(ROOT, 'public', 'heroes', f));
-  heroes[f.slice(0, -4)] = bounds(img, img.w);
+  heroes[f.slice(0, -4)] = bounds(f.slice(0, -4), img, img.w);
 }
 const bosses = {};
 for (const f of fs.readdirSync(path.join(ROOT, 'public', 'bosses')).sort()) {
   if (!f.endsWith('_idle.png')) continue;
   const img = readPNG(path.join(ROOT, 'public', 'bosses', f));
-  bosses[f.slice(0, -9)] = bounds(img, img.w / BOSS_IDLE_FRAMES);
+  bosses[f.slice(0, -9)] = bounds(f.slice(0, -9), img, img.w / BOSS_IDLE_FRAMES);
 }
 
 const rows = (o) => Object.entries(o).map(([k, v]) => `  ${k}: [${v.join(', ')}],`).join('\n');

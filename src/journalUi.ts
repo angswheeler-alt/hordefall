@@ -4,7 +4,7 @@
  */
 import { ELEMENT_COLORS, ELEMENT_BOSSES, TRIAL_BOSS_ART, type Element } from './data';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES } from './bossAnims';
-import { bossFit } from './portrait';
+import { bossPicHtml } from './portrait';
 import { MOB_ANIMS } from './mobAnims';
 import { mobArtUrl } from './mobArt';
 import type { GameState, SummonDrop } from './state';
@@ -40,13 +40,6 @@ interface UiHooks {
   render(): void;
 }
 
-/** CSS for a boss portrait: the first idle frame of BOSS_ANIMS[id], centred on the boss (src/portrait.ts). */
-export function bossFaceStyle(id: string, _size?: number): Partial<CSSStyleDeclaration> {
-  const fit = BOSS_ANIMS[id] ? bossFit(id, BOSS_ANIM_FRAMES.idle) : null;
-  if (!fit) return {};
-  return { backgroundImage: `url(bosses/${id}_idle.png)`, ...fit };
-}
-
 /** The boss art a page shows (the same art the lane uses for that fight). */
 function pageBossArt(page: JournalPage): string | undefined {
   const el = page.element;
@@ -75,11 +68,14 @@ function picStyle(page: JournalPage): string {
     const h = Math.round(a.frame[1] * scale);
     return `background-image:url(${mobArtUrl(`${page.mob}_${page.element}_walk.png`)});background-size:${w * a.walk}px ${h}px;background-position:${(PIC - w) / 2}px ${PIC - h}px`;
   }
-  const art = pageBossArt(page);
-  if (!art) return '';
-  const st = bossFaceStyle(art, PIC);
-  return `background-image:${st.backgroundImage};background-size:${st.backgroundSize};background-position:${st.backgroundPosition}`;
+  return '';
 }
+
+/** A boss page's picture, drawn inside the .jr-pic box (src/portrait.ts). */
+const picInner = (page: JournalPage) => {
+  const art = page.mob ? undefined : pageBossArt(page);
+  return art ? bossPicHtml(art, BOSS_ANIM_FRAMES.idle) : '';
+};
 
 const GROUP_TITLES: Record<Exclude<JournalGroup, 'mob' | 'mutant'>, string> = {
   boss: 'Stage bosses',
@@ -185,7 +181,7 @@ export class JournalUI {
       const mut = page.mutation ? `;--mut:${hex(MUTATIONS[page.mutation].color)}` : '';
       return (
         `<button class="jr-cell${page.id === this.picked ? ' picked' : ''}${kills ? '' : ' unseen'}${mut ? ' mutant' : ''}" data-page="${page.id}" style="--el:${hex(ELEMENT_COLORS[page.element])}${mut}" title="${page.name}">` +
-        `<span class="jr-pic${page.mob ? ' mob' : ''}" style="${picStyle(page)}"></span>` +
+        `<span class="jr-pic${page.mob ? ' mob' : ''}" style="${picStyle(page)}">${picInner(page)}</span>` +
         (stamped ? '<i class="jr-stamp" aria-label="Gold stamp"></i>' : '') +
         `<span class="jr-kills">${kills.toLocaleString()}</span><span class="jr-pips">${pips}</span></button>`
       );
@@ -245,7 +241,7 @@ export class JournalUI {
         ? `<li class="${stamped ? 'done gold' : ''}"><span>Gold stamp: beat a shiny one</span><b>+${pct(STAMP_BONUS)} more</b></li>`
         : '';
     setHtml($('jr-detail'),
-      `<div class="jr-dhead${page.mutation ? ' mutant' : ''}" style="--el:${hex(ELEMENT_COLORS[page.element])}${page.mutation ? `;--mut:${hex(MUTATIONS[page.mutation].color)}` : ''}"><span class="jr-pic${page.mob ? ' mob' : ''}" style="${picStyle(page)}"></span>` +
+      `<div class="jr-dhead${page.mutation ? ' mutant' : ''}" style="--el:${hex(ELEMENT_COLORS[page.element])}${page.mutation ? `;--mut:${hex(MUTATIONS[page.mutation].color)}` : ''}"><span class="jr-pic${page.mob ? ' mob' : ''}" style="${picStyle(page)}">${picInner(page)}</span>` +
       `<div><b>${page.name}</b><small>${where}</small><small>${kills.toLocaleString()} ${unit(page, kills)} · now <b class="jr-bonus">+${pct(bonus)} damage</b> against it</small></div></div>` +
       `<ul class="jr-tiers">${rows}${stampRow}</ul>`);
   }

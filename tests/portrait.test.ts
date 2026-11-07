@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { HERO_ANIMS } from '../src/heroAnims';
-import { BOSS_ANIMS, BOSS_ANIM_FRAMES } from '../src/bossAnims';
+import { BOSS_ANIMS } from '../src/bossAnims';
 import { HERO_BOUNDS, BOSS_BOUNDS, type ArtBounds } from '../src/portraitBounds';
-import { portraitFit, wholeFit, type FitCss } from '../src/portrait';
+import { bossBox, portraitFit, wholeFit, type FitCss } from '../src/portrait';
 
 /** Where sprite pixel (x, y) lands in a box 1 wide and boxH tall, undoing the CSS percentages. */
 function place(b: ArtBounds, css: FitCss, x: number, y: number, boxH = 1, frames = 1) {
@@ -19,7 +19,7 @@ describe('centred portraits', () => {
     for (const id of Object.keys(BOSS_ANIMS)) expect(BOSS_BOUNDS[id], id).toBeDefined();
   });
 
-  it('puts every hero head in the middle of the face, near the top', () => {
+  it('centres every hero face on its figure, top of the figure near the top', () => {
     for (const [id, b] of Object.entries(HERO_BOUNDS)) {
       const p = place(b, portraitFit(b), b[6], b[3]);
       expect(Math.abs(p.x - 0.5), id).toBeLessThan(0.01);
@@ -40,13 +40,15 @@ describe('centred portraits', () => {
     }
   });
 
-  it('centres each boss on its own figure, not its canvas', () => {
-    const n = BOSS_ANIM_FRAMES.idle;
+  it('shows each boss whole, centred both ways on its own figure', () => {
     for (const [id, b] of Object.entries(BOSS_BOUNDS)) {
-      const css = portraitFit(b, n);
-      const wide = b[4] - b[2] > (b[5] - b[3]) * 1.1;
-      const mid = wide ? (b[2] + b[4]) / 2 : b[6];
-      expect(Math.abs(place(b, css, mid, b[3], 1, n).x - 0.5), id).toBeLessThan(0.01);
+      const r = bossBox(b);
+      const s = r.width / b[0];
+      const left = r.left + b[2] * s, right = r.left + b[4] * s, top = r.top + b[3] * s, bottom = r.top + b[5] * s;
+      expect(Math.abs((left + right) / 2 - 0.5), id).toBeLessThan(0.01);
+      expect(Math.abs((top + bottom) / 2 - 0.5), id).toBeLessThan(0.01);
+      expect(Math.min(left, top), id).toBeGreaterThan(0);
+      expect(Math.max(right, bottom), id).toBeLessThan(1);
     }
   });
 });
