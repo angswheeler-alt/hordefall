@@ -708,6 +708,8 @@ export const ULT_STAR_BONUS = 1.5;
  * Samuel picked x1.5 (2026-10-14) so the late stars unlock mechanics instead (design/star-progression-draft.md).
  */
 export const STAR_STAT_MULT = 1.5;
+/** Each star above 1★ makes a hero's Ember levels count this much more in battle (7★ = +3%). Economy audit 2026-11-07. */
+export const STAR_EMBER_BONUS = 0.005;
 /**
  * Pink awakening stars, a second star row bought with Starmotes (PvP currency, from the Colosseum).
  * Samuel (2026-10-21): x1.5 all stats per pink star like yellow stars, paced so the first stars take days of

@@ -112,8 +112,9 @@ export function keeperLevel(lifetimeEmbers: number): number {
  * hit stage 1,200 in 10 hours of play; now the gain per Rekindle shrinks
  * and progress levels off near stage 2,000 until stars and relics push it.
  * The first Rekindle (~100 Embers) still buys ~15 levels on each of 5 heroes.
+ * 1.07 -> 1.068 (2026-11-07, economy audit, tools/sim): late progress had flattened to ~90 stages a month.
  */
-export const EMBER_COST_GROWTH = 1.07;
+export const EMBER_COST_GROWTH = 1.068;
 export function emberCost(level: number): number {
   return Math.ceil(Math.pow(EMBER_COST_GROWTH, level));
 }
@@ -141,12 +142,17 @@ export function emberRefund(level: number): number {
 
 /** Every hero's ATK x1.2 (Samuel, 2026-10-22), paired with Ultimates going from 40x to 25x ATK. */
 export const HERO_ATK_MULT = 1.2;
+/**
+ * Base ATK and HP by rarity (2026-11-07, economy audit): about two stars of difference per rarity step, so rarer
+ * heroes (and Ascendant forms) earn a team spot instead of teams ending as 7★ Commons.
+ */
+export const RARITY_STAT_MULT: Record<HeroDef['rarity'], number> = { common: 1, rare: 2.25, epic: 5, legendary: 11 };
 export function heroAtk(def: HeroDef, level: number): Decimal {
-  return levelScale(level).times(def.baseAtk * HERO_ATK_MULT);
+  return levelScale(level).times(def.baseAtk * HERO_ATK_MULT * (RARITY_STAT_MULT[def.rarity] ?? 1));
 }
 
 export function heroHp(def: HeroDef, level: number): Decimal {
-  return levelScale(level).times(def.baseHp);
+  return levelScale(level).times(def.baseHp * (RARITY_STAT_MULT[def.rarity] ?? 1));
 }
 
 /** Defense grows with level like ATK and HP. Without a baseDef it is a small share of HP, so tanky heroes defend best. */
