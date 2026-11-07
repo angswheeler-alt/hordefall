@@ -1561,3 +1561,5 @@ i.bitem.t2 { border-radius: 0; clip-path: polygon(50% 100%, 0 40%, 12% 8%, 35% 4
 .boss-items { flex-wrap: wrap; margin: 4px 0 2px; }
 .boss-pity { display: block; opacity: .7; margin-bottom: 4px; }
 .relic-cost { flex-wrap: wrap; }
+.bitem-img { width: 18px; height: 18px; vertical-align: -4px; margin-right: 3px; image-rendering: auto; }
+.relic-cost .bitem-img { width: 16px; height: 16px; }

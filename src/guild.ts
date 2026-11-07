@@ -11,7 +11,7 @@ import Decimal from 'break_infinity.js';
 import { fmt, parseAmount, guildBossFightWait, guildBossFightsLeft, guildBossLane, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, guildBossElement, guildBossStartLevel, researchPointsFor, researchRank } from './formulas';
 import type { GameState } from './state';
 import type { Account } from './account';
-import { faceStyle, dropCards, type UI } from './ui';
+import { faceStyle, dropCards, bossItemIcon, type UI } from './ui';
 import { bossPicHtml } from './portrait';
 import { BOSS_ANIM_FRAMES } from './bossAnims';
 import { play } from './sfx';
@@ -20,7 +20,7 @@ import { amountSliderHtml, bindAmountSlider } from './amountSlider';
 
 /** " · +1 Leviathan Scale" style text for boss items gained. */
 function bossItemsText(element: Element, got: BossItemCounts): string {
-  return got.map((n, t) => (n > 0 ? ` · <b>+${n} ${BOSS_ITEM_NAMES[element][t]}</b>` : '')).join('');
+  return got.map((n, t) => (n > 0 ? ` · ${bossItemIcon(element, t)}<b>+${n} ${BOSS_ITEM_NAMES[element][t]}</b>` : '')).join('');
 }
 
 // Guilds: browse, create and join; the weekly Guild Boss event; Guild Research; weekly Guild Quests; members and ranks;
