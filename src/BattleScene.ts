@@ -23,6 +23,8 @@ import {
   nextBossLine,
   bossWeakness,
   bossImmuneTo,
+  elementBossShare,
+  ELEMENT_BOSS_OTHER_SHARE,
   isElementBossStage,
   bossHasElement,
   stageBoss,
@@ -245,7 +247,7 @@ interface Unit {
   bossArt?: { id: string; flinchAt: number };
   /** Fights without an element (bosses before stage 600): no element bonus either way on its hits or on hits it takes. */
   noElement?: boolean;
-  /** Bosses from stage 600: the stage whose element lock applies (only their weakness can hurt them). */
+  /** Bosses from stage 600: the stage whose element lock applies (other elements deal ELEMENT_BOSS_OTHER_SHARE). */
   lockStage?: number;
   /** When IMMUNE last floated over this unit, so it doesn't flood the screen. */
   immuneShownAt?: number;
@@ -1209,7 +1211,7 @@ export class BattleScene extends Phaser.Scene {
     if (boss) {
       this.spawnEnemy(true);
       const weak = bossWeakness(stage);
-      this.banner(`${stageBoss(stage).name.toUpperCase()}${weak ? (isElementBossStage(stage) ? `\nONLY ${weak.toUpperCase()} CAN HURT IT` : `\nWEAK TO ${weak.toUpperCase()}`) : ''}`, '#ff6680');
+      this.banner(`${stageBoss(stage).name.toUpperCase()}${weak ? (isElementBossStage(stage) ? `\n${weak.toUpperCase()} HITS FULLY · OTHERS ${Math.round(ELEMENT_BOSS_OTHER_SHARE * 100)}%` : `\nWEAK TO ${weak.toUpperCase()}`) : ''}`, '#ff6680');
       play('boss');
     }
     for (let g = 0; g < START_GROUPS; g++) {
@@ -1363,7 +1365,7 @@ export class BattleScene extends Phaser.Scene {
     }
     this.banner(reason, '#ff6b6b');
     const need = this.state.missingBossElement(stage);
-    if (need) this.time.delayedCall(1400, () => this.banner(`ONLY ${need.toUpperCase()} CAN HURT IT\nADD A ${need.toUpperCase()} HERO`, '#ffd27a'));
+    if (need) this.time.delayedCall(1400, () => this.banner(`OTHER ELEMENTS DEAL ${Math.round(ELEMENT_BOSS_OTHER_SHARE * 100)}%\nADD A ${need.toUpperCase()} HERO`, '#ffd27a'));
     else if (isBossStage(stage) && !this.state.autoBoss) this.time.delayedCall(1400, () => this.banner('Tap FIGHT BOSS to retry', '#ffd27a'));
     play('defeat');
     this.state.save();
@@ -2394,7 +2396,7 @@ export class BattleScene extends Phaser.Scene {
           torrentDmg;
         const amount = atk.times(mult);
         // Lifesteal only counts hits that land (element-locked bosses shrug off the rest).
-        if (t.lockStage === undefined || !bossImmuneTo(t.lockStage, this.dealsAs(h))) dealt = dealt.plus(amount);
+        dealt = dealt.plus(t.lockStage === undefined ? amount : amount.times(elementBossShare(t.lockStage, this.dealsAs(h))));
         this.damageUnit(t, amount, h, crit);
         if (t.alive) this.applyEffects(h, t, amount, procced);
         if (t.alive && heat.erupt) this.ignite(t, amount.times(STAT_BASE.burnDps), STAT_BASE.burnSeconds, h);
@@ -2496,10 +2498,12 @@ export class BattleScene extends Phaser.Scene {
       e.poisonTick -= BURN_TICK;
       const dmg = e.poisonDps.times(e.poisonStacks * BURN_TICK);
       if (this.immune(e, e.poisonBy ?? null)) continue;
-      this.floatText(e.x + Phaser.Math.Between(-6, 6), e.y - 22, fmt(dmg), '#8dff6a', 9);
-      this.meter(e.poisonBy, 'dealt', Decimal.min(dmg, e.hp));
-      this.meter(e, 'taken', Decimal.min(dmg, e.hp));
-      e.hp = e.hp.minus(dmg);
+      const poisonShare = this.lockShare(e, e.poisonBy ?? null);
+      const pdmg = dmg.times(poisonShare);
+      this.floatText(e.x + Phaser.Math.Between(-6, 6), e.y - 22, fmt(pdmg), '#8dff6a', 9);
+      this.meter(e.poisonBy, 'dealt', Decimal.min(pdmg, e.hp));
+      this.meter(e, 'taken', Decimal.min(pdmg, e.hp));
+      e.hp = e.hp.minus(pdmg);
       this.drawHpBar(e);
       if (e.hp.lte(0)) this.kill(e, e.poisonBy ?? null);
     }
@@ -2531,8 +2535,8 @@ export class BattleScene extends Phaser.Scene {
       e.burnTick += dt;
       if (e.burnTick < BURN_TICK) continue;
       e.burnTick -= BURN_TICK;
-      const dmg = e.burnDps.times(BURN_TICK);
       if (this.immune(e, e.burnBy ?? null)) continue;
+      const dmg = e.burnDps.times(BURN_TICK * this.lockShare(e, e.burnBy ?? null));
       this.sparks(e.x, e.y - 6, 0xff8a3a, 2);
       this.floatText(e.x + Phaser.Math.Between(-6, 6), e.y - 22, fmt(dmg), '#ffa55a', 9);
       const burnt = Decimal.min(e.markUntil > this.clock ? dmg.times(e.markMult) : dmg, e.hp);
@@ -2559,6 +2563,18 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Element-locked bosses shrug off anything not dealt as their weakness, and say so. */
+  /** Element bosses: hits from any element but the weakness deal ELEMENT_BOSS_OTHER_SHARE, with a RESIST float now and then. */
+  private lockShare(target: Unit, source: Unit | null): number {
+    if (target.lockStage === undefined) return 1;
+    const as = source && source.side === 'hero' ? this.dealsAs(source) : null;
+    const share = elementBossShare(target.lockStage, as);
+    if (share > 0 && share < 1 && this.clock - (target.immuneShownAt ?? -Infinity) >= 0.6) {
+      target.immuneShownAt = this.clock;
+      this.floatText(target.x + Phaser.Math.Between(-8, 8), target.y - 30, 'RESIST', '#b8c0cc', 11);
+    }
+    return share;
+  }
+
   private immune(target: Unit, source: Unit | null): boolean {
     if (target.lockStage === undefined) return false;
     const as = source && source.side === 'hero' ? this.dealsAs(source) : null;
@@ -2575,6 +2591,7 @@ export class BattleScene extends Phaser.Scene {
     // A Burrower underground can't be hit.
     if (target.burrowedUntil! > this.clock) return;
     if (this.immune(target, source)) return;
+    amount = amount.times(this.lockShare(target, source));
     // Sanctuary: no damage at all for a while.
     if (target.side === 'hero' && target.guardUntil > this.clock) return;
     if (target.side === 'enemy' && target.markUntil > this.clock) amount = amount.times(target.markMult);
