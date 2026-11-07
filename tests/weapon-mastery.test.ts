@@ -36,3 +36,10 @@ describe('Weapon Mastery', () => {
     expect(t.masteryRank(h.id)).toBe(4);
   });
 });
+
+describe('Weapon Mastery cap', () => {
+  it('stops at rank 20', () => {
+    expect(masteryCost(19)).not.toBeNull();
+    expect(masteryCost(20)).toBeNull();
+  });
+});

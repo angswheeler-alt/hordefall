@@ -6,7 +6,7 @@ import { HEROES, type HeroDef } from './data';
 import { fmtDuration } from './formulas';
 import type { GameState } from './state';
 import { SCOUT_BONUS_COMMONS, SCOUT_KINDS, SCOUT_MATCH_MULT, SCOUT_UNLOCK_LEVEL, WILD_CREST_COST, fullReward, missionEndsAt, scoutReward, type ScoutMission, type ScoutReward } from './scouting';
-import { FORGE_MATS, FORGE_MAT_NAMES, WEAPON_GLYPHS, WEAPON_LOOK_LEVEL, WEAPON_LOOK_NAMES, WEAPON_LOOKS, WEAPON_MAX_LEVEL, WEAPON_STAT_STEP, MASTERY_STEP, masteryMult, weaponLook, weaponMult, weaponName, type ForgeMat } from './weapons';
+import { FORGE_MATS, FORGE_MAT_NAMES, WEAPON_GLYPHS, WEAPON_LOOK_LEVEL, WEAPON_LOOK_NAMES, WEAPON_LOOKS, WEAPON_MAX_LEVEL, WEAPON_STAT_STEP, MASTERY_STEP, MASTERY_MAX_RANK, masteryMult, weaponLook, weaponMult, weaponName, type ForgeMat } from './weapons';
 import { weaponArtUrl } from './weaponArt';
 import { faceStyle, dropCards } from './ui';
 import { play } from './sfx';
@@ -319,8 +319,8 @@ export class ScoutUI {
           })
           .join('')
       : '';
-    const masteryHtml = `<h3>Mastery ${rank ? `<small>Rank ${rank} · ATK and HP ${pct(masteryMult(rank))}</small>` : ''}</h3>
-      <p class="meta">This weapon is at max level. Mastery ranks never end: each gives ${Math.round((MASTERY_STEP - 1) * 100)}% more ATK and HP (compounding).</p>
+    const masteryHtml = `<h3>Mastery ${rank ? `<small>Rank ${rank} / ${MASTERY_MAX_RANK} · ATK and HP ${pct(masteryMult(rank))}</small>` : ''}</h3>
+      <p class="meta">This weapon is at max level. Up to ${MASTERY_MAX_RANK} Mastery ranks, each giving ${Math.round((MASTERY_STEP - 1) * 100)}% more ATK and HP (compounding).</p>
       ${mCost ? `<ul class="wp-cost">${mRows}</ul>
       <button type="button" class="hot evolve" id="sheet-mastery-up" ${mBlock ? 'disabled' : ''}>${mBlock && mBlock !== 'Not enough materials' ? mBlock : `Mastery rank ${rank + 1}`}</button>` : '<p class="meta">Mastery is at its top rank.</p>'}`;
     const html = `

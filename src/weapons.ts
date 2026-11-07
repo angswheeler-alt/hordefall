@@ -91,13 +91,13 @@ export function weaponUpgradeCost(level: number): ForgeCost | null {
 }
 
 /**
- * Weapon Mastery (2026-11-07, economy audit): once a weapon is at WEAPON_MAX_LEVEL, endless Mastery ranks give
+ * Weapon Mastery (2026-11-07, economy audit): once a weapon is at WEAPON_MAX_LEVEL, up to MASTERY_MAX_RANK (20, user) Mastery ranks give
  * MASTERY_STEP more ATK and HP each (compounding). Costs grow MASTERY_COST_GROWTH a rank, so Ore, Crystal and Cores
  * always have a use; by day 365 the simulator had every team weapon maxed and ~366,000 Ore and Crystal unspent.
  */
 export const MASTERY_STEP = 1.05;
 export const MASTERY_COST_GROWTH = 1.15;
-export const MASTERY_MAX_RANK = 999;
+export const MASTERY_MAX_RANK = 20;
 
 export function clampMastery(rank: unknown): number {
   const n = typeof rank === 'number' && Number.isFinite(rank) ? Math.floor(rank) : 0;
