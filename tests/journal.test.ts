@@ -42,7 +42,7 @@ describe('Hunting Journal pages', () => {
     expect(JOURNAL_PAGES.filter((p) => p.group === 'boss')).toHaveLength(5);
     expect(JOURNAL_PAGES.filter((p) => p.group === 'trial')).toHaveLength(5);
     expect(JOURNAL_PAGES.filter((p) => p.group === 'guild')).toHaveLength(5);
-    expect(new Set(JOURNAL_PAGES.map((p) => p.id)).size).toBe(65);
+    expect(new Set(JOURNAL_PAGES.map((p) => p.id)).size).toBe(105);
   });
 
   it('mobs use 100 / 1,000 / 10,000 and tiers grow the bonus', () => {

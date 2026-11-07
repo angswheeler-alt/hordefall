@@ -1125,6 +1125,12 @@ export class BattleScene extends Phaser.Scene {
     u.view.add(tag);
   }
 
+  /** A mutant's own Journal page: its trait on its mob kind (from its mob page). */
+  private mutantPage(u: Unit): string | undefined {
+    const mob = u.page ? journalPage(u.page)?.mob : undefined;
+    return u.mutation && mob ? mutantPageId(u.mutation.id, mob) : undefined;
+  }
+
   /** A Splitting mutant breaks into small plain copies where it fell. */
   private splitMutant(u: Unit) {
     const split = u.mutation?.split;
@@ -2577,7 +2583,7 @@ export class BattleScene extends Phaser.Scene {
     if (target.isBoss && target.side === 'enemy' && source?.side === 'hero') amount = amount.times(this.state.bossDamageMult());
     // Hunting Journal: a little more damage against enemies the player has beaten many of.
     if (target.side === 'enemy' && target.page && source?.side === 'hero') amount = amount.times(this.state.journalMult(target.page));
-    if (target.mutation && source?.side === 'hero') amount = amount.times(this.state.journalMult(mutantPageId(target.mutation.id)));
+    if (target.mutation && target.page && source?.side === 'hero') amount = amount.times(this.state.journalMult(this.mutantPage(target)));
     // A Shieldbearer's shield blocks most ranged hits from the front (src/mobs.ts guardShare).
     const guarded = !!target.guardMax && target.shield.gt(0);
     if (guarded && source?.side === 'hero') {
@@ -2736,7 +2742,8 @@ export class BattleScene extends Phaser.Scene {
   /** Count a kill in the Hunting Journal; a shiny pays its treasure. Tiers reached float up over the lane. */
   private journalKill(u: Unit) {
     this.state.journalAdd(u.page!);
-    if (u.mutation) this.state.journalAdd(mutantPageId(u.mutation.id));
+    const mutantPage = this.mutantPage(u);
+    if (mutantPage) this.state.journalAdd(mutantPage);
     if (u.shiny) {
       const got = this.state.catchShiny(u.page!, Math.random());
       for (let i = 0; i < 4; i++) this.sparks(u.x + Phaser.Math.Between(-10, 10), u.y - Phaser.Math.Between(4, 24), 0xfff2a0, 6);
