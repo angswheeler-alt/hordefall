@@ -152,13 +152,13 @@ describe('offline earnings', () => {
     expect(s.canBeatBoss(100).won).toBe(true);
     expect(s.canBeatBoss(150).won).toBe(false);
     // From stage 100 Shieldbearers show up (src/mobs.ts), which moves this team's wall back one stage.
-    expect(s.canClearStage(132)).toBe(true);
-    expect(s.canClearStage(133)).toBe(false);
+    expect(s.canClearStage(144)).toBe(true);
+    expect(s.canClearStage(145)).toBe(false);
     const r = s.applyOffline(1e9)!;
     expect(r.bosses).toBe(2);
     // Past the stage 100 boss, it stops on the last normal stage the team can clear.
-    expect(s.stage).toBe(132);
-    expect(r.stages).toBe(129);
+    expect(s.stage).toBe(144);
+    expect(r.stages).toBe(141);
   });
 
   it('maxOfflineStage shows where a full offline stretch would stop, without moving', () => {
@@ -167,7 +167,7 @@ describe('offline earnings', () => {
     for (const h of HEROES) s.levels[h.id] = team.includes(h) ? 100 : 0;
     s.secondsPerStage = 1;
     s.stage = 3;
-    expect(s.maxOfflineStage()).toBe(132);
+    expect(s.maxOfflineStage()).toBe(144);
     expect(s.stage).toBe(3);
     s.autoAdvance = false;
     expect(s.maxOfflineStage()).toBe(3);
@@ -181,7 +181,7 @@ describe('offline earnings', () => {
     const r = s.applyOffline(1e9)!;
     expect(r.stages).toBe(0);
     expect(s.stage).toBe(20);
-    s.levels.brine = 20;
+    s.levels.brine = 12;
     s.applyOffline(1e9);
     expect(s.stage).toBeGreaterThan(30);
     expect(s.stage).toBeLessThan(49);
@@ -221,7 +221,7 @@ describe('offline earnings', () => {
   it('does not beat a boss without enough time left, or with a team that is too weak', () => {
     const s = fresh();
     const team = HEROES.filter((h) => ['blaze', 'ember', 'flint', 'cinder', 'briar'].includes(h.id));
-    for (const h of HEROES) s.levels[h.id] = team.includes(h) ? 92 : 0;
+    for (const h of HEROES) s.levels[h.id] = team.includes(h) ? 75 : 0;
     s.secondsPerStage = 1;
     s.stage = 50;
     expect(s.canBeatBoss(100).won).toBe(false);

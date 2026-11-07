@@ -1,3 +1,4 @@
+import { RARITY_STAT_MULT } from '../src/formulas';
 import { describe, expect, it } from 'vitest';
 import { GameState, SHOP_HEROES } from '../src/state';
 import { HEROES, RELEASED_HEROES, PLAYABLE_HEROES, MAX_STARS, ASCENDANT_CHEST, CHEST_DROPS, GUILD_BOSS_ASC_CRESTS, GUILD_BOSS_ASC_LEVELS } from '../src/data';
@@ -199,9 +200,11 @@ describe('forms in play', () => {
     const before = s.heroStats(base, 10);
     for (let i = 0; i < MAX_FORM; i++) s.ascend('asc_test');
     const after = s.heroStats(base, 10);
-    // Form IV: ATK 11 and HP 64 against Form I's 6 and 48, with the same 8★ and level.
-    expect(after.atk.base.div(before.atk.base).toNumber()).toBeCloseTo(11 / 6, 6);
-    expect(after.hp.base.div(before.hp.base).toNumber()).toBeCloseTo(64 / 48, 6);
+    // Form IV: ATK 11 and HP 64 against Form I's 6 and 48, with the same 8★ and level, times the
+    // Legendary form's rarity stats against the Common form's (RARITY_STAT_MULT).
+    const r = RARITY_STAT_MULT.legendary / RARITY_STAT_MULT.common;
+    expect(after.atk.base.div(before.atk.base).toNumber()).toBeCloseTo((11 / 6) * r, 6);
+    expect(after.hp.base.div(before.hp.base).toNumber()).toBeCloseTo((64 / 48) * r, 6);
     expect(after.attacksPerSec.base).toBeCloseTo(1 / 0.6, 6);
     expect(s.heroPower(base, 10).atk.gt(s.heroPower(base, 9).atk)).toBe(true);
   });

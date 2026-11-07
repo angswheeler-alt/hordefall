@@ -5,7 +5,7 @@ import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM,
 import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_TEMPER_CAP, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicCost, guildRelicEffect, warsteelForFight, warsteelForKill, warsteelForWeek, type GuildRelicDef, type GuildRelicEffect } from './guildRelics';
 import { utcWeekStart, guildBossElement, relicCost, bossHp, bossAtk, enemyHp, enemyAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberCost, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, isBossStage } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
-import { FIXED_LEVEL, RENAMED_HEROES, PLAYABLE_HEROES, RELEASED_HEROES, ASCENDANT_CHEST, START_GOLD, isElementBossStage, bossWeakness } from './data';
+import { STAR_EMBER_BONUS, FIXED_LEVEL, RENAMED_HEROES, PLAYABLE_HEROES, RELEASED_HEROES, ASCENDANT_CHEST, START_GOLD, isElementBossStage, bossWeakness } from './data';
 import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills';
 import { isKnight, combatPower, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
@@ -485,9 +485,17 @@ export class GameState {
     for (const fn of this.listeners) fn();
   }
 
-  /** Fighting level for a hero: gold level plus permanent Ember levels. */
+  /**
+   * Fighting level for a hero: gold level plus permanent Ember levels. Each star above 1★ makes Ember levels count
+   * STAR_EMBER_BONUS more (2026-11-07, economy audit), so stars keep mattering late in the game.
+   */
   heroLevel(id: string): number {
-    return effectiveLevel(this.levels[id] ?? 0, this.emberLevels[id] ?? 0);
+    return effectiveLevel(this.levels[id] ?? 0, this.starEmberLevels(id));
+  }
+
+  /** Ember levels after the star bonus. */
+  starEmberLevels(id: string): number {
+    return Math.floor((this.emberLevels[id] ?? 0) * (1 + STAR_EMBER_BONUS * (this.stars[id] ?? 0)));
   }
 
   reachStage(stage: number) {

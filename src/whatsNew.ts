@@ -27,6 +27,7 @@ export const WHATS_NEW_SHOWN = 8;
 
 /** Newest first. */
 export const WHATS_NEW: WhatsNewEntry[] = [
+  { id: 'rarity-star-embers', date: '2026-11-07', text: '<b>Hero balance</b>: rarer heroes have much stronger base stats, stars make Ember levels count more, and Ember levels cost less.' },
   { id: 'forge-mastery', date: '2026-11-07', text: '<b>Weapon Mastery</b>: maxed weapons gain up to 20 Mastery ranks with Ore, Crystal and Cores, and guild relics can be Tempered past level 20.' },
   { id: 'element-boss-hint', date: '2026-11-07', text: '<b>Element bosses</b>: the boss button now says which element you need, and Run stats show today\'s gold chest Gems.' },
   { id: 'milestone-forge', date: '2026-11-07', text: '<b>Stage Milestones</b>: weapon forge materials instead of gold, plus Gems and Wild Crests every 100th stage.' },

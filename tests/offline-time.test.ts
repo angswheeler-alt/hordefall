@@ -13,16 +13,16 @@ describe('time to the offline max stage', () => {
     s.secondsPerStage = 10;
     s.stage = 3;
     const max = s.maxOffline();
-    expect(max.stage).toBe(132);
+    expect(max.stage).toBe(144);
     expect(max.outOfTime).toBe(false);
-    // 129 stages at 10 s each, plus two boss fights that take at least a stage's time.
-    expect(max.seconds).toBeGreaterThanOrEqual(129 * 10);
-    expect(max.seconds).toBeLessThan(129 * 10 + 2 * 24 + 1);
+    // 141 stages at 10 s each, plus two boss fights that take at least a stage's time.
+    expect(max.seconds).toBeGreaterThanOrEqual(141 * 10);
+    expect(max.seconds).toBeLessThan(141 * 10 + 2 * 24 + 1);
     expect(offlineNote(true, max, s.stage)).toMatch(/^Reached in \d+m/);
     // Dreaming Moon makes the same climb take less real time.
     s.observatory = { ...s.observatory, offline: 10 };
     const faster = s.maxOffline();
-    expect(faster.stage).toBe(132);
+    expect(faster.stage).toBe(144);
     expect(faster.seconds).toBeCloseTo(max.seconds / 1.5, 6);
   });
 
