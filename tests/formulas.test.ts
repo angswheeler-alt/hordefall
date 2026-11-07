@@ -65,28 +65,28 @@ describe('progression curves', () => {
   });
 
   it('Rekindle pays nothing at or below the Rekindle stage', () => {
-    expect(emberYield(125, 125)).toBe(0);
-    expect(emberYield(126, 125)).toBeGreaterThan(0);
+    expect(emberYield(125, 125).toNumber()).toBe(0);
+    expect(emberYield(126, 125).toNumber()).toBeGreaterThan(0);
   });
 
   it('a run short of the record loses about 3% per stage, then 6% past the soft zone', () => {
-    expect(emberYield(1000, 125, 1, 1000)).toBe(emberYield(1000, 125));
-    expect(emberYield(1100, 125, 1, 1000)).toBe(emberYield(1100, 125));
+    expect(emberYield(1000, 125, 1, 1000).eq(emberYield(1000, 125))).toBe(true);
+    expect(emberYield(1100, 125, 1, 1000).eq(emberYield(1100, 125))).toBe(true);
     expect(emberPayStage(970, 1000)).toBe(985);
     expect(emberPayStage(1000 - EMBER_SOFT_ZONE, 1000)).toBe(1000 - EMBER_SOFT_ZONE / 2);
     expect(emberPayStage(900, 1000)).toBe(930);
-    const share = emberYield(970, 125, 1, 1000) / emberYield(1000, 125);
+    const share = emberYield(970, 125, 1, 1000).div(emberYield(1000, 125)).toNumber();
     expect(share).toBeGreaterThan(0.38);
     expect(share).toBeLessThan(0.45);
     // Never more than the record pays, always more than the old rule, and falls with every stage short.
     let prev = Infinity;
     for (let run = 1000; run >= 200; run -= 5) {
-      const y = emberYield(run, 125, 1, 1000);
+      const y = emberYield(run, 125, 1, 1000).toNumber();
       expect(y).toBeLessThanOrEqual(prev);
-      expect(y).toBeGreaterThanOrEqual(emberYield(run, 125));
+      expect(y).toBeGreaterThanOrEqual(emberYield(run, 125).toNumber());
       prev = y;
     }
-    expect(emberYield(125, 125, 1, 1000)).toBe(0);
+    expect(emberYield(125, 125, 1, 1000).toNumber()).toBe(0);
   });
 
   it('Keeper levels follow the thresholds', () => {
@@ -101,9 +101,10 @@ describe('progression curves', () => {
 });
 
 describe('Ember economy', () => {
-  const levelsFor = (embers: number) => {
+  const levelsFor = (amount: Decimal) => {
+    let embers = amount;
     let l = 0;
-    while (embers >= emberCost(l)) embers -= emberCost(l++);
+    while (embers.gte(emberCost(l))) embers = embers.minus(emberCost(l++));
     return l;
   };
 

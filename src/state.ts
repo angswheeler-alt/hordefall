@@ -85,8 +85,29 @@ export interface OfflineReport {
   market: Decimal;
 }
 
+/**
+ * Embers in a save: a plain number while it fits (older builds still read it), the Decimal's text past 1e300.
+ */
+export function bigSave(v: Decimal): number | string {
+  return v.lt(1e300) ? v.toNumber() : v.toString();
+}
+
+/** A saved Ember amount (number, text or Decimal) back as a Decimal; anything broken or negative is 0. */
+export function bigLoad(v: unknown): Decimal {
+  if (v instanceof Decimal) return v.lt(0) || !Number.isFinite(v.mantissa) ? new Decimal(0) : v;
+  if (typeof v !== 'number' && typeof v !== 'string') return new Decimal(0);
+  if (typeof v === 'number' && !Number.isFinite(v)) return new Decimal(0);
+  let d: Decimal;
+  try {
+    d = new Decimal(v);
+  } catch {
+    return new Decimal(0);
+  }
+  return Number.isFinite(d.mantissa) && Number.isFinite(d.exponent) && d.gte(0) ? d : new Decimal(0);
+}
+
 export interface RekindleResult {
-  embers: number;
+  embers: Decimal;
   /** One line per Rekindle Wheel spin. */
   wheel: string[];
   levelsGained: number;
@@ -298,7 +319,7 @@ export class GameState {
   runStartStage = 1;
   /** Whether Rekindles take the head start (the player can turn it off on the Rekindle page). */
   headStart = true;
-  embers = 0;
+  embers = new Decimal(0);
   emberLevels: Record<string, number> = Object.fromEntries(HEROES.map((h) => [h.id, 0]));
   rekindles = 0;
   /** Elemental Trials: tickets, when the next one started charging, best tier cleared per element, essences. */
@@ -313,7 +334,7 @@ export class GameState {
   /** Market Row Stalls; level 0 means not opened. Reset on Rekindle. */
   stalls: Record<string, StallState> = Object.fromEntries(STALLS.map((s) => [s.id, { level: 0, progress: 0 }]));
   /** Every Ember ever earned; sets the Keeper level. */
-  lifetimeEmbers = 0;
+  lifetimeEmbers = new Decimal(0);
   /** Lifetime counters for achievements and Bootcamp. */
   stats: Record<StatKey, number> = Object.fromEntries(STAT_KEYS.map((k) => [k, 0])) as Record<StatKey, number>;
   /** Today's daily challenge progress; reset when the local day changes. */
@@ -2340,16 +2361,16 @@ export class GameState {
   }
 
   /** Player level once `extra` more lifetime Embers come in. */
-  keeperLevelAfter(extra: number) {
-    return keeperLevel(this.lifetimeEmbers + extra);
+  keeperLevelAfter(extra: Decimal | number) {
+    return keeperLevel(this.lifetimeEmbers.plus(extra));
   }
 
   keeperBonus() {
     return 1 + KEEPER_BONUS_PER_LEVEL * (this.keeperLevel() - 1);
   }
 
-  pendingEmbers() {
-    return Math.floor(emberYield(this.runBestStage, REKINDLE_STAGE, this.keeperBonus(), this.bestStage) * (1 + this.relicBonus('embers')) * (1 + this.obsBonus('embers')));
+  pendingEmbers(): Decimal {
+    return emberYield(this.runBestStage, REKINDLE_STAGE, this.keeperBonus(), this.bestStage).times((1 + this.relicBonus('embers')) * (1 + this.obsBonus('embers'))).floor();
   }
 
   /**
@@ -2358,16 +2379,16 @@ export class GameState {
    */
   rekindle(mult = 1, headStart = this.headStart): RekindleResult | null {
     const base = this.pendingEmbers();
-    if (base <= 0 || !this.canRekindle()) return null;
+    if (base.lte(0) || !this.canRekindle()) return null;
     const boost = REKINDLE_BOOSTS.find((b) => b.mult === mult);
     if (mult !== 1 && (!boost || this.gems < boost.gems)) return null;
     if (boost) this.gems -= boost.gems;
     const levelBefore = this.keeperLevel();
     const sigilsBefore = this.sigilsEarned();
     const wheel = this.spinWheel(base);
-    const gained = base * mult + wheel.embers;
-    this.embers += gained;
-    this.lifetimeEmbers += gained;
+    const gained = base.times(mult).plus(wheel.embers);
+    this.embers = this.embers.plus(gained);
+    this.lifetimeEmbers = this.lifetimeEmbers.plus(gained);
     this.rekindles += 1;
     // Every new player level comes with a gift of Enhance Stones.
     const levelsGained = this.keeperLevel() - levelBefore;
@@ -2392,18 +2413,18 @@ export class GameState {
    * Ember levels the team could buy with the current Embers plus `extra`, always
    * buying the cheapest next level across the lineup. Shown on the Rekindle page.
    */
-  emberLevelsAffordable(extra: number): number {
+  emberLevelsAffordable(extra: Decimal | number): number {
     const team = HEROES.filter((h) => this.inLineup(h.id));
     if (!team.length) return 0;
     const lv = team.map((h) => this.emberLevels[h.id] ?? 0);
-    let left = this.embers + extra;
+    let left = this.embers.plus(extra);
     let bought = 0;
     while (bought < 100000) {
       let i = 0;
       for (let j = 1; j < lv.length; j++) if (lv[j] < lv[i]) i = j;
       const c = emberCost(lv[i]);
-      if (c > left) break;
-      left -= c;
+      if (c.gt(left)) break;
+      left = left.minus(c);
       lv[i]++;
       bought++;
     }
@@ -2414,8 +2435,8 @@ export class GameState {
   buyEmbers(id: string, count: BuyAmount): number {
     const level = this.emberLevels[id] ?? 0;
     const { levels, cost } = emberBulk(level, count, this.embers);
-    if (levels <= 0 || cost > this.embers) return 0;
-    this.embers -= cost;
+    if (levels <= 0 || cost.gt(this.embers)) return 0;
+    this.embers = this.embers.minus(cost);
     this.emberLevels[id] = level + levels;
     return levels;
   }
@@ -2424,12 +2445,12 @@ export class GameState {
    * The player's own choice to take a hero's Ember levels back to +0. Every
    * Ember spent on them is refunded, so it can be spent on another hero.
    */
-  resetEmbers(id: string): number {
+  resetEmbers(id: string): Decimal {
     const level = this.emberLevels[id] ?? 0;
-    if (level <= 0) return 0;
+    if (level <= 0) return new Decimal(0);
     const refund = emberRefund(level);
     this.emberLevels[id] = 0;
-    this.embers += refund;
+    this.embers = this.embers.plus(refund);
     this.save();
     return refund;
   }
@@ -2441,9 +2462,9 @@ export class GameState {
   }
 
   /** Spin the Rekindle Wheel once per unlocked slot. Ember prizes are a share of `base` and are added by the caller. */
-  private spinWheel(base: number) {
+  private spinWheel(base: Decimal) {
     const lines: string[] = [];
-    let embers = 0;
+    let embers = new Decimal(0);
     for (let i = 0; i < this.roadReached(); i++) {
       const prize = weighted(WHEEL_PRIZES.map((p) => [p.prize, p.weight] as [WheelPrize, number]));
       if (prize.kind === 'tickets') {
@@ -2459,8 +2480,7 @@ export class GameState {
         this.essences[el] = (this.essences[el] ?? 0) + prize.amount;
         lines.push(`${prize.amount} ${ESSENCE_NAMES[el]}`);
       } else {
-        const extra = Math.floor(base * prize.share);
-        embers += extra;
+        embers = embers.plus(base.times(prize.share).floor());
         lines.push(`+${Math.round(prize.share * 100)}% Embers`);
       }
     }
@@ -4334,10 +4354,10 @@ export class GameState {
       runBestStage: this.runBestStage,
       runStartStage: this.runStartStage,
       headStart: this.headStart,
-      embers: this.embers,
+      embers: bigSave(this.embers),
       emberLevels: this.emberLevels,
       rekindles: this.rekindles,
-      lifetimeEmbers: this.lifetimeEmbers,
+      lifetimeEmbers: bigSave(this.lifetimeEmbers),
       stats: this.stats,
       daily: this.daily,
       login: this.login,
@@ -4485,7 +4505,7 @@ export class GameState {
       this.runBestStage = d.runBestStage ?? this.bestStage;
       this.runStartStage = d.runStartStage ?? 1;
       this.headStart = d.headStart ?? true;
-      this.embers = d.embers ?? 0;
+      this.embers = bigLoad(d.embers);
       this.emberLevels = { ...this.emberLevels, ...(d.emberLevels ?? {}) };
       this.rekindles = d.rekindles ?? 0;
       this.observatory = cleanObservatory(d.observatory);
@@ -4493,7 +4513,7 @@ export class GameState {
       this.journal = cleanJournal(d.journal);
       this.journalStamps = cleanStamps(d.journalStamps);
       this.shinies = d.shinies && typeof d.shinies === 'object' ? { day: String(d.shinies.day ?? ''), caught: Math.max(0, Math.floor(Number(d.shinies.caught) || 0)) } : { day: '', caught: 0 };
-      this.lifetimeEmbers = d.lifetimeEmbers ?? this.embers;
+      this.lifetimeEmbers = d.lifetimeEmbers === undefined ? this.embers : bigLoad(d.lifetimeEmbers);
       this.benched = { ...(d.benched ?? {}) };
       this.stats = { ...this.stats, ...(d.stats ?? {}) };
       if (d.daily) this.daily = { day: String(d.daily.day ?? ''), counts: { ...(d.daily.counts ?? {}) }, claimed: [...(d.daily.claimed ?? [])] };
@@ -4704,7 +4724,8 @@ export class GameState {
     p.active = -1;
     this.ultSlots = Math.min(ULT_SLOTS_MAX, Math.max(ULT_SLOTS_START, Math.floor(num(this.ultSlots, ULT_SLOTS_START))));
     this.teamSlots = Math.min(TEAM_SLOTS_MAX, Math.max(TEAM_SLOTS_START, Math.floor(num(this.teamSlots, TEAM_SLOTS_START))));
-    this.embers = Math.max(0, num(this.embers, 0));
+    this.embers = bigLoad(this.embers);
+    this.lifetimeEmbers = bigLoad(this.lifetimeEmbers);
     this.tickets = Math.min(this.ticketCap(), Math.max(0, Math.floor(num(this.tickets, this.ticketCap()))));
     this.ticketClock = num(this.ticketClock, Date.now());
     this.lastSeen = num(this.lastSeen, Date.now());

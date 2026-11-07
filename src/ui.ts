@@ -1834,8 +1834,8 @@ export class UI {
     const eShown = eb.levels > 0 ? eb : emberBulk(ember, 1, s.embers);
     const emberBtn = $<HTMLButtonElement>('sheet-ember-up');
     (emberBtn.querySelector('.label') as HTMLElement).textContent = `Ember +${eShown.levels}`;
-    (emberBtn.querySelector('.cost') as HTMLElement).textContent = `${fmt(eShown.cost)} Ember${eShown.cost === 1 ? '' : 's'}`;
-    emberBtn.disabled = eShown.cost > s.embers;
+    (emberBtn.querySelector('.cost') as HTMLElement).textContent = `${fmt(eShown.cost)} Ember${eShown.cost.eq(1) ? '' : 's'}`;
+    emberBtn.disabled = eShown.cost.gt(s.embers);
     $('sheet-buyamt').textContent = buyAmountLabel(s.buyAmount);
     $('sheet-ember-note').textContent = `Ember levels stay on this hero through Rekindle and out of the team, and count on stages and in Trials. Each star above 1★ makes them count ${STAR_EMBER_BONUS * 100}% more. Only a reset takes them off.`;
     $('sheet-ember-reset').hidden = ember <= 0;
@@ -2662,7 +2662,7 @@ export class UI {
     $('rk-embers').textContent = `+${fmt(base)}`;
     $('rk-stage').textContent = s.runBestStage.toLocaleString();
     const stageBonus = emberStageBonus(s.runBestStage, REKINDLE_STAGE, s.bestStage);
-    $('rk-stagebonus').textContent = `x${stageBonus < 100 ? stageBonus.toFixed(2) : fmt(stageBonus)}`;
+    $('rk-stagebonus').textContent = `x${stageBonus.lt(100) ? stageBonus.toNumber().toFixed(2) : fmt(stageBonus)}`;
     $('rk-levels').textContent = `+${(s.emberLevelsAffordable(base) - s.emberLevelsAffordable(0)).toLocaleString()}`;
     $('rk-levels').title = s.runBestStage < s.bestStage ? `Your record is stage ${s.bestStage.toLocaleString()}. Runs a little short of it still pay well.` : '';
     $('rk-keeperbonus').textContent = `x${s.keeperBonus().toFixed(2)}`;
@@ -2688,11 +2688,11 @@ export class UI {
     const level = s.keeperLevel();
     const from = level === 1 ? 0 : keeperThreshold(level - 1);
     const to = keeperThreshold(level);
-    const pct = (v: number) => `${Math.max(0, Math.min(100, ((v - from) / (to - from)) * 100))}%`;
+    const pct = (v: Decimal) => `${Math.max(0, Math.min(100, v.minus(from).div(new Decimal(to).minus(from)).toNumber() * 100))}%`;
     $('rk-level').textContent = String(level);
     $('rk-nextlvl').textContent = `Lv ${level + 1}: Embers x${(s.keeperBonus() + KEEPER_BONUS_PER_LEVEL).toFixed(2)} + 🎁 ${LEVEL_GIFT_STONES} Enhance Stones`;
     $('rk-bar-fill').style.width = pct(s.lifetimeEmbers);
-    $('rk-bar-gain').style.width = pct(s.lifetimeEmbers + base);
+    $('rk-bar-gain').style.width = pct(s.lifetimeEmbers.plus(base));
     $('rk-bar-now').textContent = `Lifetime Embers: ${fmt(s.lifetimeEmbers)}`;
     $('rk-bar-next').textContent = fmt(to);
 
@@ -2700,7 +2700,7 @@ export class UI {
       `<button class="go" data-mult="1"><small>+${fmt(base)} Embers</small>Rekindle</button>`,
       ...REKINDLE_BOOSTS.map(
         (b) =>
-          `<button class="boost" data-mult="${b.mult}" ${s.gems < b.gems ? 'disabled' : ''}><small>+${fmt(base * b.mult)} Embers</small>${b.mult}x<span class="gemcost">${b.gems} Gems</span></button>`,
+          `<button class="boost" data-mult="${b.mult}" ${s.gems < b.gems ? 'disabled' : ''}><small>+${fmt(base.times(b.mult))} Embers</small>${b.mult}x<span class="gemcost">${b.gems} Gems</span></button>`,
       ),
     ];
     setHtml($('rk-buttons'), buttons.join(''));
@@ -3270,7 +3270,7 @@ export class UI {
     summon.disabled = s.gems < CHEST_COST;
     setHtml(summon, `Open · ${CHEST_COST} <span class="gem"></span>`);
     $<HTMLButtonElement>('chest-btn').disabled = s.gems < CHEST_COST;
-    $('embers-stat').hidden = s.embers === 0 && s.rekindles === 0;
+    $('embers-stat').hidden = s.embers.eq(0) && s.rekindles === 0;
     $('embers').textContent = fmt(s.embers);
     const rk = $<HTMLButtonElement>('rk-emblem');
     rk.hidden = !s.rekindleShown();
@@ -3328,7 +3328,7 @@ export class UI {
       const canEvolve = !locked && evolveCost !== null && s.medalsFor(r.def.id) >= evolveCost;
       const benched = !locked && !s.inLineup(r.def.id);
       r.root.classList.toggle('benched', benched);
-      r.ember.textContent = benched ? '· Benched' : canEvolve ? '· Ready to evolve!' : s.embers >= emberCost(emberLevel) ? '· Embers ready' : '';
+      r.ember.textContent = benched ? '· Benched' : canEvolve ? '· Ready to evolve!' : s.embers.gte(emberCost(emberLevel)) ? '· Embers ready' : '';
       // Red dot only for a free action (user 2026-10-31): Embers to spend no longer light it.
       if (!benched && canEvolve) heroesBadge = true;
       const { levels, cost } = bulkCost(r.def, level, s.buyAmount, s.gold, s.levelCostMult());

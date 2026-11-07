@@ -1,3 +1,4 @@
+import Decimal from 'break_infinity.js';
 import { describe, expect, it } from 'vitest';
 import { GameState } from '../src/state';
 import { emberYield } from '../src/formulas';
@@ -16,13 +17,13 @@ describe('Rekindle short of the record', () => {
     s.runBestStage = 370;
     s.stage = 370;
     const keeper = s.keeperBonus();
-    expect(s.pendingEmbers()).toBe(emberYield(370, REKINDLE_STAGE, keeper, 400));
-    expect(s.pendingEmbers()).toBeGreaterThan(emberYield(370, REKINDLE_STAGE, keeper));
+    expect(s.pendingEmbers().eq(emberYield(370, REKINDLE_STAGE, keeper, 400))).toBe(true);
+    expect(s.pendingEmbers().gt(emberYield(370, REKINDLE_STAGE, keeper))).toBe(true);
   });
 
   it('counts the team Ember levels a payout buys', () => {
     const s = fresh();
-    s.embers = 0;
+    s.embers = new Decimal(0);
     expect(s.emberLevelsAffordable(0)).toBe(0);
     const some = s.emberLevelsAffordable(1000);
     expect(some).toBeGreaterThan(0);

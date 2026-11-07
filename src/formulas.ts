@@ -83,24 +83,32 @@ export function emberPayStage(runBestStage: number, lifetimeBest = runBestStage)
 }
 
 /** Ember payout multiplier from the run's best stage (x1 just past the Rekindle stage). */
-export function emberStageBonus(runBestStage: number, rekindleStage: number, lifetimeBest = runBestStage): number {
-  return Math.pow(1.06, emberPayStage(runBestStage, lifetimeBest) - rekindleStage - 1);
+export function emberStageBonus(runBestStage: number, rekindleStage: number, lifetimeBest = runBestStage): Decimal {
+  return Decimal.pow(1.06, emberPayStage(runBestStage, lifetimeBest) - rekindleStage - 1);
 }
 
 /** Embers granted for a Rekindle with this as the highest stage reached in the run. */
-export function emberYield(runBestStage: number, rekindleStage: number, keeperBonus = 1, lifetimeBest = runBestStage): number {
-  if (runBestStage <= rekindleStage) return 0;
-  return Math.floor(40 * emberStageBonus(runBestStage, rekindleStage, lifetimeBest) * keeperBonus);
+export function emberYield(runBestStage: number, rekindleStage: number, keeperBonus = 1, lifetimeBest = runBestStage): Decimal {
+  if (runBestStage <= rekindleStage) return new Decimal(0);
+  return emberStageBonus(runBestStage, rekindleStage, lifetimeBest).times(40 * keeperBonus).floor();
 }
 
 /** Lifetime Embers needed to reach Keeper level `level + 1`: 100, 200, 400, ... */
-export function keeperThreshold(level: number): number {
-  return 100 * Math.pow(2, level - 1);
+export function keeperThreshold(level: number): Decimal {
+  return Decimal.pow(2, level - 1).times(100);
 }
 
-export function keeperLevel(lifetimeEmbers: number): number {
-  let level = 1;
-  while (lifetimeEmbers >= keeperThreshold(level)) level++;
+/**
+ * Embers, Ember costs and lifetime Embers are big numbers (Decimal) since 2026-11-07: as plain numbers they
+ * turned into Infinity near Ember level ~10,800 / stage ~12,300, and this loop never ended.
+ */
+export function keeperLevel(lifetimeEmbers: Decimal | number): number {
+  const life = new Decimal(lifetimeEmbers);
+  if (!life.gte(keeperThreshold(1))) return 1;
+  // Jump close with a log, then step to the exact level (huge totals would loop for ages).
+  let level = Math.max(1, Math.floor(life.div(100).log10() / Math.log10(2)) + 1);
+  while (level > 1 && life.lt(keeperThreshold(level - 1))) level--;
+  while (life.gte(keeperThreshold(level))) level++;
   return level;
 }
 
@@ -115,18 +123,19 @@ export function keeperLevel(lifetimeEmbers: number): number {
  * 1.07 -> 1.068 (2026-11-07, economy audit, tools/sim): late progress had flattened to ~90 stages a month.
  */
 export const EMBER_COST_GROWTH = 1.068;
-export function emberCost(level: number): number {
-  return Math.ceil(Math.pow(EMBER_COST_GROWTH, level));
+export function emberCost(level: number): Decimal {
+  return Decimal.pow(EMBER_COST_GROWTH, level).ceil();
 }
 
 /** Ember levels and their total cost for Buy x1 / x10 / max, the same rule as gold levels. */
-export function emberBulk(level: number, count: number | 'max', embers: number): { levels: number; cost: number } {
-  let cost = 0;
+export function emberBulk(level: number, count: number | 'max', embers: Decimal | number): { levels: number; cost: Decimal } {
+  const have = new Decimal(embers);
+  let cost = new Decimal(0);
   let n = 0;
   const limit = count === 'max' ? 10000 : count;
   while (n < limit) {
-    const next = cost + emberCost(level + n);
-    if (count === 'max' && next > embers) break;
+    const next = cost.plus(emberCost(level + n));
+    if (count === 'max' && next.gt(have)) break;
     cost = next;
     n++;
   }
@@ -134,9 +143,9 @@ export function emberBulk(level: number, count: number | 'max', embers: number):
 }
 
 /** Embers spent to raise a hero from Ember level 0 to `level`; what a reset gives back. */
-export function emberRefund(level: number): number {
-  let total = 0;
-  for (let i = 0; i < level; i++) total += emberCost(i);
+export function emberRefund(level: number): Decimal {
+  let total = new Decimal(0);
+  for (let i = 0; i < level; i++) total = total.plus(emberCost(i));
   return total;
 }
 
