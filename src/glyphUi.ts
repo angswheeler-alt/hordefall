@@ -17,6 +17,7 @@ import {
   glyphPct,
   glyphSalvage,
   glyphSets,
+  glyphStatRows,
   glyphTotals,
   type Glyph,
   type GlyphFamily,
@@ -39,9 +40,19 @@ export const dustChip = (n: number) => `<span class="mat-chip" title="Glyph Dust
 export const unbinderChip = (n: number) => `<span class="mat-chip" title="Unbinders"><i class="mat-ico unbinder" aria-hidden="true"></i>${n.toLocaleString()}</span>`;
 
 /** A Glyph as a small tile: family stone, stars and level. */
-export function glyphTile(g: Glyph, attrs = '', extra = ''): string {
+export function glyphTile(g: Glyph, attrs = '', extra = '', tag: 'button' | 'span' = 'button'): string {
   const info = GLYPH_FAMILY_INFO[g.family];
-  return `<button type="button" class="glyph-tile s${g.star}" style="--fam:${info.color}" ${attrs} title="${info.name} Glyph ${g.star}★ +${g.level}">${glyphIco(g.family)}<span class="gt-star">${g.star}★</span>${g.level ? `<span class="gt-lv">+${g.level}</span>` : ''}${glyphBound(g) && g.hero ? '<span class="gt-lock" aria-label="Bound">&#128274;</span>' : ''}${extra}</button>`;
+  return `<${tag} ${tag === 'button' ? 'type="button" ' : ''}class="glyph-tile s${g.star}" style="--fam:${info.color}" ${attrs} title="${info.name} Glyph ${g.star}★ +${g.level}">${glyphIco(g.family)}<span class="gt-star">${g.star}★</span>${g.level ? `<span class="gt-lv">+${g.level}</span>` : ''}${glyphBound(g) && g.hero ? '<span class="gt-lock" aria-label="Bound">&#128274;</span>' : ''}${extra}</${tag}>`;
+}
+
+/** A Glyph as a card: the tile plus every stat it gives (main stat first), so it can be judged before equipping. */
+export function glyphCard(g: Glyph, attrs = ''): string {
+  const info = GLYPH_FAMILY_INFO[g.family];
+  const rows = glyphStatRows(g)
+    .map((r) => `<span class="gc-row${r.main ? ' main' : ''}"><span>${r.name}</span><b>${r.value}</b></span>`)
+    .join('');
+  const tag = attrs.includes('disabled') ? 'div' : 'button';
+  return `<${tag} ${tag === 'button' ? 'type="button" ' : ''}class="glyph-card" style="--fam:${info.color}" ${attrs.replace('disabled', '')}>${glyphTile(g, '', '', 'span')}<span class="gc-stats"><span class="gc-name">${info.name}</span>${rows}</span></${tag}>`;
 }
 
 /** "ATK +12% · Crit chance +2%" for a set of stat totals. */
@@ -52,9 +63,9 @@ function statLine(t: Record<GlyphStat, number>): string {
 
 /** Results of opening Glyph Chests, as tiles. */
 export function glyphDrops(list: Array<{ glyph?: Glyph; dust?: number }>): string {
-  const tiles = list.map((x) => (x.glyph ? glyphTile(x.glyph, 'disabled') : '')).join('');
+  const tiles = list.map((x) => (x.glyph ? glyphCard(x.glyph, 'disabled') : '')).join('');
   const dust = list.reduce((t, x) => t + (x.dust ?? 0), 0);
-  return `${tiles ? `<div class="glyph-grid">${tiles}</div>` : ''}${dust ? `<p>The bag was full: ${dust} Glyph Dust instead.</p>` : ''}`;
+  return `${tiles ? `<div class="glyph-cards">${tiles}</div>` : ''}${dust ? `<p>The bag was full: ${dust} Glyph Dust instead.</p>` : ''}`;
 }
 
 export class GlyphUI {
@@ -149,7 +160,7 @@ export class GlyphUI {
       $('modal-body').innerHTML = `
         <div class="sc-reward">${dustChip(s.glyphDust)}${unbinderChip(s.unbinders)}<span class="meta">${s.bagGlyphs().length}/${GLYPH_BAG_CAP}</span></div>
         ${this.filters()}
-        <div class="glyph-grid bag">${list.map((g) => glyphTile(g, `data-gid="${g.id}"`)).join('') || '<small class="meta">No Glyphs here. Rush pays Glyph Chests.</small>'}</div>
+        <div class="glyph-cards bag">${list.map((g) => glyphCard(g, `data-gid="${g.id}"`)).join('') || '<small class="meta">No Glyphs here. Rush pays Glyph Chests.</small>'}</div>
         ${low.length ? `<button type="button" class="wood-btn small" data-gsalv>Salvage all 1★-2★ (${low.length}) for ${low.reduce((t, g) => t + glyphSalvage(g), 0)} Dust</button>` : ''}`;
     };
     this.ui.showModal('Glyph bag', '', 'Close');
@@ -174,7 +185,7 @@ export class GlyphUI {
     const { maxStar } = s.glyphSlots(heroId);
     const draw = () => {
       const list = this.bagList(maxStar);
-      $('modal-body').innerHTML = `<p>Up to ${maxStar}★ fits this weapon. Tap a Glyph to put it in.</p>${this.filters()}<div class="glyph-grid bag">${list.map((g) => glyphTile(g, `data-gpick="${g.id}"`, `<small class="gt-main">${GLYPH_STAT_NAMES[glyphMain(g).stat]}</small>`)).join('') || '<small class="meta">No Glyphs that fit. Rush pays Glyph Chests.</small>'}</div>`;
+      $('modal-body').innerHTML = `<p>Up to ${maxStar}★ fits this weapon. Tap a Glyph to put it in.</p>${this.filters()}<div class="glyph-cards bag">${list.map((g) => glyphCard(g, `data-gpick="${g.id}"`)).join('') || '<small class="meta">No Glyphs that fit. Rush pays Glyph Chests.</small>'}</div>`;
     };
     const hero = HEROES.find((h) => h.id === heroId)!;
     this.ui.showModal(`${esc(hero.name)}: slot ${slot + 1}`, '', 'Close');
@@ -204,7 +215,7 @@ export class GlyphUI {
     const s = this.state;
     this.ui.showModal(
       'Bound Glyph',
-      `<div class="glyph-grid">${glyphTile(g, 'disabled')}</div><p>This ${g.star}★ Glyph is bound to its weapon. Use an Unbinder to take it out safely (you have ${s.unbinders}), or break it for ${glyphSalvage(g)} Glyph Dust.</p>
+      `<div class="glyph-cards">${glyphCard(g, 'disabled')}</div><p>This ${g.star}★ Glyph is bound to its weapon. Use an Unbinder to take it out safely (you have ${s.unbinders}), or break it for ${glyphSalvage(g)} Glyph Dust.</p>
        <div class="glyph-actions"><button type="button" class="hot" data-gb="unbind" ${s.unbinders > 0 ? '' : 'disabled'}>Use Unbinder</button><button type="button" class="wood-btn" data-gb="break">Break for Dust</button></div>`,
       'Cancel',
     );
