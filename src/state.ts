@@ -2,7 +2,7 @@ import { normalizeBuyAmount, type BuyAmount } from './amountSlider';
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, MILESTONE_STEP, milestoneReward, dayKey, type MilestoneReward, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
 import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_CHEST_GEMS, GOLD_CHEST_GEMS_PER_DAY, GUILD_BOSS_ASC_CRESTS, GUILD_BOSS_ASC_LEVELS, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_DEALS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TRIAL_EVENT_DAYS, TRIAL_EVENT_MEDAL_MULT, TICKET_CRATE, HERO_VOUCHER, MONTHLY_CREST_PACK, ALL_TRIALS_DAYS, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, AUTO_BOSS_SECONDS, NORMAL_STAGE_LOSSES, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, OFFLINE_STAGE_HP, OFFLINE_STAGE_ATTACKERS, OFFLINE_MOB_COOLDOWN, OFFLINE_STAGE_TIME, elementMultiplier, bossElement, bossHasElement, elementBossShare, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_SET_START_SHARE, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, trialFirstWin, STAR_CRESTS, MAX_STARS, REGULAR_MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, RAISED_RARITY_OLD_COST, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_WARSTEEL_PACKS_PER_DAY, GUILD_CHESTS_PER_WEEK, GUILD_WARSTEEL_PACK, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, AWAKEN_STARMOTES, MAX_AWAKEN, AWAKEN_STAT_MULT, AWAKEN_UNLOCK_LEVEL, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
-import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_TEMPER_CAP, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicCost, guildRelicEffect, warsteelForFight, warsteelForKill, warsteelForWeek, type GuildRelicDef, type GuildRelicEffect } from './guildRelics';
+import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_TEMPER_CAP, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicCost, guildRelicEffect, warsteelForFight, warsteelForKill, warsteelForWeek, type GuildRelicDef, type GuildRelicEffect, BOSS_RELICS, BOSS_RELIC_SLOTS, BOSS_RELIC_MAX_LEVEL, BOSS_HEART_PITY, bossRelicCost, guildRelicItemCost, rollBossItems, type BossItemCounts, type BossRelicDef } from './guildRelics';
 import { utcWeekStart, guildBossElement, relicCost, bossHp, bossAtk, enemyHp, enemyAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberCost, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, isBossStage } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { STAR_EMBER_BONUS, FIXED_LEVEL, RENAMED_HEROES, PLAYABLE_HEROES, RELEASED_HEROES, ASCENDANT_CHEST, START_GOLD, isElementBossStage, bossWeakness } from './data';
@@ -404,6 +404,11 @@ export class GameState {
   warsteel = 0;
   guildRelics: Record<string, number> = {};
   guildRelicEquipped: string[] = [];
+  /** Boss items per Guild Boss element ([common, rare, very rare]), rolls since each boss's last very rare item, boss relic levels and the equipped ones. */
+  bossItems: Partial<Record<Element, BossItemCounts>> = {};
+  bossItemPity: Partial<Record<Element, number>> = {};
+  bossRelics: Record<string, number> = {};
+  bossRelicEquipped: string[] = [];
   /** Weapons (src/weapons.ts): level per hero, 1 when missing. */
   weapons: Record<string, number> = {};
   /** Weapon Mastery ranks past the max weapon level (src/weapons.ts), 0 when missing. */
@@ -545,8 +550,8 @@ export class GameState {
   heroPower(base: HeroDef, level = this.heroLevel(base.id)): { atk: Decimal; hp: Decimal; defense: Decimal } {
     const def = this.formDef(base);
     const starMult = this.starMultiplier(def.id);
-    const atkRelics = (1 + this.relicBonus('atk') + this.relicBonus(def.element)) * (1 + this.researchBonus('combat')) * (1 + this.guildRelicBonus('atk'));
-    const hpRelics = (1 + this.relicBonus('hp') + this.relicBonus(`${def.element}Hp`)) * (1 + this.guildRelicBonus('hp'));
+    const atkRelics = (1 + this.relicBonus('atk') + this.relicBonus(def.element)) * (1 + this.researchBonus('combat')) * (1 + this.guildRelicBonus('atk') + this.guildRelicBonus('elemAtk', def.element));
+    const hpRelics = (1 + this.relicBonus('hp') + this.relicBonus(`${def.element}Hp`)) * (1 + this.guildRelicBonus('hp') + this.guildRelicBonus('elemHp', def.element));
     const fx = this.effects();
     const prof = heroProfile(def);
     const weapon = weaponMult(this.weaponLevel(base.id)) * masteryMult(this.masteryRank(base.id));
@@ -3674,14 +3679,82 @@ export class GameState {
 
   // ---------- guild relics (src/guildRelics.ts) ----------
 
-  /** Total bonus (0.5 = +50%) from equipped guild relics with this effect. */
-  guildRelicBonus(effect: GuildRelicEffect): number {
+  /** Total bonus (0.5 = +50%) from equipped guild and boss relics with this effect; elemAtk/elemHp count only boss relics of `element`. */
+  guildRelicBonus(effect: GuildRelicEffect, element?: Element): number {
     let total = 0;
     for (const id of this.guildRelicEquipped) {
       const def = GUILD_RELICS.find((r) => r.id === id);
       if (def) total += guildRelicEffect(def, effect, this.guildRelics[id] ?? 0);
     }
+    for (const id of this.bossRelicEquipped) {
+      const def = BOSS_RELICS.find((r) => r.id === id);
+      if (!def || ((effect === 'elemAtk' || effect === 'elemHp') && def.element !== element)) continue;
+      total += guildRelicEffect(def, effect, this.bossRelics[id] ?? 0);
+    }
     return total;
+  }
+
+  /** A boss's items held: [common, rare, very rare]. */
+  bossItemCount(element: Element): BossItemCounts {
+    const c = this.bossItems[element];
+    return c ? [c[0], c[1], c[2]] : [0, 0, 0];
+  }
+
+  /** All common boss items held, from every boss. */
+  commonBossItems(): number {
+    return (Object.keys(this.bossItems) as Element[]).reduce((n, e) => n + this.bossItemCount(e)[0], 0);
+  }
+
+  /** Roll `rolls` drops of a boss's items (rewarded fights, levels beaten) and keep them. */
+  rollBossDrops(element: Element, rolls: number, rng: () => number = Math.random): BossItemCounts {
+    const got = rollBossItems(rolls, this.bossItemPity[element] ?? 0, rng);
+    this.bossItemPity[element] = got.pity;
+    const have = this.bossItemCount(element);
+    this.bossItems[element] = [have[0] + got.items[0], have[1] + got.items[1], have[2] + got.items[2]];
+    return got.items;
+  }
+
+  /** Rolls left before a boss's very rare item is certain. */
+  bossHeartPityLeft(element: Element): number {
+    return Math.max(0, BOSS_HEART_PITY - (this.bossItemPity[element] ?? 0));
+  }
+
+  /** Cost of a boss relic's next level (building it at level 0), or null at max. */
+  bossRelicNextCost(def: BossRelicDef) {
+    return bossRelicCost(def, this.bossRelics[def.id] ?? 0);
+  }
+
+  /** Whether the player holds enough Warsteel and boss items for a boss relic's next level. */
+  canUpgradeBossRelic(def: BossRelicDef): boolean {
+    const cost = this.bossRelicNextCost(def);
+    if (!cost || this.warsteel < cost.warsteel) return false;
+    const have = this.bossItemCount(def.element);
+    return have.every((n, i) => n >= cost.items[i]);
+  }
+
+  /** Build or level up a boss relic with its boss's items and Warsteel. A newly built one goes into a free boss slot. */
+  upgradeBossRelic(id: string): boolean {
+    const def = BOSS_RELICS.find((r) => r.id === id);
+    if (!def || !this.canUpgradeBossRelic(def)) return false;
+    const cost = this.bossRelicNextCost(def)!;
+    const have = this.bossItemCount(def.element);
+    this.bossItems[def.element] = [have[0] - cost.items[0], have[1] - cost.items[1], have[2] - cost.items[2]];
+    this.warsteel -= cost.warsteel;
+    const level = this.bossRelics[id] ?? 0;
+    this.bossRelics[id] = level + 1;
+    if (level === 0 && this.bossRelicEquipped.length < BOSS_RELIC_SLOTS) this.bossRelicEquipped.push(id);
+    this.save();
+    return true;
+  }
+
+  /** Put an owned boss relic in a boss slot or take it out. */
+  toggleBossRelic(id: string): boolean {
+    if (!(this.bossRelics[id] > 0)) return false;
+    if (this.bossRelicEquipped.includes(id)) this.bossRelicEquipped = this.bossRelicEquipped.filter((x) => x !== id);
+    else if (this.bossRelicEquipped.length < BOSS_RELIC_SLOTS) this.bossRelicEquipped.push(id);
+    else return false;
+    this.save();
+    return true;
   }
 
   /** Damage multiplier on every boss (stage, Trial, element and Guild bosses) from guild relics. */
@@ -3713,6 +3786,13 @@ export class GameState {
     const cost = this.guildRelicNextCost(def);
     if (cost === null || this.warsteel < cost) return false;
     const level = this.guildRelics[id] ?? 0;
+    const items = guildRelicItemCost(level);
+    if (this.commonBossItems() < items) return false;
+    for (let i = 0; i < items; i++) {
+      // Take common items from the biggest pile, so no single boss runs dry first.
+      const from = (Object.keys(this.bossItems) as Element[]).reduce((a, b) => (this.bossItemCount(b)[0] > this.bossItemCount(a)[0] ? b : a));
+      this.bossItems[from]![0]--;
+    }
     this.warsteel -= cost;
     this.guildRelics[id] = level + 1;
     if (level === 0 && this.guildRelicEquipped.length < GUILD_RELIC_SLOTS) this.guildRelicEquipped.push(id);
@@ -3775,29 +3855,37 @@ export class GameState {
   }
 
   /** Pay one Guild Boss attempt: Guild Coins (more for a bigger share of the boss) and some gold. */
-  payGuildBossAttempt(level: number, damage: Decimal, hp: Decimal): { coins: number; gold: Decimal; warsteel: number } {
+  payGuildBossAttempt(level: number, damage: Decimal, hp: Decimal, element?: Element, rng: () => number = Math.random): { coins: number; gold: Decimal; warsteel: number; items: BossItemCounts } {
     const coins = Math.round(guildBossAttemptCoins(level, damage, hp, GUILD_BOSS_PAR_ATTEMPTS) * (1 + this.guildRelicBonus('coins')));
     const warsteel = Math.round(warsteelForFight(level, damage, hp, GUILD_BOSS_PAR_ATTEMPTS) * (1 + this.guildRelicBonus('warsteel')));
     const gold = this.goldFor(GUILD_BOSS_GOLD_MINUTES);
     this.guildCredits += coins;
     this.warsteel += warsteel;
     this.gold = this.gold.plus(gold);
+    const items: BossItemCounts = element ? this.rollBossDrops(element, 1, rng) : [0, 0, 0];
     this.save();
-    return { coins, gold, warsteel };
+    return { coins, gold, warsteel, items };
   }
 
   /**
    * Guild Boss rewards the server let this player claim: for each level beaten, Guild Coins and a
    * share of lifetime Embers; for each finished week, Guild Coins and Hero Chests by the highest level beaten.
    */
-  payGuildBossRewards(kills: Array<{ week: string; level: number; n?: number }>, weeks: Array<number | { top: number; beaten?: number }>, pool: AscendantDef[] = releasedAscendants()): { coins: number; warsteel: number; drops: SummonDrop[]; ascendant: Array<{ heroId: string; crests: number }> } {
+  payGuildBossRewards(kills: Array<{ week: string; level: number; n?: number }>, weeks: Array<number | { top: number; beaten?: number }>, pool: AscendantDef[] = releasedAscendants(), rng: () => number = Math.random): { coins: number; warsteel: number; drops: SummonDrop[]; ascendant: Array<{ heroId: string; crests: number }>; items: Array<{ element: Element; got: BossItemCounts }> } {
     let coins = 0;
     let warsteel = 0;
+    const items: Array<{ element: Element; got: BossItemCounts }> = [];
     const drops: SummonDrop[] = [];
     const ascendant: Array<{ heroId: string; crests: number }> = [];
     for (const { week, level, n } of kills) {
       coins += guildBossKillCoins(level);
       warsteel += warsteelForKill(level);
+      // Each level beaten rolls that week's boss items once.
+      const element = guildBossElement(week);
+      const got = this.rollBossDrops(element, 1, rng);
+      const seen = items.find((r) => r.element === element);
+      if (seen) seen.got = [seen.got[0] + got[0], seen.got[1] + got[1], seen.got[2] + got[2]];
+      else items.push({ element, got });
       // The server pays each level once, so the first GUILD_BOSS_ASC_LEVELS levels beaten in a week cap its Ascendant crests.
       // `n` is the level's place in the week (1 = the level the week started at); older servers send only the level.
       const hero = (n ?? level) <= GUILD_BOSS_ASC_LEVELS ? this.guildAscHero(week, pool) : undefined;
@@ -3819,7 +3907,7 @@ export class GameState {
     this.guildCredits += coins;
     this.warsteel += warsteel;
     this.save();
-    return { coins, warsteel, drops, ascendant };
+    return { coins, warsteel, drops, ascendant, items };
   }
 
   /** Guild shop stock for today: rolls new hero offers on a new day and resets the weekly Wild Medal count. */
@@ -4422,6 +4510,10 @@ export class GameState {
       warsteel: this.warsteel,
       guildRelics: this.guildRelics,
       guildRelicEquipped: this.guildRelicEquipped,
+      bossItems: this.bossItems,
+      bossItemPity: this.bossItemPity,
+      bossRelics: this.bossRelics,
+      bossRelicEquipped: this.bossRelicEquipped,
       weapons: this.weapons,
       weaponMastery: this.weaponMastery,
       scout: this.scout,
@@ -4616,6 +4708,24 @@ export class GameState {
       ) as Record<string, number>;
       this.guildRelicEquipped = Array.isArray(d.guildRelicEquipped)
         ? [...new Set(d.guildRelicEquipped.filter((id: unknown): id is string => typeof id === 'string' && this.guildRelics[id] > 0))].slice(0, GUILD_RELIC_SLOTS)
+        : [];
+      const els: Element[] = ['water', 'fire', 'earth', 'light', 'dark'];
+      const count = (v: unknown) => (typeof v === 'number' && v > 0 ? Math.floor(v) : 0);
+      this.bossItems = {};
+      this.bossItemPity = {};
+      for (const e of els) {
+        const c = d.bossItems?.[e];
+        if (Array.isArray(c)) this.bossItems[e] = [count(c[0]), count(c[1]), count(c[2])];
+        const p = count(d.bossItemPity?.[e]);
+        if (p) this.bossItemPity[e] = Math.min(BOSS_HEART_PITY, p);
+      }
+      this.bossRelics = Object.fromEntries(
+        Object.entries(d.bossRelics ?? {})
+          .filter(([id, lv]) => BOSS_RELICS.some((r) => r.id === id) && typeof lv === 'number' && lv > 0)
+          .map(([id, lv]) => [id, Math.min(BOSS_RELIC_MAX_LEVEL, Math.floor(lv as number))]),
+      ) as Record<string, number>;
+      this.bossRelicEquipped = Array.isArray(d.bossRelicEquipped)
+        ? [...new Set(d.bossRelicEquipped.filter((id: unknown): id is string => typeof id === 'string' && this.bossRelics[id] > 0))].slice(0, BOSS_RELIC_SLOTS)
         : [];
       this.weapons = Object.fromEntries(
         Object.entries(d.weapons ?? {})

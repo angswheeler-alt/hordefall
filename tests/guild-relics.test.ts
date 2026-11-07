@@ -18,9 +18,10 @@ function fresh() {
   return new GameState();
 }
 
-/** Give Warsteel and level a guild relic to `level`. */
+/** Give Warsteel and common boss items, and level a guild relic to `level`. */
 function raise(s: GameState, id: string, level: number) {
   s.warsteel += 1e9;
+  s.bossItems.water = [1e6, 0, 0];
   while ((s.guildRelics[id] ?? 0) < level) expect(s.upgradeGuildRelic(id)).toBe(true);
 }
 

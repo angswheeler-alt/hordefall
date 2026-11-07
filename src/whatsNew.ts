@@ -27,6 +27,7 @@ export const WHATS_NEW_SHOWN = 8;
 
 /** Newest first. */
 export const WHATS_NEW: WhatsNewEntry[] = [
+  { id: 'boss-relics', date: '2026-11-07', text: '<b>Boss relics</b>: each Guild Boss drops its own rare items. Use them to build its two relics. Guild relics past Lv 10 need them too.' },
   { id: 'element-boss-soft', date: '2026-11-07', text: '<b>Element bosses</b>: heroes of other elements now deal 20% damage to them instead of none. The weak element still hits fully.' },
   { id: 'rarity-star-embers', date: '2026-11-07', text: '<b>Hero balance</b>: rarer heroes have much stronger base stats, stars make Ember levels count more, and Ember levels cost less.' },
   { id: 'forge-mastery', date: '2026-11-07', text: '<b>Weapon Mastery</b>: maxed weapons gain up to 20 Mastery ranks with Ore, Crystal and Cores, and guild relics can be Tempered past level 20.' },

@@ -6,8 +6,10 @@
  */
 import type Decimal from 'break_infinity.js';
 import { guildBossAttemptCoins } from './formulas';
+import type { Element } from './data';
 
-export type GuildRelicEffect = 'atk' | 'hp' | 'def' | 'speed' | 'boss' | 'guildBoss' | 'coins' | 'warsteel';
+/** elemAtk / elemHp count only for heroes of the relic's own element (boss relics). */
+export type GuildRelicEffect = 'atk' | 'hp' | 'def' | 'speed' | 'boss' | 'guildBoss' | 'coins' | 'warsteel' | 'elemAtk' | 'elemHp';
 
 export interface GuildRelicDef {
   id: string;
@@ -66,7 +68,7 @@ export function guildRelicTotalCost(def: GuildRelicDef): number {
 }
 
 /** Bonus (0.5 = +50%) from one guild relic effect at a level. */
-export function guildRelicEffect(def: GuildRelicDef, effect: GuildRelicEffect, level: number): number {
+export function guildRelicEffect(def: { fx: Array<[GuildRelicEffect, number]> }, effect: GuildRelicEffect, level: number): number {
   let total = 0;
   const top = GUILD_RELIC_MAX_LEVEL + GUILD_RELIC_TEMPER_CAP;
   const lv = Math.max(0, Math.min(top, level));
@@ -88,4 +90,90 @@ export function warsteelForKill(level: number): number {
 /** Warsteel for a finished week, by the highest level beaten. */
 export function warsteelForWeek(top: number): number {
   return top > 0 ? GUILD_WARSTEEL_WEEK_PER_LEVEL * top : 0;
+}
+
+/**
+ * Boss items and boss relics (Samuel, 2026-11-07: "guild relics are so easy to buy and max out"). Each weekly Guild Boss
+ * has three items of its own. Every rewarded fight, and every level beaten when claimed, rolls each item separately:
+ * common BOSS_ITEM_CHANCE[0], rare [1], very rare [2] (Samuel's 20% / 5% / 1%). After BOSS_HEART_PITY rolls against a
+ * boss without its very rare item, the next roll gives one. Items build and level that boss's two relics, so each boss
+ * week is its own grind. Worked out in the game from fight results, so no SQL.
+ */
+export type BossItemTier = 0 | 1 | 2;
+/** Counts of a boss's items: [common, rare, very rare]. */
+export type BossItemCounts = [number, number, number];
+export const BOSS_ITEM_CHANCE: readonly [number, number, number] = [0.2, 0.05, 0.01];
+export const BOSS_HEART_PITY = 60;
+export const BOSS_ITEM_NAMES: Record<Element, readonly [string, string, string]> = {
+  water: ['Leviathan Scale', 'Tide Pearl', 'Abyss Heart'],
+  fire: ['Cinder Ash', 'Molten Core', 'Tyrant Heart'],
+  earth: ['Behemoth Chip', 'Granite Core', 'Mountain Heart'],
+  light: ['Seraph Feather', 'Dawn Pearl', 'Radiant Heart'],
+  dark: ['Devourer Fang', 'Void Pearl', 'Night Heart'],
+};
+
+export interface BossRelicDef {
+  id: string;
+  name: string;
+  element: Element;
+  /** Items to build it: [common, rare, very rare] of its boss. */
+  build: BossItemCounts;
+  fx: Array<[GuildRelicEffect, number]>;
+  blurb: string;
+}
+
+/** Each boss's first relic boosts its element's heroes; the second (needs a very rare item) helps the whole team. */
+export const BOSS_RELICS: BossRelicDef[] = [
+  { id: 'b_water1', name: 'Tidecaller Pearl', element: 'water', build: [5, 1, 0], fx: [['elemAtk', 60], ['elemHp', 30]], blurb: 'Pulled from the Leviathan\'s jaw. Water heroes only.' },
+  { id: 'b_water2', name: 'Abyssal Anchor', element: 'water', build: [5, 2, 1], fx: [['hp', 40], ['def', 25]], blurb: 'Nothing moves the one who holds it.' },
+  { id: 'b_fire1', name: 'Cinder Crown', element: 'fire', build: [5, 1, 0], fx: [['elemAtk', 60], ['elemHp', 30]], blurb: 'Still warm from the Tyrant\'s brow. Fire heroes only.' },
+  { id: 'b_fire2', name: 'Tyrant\'s Brand', element: 'fire', build: [5, 2, 1], fx: [['atk', 30]], blurb: 'Marks the whole team as dangerous.' },
+  { id: 'b_earth1', name: 'Heartstone Idol', element: 'earth', build: [5, 1, 0], fx: [['elemAtk', 60], ['elemHp', 30]], blurb: 'Carved from the Behemoth\'s core. Earth heroes only.' },
+  { id: 'b_earth2', name: 'Mountain Bulwark', element: 'earth', build: [5, 2, 1], fx: [['def', 50], ['hp', 20]], blurb: 'A slab of the mountain itself.' },
+  { id: 'b_light1', name: 'Halo of Dawn', element: 'light', build: [5, 1, 0], fx: [['elemAtk', 60], ['elemHp', 30]], blurb: 'Fell from the Seraph\'s head. Light heroes only.' },
+  { id: 'b_light2', name: 'Radiant Plume', element: 'light', build: [5, 2, 1], fx: [['speed', 12]], blurb: 'Light as air, quick as light.' },
+  { id: 'b_dark1', name: 'Eye of the Void', element: 'dark', build: [5, 1, 0], fx: [['elemAtk', 60], ['elemHp', 30]], blurb: 'It still watches. Dark heroes only.' },
+  { id: 'b_dark2', name: 'Night Fang', element: 'dark', build: [5, 2, 1], fx: [['boss', 35]], blurb: 'Bites hardest at the biggest prey.' },
+];
+
+export const BOSS_RELIC_SLOTS = 2;
+/** Boss relics stop at GUILD_RELIC_MAX_LEVEL (no Tempering). */
+export const BOSS_RELIC_MAX_LEVEL = GUILD_RELIC_MAX_LEVEL;
+/** Warsteel per level: BOSS_RELIC_WARSTEEL x GUILD_RELIC_LEVEL_GROWTH^level (like a tier 2 guild relic). */
+export const BOSS_RELIC_WARSTEEL = 160;
+/** Levels whose upgrade needs a rare item (reaching Lv 10) and a very rare item (reaching the max). */
+export const BOSS_RELIC_RARE_AT = 9;
+/** The 6 guild relics: from this level up, each level (and each Tempering level) also costs one common boss item, from any boss. */
+export const GUILD_RELIC_ITEM_FROM = 10;
+
+/** Cost to go from `level` to `level + 1` (level 0 = build), or null at max. */
+export function bossRelicCost(def: BossRelicDef, level: number): { warsteel: number; items: BossItemCounts } | null {
+  if (level >= BOSS_RELIC_MAX_LEVEL) return null;
+  if (level <= 0) return { warsteel: 0, items: [...def.build] as BossItemCounts };
+  return {
+    warsteel: Math.round(BOSS_RELIC_WARSTEEL * Math.pow(GUILD_RELIC_LEVEL_GROWTH, level)),
+    items: [1, level === BOSS_RELIC_RARE_AT ? 1 : 0, level === BOSS_RELIC_MAX_LEVEL - 1 ? 1 : 0],
+  };
+}
+
+/** Common boss items the 6 guild relics need for their next level (0 below GUILD_RELIC_ITEM_FROM). */
+export function guildRelicItemCost(level: number): number {
+  return level >= GUILD_RELIC_ITEM_FROM ? 1 : 0;
+}
+
+/**
+ * Roll a boss's items `rolls` times. `pity` is the rolls since its last very rare item; returns the items and the new pity.
+ * Every tier rolls on its own, so one roll can give several items.
+ */
+export function rollBossItems(rolls: number, pity: number, rng: () => number = Math.random): { items: BossItemCounts; pity: number } {
+  const items: BossItemCounts = [0, 0, 0];
+  for (let i = 0; i < rolls; i++) {
+    if (rng() < BOSS_ITEM_CHANCE[0]) items[0]++;
+    if (rng() < BOSS_ITEM_CHANCE[1]) items[1]++;
+    if (pity >= BOSS_HEART_PITY || rng() < BOSS_ITEM_CHANCE[2]) {
+      items[2]++;
+      pity = 0;
+    } else pity++;
+  }
+  return { items, pity };
 }
