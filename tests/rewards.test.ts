@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameState } from '../src/state';
 import { HEROES, START_GEMS, ROAD_START, ROAD_STEP, ROAD_LENGTH, REKINDLE_STAGE, RELICS, WHEEL_PRIZES, LEVEL_GIFT_STONES } from '../src/data';
-import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, BOOTCAMP, ACHIEVEMENTS, dayKey } from '../src/rewards';
+import { DAILIES, DAILY_GEMS, LOGIN_CYCLE, BOOTCAMP, ACHIEVEMENTS, dayKey, milestoneReward } from '../src/rewards';
 
 function fresh() {
   GameState.frozen = false;
@@ -235,7 +235,7 @@ describe('Stage Milestones', () => {
     expect(s.claimMilestones()).toBeNull();
   });
 
-  it('claims every waiting milestone at once and never pays Gems', () => {
+  it('claims every waiting milestone at once', () => {
     const s = fresh();
     s.tickets = 0;
     s.reachStage(501); // 50..500: ten milestones
@@ -247,8 +247,27 @@ describe('Stage Milestones', () => {
     expect(got.stones).toBe(5 + 4 + 5);
     expect(got.tickets).toBe(4 * 3 + 5);
     expect(s.tickets).toBe(17);
-    expect(s.gems).toBe(START_GEMS);
+    // 100-400 pay 20 Gems + 10 Wild Crests, 500 pays 100 + 30.
+    expect(s.gems).toBe(START_GEMS + 4 * 20 + 100);
+    expect(s.wildCrests).toBe(4 * 10 + 30);
     expect(s.milestone).toBe(500);
+    // Forge materials, never gold: 50s pay 100 Ore, 100s 200, 500 pays 1,000.
+    expect(got.ore).toBe(5 * 100 + 4 * 200 + 1000);
+    expect(s.forge.ore).toBe(2300);
+    expect(s.forge.crystal).toBe(2300);
+    expect(s.forge.coreC).toBe(5 * 3 + 4 * 5 + 20);
+    expect(s.forge.coreR).toBe(4 + 5);
+    expect(s.forge.coreE).toBe(1);
+    expect('gold' in got).toBe(false);
+  });
+
+  it('never pay gold and every milestone pays forge materials', () => {
+    for (let st = 50; st <= 3000; st += 50) {
+      const r = milestoneReward(st) as unknown as Record<string, number>;
+      expect(r.goldMinutes).toBeUndefined();
+      expect(r.ore).toBeGreaterThan(0);
+      expect(r.coreC).toBeGreaterThan(0);
+    }
   });
 
   it("can't be farmed again after a Rekindle", () => {

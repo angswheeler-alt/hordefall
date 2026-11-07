@@ -155,30 +155,46 @@ export function dayKey(now = Date.now()): string {
 
 // ---------- Stage Milestones: a one-time reward for every 50th-stage boss ----------
 // Paid once on the best stage ever reached, so Rekindle runs can't farm them.
-// No Gems (bosses and stage marks never pay Gems); chests, Enhance Stones,
-// Trial tickets and a little gold help along without skipping a wall.
+// No gold (a few minutes of income is worth nothing; Samuel 2026-11-07). Chests,
+// Enhance Stones, Trial tickets and weapon forge materials help along without
+// skipping a wall: by stage 3,000 the forge part adds up to about one Lv 9 weapon.
+// Every 100th also pays a few Gems and Wild Crests (Samuel 2026-11-07): to stage
+// 3,000 that is 1,080 Gems (about a week of free Gem income) and 420 Wild Crests
+// (about three weeks of Gilded Scouting), once per lifetime.
 
 export const MILESTONE_STEP = 50;
 
 export interface MilestoneReward {
-  goldMinutes: number;
   chests: number;
   stones: number;
   tickets: number;
+  gems: number;
+  /** Wild Crests (any non-Legendary, non-Ascendant hero). */
+  wild: number;
+  /** Ancient Ore and Raw Crystal (the same amount of each). */
+  ore: number;
+  coreC: number;
+  coreR: number;
+  coreE: number;
 }
 
 /** What beating the boss of `stage` (a multiple of MILESTONE_STEP) pays. Every 100th pays a Hero Chest, every 500th a big one. */
 export function milestoneReward(stage: number): MilestoneReward {
-  if (stage % 500 === 0) return { goldMinutes: 60, chests: 3, stones: 5, tickets: 5 };
-  if (stage % 100 === 0) return { goldMinutes: 30, chests: 1, stones: 1, tickets: 3 };
-  return { goldMinutes: 30, chests: 0, stones: 1, tickets: 0 };
+  if (stage % 500 === 0) return { chests: 3, stones: 5, tickets: 5, gems: 100, wild: 30, ore: 1000, coreC: 20, coreR: 5, coreE: 1 };
+  if (stage % 100 === 0) return { chests: 1, stones: 1, tickets: 3, gems: 20, wild: 10, ore: 200, coreC: 5, coreR: 1, coreE: 0 };
+  return { chests: 0, stones: 1, tickets: 0, gems: 0, wild: 0, ore: 100, coreC: 3, coreR: 0, coreE: 0 };
 }
 
 export function milestoneText(r: MilestoneReward): string {
   const parts: string[] = [];
+  if (r.gems) parts.push(`${r.gems} Gems`);
   if (r.chests) parts.push(r.chests === 1 ? 'Hero Chest' : `${r.chests} Hero Chests`);
+  if (r.wild) parts.push(`${r.wild} Wild Crests`);
   if (r.stones) parts.push(r.stones === 1 ? 'Enhance Stone' : `${r.stones} Enhance Stones`);
   if (r.tickets) parts.push(`${r.tickets} Trial tickets`);
-  if (r.goldMinutes) parts.push(r.goldMinutes >= 60 ? `${r.goldMinutes / 60}h of gold` : `${r.goldMinutes}m of gold`);
+  if (r.ore) parts.push(`${r.ore.toLocaleString()} Ore + Crystal`);
+  if (r.coreC) parts.push(`${r.coreC} Common Core${r.coreC === 1 ? '' : 's'}`);
+  if (r.coreR) parts.push(`${r.coreR} Rare Core${r.coreR === 1 ? '' : 's'}`);
+  if (r.coreE) parts.push(`${r.coreE} Epic Core${r.coreE === 1 ? '' : 's'}`);
   return parts.join(' + ');
 }
