@@ -29,6 +29,13 @@ export const GUILD_RELICS: GuildRelicDef[] = [
 ];
 
 export const GUILD_RELIC_MAX_LEVEL = 20;
+/**
+ * Tempering (2026-11-07, economy audit): past GUILD_RELIC_MAX_LEVEL a guild relic keeps levelling with Warsteel
+ * (same cost growth), each level adding GUILD_RELIC_TEMPER_SHARE of its full effect, so Warsteel never piles up
+ * unused (~135,000 by day 365 in the simulator). GUILD_RELIC_TEMPER_CAP keeps numbers sane.
+ */
+export const GUILD_RELIC_TEMPER_SHARE = 0.05;
+export const GUILD_RELIC_TEMPER_CAP = 200;
 export const GUILD_RELIC_SLOTS = 3;
 /** Tier 2 guild relics open once any guild relic reaches this level. */
 export const GUILD_RELIC_TIER2_LEVEL = 10;
@@ -61,8 +68,10 @@ export function guildRelicTotalCost(def: GuildRelicDef): number {
 /** Bonus (0.5 = +50%) from one guild relic effect at a level. */
 export function guildRelicEffect(def: GuildRelicDef, effect: GuildRelicEffect, level: number): number {
   let total = 0;
-  const lv = Math.max(0, Math.min(GUILD_RELIC_MAX_LEVEL, level));
-  for (const [e, v] of def.fx) if (e === effect) total += (v * lv) / GUILD_RELIC_MAX_LEVEL / 100;
+  const top = GUILD_RELIC_MAX_LEVEL + GUILD_RELIC_TEMPER_CAP;
+  const lv = Math.max(0, Math.min(top, level));
+  const share = Math.min(GUILD_RELIC_MAX_LEVEL, lv) / GUILD_RELIC_MAX_LEVEL + Math.max(0, lv - GUILD_RELIC_MAX_LEVEL) * GUILD_RELIC_TEMPER_SHARE;
+  for (const [e, v] of def.fx) if (e === effect) total += (v * share) / 100;
   return total;
 }
 

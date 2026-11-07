@@ -90,6 +90,33 @@ export function weaponUpgradeCost(level: number): ForgeCost | null {
   return l >= WEAPON_MAX_LEVEL ? null : WEAPON_COSTS[l + 1];
 }
 
+/**
+ * Weapon Mastery (2026-11-07, economy audit): once a weapon is at WEAPON_MAX_LEVEL, up to MASTERY_MAX_RANK (20, user) Mastery ranks give
+ * MASTERY_STEP more ATK and HP each (compounding). Costs grow MASTERY_COST_GROWTH a rank, so Ore, Crystal and Cores
+ * always have a use; by day 365 the simulator had every team weapon maxed and ~366,000 Ore and Crystal unspent.
+ */
+export const MASTERY_STEP = 1.05;
+export const MASTERY_COST_GROWTH = 1.15;
+export const MASTERY_MAX_RANK = 20;
+
+export function clampMastery(rank: unknown): number {
+  const n = typeof rank === 'number' && Number.isFinite(rank) ? Math.floor(rank) : 0;
+  return Math.max(0, Math.min(MASTERY_MAX_RANK, n));
+}
+
+/** ATK and HP multiplier of a Mastery rank: x1 at rank 0, x MASTERY_STEP per rank. */
+export function masteryMult(rank: number): number {
+  return Math.pow(MASTERY_STEP, clampMastery(rank));
+}
+
+/** Materials to go from Mastery `rank` to `rank + 1`, or null at the cap. */
+export function masteryCost(rank: number): ForgeCost | null {
+  const r = clampMastery(rank);
+  if (r >= MASTERY_MAX_RANK) return null;
+  const g = Math.pow(MASTERY_COST_GROWTH, r);
+  return { ore: Math.round(5000 * g), crystal: Math.round(5000 * g), coreC: Math.round(64 * g), coreR: Math.round(8 * g), coreE: 1 + Math.floor(r / 5) };
+}
+
 /** Everything from level 1 to max, for one hero. */
 export function weaponTotalCost(): Required<ForgeCost> {
   const total = { ore: 0, crystal: 0, coreC: 0, coreR: 0, coreE: 0 };

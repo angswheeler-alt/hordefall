@@ -6,7 +6,7 @@ import { HEROES, type HeroDef } from './data';
 import { fmtDuration } from './formulas';
 import type { GameState } from './state';
 import { SCOUT_BONUS_COMMONS, SCOUT_KINDS, SCOUT_MATCH_MULT, SCOUT_UNLOCK_LEVEL, WILD_CREST_COST, fullReward, missionEndsAt, scoutReward, type ScoutMission, type ScoutReward } from './scouting';
-import { FORGE_MATS, FORGE_MAT_NAMES, WEAPON_GLYPHS, WEAPON_LOOK_LEVEL, WEAPON_LOOK_NAMES, WEAPON_LOOKS, WEAPON_MAX_LEVEL, WEAPON_STAT_STEP, weaponLook, weaponMult, weaponName, type ForgeMat } from './weapons';
+import { FORGE_MATS, FORGE_MAT_NAMES, WEAPON_GLYPHS, WEAPON_LOOK_LEVEL, WEAPON_LOOK_NAMES, WEAPON_LOOKS, WEAPON_MAX_LEVEL, WEAPON_STAT_STEP, MASTERY_STEP, MASTERY_MAX_RANK, masteryMult, weaponLook, weaponMult, weaponName, type ForgeMat } from './weapons';
 import { weaponArtUrl } from './weaponArt';
 import { faceStyle, dropCards } from './ui';
 import { play } from './sfx';
@@ -307,18 +307,40 @@ export class ScoutUI {
           })
           .join('')
       : '';
+    const rank = s.masteryRank(id);
+    const mCost = s.masteryCost(id);
+    const mBlock = s.masteryBlock(id);
+    const mRows = mCost
+      ? FORGE_MATS.filter((m) => mCost[m])
+          .map((m) => {
+            const need = mCost[m]!;
+            const have = s.forge[m];
+            return `<li class="${have >= need ? 'met' : ''}">${matIcon(m)}<span>${FORGE_MAT_NAMES[m]}</span><b>${have.toLocaleString()} / ${need.toLocaleString()}</b></li>`;
+          })
+          .join('')
+      : '';
+    const masteryHtml = `<h3>Mastery ${rank ? `<small>Rank ${rank} / ${MASTERY_MAX_RANK} · ATK and HP ${pct(masteryMult(rank))}</small>` : ''}</h3>
+      <p class="meta">This weapon is at max level. Up to ${MASTERY_MAX_RANK} Mastery ranks, each giving ${Math.round((MASTERY_STEP - 1) * 100)}% more ATK and HP (compounding).</p>
+      ${mCost ? `<ul class="wp-cost">${mRows}</ul>
+      <button type="button" class="hot evolve" id="sheet-mastery-up" ${mBlock ? 'disabled' : ''}>${mBlock && mBlock !== 'Not enough materials' ? mBlock : `Mastery rank ${rank + 1}`}</button>` : '<p class="meta">Mastery is at its top rank.</p>'}`;
     const html = `
       <h3>Weapon</h3>
-      <div class="wp-top">${ico(lv)}<div><b>${weaponName(type, lv)}</b><small>Level ${lv} / ${WEAPON_MAX_LEVEL} · ATK and HP ${pct(weaponMult(lv))}</small></div></div>
+      <div class="wp-top">${ico(lv)}<div><b>${weaponName(type, lv)}</b><small>Level ${lv} / ${WEAPON_MAX_LEVEL}${rank ? ` · Mastery ${rank}` : ''} · ATK and HP ${pct(weaponMult(lv) * masteryMult(rank))}</small></div></div>
       <ul class="wp-looks">${WEAPON_LOOKS.map((l) => `<li class="${l === look ? 'now' : l < look ? 'have' : ''}">${ico(WEAPON_LOOK_LEVEL[l])}<span>Lv ${WEAPON_LOOK_LEVEL[l]}</span></li>`).join('')}</ul>
       ${cost ? `<p class="meta">Next level: ATK and HP ${pct(weaponMult(lv + 1))}, ${WEAPON_GLYPHS[lv + 1].slots} Glyph slots${WEAPON_GLYPHS[lv + 1].maxStar > WEAPON_GLYPHS[lv].maxStar ? ` holding up to ${WEAPON_GLYPHS[lv + 1].maxStar}★` : ''}${weaponLook(lv + 1) !== look ? `, and the weapon turns ${weaponName(type, lv + 1)}` : ''}.</p><ul class="wp-cost">${costRows}</ul>
-      <button type="button" class="hot evolve" id="sheet-weapon-up" ${block ? 'disabled' : ''}>${block && block !== 'Not enough materials' ? block : `Upgrade to level ${lv + 1}`}</button>` : '<p class="meta">This weapon is at max level.</p>'}
+      <button type="button" class="hot evolve" id="sheet-weapon-up" ${block ? 'disabled' : ''}>${block && block !== 'Not enough materials' ? block : `Upgrade to level ${lv + 1}`}</button>` : masteryHtml}
       <p class="meta">Each weapon level gives ${Math.round((WEAPON_STAT_STEP - 1) * 100)}% more ATK and HP (compounding) and opens a Glyph slot. Materials come from Scouting on the Battle tab${s.scoutOpen() ? '' : `, which opens at player level ${SCOUT_UNLOCK_LEVEL}`}.</p>`;
     const host = $('sheet-weapon');
-    const key = `${id}:${lv}:${FORGE_MATS.map((m) => s.forge[m]).join(',')}:${s.scoutOpen()}:${block}`;
+    const key = `${id}:${lv}:${rank}:${FORGE_MATS.map((m) => s.forge[m]).join(',')}:${s.scoutOpen()}:${block}:${mBlock}`;
     if (host.dataset.key === key) return;
     host.dataset.key = key;
     host.innerHTML = html;
+    $('sheet-mastery-up')?.addEventListener('click', () => {
+      if (s.upgradeMastery(id)) {
+        play('unlock');
+        this.ui.render();
+      }
+    });
     $('sheet-weapon-up')?.addEventListener('click', () => {
       if (s.upgradeWeapon(id)) {
         play('unlock');
