@@ -4,3 +4,6 @@ art/backgrounds/preview
 art/heroes/preview
 art/bosses/preview
 art/mobs/preview
+
+# economy simulator output (tools/sim)
+.sim
