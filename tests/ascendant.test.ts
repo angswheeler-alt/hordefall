@@ -22,7 +22,7 @@ function ready() {
   s.stars.asc_test = MAX_STARS;
   s.trialBest.dark = 99;
   s.bestStage = 5000;
-  s.essences.dark = 1e9;
+  s.essences.dark = 1e10;
   s.enhanceStones = 1e6;
   return s;
 }
@@ -85,7 +85,7 @@ describe('Ascendant framework', () => {
 
 describe('ascending', () => {
   it('names what is missing, in order', () => {
-    const base = { form: 0, recruited: true, evolutions: 9, trialTier: 99, bestStage: 1e6, essence: 1e9, stones: 1e9 };
+    const base = { form: 0, recruited: true, evolutions: 9, trialTier: 99, bestStage: 1e6, essence: 1e10, stones: 1e10 };
     expect(ascendBlocker(undefined, base)).toBe('unknown');
     expect(ascendBlocker(test, { ...base, form: MAX_FORM })).toBe('max');
     expect(ascendBlocker(test, { ...base, recruited: false })).toBe('locked');
@@ -103,7 +103,7 @@ describe('ascending', () => {
     expect(s.formOf('asc_test')).toBe(0);
     expect(s.ascend('asc_test')).toBe(true);
     expect(s.formOf('asc_test')).toBe(1);
-    expect(s.essences.dark).toBe(1e9 - step.essence);
+    expect(s.essences.dark).toBe(1e10 - step.essence);
     expect(s.enhanceStones).toBe(1e6 - step.stones);
   });
 

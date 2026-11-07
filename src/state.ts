@@ -25,7 +25,7 @@ import { GLYPH_BAG_CAP, GLYPH_FAMILIES, chestStar, cleanGlyph, emptyTotals, glyp
 import { RUSH_BRACKETS, RUSH_CREST_COINS, RUSH_CREST_LIMIT, RUSH_CREST_PACK, RUSH_DAILY_TICKETS, RUSH_DAYS, RUSH_FEATURED, RUSH_FIGHT_TICKETS, RUSH_FOES, RUSH_FREE_HEROES, RUSH_FREE_HOURS, RUSH_LOSS_COINS, RUSH_MAX_LEVEL, RUSH_SHOP, RUSH_STREAK_UP, RUSH_TIERS, RUSH_UNLOCK_LEVEL, chestKinds, cleanRush, freeAttacks, inBracket, newRush, rushWinPoints, type RushFoe, type RushReward, type RushShopId, type RushState } from './rush';
 import { SCOUT_KINDS, SCOUT_PRIORITY, SCOUT_UNLOCK_LEVEL, WILD_CREST_COST, cleanScout, pickScoutTeam, scoutProblems, type ScoutCand, heroScoutScore, missionEndsAt, newScout, nextHour, refreshBoard, scoutReward, scoutShare, type ScoutReward, type ScoutSlot, type ScoutState } from './scouting';
 import { allWhatsNewIds } from './whatsNew';
-import { ALCHEMY_UNLOCK_STAGE, ALCHEMY_CORES_PER_WEEK, ALCHEMY_CORE_STONES, ALCHEMY_DUST, ALCHEMY_DUST_PER_WEEK, ALCHEMY_SWAP_RATE, RELIC_TEMPER_CAP, RELIC_TEMPER_LEVELS, attuneBonus, attuneBulk, attuneCost, clampAttune, clampTemper, cleanAlchemy, dustCost, newAlchemy, relicTemperCost, swapCap, type AlchemyState } from './sinks';
+import { ALCHEMY_ORE_CORE, ALCHEMY_ORE_CORES_PER_WEEK, ALCHEMY_ORE_DUST, ALCHEMY_ORE_DUST_GET, ALCHEMY_ORE_DUST_PER_WEEK, ALCHEMY_UNLOCK_STAGE, ALCHEMY_CORES_PER_WEEK, ALCHEMY_CORE_STONES, ALCHEMY_DUST, ALCHEMY_DUST_PER_WEEK, ALCHEMY_SWAP_RATE, RELIC_TEMPER_CAP, RELIC_TEMPER_LEVELS, attuneBonus, attuneBulk, attuneCost, clampAttune, clampTemper, cleanAlchemy, dustCost, newAlchemy, relicTemperCost, swapCap, type AlchemyState } from './sinks';
 import { EXP_CHARGE_CAP, EXP_HEARTS, EXP_MAX_LEVEL, EXP_PARTY_MAX, EXP_HIRE_MAX, EXP_STOPS, EXP_UNLOCK_LEVEL, autoReward, boonMults, cleanExpedition, daysBetween, foeShare, fullReward, levelMult, makeMap, mysteryOptions, newExpedition, partReward, rollBoons, type BoonTarget, type ExpHire, type ExpLender, type ExpNodeKind, type ExpReward, type ExpRun, type ExpState, type MysteryOption } from './expedition';
 
 /** Test mode plays a copy of the save under its own key, so the real one is never written. */
@@ -835,6 +835,30 @@ export class GameState {
     this.essences[from] = (this.essences[from] ?? 0) - cost;
     this.glyphDust += ALCHEMY_DUST;
     a.dust++;
+    this.save();
+    return true;
+  }
+
+  /** Buy one Epic Forge Core with Ancient Ore and Raw Crystal. */
+  alchemyOreCore(now = Date.now()): boolean {
+    const a = this.alchemyNow(now);
+    if (!this.alchemyOpen() || a.oreCores >= ALCHEMY_ORE_CORES_PER_WEEK || this.forge.ore < ALCHEMY_ORE_CORE || this.forge.crystal < ALCHEMY_ORE_CORE) return false;
+    this.forge.ore -= ALCHEMY_ORE_CORE;
+    this.forge.crystal -= ALCHEMY_ORE_CORE;
+    this.forge.coreE += 1;
+    a.oreCores++;
+    this.save();
+    return true;
+  }
+
+  /** Buy Glyph Dust with Ancient Ore and Raw Crystal. */
+  alchemyOreDust(now = Date.now()): boolean {
+    const a = this.alchemyNow(now);
+    if (!this.alchemyOpen() || a.oreDust >= ALCHEMY_ORE_DUST_PER_WEEK || this.forge.ore < ALCHEMY_ORE_DUST || this.forge.crystal < ALCHEMY_ORE_DUST) return false;
+    this.forge.ore -= ALCHEMY_ORE_DUST;
+    this.forge.crystal -= ALCHEMY_ORE_DUST;
+    this.glyphDust += ALCHEMY_ORE_DUST_GET;
+    a.oreDust++;
     this.save();
     return true;
   }

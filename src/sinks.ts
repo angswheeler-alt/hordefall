@@ -69,6 +69,12 @@ export const ALCHEMY_DUST_PER_WEEK = 5;
 /** Epic Forge Core for Enhance Stones, ALCHEMY_CORES_PER_WEEK times a week. */
 export const ALCHEMY_CORE_STONES = 200;
 export const ALCHEMY_CORES_PER_WEEK = 2;
+/** Ancient Ore + Raw Crystal (each) for an Epic Forge Core, and for Glyph Dust: they pile up (~380,000 each by day 365). */
+export const ALCHEMY_ORE_CORE = 3_000;
+export const ALCHEMY_ORE_CORES_PER_WEEK = 2;
+export const ALCHEMY_ORE_DUST = 1_000;
+export const ALCHEMY_ORE_DUST_GET = 25;
+export const ALCHEMY_ORE_DUST_PER_WEEK = 5;
 /** The Alchemist's Table opens at this best stage. */
 export const ALCHEMY_UNLOCK_STAGE = 2000;
 
@@ -77,16 +83,18 @@ export interface AlchemyState {
   swapped: number;
   dust: number;
   cores: number;
+  oreCores: number;
+  oreDust: number;
 }
 
 export function newAlchemy(): AlchemyState {
-  return { week: '', swapped: 0, dust: 0, cores: 0 };
+  return { week: '', swapped: 0, dust: 0, cores: 0, oreCores: 0, oreDust: 0 };
 }
 
 export function cleanAlchemy(v: unknown): AlchemyState {
   const o = (v && typeof v === 'object' ? v : {}) as Partial<AlchemyState>;
   const n = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) && x > 0 ? Math.floor(x) : 0);
-  return { week: typeof o.week === 'string' ? o.week : '', swapped: n(o.swapped), dust: n(o.dust), cores: n(o.cores) };
+  return { week: typeof o.week === 'string' ? o.week : '', swapped: n(o.swapped), dust: n(o.dust), cores: n(o.cores), oreCores: n(o.oreCores), oreDust: n(o.oreDust) };
 }
 
 export function swapCap(bestRunEssence: number): number {

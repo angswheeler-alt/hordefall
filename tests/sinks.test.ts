@@ -3,7 +3,7 @@ import { GameState } from '../src/state';
 import { HEROES, RELICS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, RELIC_ENHANCE_LEVELS, TRIAL_LEVELS } from '../src/data';
 import {
   ALCHEMY_CORES_PER_WEEK, ALCHEMY_CORE_STONES, ALCHEMY_DUST, ALCHEMY_DUST_MIN, ALCHEMY_DUST_PER_WEEK, ALCHEMY_SWAP_MIN, ALCHEMY_SWAP_RATE, ALCHEMY_SWAP_RUNS,
-  ALCHEMY_UNLOCK_STAGE, ATTUNE_STEP, RELIC_TEMPER_CAP, RELIC_TEMPER_LEVELS, attuneBulk, attuneCost, relicTemperCost,
+  ALCHEMY_ORE_CORE, ALCHEMY_ORE_CORES_PER_WEEK, ALCHEMY_ORE_DUST, ALCHEMY_ORE_DUST_GET, ALCHEMY_ORE_DUST_PER_WEEK, ALCHEMY_UNLOCK_STAGE, ATTUNE_STEP, RELIC_TEMPER_CAP, RELIC_TEMPER_LEVELS, attuneBulk, attuneCost, relicTemperCost,
 } from '../src/sinks';
 
 beforeEach(() => localStorage.clear());
@@ -132,5 +132,22 @@ describe('Alchemist\'s Table', () => {
     expect(s.forge.coreE).toBe(ALCHEMY_CORES_PER_WEEK);
     expect(s.enhanceStones).toBe(10_000 - ALCHEMY_CORE_STONES * ALCHEMY_CORES_PER_WEEK);
     expect(s.alchemyCore(MON + 7 * DAY)).toBe(true);
+  });
+
+  it('trades Ore and Crystal for Epic Forge Cores and Glyph Dust, a few times a week', () => {
+    const s = open();
+    s.forge.ore = 100_000;
+    s.forge.crystal = 100_000;
+    for (let i = 0; i < ALCHEMY_ORE_CORES_PER_WEEK; i++) expect(s.alchemyOreCore(MON)).toBe(true);
+    expect(s.alchemyOreCore(MON)).toBe(false);
+    for (let i = 0; i < ALCHEMY_ORE_DUST_PER_WEEK; i++) expect(s.alchemyOreDust(MON)).toBe(true);
+    expect(s.alchemyOreDust(MON)).toBe(false);
+    expect(s.forge.coreE).toBe(ALCHEMY_ORE_CORES_PER_WEEK);
+    expect(s.glyphDust).toBe(ALCHEMY_ORE_DUST_GET * ALCHEMY_ORE_DUST_PER_WEEK);
+    const spent = ALCHEMY_ORE_CORE * ALCHEMY_ORE_CORES_PER_WEEK + ALCHEMY_ORE_DUST * ALCHEMY_ORE_DUST_PER_WEEK;
+    expect(s.forge.ore).toBe(100_000 - spent);
+    expect(s.forge.crystal).toBe(100_000 - spent);
+    s.forge.crystal = 0;
+    expect(s.alchemyOreCore(MON + 7 * DAY)).toBe(false);
   });
 });

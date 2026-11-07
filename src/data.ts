@@ -980,7 +980,9 @@ const TRIAL_REQS: ([number, number] | null)[] = [
   null, null, null, null, null, null, null, null, null,
   [2, 100], [2, 200], [2, 300], [2, 400], [2, 500], [3, 600], [3, 750], [3, 850], [3, 1050], [3, 1250],
   [4, 1450], [4, 1700], [4, 2000], [4, 2300], [4, 2600], [5, 2850], [5, 3300],
-  [5, 3550], [5, 3800], [5, 4050], [5, 4300], [5, 4600], [5, 4900], [5, 5300], [5, 8250], [5, 9000], [5, 9800], [5, 10700], [5, 11700], [5, 12800], [5, 14000],
+  [5, 3550], [5, 3800], [5, 4050], [5, 4300], [5, 4600], [5, 4900], [5, 5300],
+  // 2026-11-07 pace re-check: 34-40 follow their difficulty (no more jump from 5,300 to 8,250), so 34 lands around month 3 for an active player and 40 takes years.
+  [5, 6400], [5, 7000], [5, 7600], [5, 8300], [5, 9100], [5, 10000], [5, 11000],
 ];
 /** Essence doubles each level up to level 26, then grows x1.5 a level: by then relics are mostly bought and Essence piles up. */
 export const TRIAL_ESSENCE_DOUBLING_LEVELS = 26;

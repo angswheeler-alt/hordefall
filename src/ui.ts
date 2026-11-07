@@ -44,7 +44,7 @@ import { ExpeditionUI, expEndHtml } from './expeditionUi';
 import type { ExpLender } from './expedition';
 import { RESET_PHRASE, resetPhraseOk } from './resetPhrase';
 import { attachTeamDrag } from './teamDrag';
-import { ALCHEMY_UNLOCK_STAGE, ALCHEMY_CORES_PER_WEEK, ALCHEMY_CORE_STONES, ALCHEMY_DUST, ALCHEMY_DUST_PER_WEEK, ALCHEMY_SWAP_RATE, ATTUNE_STEP, RELIC_TEMPER_CAP } from './sinks';
+import { ALCHEMY_ORE_CORE, ALCHEMY_ORE_CORES_PER_WEEK, ALCHEMY_ORE_DUST, ALCHEMY_ORE_DUST_GET, ALCHEMY_ORE_DUST_PER_WEEK, ALCHEMY_UNLOCK_STAGE, ALCHEMY_CORES_PER_WEEK, ALCHEMY_CORE_STONES, ALCHEMY_DUST, ALCHEMY_DUST_PER_WEEK, ALCHEMY_SWAP_RATE, ATTUNE_STEP, RELIC_TEMPER_CAP } from './sinks';
 import { sortHeroes, nextTeamSort, TEAM_SORT_LABELS, type TeamSort } from './teamSort';
 
 /** The teams Manage Team edits: stages, Colosseum attack and defense, and the Guild Boss. */
@@ -962,6 +962,14 @@ export class UI {
         this.render();
       }
     });
+    for (const [id, fn] of [['alc-ore-core', () => this.state.alchemyOreCore()], ['alc-ore-dust', () => this.state.alchemyOreDust()]] as const) {
+      $(id).addEventListener('click', () => {
+        if (fn()) {
+          play('unlock');
+          this.render();
+        }
+      });
+    }
     $('alc-core').addEventListener('click', () => {
       if (this.state.alchemyCore()) {
         play('unlock');
@@ -1003,6 +1011,14 @@ export class UI {
     const coreBtn = $<HTMLButtonElement>('alc-core');
     coreBtn.textContent = `Buy · ${ALCHEMY_CORE_STONES} Stones`;
     coreBtn.disabled = a.cores >= ALCHEMY_CORES_PER_WEEK || s.enhanceStones < ALCHEMY_CORE_STONES;
+    const ore = Math.min(s.forge.ore, s.forge.crystal);
+    $('alc-ore-note').textContent = `Ancient Ore and Raw Crystal (you have ${fmt(s.forge.ore)} and ${fmt(s.forge.crystal)}). Epic Forge Core: ${ALCHEMY_ORE_CORES_PER_WEEK - a.oreCores} of ${ALCHEMY_ORE_CORES_PER_WEEK} left this week. Glyph Dust: ${ALCHEMY_ORE_DUST_PER_WEEK - a.oreDust} of ${ALCHEMY_ORE_DUST_PER_WEEK} left.`;
+    const oc = $<HTMLButtonElement>('alc-ore-core');
+    oc.textContent = `Core · ${fmt(ALCHEMY_ORE_CORE)} each`;
+    oc.disabled = a.oreCores >= ALCHEMY_ORE_CORES_PER_WEEK || ore < ALCHEMY_ORE_CORE;
+    const od = $<HTMLButtonElement>('alc-ore-dust');
+    od.textContent = `${ALCHEMY_ORE_DUST_GET} Dust · ${fmt(ALCHEMY_ORE_DUST)} each`;
+    od.disabled = a.oreDust >= ALCHEMY_ORE_DUST_PER_WEEK || ore < ALCHEMY_ORE_DUST;
   }
 
   private renderGuildRelics(): boolean {
