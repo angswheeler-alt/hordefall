@@ -19,6 +19,7 @@ import {
   TIER_BONUS,
   journalBonus,
   journalPage,
+  mutantPageId,
   journalTier,
   nextTierAt,
   type JournalGroup,
@@ -26,7 +27,7 @@ import {
 } from './journal';
 import { MOB_ELEMENTS, MOB_KINDS, MOB_TRICK_TEXT } from './mobs';
 import { placeholderUrl } from './mobPlaceholders';
-import { MUTATIONS, MUTATION_STAGE, MUTATION_MAX_CHANCE, MUTANT_GOLD, mutationChance } from './mutations';
+import { MUTATIONS, MUTATION_IDS, MUTATION_STAGE, MUTATION_MAX_CHANCE, MUTANT_GOLD, mutationChance } from './mutations';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
@@ -209,11 +210,15 @@ export class JournalUI {
         html += `<div class="jr-row"><span class="jr-label">${MOB_NAMES[mob].replace('Shieldbearer', 'Shield&shy;bearer')}${locked}</span>${MOB_ELEMENTS.map((el) => cell(journalPage(`mob_${mob}_${el}`)!)).join('')}</div>`;
       }
     } else if (this.tab === 'mutants') {
-      const pages = JOURNAL_PAGES.filter((p) => p.group === 'mutant');
       html += s.bestStage >= MUTATION_STAGE
         ? `<p class="jr-mut-note">Mutants: ${pct(mutationChance(Math.max(MUTATION_STAGE, s.stage)))} of mobs on this stage (up to ${pct(MUTATION_MAX_CHANCE)} from stage 1,500), ${MUTANT_GOLD}x gold.</p>`
         : `<p class="jr-mut-note">Locked: mutants start showing up after stage ${(MUTATION_STAGE - 1).toLocaleString()}.</p>`;
-      html += `<div class="jr-row jr-bosses">${pages.map(cell).join('')}</div>`;
+      html += `<div class="jr-row jr-head"><span></span>${MUTATION_IDS.map((m) => `<span style="color:${hex(MUTATIONS[m].color)}">${MUTATIONS[m].name}</span>`).join('')}</div>`;
+      for (const mob of JOURNAL_MOBS) {
+        const from = Math.max(MUTATION_STAGE, MOB_KINDS[mob].fromStage);
+        const locked = s.bestStage < from ? `<small>from ${from.toLocaleString()}</small>` : '';
+        html += `<div class="jr-row"><span class="jr-label">${MOB_NAMES[mob].replace('Shieldbearer', 'Shield&shy;bearer')}${locked}</span>${MUTATION_IDS.map((m) => cell(journalPage(mutantPageId(m, mob))!)).join('')}</div>`;
+      }
     } else {
       for (const group of ['boss', 'trial', 'guild'] as const) {
         html += `<h4 class="jr-group">${GROUP_TITLES[group]}</h4><div class="jr-row jr-bosses">${JOURNAL_PAGES.filter((p) => p.group === group).map(cell).join('')}</div>`;
@@ -232,7 +237,7 @@ export class JournalUI {
     const bonus = journalBonus(page, kills, stamped);
     const where =
       page.mutation
-        ? `${MUTATIONS[page.mutation].text}. Any mob after stage ${(MUTATION_STAGE - 1).toLocaleString()} can be one`
+        ? `A ${MOB_NAMES[page.mob!]} with the ${MUTATIONS[page.mutation].name} trait: ${MUTATIONS[page.mutation].text.toLowerCase()}. From stage ${Math.max(MUTATION_STAGE, MOB_KINDS[page.mob!].fromStage).toLocaleString()}`
         : page.group === 'mob' && page.mob && MOB_TRICK_TEXT[page.mob]
         ? `${MOB_TRICK_TEXT[page.mob]}. ${cap(page.element)} stages from stage ${MOB_KINDS[page.mob].fromStage.toLocaleString()}`
         : page.group === 'mob'

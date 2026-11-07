@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import Decimal from 'break_infinity.js';
 import { GameState } from '../src/state';
 import { enemyHp } from '../src/formulas';
-import { JOURNAL_PAGES, JOURNAL_TIERS, cleanJournal, journalPage, mutantPageId } from '../src/journal';
+import { JOURNAL_MOBS, JOURNAL_PAGES, JOURNAL_TIERS, OLD_MUTANT_SHARES, cleanJournal, journalPage, mutantPageId } from '../src/journal';
 import {
   MUTANT_GOLD,
   MUTATIONS,
@@ -97,22 +97,43 @@ describe('offline progress with mutants', () => {
 });
 
 describe('mutant Journal pages', () => {
-  it('adds one page per trait, with their own tiers', () => {
+  it('has a page for each trait on each mob kind, with their own tiers', () => {
     const pages = JOURNAL_PAGES.filter((p) => p.group === 'mutant');
-    expect(pages.map((p) => p.mutation)).toEqual(MUTATION_IDS);
+    expect(pages).toHaveLength(JOURNAL_MOBS.length * MUTATION_IDS.length);
+    expect(pages).toHaveLength(45);
+    for (const mob of JOURNAL_MOBS) {
+      for (const m of MUTATION_IDS) {
+        const page = journalPage(mutantPageId(m, mob));
+        expect(page?.mob).toBe(mob);
+        expect(page?.mutation).toBe(m);
+      }
+    }
     for (const p of pages) expect(p.tiers).toEqual(JOURNAL_TIERS.mutant);
-    expect(journalPage(mutantPageId('armored'))?.name).toBe('Armored mutant');
+    expect(journalPage(mutantPageId('armored', 'grunt'))?.name).toBe('Armored Grunt');
+    expect(journalPage(mutantPageId('swift', 'burrower'))?.name).toBe('Swift Burrower');
   });
 
-  it('counts kills and gives the damage bonus against that trait', () => {
+  it('counts kills and gives the damage bonus against that trait on that mob only', () => {
     const s = fresh();
-    const id = mutantPageId('swift');
+    const id = mutantPageId('swift', 'caster');
     expect(s.journalMult(id)).toBe(1);
     expect(s.journalAdd(id, JOURNAL_TIERS.mutant[0])).toBe(1);
     expect(s.journalMult(id)).toBeCloseTo(1.03);
+    expect(s.journalMult(mutantPageId('swift', 'grunt'))).toBe(1);
+    expect(s.journalMult(mutantPageId('armored', 'caster'))).toBe(1);
   });
 
   it('keeps mutant kills in a save', () => {
-    expect(cleanJournal({ [mutantPageId('enraged')]: 12, mutant_bogus: 3 })).toEqual({ [mutantPageId('enraged')]: 12 });
+    const id = mutantPageId('enraged', 'brute');
+    expect(cleanJournal({ [id]: 12, mutant_bogus: 3 })).toEqual({ [id]: 12 });
+  });
+
+  it('spreads an old one-page-per-trait count over the mob kinds, losing none', () => {
+    const out = cleanJournal({ mutant_armored: 100, mutant_swift: 7 });
+    const armored = Object.fromEntries(OLD_MUTANT_SHARES.map(([mob]) => [mob, out[mutantPageId('armored', mob)] ?? 0]));
+    expect(armored).toEqual({ grunt: 40, flyer: 25, brute: 12, scuttler: 12, caster: 11 });
+    const swift = OLD_MUTANT_SHARES.reduce((t, [mob]) => t + (out[mutantPageId('swift', mob)] ?? 0), 0);
+    expect(swift).toBe(7);
+    expect(out.mutant_armored).toBeUndefined();
   });
 });
