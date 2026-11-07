@@ -119,6 +119,7 @@
           <div class="relic-bar"><div id="relic-ess" class="trial-ess"></div></div>
           <div data-relic-pane="mine">
             <div class="hero-sub relic-nav"><button id="relic-buyslot" class="gem-btn small">Slot</button><button data-relic-go="guild" class="wood-btn small">Guild relics</button><button data-relic-go="shop" class="wood-btn small levelall relic-shop-btn">Buy relics</button></div>
+            <div class="hero-sub relic-nav"><button data-relic-go="attune" class="wood-btn small">Attunement</button><button data-relic-go="alchemy" class="wood-btn small">Alchemist</button></div>
             <p class="market-note">Relics can't be bought with Gems. Buy them in the Relic Shop with Trial Essence, then level them with Essence. Max one at level 20 to open relics with one more star. Equipped relics give their bonus; a set gives its bonus once you own every piece.</p>
             <div id="relics"></div>
             <p id="relics-empty" class="market-note" hidden>You have no relics yet. Tap Buy relics.</p>
@@ -133,6 +134,25 @@
             <p class="market-note">Guild relics come only from the Guild Boss. Every Guild Boss fight and level beaten drops Warsteel; craft and level guild relics with it. From level 10 each level also needs one common boss item (from any boss). They have their own 3 slots, and their bonuses multiply on top of your other relics.</p>
             <div id="guild-relics"></div>
             <div id="boss-relics"></div>
+          </div>
+          <div data-relic-pane="attune" hidden>
+            <div class="hero-sub relic-nav"><button data-relic-go="mine" class="wood-btn small">← Back</button></div>
+            <p class="market-note">Spend each element's Essence to make every hero of that element stronger. Each rank adds +2% ATK and HP. It never maxes out, and each rank costs a little more than the last.</p>
+            <div id="attune-list"></div>
+          </div>
+          <div data-relic-pane="alchemy" hidden>
+            <div class="hero-sub relic-nav"><button data-relic-go="mine" class="wood-btn small">← Back</button></div>
+            <p class="market-note">Trade spare Essence and Enhance Stones. Each trade has a weekly limit that resets every Monday. Essence prices follow your best Trial level.</p>
+            <div class="alc-card"><b>Essence swap</b><small id="alc-swap-note"></small>
+              <div class="alc-row"><select id="alc-from" aria-label="Give"></select><span>→</span><select id="alc-to" aria-label="Get"></select></div>
+              <div class="alc-row"><button id="alc-swap-q" class="wood-btn small">Swap a quarter</button><button id="alc-swap-max" class="wood-btn small levelall">Swap max</button></div>
+            </div>
+            <div class="alc-card"><b>Glyph Dust</b><small id="alc-dust-note"></small>
+              <div class="alc-row"><select id="alc-dust-from" aria-label="Pay with"></select><button id="alc-dust" class="wood-btn small levelall"></button></div>
+            </div>
+            <div class="alc-card"><b>Epic Forge Core</b><small id="alc-core-note"></small>
+              <div class="alc-row"><button id="alc-core" class="wood-btn small levelall"></button></div>
+            </div>
           </div>
           <div data-relic-pane="all" hidden>
             <div class="hero-sub relic-nav"><button data-relic-go="shop" class="wood-btn small">← Back</button></div>

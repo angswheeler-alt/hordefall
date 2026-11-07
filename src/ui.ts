@@ -44,6 +44,7 @@ import { ExpeditionUI, expEndHtml } from './expeditionUi';
 import type { ExpLender } from './expedition';
 import { RESET_PHRASE, resetPhraseOk } from './resetPhrase';
 import { attachTeamDrag } from './teamDrag';
+import { ALCHEMY_CORES_PER_WEEK, ALCHEMY_CORE_STONES, ALCHEMY_DUST, ALCHEMY_DUST_PER_WEEK, ALCHEMY_SWAP_RATE, ATTUNE_STEP, RELIC_TEMPER_CAP } from './sinks';
 import { sortHeroes, nextTeamSort, TEAM_SORT_LABELS, type TeamSort } from './teamSort';
 
 /** The teams Manage Team edits: stages, Colosseum attack and defense, and the Guild Boss. */
@@ -643,7 +644,7 @@ export class UI {
       holdToRepeat(up, () => {
         // Enhancing spends Enhance Stones to raise the cap, so it is one tap at a time; a hold only upgrades.
         const enhance = this.state.relicNextCost(def) === null;
-        const ok = enhance ? this.state.enhanceRelic(def.id) : this.state.upgradeRelic(def.id);
+        const ok = !enhance ? this.state.upgradeRelic(def.id) : this.state.enhanceCost(def) !== null ? this.state.enhanceRelic(def.id) : this.state.temperRelic(def.id);
         if (!ok) return false;
         play('unlock');
         this.scene()?.syncHeroes();
@@ -692,6 +693,7 @@ export class UI {
         pieces.forEach((d) => tile(d, grid));
       }
     }
+    this.setupSinks();
     for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-relic-go]')) {
       btn.addEventListener('click', () => {
         for (const pane of document.querySelectorAll<HTMLElement>('[data-relic-pane]')) pane.hidden = pane.dataset.relicPane !== btn.dataset.relicGo;
@@ -844,6 +846,7 @@ export class UI {
     );
 
     if (this.renderGuildRelics()) worthALook = true;
+    this.renderSinks();
 
     for (const sec of this.relicSections) sec.head.hidden = !sec.defs.some(owned);
     for (const h of this.setHeads) {
@@ -864,13 +867,16 @@ export class UI {
       const can = s.canUpgradeRelic(r.def);
       const enhance = s.enhanceCost(r.def);
       r.root.classList.toggle('on', on);
-      r.tier.textContent = `· Lv ${level}/${s.relicMaxLevel(r.def)}`;
-      r.eff.textContent = this.relicEffectText(r.def, level);
+      const tempers = s.temperCount(r.def.id);
+      const temper = s.temperCost(r.def);
+      r.tier.textContent = `· Lv ${level}/${s.relicMaxLevel(r.def)}${tempers ? ` · Tempered ${tempers}/${RELIC_TEMPER_CAP}` : ''}`;
+      r.eff.textContent = this.relicEffectText(r.def, s.relicPowerLevel(r.def));
       if (cost !== null) setHtml(r.cost, this.relicCostHtml(r.def, cost));
       else if (enhance !== null) setHtml(r.cost, `<span class="${s.enhanceStones < enhance ? 'short' : ''}" title="Enhance Stones"><i class="stone"></i>${enhance} → cap +5</span>`);
+      else if (temper !== null) setHtml(r.cost, `<span class="${s.enhanceStones < temper ? 'short' : ''}" title="Enhance Stones"><i class="stone"></i>${fmt(temper)} → +5% of its Lv ${RELIC_BASE_MAX} effect</span>`);
       else setHtml(r.cost, '<span>Max level</span>');
-      r.up.textContent = cost !== null ? 'Upgrade' : enhance !== null ? 'Enhance' : 'Maxed';
-      r.up.disabled = cost !== null ? !can : enhance === null || s.enhanceStones < enhance;
+      r.up.textContent = cost !== null ? 'Upgrade' : enhance !== null ? 'Enhance' : temper !== null ? 'Temper' : 'Maxed';
+      r.up.disabled = cost !== null ? !can : enhance !== null ? s.enhanceStones < enhance : temper === null || s.enhanceStones < temper;
       r.equip.textContent = on ? 'Take off' : 'Equip';
       r.equip.disabled = !on && !freeSlot;
       if ((on && can) || (!on && freeSlot)) worthALook = true;
@@ -899,6 +905,96 @@ export class UI {
   }
 
   /** The Guild relics pane: Warsteel, slots and the six relics. True when one can be crafted or levelled, or a slot is free. */
+  private attuneRows: Array<{ el: Element; root: HTMLElement; tier: HTMLElement; eff: HTMLElement; cost: HTMLElement; one: HTMLButtonElement; max: HTMLButtonElement }> = [];
+
+  /** Elemental Attunement rows and the Alchemist's Table buttons (src/sinks.ts), built once. */
+  private setupSinks() {
+    const name = (e: Element) => e[0].toUpperCase() + e.slice(1);
+    const list = $('attune-list');
+    for (const el of TRIAL_ROTATION) {
+      const root = document.createElement('div');
+      root.className = 'relic attune';
+      root.style.setProperty('--a', hex(ELEMENT_COLORS[el]));
+      root.style.setProperty('--b', hex(ELEMENT_COLORS[el]));
+      root.innerHTML = `<div class="relic-art"><i class="ess-${el}"></i></div>
+        <div class="relic-info"><b>${name(el)} Attunement <small class="tier" style="display:inline"></small></b><span class="eff"></span><div class="relic-cost"></div></div>
+        <div class="relic-btns"><button class="wood-btn small one">Attune</button><button class="wood-btn small levelall max">Max</button></div>`;
+      list.appendChild(root);
+      const one = root.querySelector('.one') as HTMLButtonElement;
+      const max = root.querySelector('.max') as HTMLButtonElement;
+      const done = (n: number) => {
+        if (!n) return false;
+        play('unlock');
+        this.scene()?.syncHeroes();
+        this.render();
+        return true;
+      };
+      holdToRepeat(one, () => done(this.state.buyAttune(el, 1)));
+      max.addEventListener('click', () => done(this.state.buyAttune(el, 'max')));
+      this.attuneRows.push({ el, root, tier: root.querySelector('.tier') as HTMLElement, eff: root.querySelector('.eff') as HTMLElement, cost: root.querySelector('.relic-cost') as HTMLElement, one, max });
+    }
+    const opts = TRIAL_ROTATION.map((e) => `<option value="${e}">${ESSENCE_NAMES[e]}</option>`).join('');
+    for (const id of ['alc-from', 'alc-to', 'alc-dust-from']) $<HTMLSelectElement>(id).innerHTML = opts;
+    $<HTMLSelectElement>('alc-to').value = TRIAL_ROTATION[1];
+    for (const id of ['alc-from', 'alc-to', 'alc-dust-from']) $(id).addEventListener('change', () => this.render());
+    const swap = (share: number) => {
+      const from = $<HTMLSelectElement>('alc-from').value as Element;
+      const to = $<HTMLSelectElement>('alc-to').value as Element;
+      const most = this.state.swapMost(from, to);
+      const n = Math.max(1, Math.floor(most * share));
+      if (most > 0 && this.state.alchemySwap(from, to, n)) {
+        play('unlock');
+        this.render();
+      }
+    };
+    $('alc-swap-q').addEventListener('click', () => swap(0.25));
+    $('alc-swap-max').addEventListener('click', () => swap(1));
+    $('alc-dust').addEventListener('click', () => {
+      if (this.state.alchemyDust($<HTMLSelectElement>('alc-dust-from').value as Element)) {
+        play('unlock');
+        this.render();
+      }
+    });
+    $('alc-core').addEventListener('click', () => {
+      if (this.state.alchemyCore()) {
+        play('unlock');
+        this.render();
+      }
+    });
+  }
+
+  private renderSinks() {
+    const s = this.state;
+    for (const r of this.attuneRows) {
+      const rank = s.attuneRank(r.el);
+      const cost = s.attuneNextCost(r.el);
+      const have = s.essences[r.el] ?? 0;
+      r.tier.textContent = `· Rank ${rank.toLocaleString()}`;
+      const name = r.el[0].toUpperCase() + r.el.slice(1);
+      r.eff.textContent = `${name} heroes +${Math.round(s.attuneBonus(r.el) * 100)}% ATK and HP (next +${Math.round(ATTUNE_STEP * 100)}%)`;
+      setHtml(r.cost, `<span class="${have < cost ? 'short' : ''}" title="${ESSENCE_NAMES[r.el]}"><i class="ess-${r.el}" style="--el:${hex(ELEMENT_COLORS[r.el])}"></i>${fmt(cost)}</span>`);
+      r.one.disabled = have < cost;
+      r.max.disabled = have < cost;
+    }
+    const a = s.alchemyNow();
+    const from = $<HTMLSelectElement>('alc-from').value as Element;
+    const to = $<HTMLSelectElement>('alc-to').value as Element;
+    const most = s.swapMost(from, to);
+    $('alc-swap-note').textContent = `Give ${ALCHEMY_SWAP_RATE} of one Essence for 1 of another. You can still get ${fmt(s.swapLeft())} Essence this way this week.` + (from === to ? ' Pick two different kinds.' : most > 0 ? ` Max now: ${fmt(most * ALCHEMY_SWAP_RATE)} → ${fmt(most)}.` : '');
+    $<HTMLButtonElement>('alc-swap-q').disabled = most <= 0;
+    $<HTMLButtonElement>('alc-swap-max').disabled = most <= 0;
+    const dustFrom = $<HTMLSelectElement>('alc-dust-from').value as Element;
+    const dustCost = s.alchemyDustCost();
+    $('alc-dust-note').textContent = `${ALCHEMY_DUST} Glyph Dust for ${fmt(dustCost)} Essence of one kind. ${ALCHEMY_DUST_PER_WEEK - a.dust} of ${ALCHEMY_DUST_PER_WEEK} left this week.`;
+    const dustBtn = $<HTMLButtonElement>('alc-dust');
+    dustBtn.textContent = `Buy ${ALCHEMY_DUST} Dust`;
+    dustBtn.disabled = a.dust >= ALCHEMY_DUST_PER_WEEK || (s.essences[dustFrom] ?? 0) < dustCost;
+    $('alc-core-note').textContent = `One Epic Forge Core for ${ALCHEMY_CORE_STONES} Enhance Stones (you have ${fmt(s.enhanceStones)}). ${ALCHEMY_CORES_PER_WEEK - a.cores} of ${ALCHEMY_CORES_PER_WEEK} left this week.`;
+    const coreBtn = $<HTMLButtonElement>('alc-core');
+    coreBtn.textContent = `Buy · ${ALCHEMY_CORE_STONES} Stones`;
+    coreBtn.disabled = a.cores >= ALCHEMY_CORES_PER_WEEK || s.enhanceStones < ALCHEMY_CORE_STONES;
+  }
+
   private renderGuildRelics(): boolean {
     const s = this.state;
     let worthALook = false;

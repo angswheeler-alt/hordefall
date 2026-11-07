@@ -25,6 +25,7 @@ import { GLYPH_BAG_CAP, GLYPH_FAMILIES, chestStar, cleanGlyph, emptyTotals, glyp
 import { RUSH_BRACKETS, RUSH_CREST_COINS, RUSH_CREST_LIMIT, RUSH_CREST_PACK, RUSH_DAILY_TICKETS, RUSH_DAYS, RUSH_FEATURED, RUSH_FIGHT_TICKETS, RUSH_FOES, RUSH_FREE_HEROES, RUSH_FREE_HOURS, RUSH_LOSS_COINS, RUSH_MAX_LEVEL, RUSH_SHOP, RUSH_STREAK_UP, RUSH_TIERS, RUSH_UNLOCK_LEVEL, chestKinds, cleanRush, freeAttacks, inBracket, newRush, rushWinPoints, type RushFoe, type RushReward, type RushShopId, type RushState } from './rush';
 import { SCOUT_KINDS, SCOUT_PRIORITY, SCOUT_UNLOCK_LEVEL, WILD_CREST_COST, cleanScout, pickScoutTeam, scoutProblems, type ScoutCand, heroScoutScore, missionEndsAt, newScout, nextHour, refreshBoard, scoutReward, scoutShare, type ScoutReward, type ScoutSlot, type ScoutState } from './scouting';
 import { allWhatsNewIds } from './whatsNew';
+import { ALCHEMY_CORES_PER_WEEK, ALCHEMY_CORE_STONES, ALCHEMY_DUST, ALCHEMY_DUST_PER_WEEK, ALCHEMY_SWAP_RATE, RELIC_TEMPER_CAP, attuneBonus, attuneBulk, attuneCost, clampAttune, clampTemper, cleanAlchemy, dustCost, newAlchemy, relicTemperCost, swapCap, type AlchemyState } from './sinks';
 import { EXP_CHARGE_CAP, EXP_HEARTS, EXP_MAX_LEVEL, EXP_PARTY_MAX, EXP_HIRE_MAX, EXP_STOPS, EXP_UNLOCK_LEVEL, autoReward, boonMults, cleanExpedition, daysBetween, foeShare, fullReward, levelMult, makeMap, mysteryOptions, newExpedition, partReward, rollBoons, type BoonTarget, type ExpHire, type ExpLender, type ExpNodeKind, type ExpReward, type ExpRun, type ExpState, type MysteryOption } from './expedition';
 
 /** Test mode plays a copy of the save under its own key, so the real one is never written. */
@@ -413,6 +414,12 @@ export class GameState {
   weapons: Record<string, number> = {};
   /** Weapon Mastery ranks past the max weapon level (src/weapons.ts), 0 when missing. */
   weaponMastery: Record<string, number> = {};
+  /** Elemental Attunement ranks by element (src/sinks.ts). */
+  attune: Partial<Record<Element, number>> = {};
+  /** Tempers past each relic's last Enhance (src/sinks.ts). */
+  relicTemper: Record<string, number> = {};
+  /** Alchemist's Table trades this week (src/sinks.ts). */
+  alchemy: AlchemyState = newAlchemy();
   /** Scouting board (src/scouting.ts) and the weapon materials it pays. */
   scout: ScoutState = newScout();
   /** Glyphs the last collected Scouting mission's chests gave (for its pop-up). Not saved. */
@@ -550,8 +557,9 @@ export class GameState {
   heroPower(base: HeroDef, level = this.heroLevel(base.id)): { atk: Decimal; hp: Decimal; defense: Decimal } {
     const def = this.formDef(base);
     const starMult = this.starMultiplier(def.id);
-    const atkRelics = (1 + this.relicBonus('atk') + this.relicBonus(def.element)) * (1 + this.researchBonus('combat')) * (1 + this.guildRelicBonus('atk') + this.guildRelicBonus('elemAtk', def.element));
-    const hpRelics = (1 + this.relicBonus('hp') + this.relicBonus(`${def.element}Hp`)) * (1 + this.guildRelicBonus('hp') + this.guildRelicBonus('elemHp', def.element));
+    const attune = 1 + this.attuneBonus(def.element);
+    const atkRelics = (1 + this.relicBonus('atk') + this.relicBonus(def.element)) * (1 + this.researchBonus('combat')) * (1 + this.guildRelicBonus('atk') + this.guildRelicBonus('elemAtk', def.element)) * attune;
+    const hpRelics = (1 + this.relicBonus('hp') + this.relicBonus(`${def.element}Hp`)) * (1 + this.guildRelicBonus('hp') + this.guildRelicBonus('elemHp', def.element)) * attune;
     const fx = this.effects();
     const prof = heroProfile(def);
     const weapon = weaponMult(this.weaponLevel(base.id)) * masteryMult(this.masteryRank(base.id));
@@ -653,7 +661,7 @@ export class GameState {
   }
 
   /** Bonus (0.25 = +25%) from one relic's effect at its current level. */
-  relicEffect(def: RelicDef, effect: RelicEffect, level = this.relics[def.id] ?? 0): number {
+  relicEffect(def: RelicDef, effect: RelicEffect, level = this.relicPowerLevel(def)): number {
     let total = 0;
     for (const [e, v] of def.fx) if (e === effect) total += (v * level) / RELIC_BASE_MAX / 100;
     return total;
@@ -719,6 +727,123 @@ export class GameState {
 
   relicOpen(def: RelicDef): boolean {
     return def.stars <= this.relicStarsOpen() || (this.relics[def.id] ?? 0) > 0;
+  }
+
+  /** Level a relic's effect counts as: its level plus its Tempers (each Temper is one more level's worth). */
+  relicPowerLevel(def: RelicDef): number {
+    const level = this.relics[def.id] ?? 0;
+    return level > 0 ? level + this.temperCount(def.id) : 0;
+  }
+
+  temperCount(id: string): number {
+    return clampTemper(this.relicTemper[id] ?? 0);
+  }
+
+  /** Enhance Stones for the relic's next Temper: only after its last Enhance at full level, null otherwise or at the cap. */
+  temperCost(def: RelicDef): number | null {
+    const level = this.relics[def.id] ?? 0;
+    const done = this.temperCount(def.id);
+    if (level <= 0 || (this.relicEnhance[def.id] ?? 0) < RELIC_ENHANCE_COSTS.length || level < this.relicMaxLevel(def) || done >= RELIC_TEMPER_CAP) return null;
+    return relicTemperCost(def.stars, done);
+  }
+
+  temperRelic(id: string): boolean {
+    const def = RELICS.find((r) => r.id === id);
+    const cost = def ? this.temperCost(def) : null;
+    if (!def || cost === null || this.enhanceStones < cost) return false;
+    this.enhanceStones -= cost;
+    this.relicTemper[id] = this.temperCount(id) + 1;
+    this.save();
+    return true;
+  }
+
+  // ---------- Elemental Attunement (src/sinks.ts) ----------
+
+  attuneRank(el: Element): number {
+    return clampAttune(this.attune[el] ?? 0);
+  }
+
+  attuneBonus(el: Element): number {
+    return attuneBonus(this.attuneRank(el));
+  }
+
+  attuneNextCost(el: Element): number {
+    return attuneCost(this.attuneRank(el));
+  }
+
+  /** Buy Attunement ranks with the element's own Essence; 'max' buys all it can. Returns ranks bought. */
+  buyAttune(el: Element, count: number | 'max' = 1): number {
+    const have = this.essences[el] ?? 0;
+    const r = attuneBulk(this.attuneRank(el), have, count === 'max' ? Infinity : Math.max(0, Math.floor(count)));
+    if (!r.ranks) return 0;
+    this.essences[el] = have - r.cost;
+    this.attune[el] = this.attuneRank(el) + r.ranks;
+    this.save();
+    return r.ranks;
+  }
+
+  // ---------- Alchemist's Table (src/sinks.ts) ----------
+
+  /** This week's trades (resets each Monday). */
+  alchemyNow(now = Date.now()): AlchemyState {
+    const week = weekKey(now);
+    if (this.alchemy.week !== week) this.alchemy = { ...newAlchemy(), week };
+    return this.alchemy;
+  }
+
+  /** Essence from one run of your highest Trial level in any element (what Alchemist prices follow). */
+  bestTrialRunEssence(): number {
+    const top = Math.max(0, ...TRIAL_ROTATION.map((e) => this.trialBest[e] ?? 0));
+    return top > 0 ? TRIAL_LEVELS[Math.min(top, TRIAL_LEVELS.length) - 1].essence : 0;
+  }
+
+  /** Essence still receivable by swapping this week. */
+  swapLeft(now = Date.now()): number {
+    return Math.max(0, swapCap(this.bestTrialRunEssence()) - this.alchemyNow(now).swapped);
+  }
+
+  /** Most Essence of `to` a swap from `from` can give right now. */
+  swapMost(from: Element, to: Element, now = Date.now()): number {
+    if (from === to) return 0;
+    return Math.min(this.swapLeft(now), Math.floor((this.essences[from] ?? 0) / ALCHEMY_SWAP_RATE));
+  }
+
+  /** Give ALCHEMY_SWAP_RATE x `amount` of `from` for `amount` of `to`. */
+  alchemySwap(from: Element, to: Element, amount: number, now = Date.now()): boolean {
+    const n = Math.floor(amount);
+    if (!(n > 0) || n > this.swapMost(from, to, now)) return false;
+    this.essences[from] = (this.essences[from] ?? 0) - n * ALCHEMY_SWAP_RATE;
+    this.essences[to] = (this.essences[to] ?? 0) + n;
+    this.alchemy.swapped += n;
+    this.save();
+    return true;
+  }
+
+  alchemyDustCost(): number {
+    return dustCost(this.bestTrialRunEssence());
+  }
+
+  /** Buy ALCHEMY_DUST Glyph Dust with one element's Essence. */
+  alchemyDust(from: Element, now = Date.now()): boolean {
+    const a = this.alchemyNow(now);
+    const cost = this.alchemyDustCost();
+    if (a.dust >= ALCHEMY_DUST_PER_WEEK || (this.essences[from] ?? 0) < cost) return false;
+    this.essences[from] = (this.essences[from] ?? 0) - cost;
+    this.glyphDust += ALCHEMY_DUST;
+    a.dust++;
+    this.save();
+    return true;
+  }
+
+  /** Buy one Epic Forge Core with Enhance Stones. */
+  alchemyCore(now = Date.now()): boolean {
+    const a = this.alchemyNow(now);
+    if (a.cores >= ALCHEMY_CORES_PER_WEEK || this.enhanceStones < ALCHEMY_CORE_STONES) return false;
+    this.enhanceStones -= ALCHEMY_CORE_STONES;
+    this.forge.coreE += 1;
+    a.cores++;
+    this.save();
+    return true;
   }
 
   /** Current level cap: the base max plus 5 for each Enhance. */
@@ -4516,6 +4641,9 @@ export class GameState {
       bossRelicEquipped: this.bossRelicEquipped,
       weapons: this.weapons,
       weaponMastery: this.weaponMastery,
+      attune: this.attune,
+      relicTemper: this.relicTemper,
+      alchemy: this.alchemy,
       scout: this.scout,
       forge: this.forge,
       wildCrests: this.wildCrests,
@@ -4692,6 +4820,14 @@ export class GameState {
       // Relics no longer in the game (the list changed) are dropped.
       this.relics = Object.fromEntries(Object.entries(d.relics ?? {}).filter(([id]) => RELICS.some((r) => r.id === id))) as Record<string, number>;
       this.relicEnhance = { ...(d.relicEnhance ?? {}) };
+      this.attune = Object.fromEntries(TRIAL_ROTATION.map((e) => [e, clampAttune(d.attune?.[e])]).filter(([, r]) => (r as number) > 0));
+      this.relicTemper = Object.fromEntries(
+        Object.entries(d.relicTemper ?? {})
+          .filter(([id]) => RELICS.some((r) => r.id === id))
+          .map(([id, n]) => [id, clampTemper(n)])
+          .filter(([, n]) => (n as number) > 0),
+      );
+      this.alchemy = cleanAlchemy(d.alchemy);
       // Older saves kept Gem-shop offers as { id, bought }: keep the unbought ones.
       const relicShop = d.relicShop;
       if (relicShop && Array.isArray(relicShop.offers)) {
