@@ -161,3 +161,10 @@ describe('boss relics and boss items', () => {
     expect(u.bossRelicEquipped).toEqual(['b_earth1']);
   });
 });
+
+describe('boss item art', () => {
+  it('has a picture for every boss item', () => {
+    const files = new Set(Object.keys(import.meta.glob('../src/assets/bossitems/*.png')).map((f) => f.split('/').pop()));
+    for (const el of ['water', 'fire', 'earth', 'light', 'dark']) for (const t of ['common', 'rare', 'veryrare']) expect(files.has(`${el}_${t}.png`)).toBe(true);
+  });
+});
