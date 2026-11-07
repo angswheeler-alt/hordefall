@@ -330,7 +330,8 @@ export async function runSim(cfg: SimConfig) {
     for (let guard = 0; guard < 200000; guard++) {
       let pick: Hero | null = null; let best = Infinity;
       for (const h of lu) {
-        const c = F.emberCost(s.emberLevels[h.id] ?? 0) * (h.id === carry ? 0.125 : 1);
+        // Costs grow by a fixed factor a level, so the cheapest next level is the lowest level (the carry counts 8x cheaper).
+        const c = (s.emberLevels[h.id] ?? 0) - (h.id === carry ? Math.log(8) / Math.log(F.EMBER_COST_GROWTH) : 0);
         if (c < best) { best = c; pick = h; }
       }
       if (!pick || s.buyEmbers(pick.id, 1) <= 0) break;

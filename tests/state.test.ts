@@ -41,7 +41,7 @@ describe('saving', () => {
     s.stage = 77;
     s.reachStage(77);
     s.gems = 1234;
-    s.embers = 55;
+    s.embers = new Decimal(55);
     s.emberLevels[starter.id] = 9;
     s.crests[other.id] = 42;
     s.stars[starter.id] = 2;
@@ -954,9 +954,9 @@ describe('rekindle', () => {
     s.reachStage(REKINDLE_STAGE + 20);
     expect(s.canRekindle()).toBe(true);
     const r = s.rekindle(1)!;
-    expect(r.embers).toBeGreaterThan(0);
+    expect(r.embers.toNumber()).toBeGreaterThan(0);
     expect(s.stage).toBe(1);
-    expect(s.embers).toBe(r.embers);
+    expect(s.embers.eq(r.embers)).toBe(true);
     expect(s.rekindles).toBe(1);
     expect(s.canRekindle()).toBe(false);
   });
@@ -980,30 +980,30 @@ describe('rekindle', () => {
 
   it('buys Ember levels x1, x10 and max', () => {
     const s = fresh();
-    s.embers = emberBulk(0, 10, 0).cost + 1;
+    s.embers = emberBulk(0, 10, 0).cost.plus(1);
     expect(s.buyEmbers(starter.id, 10)).toBe(10);
     expect(s.emberLevels[starter.id]).toBe(10);
-    expect(s.embers).toBe(1);
+    expect(s.embers.toNumber()).toBe(1);
     expect(s.buyEmbers(starter.id, 10)).toBe(0);
     expect(s.emberLevels[starter.id]).toBe(10);
-    s.embers = 100;
+    s.embers = new Decimal(100);
     const want = emberBulk(10, 'max', 100);
     expect(s.buyEmbers(starter.id, 'max')).toBe(want.levels);
-    expect(s.embers).toBe(100 - want.cost);
-    expect(s.embers).toBeLessThan(emberCost(10 + want.levels));
+    expect(s.embers.toNumber()).toBe(100 - want.cost.toNumber());
+    expect(s.embers.lt(emberCost(10 + want.levels))).toBe(true);
   });
 
   it('refunds every Ember spent when the player resets a hero', () => {
     const s = fresh();
-    s.embers = 5;
+    s.embers = new Decimal(5);
     s.emberLevels[starter.id] = 30;
-    const refund = s.resetEmbers(starter.id);
-    expect(refund).toBe(emberRefund(30));
-    expect(refund).toBe(Array.from({ length: 30 }, (_, i) => emberCost(i)).reduce((a, b) => a + b, 0));
+    const refund = s.resetEmbers(starter.id).toNumber();
+    expect(refund).toBe(emberRefund(30).toNumber());
+    expect(refund).toBe(Array.from({ length: 30 }, (_, i) => emberCost(i).toNumber()).reduce((a, b) => a + b, 0));
     expect(s.emberLevels[starter.id]).toBe(0);
-    expect(s.embers).toBe(5 + refund);
-    expect(s.resetEmbers(starter.id)).toBe(0);
-    expect(s.embers).toBe(5 + refund);
+    expect(s.embers.toNumber()).toBe(5 + refund);
+    expect(s.resetEmbers(starter.id).toNumber()).toBe(0);
+    expect(s.embers.toNumber()).toBe(5 + refund);
   });
 
   it("won't take a boosted rekindle without the gems", () => {
@@ -1214,12 +1214,12 @@ describe('Guild Boss rewards', () => {
     const a = s.payGuildBossAttempt(3, new Decimal(0), new Decimal(1000));
     expect(a.coins).toBe(13);
     expect(a.gold.gt(0)).toBe(true);
-    s.lifetimeEmbers = 50_000;
+    s.lifetimeEmbers = new Decimal(50_000);
     const k = s.payGuildBossRewards([{ week: '2026-10-19', level: 1 }, { week: '2026-10-19', level: 2 }], [], []);
     expect(k).toMatchObject({ coins: 33 + 36 });
     // Beaten levels pay no Embers (guild rewards stay guild-side).
-    expect(s.embers).toBe(0);
-    expect(s.lifetimeEmbers).toBe(50_000);
+    expect(s.embers.toNumber()).toBe(0);
+    expect(s.lifetimeEmbers.toNumber()).toBe(50_000);
     expect(k.drops.length).toBe(0);
     const w = s.payGuildBossRewards([], [7], []);
     expect(w).toMatchObject({ coins: 170 });
@@ -1294,12 +1294,12 @@ describe('Guild shop', () => {
   it('Warsteel packs are limited per day, give no Embers, and boosts stack to two hours', () => {
     const s = fresh();
     s.guildCredits = 10_000;
-    s.lifetimeEmbers = 5_000;
+    s.lifetimeEmbers = new Decimal(5_000);
     for (let i = 0; i < 3; i++) expect(s.buyGuildItem('warsteel', day)!.warsteel).toBe(GUILD_WARSTEEL_PACK);
     expect(s.buyGuildItem('warsteel', day)).toBeNull();
     expect(s.warsteel).toBe(3 * GUILD_WARSTEEL_PACK);
-    expect(s.embers).toBe(0);
-    expect(s.lifetimeEmbers).toBe(5_000);
+    expect(s.embers.toNumber()).toBe(0);
+    expect(s.lifetimeEmbers.toNumber()).toBe(5_000);
     // Nothing in the Guild Shop pays Embers.
     expect(GUILD_SHOP.some((i) => /ember/i.test(i.id + i.name + i.text))).toBe(false);
     expect(s.boostMult('banner', day)).toBe(1);

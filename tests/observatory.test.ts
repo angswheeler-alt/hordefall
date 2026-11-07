@@ -1,3 +1,4 @@
+import Decimal from 'break_infinity.js';
 import { describe, expect, it } from 'vitest';
 import { GameState } from '../src/state';
 import { TICKET_CAP } from '../src/data';
@@ -14,7 +15,7 @@ function fresh() {
 function withSigils(n: number) {
   const s = fresh();
   s.rekindles = n * SIGIL_COST_STEP;
-  s.lifetimeEmbers = 0;
+  s.lifetimeEmbers = new Decimal(0);
   return s;
 }
 
@@ -65,8 +66,8 @@ describe('Observatory', () => {
     const before = s.pendingEmbers();
     s.buyObservatory('embers');
     s.buyObservatory('embers');
-    expect(before).toBeGreaterThan(100);
-    expect(s.pendingEmbers() / before).toBeCloseTo(1.2, 2);
+    expect(before.toNumber()).toBeGreaterThan(100);
+    expect(s.pendingEmbers().div(before).toNumber()).toBeCloseTo(1.2, 2);
   });
 
   it('Pilgrim Star raises the Trial ticket cap, and refills fill to it', () => {
@@ -186,7 +187,7 @@ describe('Observatory', () => {
   it('a Rekindle reports the Sigils it earned', () => {
     const s = fresh();
     s.rekindles = 5;
-    s.lifetimeEmbers = 0;
+    s.lifetimeEmbers = new Decimal(0);
     s.reachStage(200);
     const r = s.rekindle()!;
     expect(r.sigils).toBe(s.sigilsEarned() - (5 + Math.floor((s.keeperLevel() - r.levelsGained - 1) / 3)));
