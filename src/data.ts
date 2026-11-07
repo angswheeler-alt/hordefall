@@ -567,14 +567,22 @@ export function bossWeakness(stage: number): Element | null {
 }
 
 /**
- * The named element bosses (every 100th stage from 600) can only be hurt by their weakness (user, 2026-10-16,
- * narrowed to the 100s on 2026-10-20): hits, ultimates, burns and poison from any other element do nothing.
- * `attacker` is the element the hit counts as; null (no hero behind it) never hurts. Other bosses take any hit.
+ * The named element bosses (every 100th stage from 600) take full damage only from their weakness (user,
+ * 2026-10-16, narrowed to the 100s on 2026-10-20). Since 2026-11-07 (user, economy audit) every other element
+ * deals ELEMENT_BOSS_OTHER_SHARE of its damage instead of none, so a team without the right element is slowed,
+ * not stuck forever. `attacker` is the element the hit counts as; null (no hero behind it) never hurts.
  */
-export function bossImmuneTo(stage: number, attacker: Element | null): boolean {
-  if (!isElementBossStage(stage)) return false;
+export const ELEMENT_BOSS_OTHER_SHARE = 0.2;
+export function elementBossShare(stage: number, attacker: Element | null): number {
+  if (!isElementBossStage(stage)) return 1;
   const weak = bossWeakness(stage);
-  return weak !== null && attacker !== weak;
+  if (weak === null || attacker === weak) return 1;
+  return attacker === null ? 0 : ELEMENT_BOSS_OTHER_SHARE;
+}
+
+/** True when a hit of `attacker`'s element does nothing to the stage's boss (only hits with no hero behind them). */
+export function bossImmuneTo(stage: number, attacker: Element | null): boolean {
+  return elementBossShare(stage, attacker) === 0;
 }
 
 /** The five named element bosses (user, 2026-10-15). Each 100th-stage boss from 600 is the one of its element. */
@@ -803,7 +811,7 @@ export function stageBoss(stage: number): { name: string; title: string; art: El
 /**
  * The boss a player is heading for (user, 2026-11-04: "show what the next stage boss element is"): the current
  * stage when it is a boss stage, otherwise the next one. `weakness` is set from stage 600, when the element counts;
- * `onlyWeakness` marks the 100th-stage element bosses that only their weakness can hurt.
+ * `onlyWeakness` marks the 100th-stage element bosses that take full damage only from their weakness.
  */
 export function nextBossInfo(stage: number): { stage: number; element: Element; weakness: Element | null; onlyWeakness: boolean } {
   const at = Math.max(1, Math.ceil(stage / BOSS_EVERY)) * BOSS_EVERY;
