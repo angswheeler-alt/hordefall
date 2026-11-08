@@ -10,7 +10,7 @@ import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills
 import { isKnight, combatPower, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
 import { OBSERVATORY, OBSERVATORY_RESPEC_GEMS, obsDef, sigilCost, sigilsSpent, sigilsEarned, cleanObservatory, type ObsBranch } from './observatory';
-import { PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_TICKET_GEMS, PVP_TICKET_BUYS, PVP_REFRESH_MINUTES, PVP_CP_MIN, PVP_CP_MAX, PVP_REAL_MIN, PVP_REAL_MAX, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_FIRST_WIN_MOTES, PVP_STREAK_DMG, PVP_STREAK_MAX, PVP_QUICK_CP, PVP_QUICK_HP, RANK_PRESSURE, RANK_DAILY, RANK_WEEKLY, rankIndex, rankName, droppedTrophies, seededRandom, ghostName, simulatePvp, type PvpUnit, type PvpResult } from './colosseum';
+import { PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_TICKET_GEMS, PVP_TICKET_BUYS, PVP_REFRESH_MINUTES, PVP_CP_MIN, PVP_CP_MAX, PVP_REAL_MIN, PVP_REAL_MAX, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_FIRST_WIN_MOTES, PVP_STREAK_DMG, PVP_STREAK_MAX, PVP_QUICK_CP, PVP_QUICK_HP, rankCp, RANK_DAILY, RANK_WEEKLY, rankIndex, rankName, droppedTrophies, seededRandom, ghostName, simulatePvp, type PvpUnit, type PvpResult } from './colosseum';
 import { TUTORIAL_DONE, OLD_TUTORIAL_DONE, TIP_IDS } from './tutorialSteps';
 import { ascendBlocker, ascendNeeds, clampForm, formArtKey, resolveForm, COUNTERED_BY, type AscendBlocker, type AscendContext, type AscendantDef } from './ascendant';
 import { ascendantDef, isAscendant, ASCENDANT_HEROES } from './heroes/ascendant';
@@ -1602,13 +1602,13 @@ export class GameState {
   /**
    * Three new opponents from the player's rank, in random order. Real players from the server (`real`,
    * already in the player's rank) are picked at random among those near the player's power; Ghosts with
-   * random teams at a random share of that power (a bit stronger in higher ranks) fill the rest.
+   * random teams at a random share of the RANK's power (rankCp, weak in Bronze, strong at the top) fill the rest.
    */
   rollPvpOpponents(now = Date.now(), real: PvpCandidate[] = []) {
     const p = this.pvp;
     const rand = seededRandom(`pvp:${p.refreshes}:${p.trophies}`);
     const mine = this.fixedTeamCp(this.pvpAttackTeam());
-    const pressure = 1 + RANK_PRESSURE * rankIndex(p.trophies);
+    const rankPower = rankCp(rankIndex(p.trophies));
     const shuffle = <T>(xs: T[]) => {
       for (let i = xs.length - 1; i > 0; i--) {
         const j = Math.floor(rand() * (i + 1));
@@ -1628,7 +1628,7 @@ export class GameState {
       .map((c) => ({ name: c.name, ghost: false, heroes: c.team.map((x) => ({ id: x.id, stars: x.stars })), ember: 1, cp: c.cp, userId: c.userId, snap: c.team }));
     while (picks.length < 3) {
       const share = PVP_CP_MIN + rand() * (PVP_CP_MAX - PVP_CP_MIN);
-      picks.push(this.buildGhost(`${p.refreshes}:${picks.length}`, mine.times(share * pressure)));
+      picks.push(this.buildGhost(`${p.refreshes}:${picks.length}`, rankPower.times(share)));
     }
     p.picks = shuffle(picks);
     p.refreshes++;
