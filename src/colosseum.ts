@@ -33,8 +33,10 @@ export const WEEKLY_DROP = 3;
 
 /**
  * Three opponents from the player's rank, nothing saying which is a real player and which a bot.
- * Bot teams land at a random share of the player's CP in [PVP_CP_MIN, PVP_CP_MAX] (times rank pressure);
- * real players qualify inside [PVP_REAL_MIN, PVP_REAL_MAX].
+ * Bot teams land at a random share in [PVP_CP_MIN, PVP_CP_MAX] of their RANK's power (rankCp), not the
+ * player's own (Samuel, 2026-11-08): Bronze bots are weak, top ranks strong, so a player climbs until the
+ * bots match their power and their rank ends up where their power stands among all players.
+ * Real players qualify inside [PVP_REAL_MIN, PVP_REAL_MAX] of the player's own CP.
  */
 export const PVP_CP_MIN = 0.85;
 export const PVP_CP_MAX = 1.15;
@@ -46,8 +48,20 @@ export const PVP_WIN_MOTES = 5;
 export const PVP_LOSS_TROPHIES = 8;
 export const PVP_LOSS_MOTES = 1;
 export const PVP_FIRST_WIN_MOTES = 10;
-/** Ghosts get this much more CP for each sub-rank above Bronze I, so higher ranks need a stronger team. */
-export const RANK_PRESSURE = 0.04;
+/**
+ * Bot team CP at each sub-rank: 10^(RANK_CP_LOG0 + RANK_CP_LOG_STEP x sub-rank), about 3.5x per step.
+ * Fitted to the economy sim's fixed-level team CP (baseline-v1, 2026-11-08): Bronze I ~ a new player on the
+ * day the Colosseum opens, Gold I ~ a regular player's first month, Diamond I ~ six months, Diamond III ~
+ * a top player's first year, Legend ~ the very top after two years.
+ */
+export const RANK_CP_LOG0 = 3.3;
+export const RANK_CP_LOG_STEP = 0.55;
+
+/** The team CP bots carry at a sub-rank (0 = Bronze I, LEGEND = Legend). */
+export function rankCp(index: number): Decimal {
+  const i = Math.max(0, Math.min(LEGEND, index));
+  return Decimal.pow(10, RANK_CP_LOG0 + RANK_CP_LOG_STEP * i);
+}
 /** Fallen fighters on both sides take longer to get back up in the Colosseum (lane: 6 s, Colosseum: 10 s). */
 export const PVP_RESPAWN_MULT = 10 / 6;
 /**

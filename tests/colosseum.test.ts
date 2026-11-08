@@ -4,7 +4,7 @@ import { GameState, cleanSnapHero, type PvpCandidate } from '../src/state';
 import { HEROES, AWAKEN_UNLOCK_LEVEL, FIXED_LEVEL } from '../src/data';
 import { keeperThreshold } from '../src/formulas';
 import {
-  RANK_TROPHIES, RANK_DAILY, RANK_WEEKLY, LEGEND, PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_CP_MIN, PVP_CP_MAX, PVP_LOSS_TROPHIES, PVP_FIRST_WIN_MOTES, PVP_QUICK_CP,
+  RANK_TROPHIES, RANK_DAILY, RANK_WEEKLY, LEGEND, PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_CP_MIN, PVP_CP_MAX, rankCp, RANK_CP_LOG_STEP, PVP_LOSS_TROPHIES, PVP_FIRST_WIN_MOTES, PVP_QUICK_CP,
   rankIndex, rankName, droppedTrophies, seededRandom, simulatePvp, type PvpUnit,
 } from '../src/colosseum';
 
@@ -87,22 +87,50 @@ describe('Colosseum tickets and fights', () => {
     expect(s.pvp.tickets).toBe(PVP_TICKET_CAP);
   });
 
-  it('build the same three opponents from the same seed, at a random share of the player\'s power', () => {
+  it('build the same three opponents from the same seed, at a random share of their rank\'s power', () => {
     const a = opened();
     const b = opened();
     a.rollPvpOpponents(WED);
     b.rollPvpOpponents(WED);
     expect(a.pvp.picks).toEqual(b.pvp.picks);
     expect(a.pvp.picks).toHaveLength(3);
-    const mine = a.fixedTeamCp(a.pvpAttackTeam()).toNumber();
+    const rank = rankCp(rankIndex(a.pvp.trophies)).toNumber();
     for (const p of a.pvp.picks) {
-      const ratio = Number(p.cp) / mine;
+      const ratio = Number(p.cp) / rank;
       expect(ratio).toBeGreaterThan(PVP_CP_MIN * 0.98);
       expect(ratio).toBeLessThan(PVP_CP_MAX * 1.02);
     }
     expect(a.pvp.picks.every((p) => p.ghost && p.heroes.length === a.pvpAttackTeam().length)).toBe(true);
     // Bot names look like usernames and never say "Ghost".
     expect(a.pvp.picks.every((p) => p.name.length > 2 && !/ghost/i.test(p.name))).toBe(true);
+  });
+
+  it('give bots a power set by rank, not by the player: easy in Bronze, strong at the top', () => {
+    const low = opened();
+    low.rollPvpOpponents(WED);
+    const lowCp = low.pvp.picks.map((p) => Number(p.cp));
+    const high = opened();
+    high.pvp.trophies = RANK_TROPHIES[LEGEND];
+    high.rollPvpOpponents(WED);
+    const highCp = high.pvp.picks.map((p) => Number(p.cp));
+    expect(Math.min(...highCp)).toBeGreaterThan(Math.max(...lowCp) * 1e6);
+    // A much stronger player in Bronze still meets Bronze-strength bots.
+    const strong = opened();
+    for (const h of strong.pvpAttackTeam()) strong.stars[h.id] = strong.maxStars(h.id);
+    strong.rollPvpOpponents(WED);
+    const bronze = rankCp(0).toNumber();
+    for (const p of strong.pvp.picks) {
+      expect(Number(p.cp)).toBeGreaterThan(bronze * PVP_CP_MIN * 0.98);
+      expect(Number(p.cp)).toBeLessThan(bronze * PVP_CP_MAX * 1.02);
+    }
+  });
+
+  it('raise rank power by the same factor each sub-rank, Bronze I to Legend', () => {
+    for (let i = 1; i <= LEGEND; i++) {
+      expect(rankCp(i).div(rankCp(i - 1)).toNumber()).toBeCloseTo(10 ** RANK_CP_LOG_STEP, 6);
+    }
+    expect(rankCp(-3).eq(rankCp(0))).toBe(true);
+    expect(rankCp(LEGEND + 5).eq(rankCp(LEGEND))).toBe(true);
   });
 
   it('pay trophies and Starmotes for a win, with the first-win bonus once a day', () => {
