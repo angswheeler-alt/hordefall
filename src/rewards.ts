@@ -15,6 +15,8 @@ export interface Reward {
   stones?: number;
   /** Trial tickets (they still stop at the ticket cap). */
   tickets?: number;
+  /** Wild Crests (turn into crests for any non-Legendary, non-Ascendant hero). */
+  wild?: number;
 }
 
 export function rewardText(r: Reward): string {
@@ -24,6 +26,7 @@ export function rewardText(r: Reward): string {
   if (r.chests) parts.push(r.chests === 1 ? 'Hero Chest' : `${r.chests} Hero Chests`);
   if (r.stones) parts.push(r.stones === 1 ? 'Enhance Stone' : `${r.stones} Enhance Stones`);
   if (r.tickets) parts.push(r.tickets === 1 ? 'Trial ticket' : `${r.tickets} Trial tickets`);
+  if (r.wild) parts.push(r.wild === 1 ? 'Wild Crest' : `${r.wild} Wild Crests`);
   return parts.join(' + ');
 }
 
@@ -52,27 +55,29 @@ export const MEDAL_BUNDLE_DAILIES = 3;
 
 // ---------- login calendar: 30 days, one claim a day ----------
 // Days count claims, not a streak, so a missed day never loses progress. Each
-// week runs gold, Enhance Stones, a Hero Chest, Trial tickets, Gems, more gold,
-// then a bigger day 7; every week pays a bit more than the last, and days 29
-// and 30 are the big finish. A full month: 350 Gems, 15 Hero Chests, 19 Enhance
-// Stones, 17 Trial tickets and 5h of gold (the old 5-day loop paid 300 Gems,
-// 12 Chests and 4h of gold a month). Then it starts again at day 1.
+// week runs Wild Crests, Enhance Stones, a Hero Chest, Trial tickets, Gems, more
+// Wild Crests, then a bigger day 7; every week pays a bit more than the last,
+// and days 29 and 30 are the big finish. A full month: 350 Gems, 15 Hero
+// Chests, 19 Enhance Stones, 17 Trial tickets and 70 Wild Crests. No gold: a
+// few minutes of income is worthless once the Market Row is running (the user
+// asked for it gone, as with Stage Milestones). 70 Wild a month is ~12% on top
+// of the daily Gilded Scouting (20 a day). Then it starts again at day 1.
 
-const LOGIN_WEEK = (gold: number, stones: number, tickets: number, gems: number, gold2: number, chests7: number, gems7: number): Reward[] => [
-  { goldMinutes: gold },
+const LOGIN_WEEK = (wild: number, stones: number, tickets: number, gems: number, wild2: number, chests7: number, gems7: number): Reward[] => [
+  { wild },
   { stones },
   { chests: 1 },
   { tickets },
   { gems },
-  { goldMinutes: gold2 },
+  { wild: wild2 },
   { chests: chests7, gems: gems7 },
 ];
 
 export const LOGIN_CYCLE: Reward[] = [
-  ...LOGIN_WEEK(15, 2, 3, 20, 30, 1, 30),
-  ...LOGIN_WEEK(20, 3, 4, 25, 40, 1, 40),
-  ...LOGIN_WEEK(30, 4, 5, 30, 60, 2, 40),
-  ...LOGIN_WEEK(45, 5, 5, 35, 60, 2, 50),
+  ...LOGIN_WEEK(5, 2, 3, 20, 5, 1, 30),
+  ...LOGIN_WEEK(5, 3, 4, 25, 10, 1, 40),
+  ...LOGIN_WEEK(10, 4, 5, 30, 10, 2, 40),
+  ...LOGIN_WEEK(10, 5, 5, 35, 15, 2, 50),
   { chests: 2, stones: 5 },
   { chests: 3, gems: 80 },
 ];

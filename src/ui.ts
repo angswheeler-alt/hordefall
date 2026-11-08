@@ -3617,6 +3617,7 @@ function sliceLabel(r: Reward): string {
   if (r.gems) return `${r.gems} Gems`;
   if (r.stones) return `${r.stones} Stones`;
   if (r.tickets) return `${r.tickets} Tickets`;
+  if (r.wild) return `${r.wild} Wild`;
   if (r.goldMinutes) return r.goldMinutes >= 60 ? `${r.goldMinutes / 60}h gold` : `${r.goldMinutes}m gold`;
   return r.chests === 1 ? 'Chest' : `${r.chests} Chests`;
 }

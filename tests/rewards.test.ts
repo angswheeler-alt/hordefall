@@ -70,16 +70,25 @@ describe('login calendar', () => {
     expect(s.loginState(noon + 30 * DAY)).toEqual({ day: 0, ready: true });
   });
 
-  it('pays a balanced month: about the old Gems, plus stones and tickets', () => {
-    const total = (k: 'gems' | 'chests' | 'goldMinutes' | 'stones' | 'tickets') => LOGIN_CYCLE.reduce((t, r) => t + (r[k] ?? 0), 0);
+  it('pays a balanced month: about the old Gems, plus stones, tickets and Wild Crests, no gold', () => {
+    const total = (k: 'gems' | 'chests' | 'goldMinutes' | 'stones' | 'tickets' | 'wild') => LOGIN_CYCLE.reduce((t, r) => t + (r[k] ?? 0), 0);
     expect(total('gems')).toBe(350);
     expect(total('chests')).toBe(15);
-    expect(total('goldMinutes')).toBe(300);
+    expect(total('goldMinutes')).toBe(0);
+    expect(total('wild')).toBe(70);
     expect(total('stones')).toBe(19);
     expect(total('tickets')).toBe(17);
     // Every week pays at least as much as the one before.
     const weekGems = [0, 1, 2, 3].map((w) => LOGIN_CYCLE.slice(w * 7, w * 7 + 7).reduce((t, r) => t + (r.gems ?? 0), 0));
     for (let w = 1; w < 4; w++) expect(weekGems[w]).toBeGreaterThanOrEqual(weekGems[w - 1]);
+  });
+
+  it('gives Wild Crests on day 1', () => {
+    const s = fresh();
+    const wild = s.wildCrests;
+    expect(LOGIN_CYCLE[0].wild).toBeGreaterThan(0);
+    s.claimLogin(noon);
+    expect(s.wildCrests).toBe(wild + LOGIN_CYCLE[0].wild!);
   });
 
   it('gives Enhance Stones and Trial tickets (up to the ticket cap)', () => {
