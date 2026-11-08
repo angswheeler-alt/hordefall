@@ -2695,6 +2695,7 @@ export class GameState {
     const drops: SummonDrop[] = [];
     for (let i = 0; i < (r.chests ?? 0); i++) drops.push(...this.rollChest());
     this.enhanceStones += r.stones ?? 0;
+    this.wildCrests += r.wild ?? 0;
     if (r.tickets) {
       this.refreshTickets();
       this.tickets = Math.min(this.ticketCap(), this.tickets + r.tickets);
