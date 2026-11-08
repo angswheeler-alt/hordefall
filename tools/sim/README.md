@@ -39,6 +39,22 @@ Strategies (`--strategy`): `balanced` (cheapest upgrade first), `concentrated` (
 
 Speed: about 1 to 3 seconds of computer time per simulated day.
 
+## Comparing against a baseline (regression check)
+
+`compare.py` compares a candidate against a baseline run set, metric by metric:
+
+    python3 tools/sim/compare.py --base <dir> --base-variant baseline --cand <dir> --cand-variant emberMid --profiles A,B,C --days 365 --out report.md
+
+- Seeds are paired: only seeds present on both sides are compared, so both sides get the same random luck. Run candidates with the baseline's seeds.
+- Each row shows the baseline median, the new median, the absolute and % change, the new worst case, and a status:
+  PASS (inside the metric's warn band), WARN (worth investigating) or FAIL (past the fail band).
+- Bands are per metric in `thresholds.json` (stage pace is tight, noisy resources are wider; `dir` limits a band to rises or drops).
+- An intended change will show WARN/FAIL on the metrics it is meant to move; the flags are for changes nobody expected.
+- Integrity: each run's one-time Stage Milestone Gems and Stones must equal exactly what `milestoneReward()` pays
+  for the milestones reached (a mismatch is a FAIL). Keep `milestone_totals` in step with `src/rewards.ts`.
+- Official baselines are kept read-only in the shared project files (`sim-baselines/baseline-vN`, with a MANIFEST of seeds,
+  simulator commit, profiles and variants). A new baseline is a new version; an old one is never overwritten.
+
 ## Model limits
 
 These are where the simulator is simpler than the real game. Read results with them in mind.
