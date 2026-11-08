@@ -8,6 +8,16 @@ const STAR = 'export const STAR_CRESTS = [10, 50, 250, 600, 1500, 2500, 5000];';
 const stars = (xs: number[]): Edit => ['data.ts', STAR, `export const STAR_CRESTS = [${xs.join(', ')}];`];
 const scaleStars = (k: number) => stars([10, 50, 250, 600, 1500, 2500, 5000].map((x) => Math.round(x * k)));
 
+/** Ember payout growth per stage, by band: [[fromStage, rate], ...] in rising order; below the first band it stays 1.06. */
+const EMBER_PAY = 'return Decimal.pow(1.06, emberPayStage(runBestStage, lifetimeBest) - rekindleStage - 1);';
+function emberCurve(bands: [number, number][]): Edit {
+  const parts = bands.map(([from, rate], i) => {
+    const to = i + 1 < bands.length ? bands[i + 1][0] : 1e9;
+    return `.times(Decimal.pow(${rate} / 1.06, Math.min(Math.max(pay, ${from}), ${to}) - ${from}))`;
+  });
+  return ['formulas.ts', EMBER_PAY, `const pay = emberPayStage(runBestStage, lifetimeBest);\n  return Decimal.pow(1.06, pay - rekindleStage - 1)${parts.join('')};`];
+}
+
 export const VARIANTS: Record<string, { text: string; edits: Edit[] }> = {
   baseline: { text: 'The game as it is on main.', edits: [] },
   // gold
@@ -69,6 +79,11 @@ export const VARIANTS: Record<string, { text: string; edits: Edit[] }> = {
   'starEmber1': { text: 'Each star above 1★ makes a hero\'s Ember levels count 1% more in battle (7★ = +6%)', edits: [
     ['state.ts', '    return effectiveLevel(this.levels[id] ?? 0, this.emberLevels[id] ?? 0);', '    return effectiveLevel(this.levels[id] ?? 0, Math.floor((this.emberLevels[id] ?? 0) * (1 + 0.01 * (this.stars[id] ?? 0))));'],
   ] },
+  // Ember payout curve (2026-11-07 midgame study): Rekindle pays more Embers per stage past a stage, nothing else changes.
+  emberMid: { text: 'Leading candidate: Ember payout 6% -> 6.05% per stage from stage 2,000, 6.2% from 4,000', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]])] },
+  emberMidDelayed: { text: 'Candidate B: Ember payout 6.05% per stage from stage 3,000, 6.2% from 4,000', edits: [emberCurve([[3000, 1.0605], [4000, 1.062]])] },
+  emberStepped: { text: 'Stepped: Ember payout 6.05% from 2,000, 6.10% from 4,000, 6.15% from 6,000, 6.2% from 8,000', edits: [emberCurve([[2000, 1.0605], [4000, 1.061], [6000, 1.0615], [8000, 1.062]])] },
+  'ember6.2': { text: 'Flat: Ember payout 6.2% per stage from stage 2,000', edits: [emberCurve([[2000, 1.062]])] },
 };
 
 /** Bundles: several variants applied together (the audit's recommended set). */
