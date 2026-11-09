@@ -18,6 +18,18 @@ function emberCurve(bands: [number, number][]): Edit {
   return ['formulas.ts', EMBER_PAY, `const pay = emberPayStage(runBestStage, lifetimeBest);\n  return Decimal.pow(1.06, pay - rekindleStage - 1)${parts.join('')};`];
 }
 
+/** Year-two study: "stall breaker" Ember bonus that grows each day the best stage has not risen (after a grace period), reset when the best stage passes a new multiple of resetStep. stageMode: the bonus is extra pay stages (perDay stages a day, x1.062 each) instead of a flat percentage. */
+function stallBreaker(graceDays: number, perDay: number, cap: number, resetStep = 1, stageMode = false): Edit[] {
+  const bonus = stageMode
+    ? `return Math.pow(1.062, Math.min(${cap}, Math.max(0, days - ${graceDays}) * ${perDay}));`
+    : `return 1 + Math.min(${cap}, Math.max(0, days - ${graceDays}) * ${perDay});`;
+  return [
+    ['state.ts', '  bestStage = 1;\n', '  bestStage = 1;\n  bestStageAt = Date.now();\n'],
+    ['state.ts', '    this.bestStage = Math.max(this.bestStage, stage);\n', `    if (Math.floor(stage / ${resetStep}) > Math.floor(this.bestStage / ${resetStep})) this.bestStageAt = Date.now();\n    this.bestStage = Math.max(this.bestStage, stage);\n`],
+    ['state.ts', "(1 + this.obsBonus('embers'))).floor();\n  }\n", `(1 + this.obsBonus('embers'))).times(this.stallBreaker()).floor();\n  }\n\n  stallBreaker() {\n    const days = (Date.now() - this.bestStageAt) / 86400000;\n    ${bonus}\n  }\n`],
+  ];
+}
+
 export const VARIANTS: Record<string, { text: string; edits: Edit[] }> = {
   baseline: { text: 'The game as it is on main.', edits: [] },
   // gold
@@ -83,6 +95,17 @@ export const VARIANTS: Record<string, { text: string; edits: Edit[] }> = {
   emberMid: { text: 'Leading candidate: Ember payout 6% -> 6.05% per stage from stage 2,000, 6.2% from 4,000', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]])] },
   emberMidDelayed: { text: 'Candidate B: Ember payout 6.05% per stage from stage 3,000, 6.2% from 4,000', edits: [emberCurve([[3000, 1.0605], [4000, 1.062]])] },
   emberStepped: { text: 'Stepped: Ember payout 6.05% from 2,000, 6.10% from 4,000, 6.15% from 6,000, 6.2% from 8,000', edits: [emberCurve([[2000, 1.0605], [4000, 1.061], [6000, 1.0615], [8000, 1.062]])] },
+  // Year-two plateau study (2026-11-08): emberMid plus a late payout step. Costs stay 6.8% a level.
+  lateEmber65: { text: 'emberMid + Ember payout 6.5% per stage from stage 10,000', edits: [emberCurve([[2000, 1.0605], [4000, 1.062], [10000, 1.065]])] },
+  lateEmber68: { text: 'emberMid + Ember payout 6.8% per stage from stage 10,000 (matches the Ember cost growth)', edits: [emberCurve([[2000, 1.0605], [4000, 1.062], [10000, 1.068]])] },
+  stallBreak: { text: 'emberMid + stall breaker: +25% Embers per day without a new best stage after 7 days, up to +500%', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(7, 0.25, 5)] },
+  stallBreakStrong: { text: 'emberMid + stall breaker: +50% Embers per day without a new best stage after 5 days, up to +1,000%', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(5, 0.5, 10)] },
+  stallBreak50: { text: 'emberMid + stall breaker: +25% Embers per day after 7 days without a new 50-stage milestone, up to +500%', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(7, 0.25, 5, 50)] },
+  stallBreak50Strong: { text: 'emberMid + stall breaker: +50% Embers per day after 5 days without a new 50-stage milestone, up to +1,000%', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(5, 0.5, 10, 50)] },
+  stallStage: { text: 'emberMid + stall breaker: after 5 days without a new boss milestone, Rekindle pays as if 3 stages further per day, up to +60 stages', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(5, 3, 60, 50, true)] },
+  stallStageStrong: { text: 'emberMid + stall breaker: after 3 days without a new boss milestone, Rekindle pays as if 5 stages further per day, up to +100 stages', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(3, 5, 100, 50, true)] },
+  lateEmber64: { text: 'emberMid + Ember payout 6.4% per stage from stage 10,000', edits: [emberCurve([[2000, 1.0605], [4000, 1.062], [10000, 1.064]])] },
+  lateEmber65at11k: { text: 'emberMid + Ember payout 6.5% per stage from stage 11,000', edits: [emberCurve([[2000, 1.0605], [4000, 1.062], [11000, 1.065]])] },
   'ember6.2': { text: 'Flat: Ember payout 6.2% per stage from stage 2,000', edits: [emberCurve([[2000, 1.062]])] },
 };
 
