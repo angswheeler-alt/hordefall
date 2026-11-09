@@ -1189,6 +1189,11 @@ export const RELIC_SET_START_SHARE = 0.25;
  * effect, so owning more relics always helps while slots and choices still matter.
  */
 export const RELIC_STORED_SHARE = 0.1;
+/**
+ * Set bonuses (Samuel, 2026-11-09): full only while every piece of the set is equipped; a complete set that
+ * isn't all equipped gives this share of it, so slots matter for sets too.
+ */
+export const RELIC_SET_OWNED_SHARE = 0.5;
 /** Levels a relic reaches before Enhance Stones; reaching it on an N★ relic opens (N+1)★ relics. */
 export const RELIC_BASE_MAX = 20;
 /** Each Enhance raises the cap by this many levels, up to RELIC_ENHANCE_COSTS.length times. */
