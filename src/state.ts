@@ -212,6 +212,8 @@ export interface PvpState {
   defense: string[];
   /** The opponent slot being fought right now (its ticket is spent), or -1. */
   active: number;
+  /** log10 team CP of the game's top players, last reported by the server (sets Legend bot power); 0 = unknown. */
+  topCpLog?: number;
 }
 
 const newPvp = (): PvpState => ({ trophies: 0, tickets: PVP_TICKET_CAP, clock: Date.now(), streak: 0, wins: 0, losses: 0, day: '', week: '', firstWin: '', buys: { day: '', used: 0 }, refreshes: 0, refreshAt: 0, picks: [], notes: [], attack: [], defense: [], active: -1 });
@@ -1602,13 +1604,13 @@ export class GameState {
   /**
    * Three new opponents from the player's rank, in random order. Real players from the server (`real`,
    * already in the player's rank) are picked at random among those near the player's power; Ghosts with
-   * random teams at a random share of the RANK's power (rankCp, weak in Bronze, strong at the top) fill the rest.
+   * random teams at a random share of the RANK's power (rankCp, weak in Bronze, Legend = the top players' power) fill the rest.
    */
   rollPvpOpponents(now = Date.now(), real: PvpCandidate[] = []) {
     const p = this.pvp;
     const rand = seededRandom(`pvp:${p.refreshes}:${p.trophies}`);
     const mine = this.fixedTeamCp(this.pvpAttackTeam());
-    const rankPower = rankCp(rankIndex(p.trophies));
+    const rankPower = rankCp(rankIndex(p.trophies), p.topCpLog);
     const shuffle = <T>(xs: T[]) => {
       for (let i = xs.length - 1; i > 0; i--) {
         const j = Math.floor(rand() * (i + 1));

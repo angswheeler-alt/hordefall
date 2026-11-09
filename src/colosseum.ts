@@ -49,18 +49,28 @@ export const PVP_LOSS_TROPHIES = 8;
 export const PVP_LOSS_MOTES = 1;
 export const PVP_FIRST_WIN_MOTES = 10;
 /**
- * Bot team CP at each sub-rank: 10^(RANK_CP_LOG0 + RANK_CP_LOG_STEP x sub-rank), about 3.5x per step.
- * Fitted to the economy sim's fixed-level team CP (baseline-v1, 2026-11-08): Bronze I ~ a new player on the
- * day the Colosseum opens, Gold I ~ a regular player's first month, Diamond I ~ six months, Diamond III ~
- * a top player's first year, Legend ~ the very top after two years.
+ * Bot team CP at each sub-rank: 10^(RANK_CP_LOG0 + step x sub-rank), Bronze I always at a new player's power.
+ * The top follows the live game (Samuel, 2026-11-09): when the server reports the top players' team CP
+ * (colosseum_power_scale, 99th percentile), Legend bots carry exactly that and the sub-ranks between are spread
+ * evenly on a log scale, so the strongest players' power lines up with the top ranks as everyone progresses.
+ * With no server number (offline, before the SQL is run) the step is RANK_CP_LOG_STEP, fitted to the economy
+ * sim (baseline-v1): Gold I ~ a regular player's first month, Diamond I ~ six months, Legend ~ two years at the top.
  */
 export const RANK_CP_LOG0 = 3.3;
 export const RANK_CP_LOG_STEP = 0.55;
+/** Even when the top players are still close to new ones, each sub-rank is at least this much stronger (10^0.1 = 1.26x). */
+export const RANK_CP_MIN_STEP = 0.1;
 
-/** The team CP bots carry at a sub-rank (0 = Bronze I, LEGEND = Legend). */
-export function rankCp(index: number): Decimal {
+/** log10 CP step between sub-ranks: from the top players' log10 team CP when known, else the fixed step. */
+export function rankCpStep(topCpLog?: number): number {
+  if (topCpLog === undefined || !Number.isFinite(topCpLog) || topCpLog <= 0) return RANK_CP_LOG_STEP;
+  return Math.max(RANK_CP_MIN_STEP, (topCpLog - RANK_CP_LOG0) / LEGEND);
+}
+
+/** The team CP bots carry at a sub-rank (0 = Bronze I, LEGEND = Legend), given the top players' log10 team CP. */
+export function rankCp(index: number, topCpLog?: number): Decimal {
   const i = Math.max(0, Math.min(LEGEND, index));
-  return Decimal.pow(10, RANK_CP_LOG0 + RANK_CP_LOG_STEP * i);
+  return Decimal.pow(10, RANK_CP_LOG0 + rankCpStep(topCpLog) * i);
 }
 /** Fallen fighters on both sides take longer to get back up in the Colosseum (lane: 6 s, Colosseum: 10 s). */
 export const PVP_RESPAWN_MULT = 10 / 6;
