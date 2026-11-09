@@ -7,7 +7,7 @@ import { emberBulk, emberCost, emberRefund } from '../src/formulas';
 import { mulEffect } from '../src/skills';
 import {
   HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, AURA_EVOLUTIONS, STAR_CRESTS, MAX_STARS, REGULAR_MAX_STARS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOTS_MAX, ULT_SLOT_COSTS,
-  TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_MIN_PUSH, ROAD_START, ROAD_STEP, RELICS, RELIC_SETS, RELIC_SET_START_SHARE, RELIC_STORED_SHARE, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, TRIAL_QUICK_TIME, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, TRIAL_ROTATION, PLAYABLE_HEROES, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL, bossWeakness,
+  TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_MIN_PUSH, ROAD_START, ROAD_STEP, RELICS, RELIC_SETS, RELIC_SET_START_SHARE, RELIC_STORED_SHARE, RELIC_SET_OWNED_SHARE, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, TRIAL_QUICK_TIME, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, TRIAL_ROTATION, PLAYABLE_HEROES, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL, bossWeakness,
   GUILD_WARSTEEL_PACK,
   GUILD_SHOP,
 } from '../src/data';
@@ -828,7 +828,20 @@ describe('relics', () => {
     for (const p of pieces.slice(1)) s.relics[p.id] = 1;
     expect(s.relicBonus(effect)).toBe(0);
     s.relics[pieces[0].id] = 1;
+    s.equipped = pieces.map((p) => p.id);
+    s.relicSlots = Math.max(s.relicSlots, pieces.length);
     expect(s.relicBonus(effect)).toBeCloseTo((value / 100) * RELIC_SET_START_SHARE);
+  });
+
+  it('a set gives half its bonus unless every piece is equipped', () => {
+    const s = fresh();
+    const set = RELIC_SETS.find((x) => x.bonus.some(([e]) => e !== 'cost'))!;
+    const pieces = RELICS.filter((r) => r.set === set.id);
+    for (const p of pieces) s.relics[p.id] = RELIC_BASE_MAX;
+    s.equipped = pieces.slice(1).map((p) => p.id);
+    expect(s.setBonusShare(set.id)).toBeCloseTo(RELIC_SET_OWNED_SHARE);
+    s.equipped = pieces.map((p) => p.id);
+    expect(s.setBonusShare(set.id)).toBe(1);
   });
 
   it('a set bonus grows with its lowest piece, full once every piece is level 20', () => {
@@ -837,6 +850,7 @@ describe('relics', () => {
     const pieces = RELICS.filter((r) => r.set === set.id);
     const [effect, value] = set.bonus[0];
     for (const p of pieces) s.relics[p.id] = RELIC_BASE_MAX;
+    s.equipped = pieces.map((p) => p.id);
     s.relics[pieces[0].id] = 1;
     expect(s.setBonusShare(set.id)).toBeCloseTo(RELIC_SET_START_SHARE);
     s.relics[pieces[0].id] = 10;
