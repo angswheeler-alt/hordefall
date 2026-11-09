@@ -4,7 +4,7 @@ import { GameState, cleanSnapHero, type PvpCandidate } from '../src/state';
 import { HEROES, AWAKEN_UNLOCK_LEVEL, FIXED_LEVEL } from '../src/data';
 import { keeperThreshold } from '../src/formulas';
 import {
-  RANK_TROPHIES, RANK_DAILY, RANK_WEEKLY, LEGEND, PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_CP_MIN, PVP_CP_MAX, rankCp, RANK_CP_LOG_STEP, PVP_LOSS_TROPHIES, PVP_FIRST_WIN_MOTES, PVP_QUICK_CP,
+  RANK_TROPHIES, RANK_DAILY, RANK_WEEKLY, LEGEND, PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_CP_MIN, PVP_CP_MAX, rankCp, rankCpStep, RANK_CP_LOG0, RANK_CP_LOG_STEP, RANK_CP_MIN_STEP, PVP_LOSS_TROPHIES, PVP_FIRST_WIN_MOTES, PVP_QUICK_CP,
   rankIndex, rankName, droppedTrophies, seededRandom, simulatePvp, type PvpUnit,
 } from '../src/colosseum';
 
@@ -131,6 +131,28 @@ describe('Colosseum tickets and fights', () => {
     }
     expect(rankCp(-3).eq(rankCp(0))).toBe(true);
     expect(rankCp(LEGEND + 5).eq(rankCp(LEGEND))).toBe(true);
+  });
+
+  it('put Legend bots at the top players\' power when the server reports it, ranks spread evenly between', () => {
+    const top = 8.5;
+    expect(rankCp(LEGEND, top).log10()).toBeCloseTo(top, 6);
+    expect(rankCp(0, top).log10()).toBeCloseTo(RANK_CP_LOG0, 6);
+    for (let i = 1; i <= LEGEND; i++) expect(rankCp(i, top).div(rankCp(i - 1, top)).log10()).toBeCloseTo((top - RANK_CP_LOG0) / LEGEND, 6);
+    // Unknown, bad or too-close tops fall back to the fixed step or the minimum step.
+    expect(rankCpStep(undefined)).toBe(RANK_CP_LOG_STEP);
+    expect(rankCpStep(0)).toBe(RANK_CP_LOG_STEP);
+    expect(rankCpStep(Number.NaN)).toBe(RANK_CP_LOG_STEP);
+    expect(rankCpStep(RANK_CP_LOG0 + 0.5)).toBe(RANK_CP_MIN_STEP);
+    // The game uses the saved top when it builds bots: a Legend player meets bots near the top players' power.
+    const s = opened();
+    s.pvp.trophies = RANK_TROPHIES[LEGEND];
+    s.pvp.topCpLog = top;
+    s.rollPvpOpponents(WED);
+    for (const p of s.pvp.picks) {
+      const ratio = Number(p.cp) / 10 ** top;
+      expect(ratio).toBeGreaterThan(PVP_CP_MIN * 0.98);
+      expect(ratio).toBeLessThan(PVP_CP_MAX * 1.02);
+    }
   });
 
   it('pay trophies and Starmotes for a win, with the first-win bonus once a day', () => {

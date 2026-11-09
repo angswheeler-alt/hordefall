@@ -132,6 +132,17 @@ language sql stable security definer set search_path = public as $$
   limit 50
 $$;
 
+-- How strong the top of the game is right now: log10 of team Combat Power at the 99th percentile of
+-- players active in the last 14 days (the very top when there are few players), and how many there are.
+-- The game sets Legend bot power to this, so the strongest players' power lines up with the top ranks.
+create or replace function public.colosseum_power_scale()
+returns table (top_cp_log double precision, players bigint)
+language sql stable security definer set search_path = public as $$
+  select percentile_cont(0.99) within group (order by t.cp_log), count(*)
+  from colosseum_teams t
+  where t.updated_at > now() - interval '14 days' and t.cp_log > 0
+$$;
+
 revoke all on function public.colosseum_me() from public, anon;
 revoke all on function public.colosseum_username(uuid) from public, anon, authenticated;
 revoke all on function public.save_colosseum_team(integer, text, double precision, jsonb) from public, anon;
@@ -139,3 +150,4 @@ revoke all on function public.colosseum_opponents(integer, integer, double preci
 revoke all on function public.report_colosseum_fight(uuid, boolean) from public, anon;
 revoke all on function public.my_colosseum_log() from public, anon;
 revoke all on function public.colosseum_board() from public, anon;
+revoke all on function public.colosseum_power_scale() from public, anon;

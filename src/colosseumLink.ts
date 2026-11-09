@@ -62,12 +62,30 @@ export class ColosseumLink {
     this.lastReportAt = Date.now();
   }
 
+  /**
+   * The top players' team CP (log10), which sets Legend bot power. Kept in the save so offline play uses the last
+   * known value; left as it was when the server lacks the function (colosseum.sql not re-run) or on any error.
+   */
+  async powerScale(): Promise<void> {
+    const db = this.db;
+    if (!db) return;
+    try {
+      const { data, error } = await db.rpc('colosseum_power_scale');
+      const row = (Array.isArray(data) ? data[0] : data) as { top_cp_log?: unknown } | null;
+      const top = Number(row?.top_cp_log);
+      if (!error && Number.isFinite(top) && top > 0 && top < 1_000_000) this.state.pvp.topCpLog = top;
+    } catch {
+      // Keep the last known value.
+    }
+  }
+
   /** Real players in this player's rank, closest in power first. Empty when offline or on any error. */
   async candidates(): Promise<PvpCandidate[]> {
     const db = this.db;
     if (!db) return [];
     void this.report();
     const s = this.state;
+    await this.powerScale();
     const r = rankIndex(s.pvp.trophies);
     const cp = s.fixedTeamCp(s.pvpAttackTeam());
     const { data, error } = await db.rpc('colosseum_opponents', {
