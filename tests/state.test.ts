@@ -7,7 +7,7 @@ import { emberBulk, emberCost, emberRefund } from '../src/formulas';
 import { mulEffect } from '../src/skills';
 import {
   HEROES, STAR_STAT_MULT, MASTERY_EVOLUTIONS, AURA_EVOLUTIONS, STAR_CRESTS, MAX_STARS, REGULAR_MAX_STARS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, CHEST_COST, CHEST_DROPS, CHEST_RARITY_WEIGHTS, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOTS_MAX, ULT_SLOT_COSTS,
-  TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_MIN_PUSH, ROAD_START, ROAD_STEP, RELICS, RELIC_SETS, RELIC_SET_START_SHARE, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, TRIAL_QUICK_TIME, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, TRIAL_ROTATION, PLAYABLE_HEROES, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL, bossWeakness,
+  TICKET_CAP, TICKET_MINUTES, OFFLINE_CAP_HOURS, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_MIN_PUSH, ROAD_START, ROAD_STEP, RELICS, RELIC_SETS, RELIC_SET_START_SHARE, RELIC_STORED_SHARE, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_START_SLOTS, RELIC_BASE_MAX, RELIC_ENHANCE_COSTS, TRIAL_LEVELS, TRIAL_QUICK_TIME, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, TRIAL_ROTATION, PLAYABLE_HEROES, RENAMED_HEROES, GUILD_CREDITS_PER_MEDAL, bossWeakness,
   GUILD_WARSTEEL_PACK,
   GUILD_SHOP,
 } from '../src/data';
@@ -797,6 +797,27 @@ describe('relics', () => {
     expect(s.enhanceStones).toBe(1000 - RELIC_ENHANCE_COSTS[0]);
     expect(s.relicMaxLevel(def)).toBe(RELIC_BASE_MAX + 5);
     expect(s.relicNextCost(def)).not.toBeNull();
+  });
+
+  it('a crafted relic in storage gives a small share of its effect, equipped gives all of it', () => {
+    const s = fresh();
+    const def = RELICS.find((r) => !r.set && r.fx.some(([e]) => e !== 'cost'))!;
+    const effect = def.fx.find(([e]) => e !== 'cost')![0];
+    s.relics[def.id] = 10;
+    s.equipped = [];
+    const full = s.relicEffect(def, effect);
+    expect(full).toBeGreaterThan(0);
+    expect(s.relicBonus(effect)).toBeCloseTo(full * RELIC_STORED_SHARE);
+    s.equipped = [def.id];
+    expect(s.relicBonus(effect)).toBeCloseTo(full);
+  });
+
+  it('cheaper hero levels from relics work in full without a slot', () => {
+    const s = fresh();
+    const def = RELICS.find((r) => r.fx.some(([e]) => e === 'cost'))!;
+    s.relics[def.id] = 5;
+    s.equipped = [];
+    expect(s.relicShare(def.id, 'cost')).toBe(1);
   });
 
   it('a set gives its bonus once every piece is crafted, equipped or not', () => {

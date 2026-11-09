@@ -1184,6 +1184,11 @@ export const RELIC_SETS: RelicSetDef[] = [
  * lowest piece is level 1, rising evenly to the full bonus once every piece is level RELIC_BASE_MAX.
  */
 export const RELIC_SET_START_SHARE = 0.25;
+/**
+ * Collection bonus (Samuel, 2026-11-09): a crafted relic that isn't equipped still gives this share of its
+ * effect, so owning more relics always helps while slots and choices still matter.
+ */
+export const RELIC_STORED_SHARE = 0.1;
 /** Levels a relic reaches before Enhance Stones; reaching it on an N★ relic opens (N+1)★ relics. */
 export const RELIC_BASE_MAX = 20;
 /** Each Enhance raises the cap by this many levels, up to RELIC_ENHANCE_COSTS.length times. */
