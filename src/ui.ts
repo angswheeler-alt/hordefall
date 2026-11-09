@@ -6,7 +6,7 @@ import { testAdjust, testMaxAll, testMaxHero, testRange, testRecruit, testValue,
 import Decimal from 'break_infinity.js';
 import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { STAR_EMBER_BONUS, GUILD_BOSS_NAMES, GOLD_CHEST_GEMS_PER_DAY, GUILD_BOSS_SECONDS, HEROES, byRarity, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_SLIDER_MAX, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_SET_START_SHARE, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, trialFirstWin, ESSENCE_NAMES, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, elementMultiplier, nextBossInfo, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { STAR_EMBER_BONUS, GUILD_BOSS_NAMES, GOLD_CHEST_GEMS_PER_DAY, GUILD_BOSS_SECONDS, HEROES, byRarity, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_SLIDER_MAX, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_SET_START_SHARE, RELIC_STORED_SHARE, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, trialFirstWin, ESSENCE_NAMES, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, elementMultiplier, nextBossInfo, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicEffect, guildRelicItemCost, BOSS_RELICS, BOSS_RELIC_SLOTS, BOSS_RELIC_MAX_LEVEL, BOSS_ITEM_NAMES, BOSS_ITEM_CHANCE, type GuildRelicEffect, type BossItemCounts } from './guildRelics';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
@@ -573,7 +573,7 @@ export class UI {
   }
 
   /** "All heroes ATK +40%" style text for a relic's effects at a level. */
-  private relicEffectText(def: RelicDef, level: number) {
+  private relicEffectText(def: RelicDef, level: number, stored = false) {
     const names: Record<string, string> = {
       atk: 'All heroes ATK',
       hp: 'All heroes HP',
@@ -597,7 +597,7 @@ export class UI {
     const effectName = (e: string) =>
       names[e] ?? (e.endsWith('Hp') ? `${cap(e.slice(0, -2))} heroes HP` : e.endsWith('Def') ? `${cap(e.slice(0, -3))} heroes Defense` : `${cap(e)} heroes ATK`);
     const pct = (n: number) => `${Math.round(n * 1000) / 10}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    return def.fx.map(([e]) => `${effectName(e)} ${e === 'cost' || e === 'stallCost' ? '−' : '+'}${pct(this.state.relicEffect(def, e, level))}%`).join(' · ');
+    return def.fx.map(([e]) => `${effectName(e)} ${e === 'cost' || e === 'stallCost' ? '−' : '+'}${pct(this.state.relicEffect(def, e, level) * (stored && e !== 'cost' ? RELIC_STORED_SHARE : 1))}%`).join(' · ');
   }
 
   /** Essence (and Stones) chips for a cost, red where you're short. */
@@ -811,7 +811,7 @@ export class UI {
     const s = this.state;
     let worthALook = false;
     const owned = (d: RelicDef) => (s.relics[d.id] ?? 0) > 0;
-    $('relic-slots').textContent = `Equipped ${s.equipped.length}/${s.relicSlots}`;
+    $('relic-slots').textContent = `Equipped ${s.equipped.length}/${s.relicSlots} · others give ${Math.round(RELIC_STORED_SHARE * 100)}%`;
     setHtml(
       $('relic-ess'),
       TRIAL_ROTATION.map((e) => `<span style="--el:${hex(ELEMENT_COLORS[e])}" title="${ESSENCE_NAMES[e]}"><i class="ess-${e}"></i>${fmt(s.essences[e] ?? 0)}</span>`).join('') +
@@ -877,7 +877,8 @@ export class UI {
       const tempers = s.temperCount(r.def.id);
       const temper = s.temperCost(r.def);
       r.tier.textContent = `· Lv ${level}/${s.relicMaxLevel(r.def)}${tempers ? ` · Tempered ${tempers}/${RELIC_TEMPER_CAP}` : ''}`;
-      r.eff.textContent = this.relicEffectText(r.def, s.relicPowerLevel(r.def));
+      // Relics in storage give RELIC_STORED_SHARE of their effect (cheaper hero levels stay full).
+      r.eff.textContent = on ? this.relicEffectText(r.def, s.relicPowerLevel(r.def)) : `In storage (${Math.round(RELIC_STORED_SHARE * 100)}%): ${this.relicEffectText(r.def, s.relicPowerLevel(r.def), true)}`;
       if (cost !== null) setHtml(r.cost, this.relicCostHtml(r.def, cost));
       else if (enhance !== null) setHtml(r.cost, `<span class="${s.enhanceStones < enhance ? 'short' : ''}" title="Enhance Stones"><i class="stone"></i>${enhance} → cap +5</span>`);
       else if (temper !== null) setHtml(r.cost, `<span class="${s.enhanceStones < temper ? 'short' : ''}" title="Enhance Stones"><i class="stone"></i>${fmt(temper)} → +2.5% of its Lv ${RELIC_BASE_MAX} effect</span>`);
