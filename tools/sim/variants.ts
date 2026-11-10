@@ -30,6 +30,58 @@ function stallBreaker(graceDays: number, perDay: number, cap: number, resetStep 
   ];
 }
 
+/**
+ * Year-two study: second prestige layer ("Ascension", working name). On top of the stall breaker.
+ * Ascending sets every hero's Ember level to keep x its level, clears unspent Embers and restarts the run; in return every
+ * later Rekindle pays as if `gain` stages further, for good. It opens when the team's average Ember level is at least
+ * minLevel and above the level of the previous Ascension. Trial requirements keep counting the highest level ever reached.
+ */
+function prestige(gain: number, keep: number, minLevel: number, catchUp = false): Edit[] {
+  // catchUp: until the team is back at the level it gave up, Rekindle pays by the record stage, so the climb back takes days, not months
+  const fast: Edit[] = catchUp ? [['state.ts', 'emberYield(this.runBestStage, REKINDLE_STAGE', 'emberYield(this.ascensions > 0 && this.ascendLevel() < this.ascLastLevel ? Math.max(this.runBestStage, this.bestStage) : this.runBestStage, REKINDLE_STAGE']] : [];
+  return [
+    ...fast,
+    ['state.ts', '  bestStage = 1;\n', '  bestStage = 1;\n  ascensions = 0;\n  ascStages = 0;\n  ascLastLevel = 0;\n  emberPeak: Record<string, number> = {};\n'],
+    ['state.ts', '.times(this.stallBreaker()).floor();', '.times(this.stallBreaker()).times(Math.pow(1.062, this.ascStages)).floor();'],
+    ['state.ts', '(this.emberLevels[h.id] ?? 0) >= level).length;', '(Math.max(this.emberLevels[h.id] ?? 0, this.emberPeak[h.id] ?? 0)) >= level).length;'],
+    ['state.ts', '  stallBreaker() {\n', `  ascendLevel() {
+    const team = HEROES.filter((h) => this.inLineup(h.id));
+    return team.length ? team.reduce((t, h) => t + (this.emberLevels[h.id] ?? 0), 0) / team.length : 0;
+  }
+
+  canEmberAscend() {
+    const lv = this.ascendLevel();
+    return lv >= ${minLevel} && lv > this.ascLastLevel;
+  }
+
+  emberAscend() {
+    if (!this.canEmberAscend()) return false;
+    this.ascLastLevel = this.ascendLevel();
+    for (const h of HEROES) {
+      const lv = this.emberLevels[h.id] ?? 0;
+      this.emberPeak[h.id] = Math.max(this.emberPeak[h.id] ?? 0, lv);
+      this.emberLevels[h.id] = Math.floor(lv * ${keep});
+    }
+    this.embers = new Decimal(0);
+    this.ascensions += 1;
+    this.ascStages += ${gain};
+    this.gold = new Decimal(0);
+    const start = this.headStart ? this.headStartStage() : 1;
+    this.stage = start;
+    this.runBestStage = start;
+    this.runStartStage = start;
+    for (const def of STALLS) this.stalls[def.id] = { level: 0, progress: 0 };
+    this.autoAdvance = true;
+    for (const h of HEROES) this.levels[h.id] = h.unlockCost === 0 ? 1 : this.levels[h.id] > 0 ? 1 : 0;
+    this.secondsPerStage = 20;
+    this.goldPerSec = 0;
+    return true;
+  }
+
+  stallBreaker() {\n`],
+  ];
+}
+
 export const VARIANTS: Record<string, { text: string; edits: Edit[] }> = {
   baseline: { text: 'The game as it is on main.', edits: [] },
   // gold
@@ -104,6 +156,18 @@ export const VARIANTS: Record<string, { text: string; edits: Edit[] }> = {
   stallBreak50Strong: { text: 'emberMid + stall breaker: +50% Embers per day after 5 days without a new 50-stage milestone, up to +1,000%', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(5, 0.5, 10, 50)] },
   stallStage: { text: 'emberMid + stall breaker: after 5 days without a new boss milestone, Rekindle pays as if 3 stages further per day, up to +60 stages', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(5, 3, 60, 50, true)] },
   stallStageStrong: { text: 'emberMid + stall breaker: after 3 days without a new boss milestone, Rekindle pays as if 5 stages further per day, up to +100 stages', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(3, 5, 100, 50, true)] },
+  asc50: { text: 'emberMid v2 + Ascension: Ember levels x0, each one makes Rekindle pay as if 50 stages further for good (opens at team Ember level 8000)', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(3, 5, 100, 50, true), ...prestige(50, 0, 8000)] },
+  asc150: { text: 'emberMid v2 + Ascension: Ember levels x0, each one makes Rekindle pay as if 150 stages further for good (opens at team Ember level 8000)', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(3, 5, 100, 50, true), ...prestige(150, 0, 8000)] },
+  asc400: { text: 'emberMid v2 + Ascension: Ember levels x0, each one makes Rekindle pay as if 400 stages further for good (opens at team Ember level 8000)', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(3, 5, 100, 50, true), ...prestige(400, 0, 8000)] },
+  asc150half: { text: 'emberMid v2 + Ascension: Ember levels x0.5, each one makes Rekindle pay as if 150 stages further for good (opens at team Ember level 8000)', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(3, 5, 100, 50, true), ...prestige(150, 0.5, 8000)] },
+  asc20: { text: 'emberMid v2 + Ascension: Ember levels x0, each one makes Rekindle pay as if 20 stages further for good (opens at team Ember level 8000)', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(3, 5, 100, 50, true), ...prestige(20, 0, 8000)] },
+  asc20half: { text: 'emberMid v2 + Ascension: Ember levels x0.5, each one makes Rekindle pay as if 20 stages further for good (opens at team Ember level 8000)', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(3, 5, 100, 50, true), ...prestige(20, 0.5, 8000)] },
+  asc20k80: { text: 'emberMid v2 + Ascension: Ember levels x0.8, each one makes Rekindle pay as if 20 stages further for good (opens at team Ember level 8000)', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(3, 5, 100, 50, true), ...prestige(20, 0.8, 8000)] },
+  asc50half: { text: 'emberMid v2 + Ascension: Ember levels x0.5, each one makes Rekindle pay as if 50 stages further for good (opens at team Ember level 8000)', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(3, 5, 100, 50, true), ...prestige(50, 0.5, 8000)] },
+  asc50k80: { text: 'emberMid v2 + Ascension: Ember levels x0.8, each one makes Rekindle pay as if 50 stages further for good (opens at team Ember level 8000)', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(3, 5, 100, 50, true), ...prestige(50, 0.8, 8000)] },
+  asc10c: { text: 'emberMid v2 + Ascension with catch-up: Ember levels to 0, Rekindle pays by the record stage until the old level is back, each one adds 10 pay stages for good', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(3, 5, 100, 50, true), ...prestige(10, 0, 8000, true)] },
+  asc20c: { text: 'emberMid v2 + Ascension with catch-up: Ember levels to 0, Rekindle pays by the record stage until the old level is back, each one adds 20 pay stages for good', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(3, 5, 100, 50, true), ...prestige(20, 0, 8000, true)] },
+  asc30c: { text: 'emberMid v2 + Ascension with catch-up: Ember levels to 0, Rekindle pays by the record stage until the old level is back, each one adds 30 pay stages for good', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(3, 5, 100, 50, true), ...prestige(30, 0, 8000, true)] },
   lateEmber64: { text: 'emberMid + Ember payout 6.4% per stage from stage 10,000', edits: [emberCurve([[2000, 1.0605], [4000, 1.062], [10000, 1.064]])] },
   lateEmber65at11k: { text: 'emberMid + Ember payout 6.5% per stage from stage 11,000', edits: [emberCurve([[2000, 1.0605], [4000, 1.062], [11000, 1.065]])] },
   'ember6.2': { text: 'Flat: Ember payout 6.2% per stage from stage 2,000', edits: [emberCurve([[2000, 1.062]])] },
