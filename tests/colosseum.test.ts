@@ -1,3 +1,4 @@
+import { GLORY_DAILY } from '../src/arenaShop';
 import { beforeEach, describe, expect, it } from 'vitest';
 import Decimal from 'break_infinity.js';
 import { GameState, cleanSnapHero, type PvpCandidate } from '../src/state';
@@ -58,12 +59,16 @@ describe('Colosseum rewards', () => {
     const s = opened();
     expect(s.pvpTick(WED)).toEqual([]); // first open only starts the clocks
     s.pvp.trophies = RANK_TROPHIES[7] + 10; // Gold II
-    s.pvpTick(WED + DAY); // Thursday
-    expect(s.starmotes).toBe(RANK_DAILY[7]);
+    s.pvpTick(WED + DAY); // Thursday: Glory now, the day's Starmotes saved for the season payout
+    expect(s.glory).toBe(GLORY_DAILY[7]);
+    expect(s.starmotes).toBe(0);
+    expect(s.pvp.season).toBe(RANK_DAILY[7]);
     s.pvpTick(WED + DAY + 3600_000); // same day: nothing more
-    expect(s.starmotes).toBe(RANK_DAILY[7]);
-    const lines = s.pvpTick(WED + 5 * DAY); // next Monday
+    expect(s.glory).toBe(GLORY_DAILY[7]);
+    const lines = s.pvpTick(WED + 5 * DAY); // next Monday: the season pays everything saved plus the weekly reward
     expect(s.starmotes).toBe(2 * RANK_DAILY[7] + RANK_WEEKLY[7]);
+    expect(s.pvp.season).toBe(0);
+    expect(s.glory).toBe(2 * GLORY_DAILY[7]);
     expect(s.pvp.trophies).toBe(RANK_TROPHIES[4]);
     expect(lines.join(' ')).toMatch(/drop to Silver II/);
   });

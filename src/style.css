@@ -943,6 +943,12 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .pvp-foe { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: rgba(0,0,0,.25); border: 2px solid var(--wood-deep); border-radius: 10px; padding: 6px 8px; color: #e4eaf8; }
 .pvp-foe .who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .pvp-foe .faces, .pvp-team .faces { display: flex; gap: 3px; flex-wrap: wrap; }
+.arena-shop { display: flex; flex-direction: column; gap: 6px; }
+.arena-item { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,.25); border: 2px solid var(--wood-deep); border-radius: 10px; padding: 6px 8px; color: #e4eaf8; }
+.arena-item .who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.arena-item .trial-medal, .arena-item .crest-face { flex: none; }
+.arena-ico { width: 34px; height: 34px; flex: none; display: grid; place-items: center; font-size: 22px; background: rgba(255,255,255,.08); border-radius: 8px; }
+.arena-item .rar-common { color: #fff; } .arena-item .rar-rare { color: #6fb6ff; } .arena-item .rar-epic { color: #c38bff; } .arena-item .rar-legendary { color: #ffb347; }
 .pvp-pay { font-size: 12px; text-align: right; white-space: nowrap; color: #d0daf3; }
 .pvp-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .pvp-team { display: flex; flex-direction: column; gap: 4px; }

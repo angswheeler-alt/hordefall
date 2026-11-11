@@ -10,6 +10,7 @@ import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills
 import { isKnight, combatPower, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
 import { OBSERVATORY, OBSERVATORY_RESPEC_GEMS, obsDef, sigilCost, sigilsSpent, sigilsEarned, cleanObservatory, type ObsBranch } from './observatory';
+import { GLORY_DAILY, fightGlory, arenaItems, PASTA_ID, PASTA_UNLOCK, pastaDrop, PASTA_CHEST_CHANCE, PASTA_CHEST_CRESTS, PASTA_TRIAL_CHANCE, PASTA_REWARD_CHANCE, type ArenaItem } from './arenaShop';
 import { PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_TICKET_GEMS, PVP_TICKET_BUYS, PVP_REFRESH_MINUTES, PVP_CP_MIN, PVP_CP_MAX, PVP_REAL_MIN, PVP_REAL_MAX, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_FIRST_WIN_MOTES, PVP_STREAK_DMG, PVP_STREAK_MAX, PVP_QUICK_CP, PVP_QUICK_HP, rankCp, RANK_DAILY, RANK_WEEKLY, rankIndex, rankName, droppedTrophies, seededRandom, ghostName, simulatePvp, type PvpUnit, type PvpResult } from './colosseum';
 import { TUTORIAL_DONE, OLD_TUTORIAL_DONE, TIP_IDS } from './tutorialSteps';
 import { ascendBlocker, ascendNeeds, clampForm, formArtKey, resolveForm, COUNTERED_BY, type AscendBlocker, type AscendContext, type AscendantDef } from './ascendant';
@@ -182,7 +183,9 @@ export interface PvpFight {
   foe: PvpOpponent;
   won: boolean;
   trophies: number;
+  /** Starmotes banked for the season-end payout. */
   starmotes: number;
+  glory: number;
   firstWin: boolean;
   rankBefore: number;
   rankAfter: number;
@@ -207,6 +210,8 @@ export interface PvpState {
   picks: PvpOpponent[];
   /** Daily/weekly reward lines not shown to the player yet. */
   notes: string[];
+  /** Starmotes banked this Arena season (fights and daily rank pay), paid with the weekly reward on Monday. */
+  season: number;
   /** Attack and defense teams (hero ids); empty means the lineup. */
   attack: string[];
   defense: string[];
@@ -216,7 +221,7 @@ export interface PvpState {
   topCpLog?: number;
 }
 
-const newPvp = (): PvpState => ({ trophies: 0, tickets: PVP_TICKET_CAP, clock: Date.now(), streak: 0, wins: 0, losses: 0, day: '', week: '', firstWin: '', buys: { day: '', used: 0 }, refreshes: 0, refreshAt: 0, picks: [], notes: [], attack: [], defense: [], active: -1 });
+const newPvp = (): PvpState => ({ trophies: 0, tickets: PVP_TICKET_CAP, clock: Date.now(), streak: 0, wins: 0, losses: 0, day: '', week: '', firstWin: '', buys: { day: '', used: 0 }, refreshes: 0, refreshAt: 0, picks: [], notes: [], season: 0, attack: [], defense: [], active: -1 });
 
 export interface TrialResult {
   won: boolean;
@@ -435,6 +440,10 @@ export class GameState {
   forge: Record<ForgeMat, number> = { ore: 0, crystal: 0, coreC: 0, coreR: 0, coreE: 0 };
   /** Wild Crests from Gilded Scouting: crests for any non-Legendary, non-Ascendant hero. */
   wildCrests = 0;
+  /** Colosseum shop currency (src/arenaShop.ts). */
+  glory = 0;
+  /** Arena Shop buys this season: week key and buys per item id. */
+  arenaBuys: { week: string; n: Record<string, number> } = { week: '', n: {} };
   /** Glyphs (src/glyphs.ts): every Glyph owned, socketed or in the bag; Glyph Dust; Unbinders; Glyphs rolled so far (seeds new ones). */
   glyphs: Glyph[] = [];
   glyphDust = 0;
@@ -904,6 +913,35 @@ export class GameState {
     return true;
   }
 
+  /** Arena Shop buys this season (resets each Monday with the Arena season). */
+  arenaNow(now = Date.now()): Record<string, number> {
+    const week = weekKey(now);
+    if (this.arenaBuys.week !== week) this.arenaBuys = { week, n: {} };
+    return this.arenaBuys.n;
+  }
+
+  arenaLeft(item: ArenaItem, now = Date.now()): number {
+    return Math.max(0, item.perWeek - (this.arenaNow(now)[item.id] ?? 0));
+  }
+
+  /** Buy one Arena Shop item with Glory. Returns what a Glyph Chest gave, true for other items, or false. */
+  buyArena(id: string, now = Date.now()): boolean | Array<{ glyph?: Glyph; dust?: number }> {
+    const item = arenaItems().find((i) => i.id === id);
+    if (!item || !this.pvpOpen() || this.glory < item.price || this.arenaLeft(item, now) <= 0) return false;
+    if (item.kind === 'crests' && (!item.hero || !HEROES.some((h) => h.id === item.hero))) return false;
+    this.glory -= item.price;
+    const n = this.arenaNow(now);
+    n[item.id] = (n[item.id] ?? 0) + 1;
+    let got: boolean | Array<{ glyph?: Glyph; dust?: number }> = true;
+    if (item.kind === 'crests') this.addCrests(item.hero!, item.amount);
+    else if (item.kind === 'coreE') this.forge.coreE += item.amount;
+    else if (item.kind === 'wild') this.wildCrests += item.amount;
+    else if (item.kind === 'stones') this.enhanceStones += item.amount;
+    else got = this.openGlyphChests('glyph', item.amount);
+    this.save();
+    return got;
+  }
+
   /** Buy one Epic Forge Core with Enhance Stones. */
   alchemyCore(now = Date.now()): boolean {
     const a = this.alchemyNow(now);
@@ -1263,6 +1301,7 @@ export class GameState {
   /** Medals a locked hero needs to unlock (0 for the free starter); Legendary heroes take Legendary medals. */
   unlockCrests(def: HeroDef): number {
     if (def.unlockCost === 0) return 0;
+    if (def.id === PASTA_ID) return PASTA_UNLOCK;
     return def.rarity === 'legendary' ? LEGENDARY_UNLOCK_MEDALS : UNLOCK_CRESTS[def.rarity];
   }
 
@@ -1338,7 +1377,18 @@ export class GameState {
       const isNew = locked && before < need && before + crests >= need;
       drops.push({ heroId: hero.id, crests, isNew });
     }
+    // Pasta (one of a kind): a rare extra drop from any chest.
+    const pasta = pastaDrop(Math.random, PASTA_CHEST_CHANCE, PASTA_CHEST_CRESTS);
+    if (pasta) drops.push(this.givePasta(pasta));
     return drops;
+  }
+
+  /** Pasta crests from a rare drop, as a chest-style drop line. */
+  givePasta(crests: number): SummonDrop {
+    const before = this.crests[PASTA_ID] ?? 0;
+    const locked = (this.levels[PASTA_ID] ?? 0) === 0;
+    this.addCrests(PASTA_ID, crests);
+    return { heroId: PASTA_ID, crests, isNew: locked && before < PASTA_UNLOCK && before + crests >= PASTA_UNLOCK };
   }
 
   /**
@@ -1555,15 +1605,19 @@ export class GameState {
     }
     const lines: string[] = [];
     if (p.day !== day) {
+      // Glory now; the day's Starmotes wait for the season-end payout (Samuel, 2026-11-11).
       const r = rankIndex(p.trophies);
-      this.starmotes += RANK_DAILY[r];
-      lines.push(`Daily reward for ${rankName(r)}: ${RANK_DAILY[r]} Starmotes`);
+      this.glory += GLORY_DAILY[r];
+      p.season += RANK_DAILY[r];
+      lines.push(`Daily reward for ${rankName(r)}: ${GLORY_DAILY[r]} Glory (+${RANK_DAILY[r]} Starmotes saved for the season payout)`);
       p.day = day;
     }
     if (p.week !== week) {
       const r = rankIndex(p.trophies);
-      this.starmotes += RANK_WEEKLY[r];
-      lines.push(`Weekly reward for ${rankName(r)}: ${RANK_WEEKLY[r]} Starmotes`);
+      const pay = RANK_WEEKLY[r] + p.season;
+      this.starmotes += pay;
+      lines.push(`Season over! ${rankName(r)} reward ${RANK_WEEKLY[r]} + ${p.season} saved = ${pay} Starmotes`);
+      p.season = 0;
       p.trophies = droppedTrophies(p.trophies);
       p.streak = 0;
       lines.push(`New week: you drop to ${rankName(rankIndex(p.trophies))}. Climb back up!`);
@@ -1841,12 +1895,15 @@ export class GameState {
       p.losses++;
     }
     p.trophies += trophies;
-    this.starmotes += starmotes;
+    // Starmotes are banked for the season-end payout; Glory pays now.
+    p.season += starmotes;
+    const glory = fightGlory(won);
+    this.glory += glory;
     // New opponents come next (the game asks the server for real players first).
     p.picks = [];
     p.refreshAt = 0;
     this.save();
-    return { foe, won, trophies, starmotes, firstWin, rankBefore, rankAfter: rankIndex(p.trophies) };
+    return { foe, won, trophies, starmotes, glory, firstWin, rankBefore, rankAfter: rankIndex(p.trophies) };
   }
 
 
@@ -2401,6 +2458,12 @@ export class GameState {
     const pool = this.trialPool(element);
     const medals = this.trialMedals();
     for (let i = 0; i < medals; i++) {
+      // Pasta (one of a kind) can turn up on any element's Trial, very rarely.
+      if (pastaDrop(Math.random, PASTA_TRIAL_CHANCE)) {
+        result.medals.push(PASTA_ID);
+        this.addCrests(PASTA_ID, 1);
+        continue;
+      }
       const hero = pickByRarity(pool, TRIAL_RARITY_WEIGHTS);
       if (!hero) break;
       result.medals.push(hero.id);
@@ -2803,6 +2866,8 @@ export class GameState {
     this.gold = this.gold.plus(gold);
     const drops: SummonDrop[] = [];
     for (let i = 0; i < (r.chests ?? 0); i++) drops.push(...this.rollChest());
+    // Pasta: any other reward (dailies, login, milestones, Rush tiers...) has a small chance of a crest.
+    if (pastaDrop(Math.random, PASTA_REWARD_CHANCE)) drops.push(this.givePasta(1));
     this.enhanceStones += r.stones ?? 0;
     this.wildCrests += r.wild ?? 0;
     if (r.tickets) {
@@ -4789,6 +4854,8 @@ export class GameState {
       scout: this.scout,
       forge: this.forge,
       wildCrests: this.wildCrests,
+      glory: this.glory,
+      arenaBuys: this.arenaBuys,
       glyphs: this.glyphs,
       glyphDust: this.glyphDust,
       unbinders: this.unbinders,
@@ -5022,6 +5089,8 @@ export class GameState {
       this.scout = cleanScout(d.scout, new Set(HEROES.map((h) => h.id)));
       for (const m of FORGE_MATS) this.forge[m] = Math.max(0, Math.floor(Number(d.forge?.[m]) || 0));
       this.wildCrests = Math.max(0, Math.floor(Number(d.wildCrests) || 0));
+      this.glory = Math.max(0, Math.floor(Number(d.glory) || 0));
+      this.arenaBuys = d.arenaBuys && typeof d.arenaBuys.week === 'string' && d.arenaBuys.n && typeof d.arenaBuys.n === 'object' ? { week: d.arenaBuys.week, n: { ...d.arenaBuys.n } } : { week: '', n: {} };
       const int = (v: unknown) => Math.max(0, Math.floor(Number(v) || 0));
       this.glyphDust = int(d.glyphDust);
       this.unbinders = int(d.unbinders);

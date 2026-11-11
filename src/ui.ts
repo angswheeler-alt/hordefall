@@ -29,14 +29,15 @@ import { meterTops, type PvpMeterRow } from './battleMeter';
 const TRIAL_HUD_NOTE = 'Your team fights at its Ember levels. Fallen heroes stay down until the Trial ends. Beat the boss before time runs out.';
 import type { ColosseumLink } from './colosseumLink';
 import { OBSERVATORY, OBSERVATORY_RESPEC_GEMS, SIGIL_COST_STEP, SIGIL_LEVEL_STEP, sigilsEarned, sigilCost, type ObsBranch } from './observatory';
-import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_QUICK_CP, RANK_DAILY, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies, ultsAllowed } from './colosseum';
+import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_QUICK_CP, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies, ultsAllowed } from './colosseum';
 
 import { BUY_AMOUNT_LIMIT, amountSliderHtml, bindAmountSlider, buyAmountLabel, buyAmountToSlider, sliderToBuyAmount, type BuyAmount } from './amountSlider';
 import { busyWhile, setHtml } from './taps';
 import { holdToRepeat } from './hold';
 import { ScoutUI } from './scoutUi';
 import { WILD_CREST_COST } from './scouting';
-import { GlyphUI } from './glyphUi';
+import { GlyphUI, glyphCard } from './glyphUi';
+import { arenaItems, ARENA_ICON, ARENA_NAME, GLORY_DAILY, GLORY_WIN, GLORY_LOSS, PASTA_ID } from './arenaShop';
 import { JournalUI, journalRulesText } from './journalUi';
 import { bossPicHtml, heroFaceCss, heroWholeCss } from './portrait';
 import { RushUI, rushResultHtml } from './rushUi';
@@ -2471,7 +2472,7 @@ export class UI {
   // ---------- Colosseum ----------
 
   /** Which Colosseum page shows: the rank and three opponents, or one opponent before battle. Teams are picked in Manage Team. */
-  private pvpView: 'list' | 'foe' = 'list';
+  private pvpView: 'list' | 'foe' | 'shop' = 'list';
   private pvpSlot = 0;
   private pvpForecastKey = '';
   /** The Colosseum server link (real opponents, defense log); null until main.ts sets it. */
@@ -2541,6 +2542,7 @@ export class UI {
       setHtml($('pvp'), '<p>Finding opponents…</p>');
       return;
     }
+    if (this.pvpView === 'shop') return setHtml($('pvp'), this.arenaShopHtml());
     if (this.pvpView === 'foe' && p.picks[this.pvpSlot]) return setHtml($('pvp'), this.pvpFoeHtml(this.pvpSlot));
     this.pvpView = 'list';
     const r = rankIndex(p.trophies);
@@ -2552,7 +2554,7 @@ export class UI {
       .map(
         (foe, i) => `<button class="pvp-foe" data-pvp="foe" data-slot="${i}">
           <div class="who"><b>${escHtml(foe.name)}</b><span><small>CP ${fmt(new Decimal(foe.cp))}</small></span><span class="faces">${this.pvpFoeFaces(foe)}</span></div>
-          <div class="pvp-pay">Win: +${PVP_WIN_TROPHIES} trophies<br>+${PVP_WIN_MOTES} Starmotes</div>
+          <div class="pvp-pay">Win: +${PVP_WIN_TROPHIES} trophies<br>+${GLORY_WIN} Glory</div>
         </button>`,
       )
       .join('');
@@ -2562,13 +2564,34 @@ export class UI {
       $('pvp'),
       `${notes}
       <div class="pvp-rank"><div style="flex:1"><div class="badge-rank">${rankName(r)}</div><small>${p.trophies} trophies${next === null ? '' : ` · ${next - p.trophies} to ${rankName(r + 1)}`}</small><div class="pvp-bar"><div style="width:${fill}%"></div></div></div>
-        <div class="pvp-pay">${s.starmotes} Starmotes<br><small>${p.wins}W ${p.losses}L${p.streak ? ` · streak ${p.streak} (+${Math.round(s.pvpStreakBonus() * 100)}% dmg)` : ''}</small></div></div>
-      <small>Daily ${RANK_DAILY[r]} · Weekly ${RANK_WEEKLY[r]} Starmotes at this rank. On Monday the weekly reward pays, then you drop to ${rankName(rankIndex(droppedTrophies(p.trophies)))}.</small>
+        <div class="pvp-pay">${s.glory} Glory · ${s.starmotes} Starmotes<br><small>${p.wins}W ${p.losses}L${p.streak ? ` · streak ${p.streak} (+${Math.round(s.pvpStreakBonus() * 100)}% dmg)` : ''}</small></div></div>
+      <small>Daily ${GLORY_DAILY[r]} Glory at this rank. Starmotes saved this season: <b>${p.season}</b>. On Monday the season ends: you get them plus ${RANK_WEEKLY[r]} for your rank, then drop to ${rankName(rankIndex(droppedTrophies(p.trophies)))}.</small>
       ${foes}
-      <div class="pvp-row"><button class="wood-btn small" data-pvp="board">Leaderboard &amp; log</button><button class="wood-btn small" data-pvp="refresh" ${refreshIn ? 'disabled' : ''}>${refreshIn ? `New opponents in ${Math.floor(refreshIn / 60)}:${String(refreshIn % 60).padStart(2, '0')}` : 'New opponents'}</button>${ticketBtn}</div>
+      <div class="pvp-row"><button class="wood-btn small" data-pvp="shop">Arena Shop</button><button class="wood-btn small" data-pvp="board">Leaderboard &amp; log</button><button class="wood-btn small" data-pvp="refresh" ${refreshIn ? 'disabled' : ''}>${refreshIn ? `New opponents in ${Math.floor(refreshIn / 60)}:${String(refreshIn % 60).padStart(2, '0')}` : 'New opponents'}</button>${ticketBtn}</div>
       <div class="pvp-team"><div class="pvp-row"><b>Attack team <small>CP ${fmt(s.fixedTeamCp(s.pvpAttackTeam()))}</small></b><button class="wood-btn small" data-pvp="team" data-kind="attack">Edit</button></div><span class="faces">${s.pvpAttackTeam().map((h) => this.pvpFace(h)).join('')}</span><small>You fight with this team. Your stage team stays as it is.</small></div>
       <div class="pvp-team"><div class="pvp-row"><b>Defense team</b><button class="wood-btn small" data-pvp="team" data-kind="defense">Edit</button></div><span class="faces">${s.pvpDefenseTeam().map((h) => this.pvpFace(h)).join('')}</span><small>Other players fight this team. Losing on defense never costs trophies.</small></div>`,
     );
+  }
+
+  /** The Arena Shop page inside the Colosseum (src/arenaShop.ts). */
+  private arenaShopHtml() {
+    const s = this.state;
+    const rows = arenaItems()
+      .map((item) => {
+        const left = s.arenaLeft(item);
+        const def = item.hero ? HEROES.find((h) => h.id === item.hero) : undefined;
+        const pic = def
+          ? crestFace(def, `<span class="face art" style="${faceStyle(def)}">${HERO_ANIMS[heroArtKey(def.id)] ? '' : def.name[0]}</span>`)
+          : `<span class="arena-ico">${ARENA_ICON[item.kind]}</span>`;
+        const name = def ? `${item.amount} ${def.name} crests` : ARENA_NAME[item.kind](item.amount);
+        const rar = def ? `<small class="rar-${def.rarity}">${def.id === PASTA_ID ? 'Unique' : def.rarity[0].toUpperCase() + def.rarity.slice(1)}</small>` : '';
+        return `<div class="arena-item">${pic}<div class="who"><b>${name}</b>${rar}<small>${left}/${item.perWeek} left this season</small></div>
+          <button class="wood-btn small" data-pvp="arena-buy" data-item="${item.id}" ${s.glory < item.price || left <= 0 ? 'disabled' : ''}>${item.price} Glory</button></div>`;
+      })
+      .join('');
+    return `<div class="pvp-row"><button class="wood-btn small" data-pvp="back">‹ Back</button><b>${s.glory} Glory</b></div>
+      <p>Spend Glory from Colosseum fights. Limits reset each Monday when the season ends.</p>
+      <div class="arena-shop">${rows}</div>`;
   }
 
   private pvpFoeHtml(slot: number) {
@@ -2592,7 +2615,7 @@ export class UI {
       <div class="pvp-team"><b>${escHtml(foe.name)} <small>CP ${fmt(new Decimal(foe.cp))}</small></b><span class="faces">${this.pvpFoeFaces(foe)}</span></div>
       <div class="pvp-team"><div class="pvp-row"><b>Your attack team <small>CP ${fmt(mine)}</small></b><button class="wood-btn small" data-pvp="team" data-kind="attack">Change</button></div><span class="faces">${team.map((h) => this.pvpFace(h)).join('')}</span></div>
       ${forecast ? `<small class="pvp-forecast ${forecast[0]}">${forecast[1]}</small>` : ''}
-      <small>Your team starts at the blue crystal and theirs at the red one. Fallen fighters come back after 10 seconds. The first crystal destroyed loses. Win: +${PVP_WIN_TROPHIES} trophies and ${PVP_WIN_MOTES} Starmotes. Loss: -${PVP_LOSS_TROPHIES} trophies, ${PVP_LOSS_MOTES} Starmote.</small>
+      <small>Your team starts at the blue crystal and theirs at the red one. Fallen fighters come back after 10 seconds. The first crystal destroyed loses. Win: +${PVP_WIN_TROPHIES} trophies, ${GLORY_WIN} Glory and ${PVP_WIN_MOTES} Starmotes for the season payout. Loss: -${PVP_LOSS_TROPHIES} trophies, ${GLORY_LOSS} Glory, ${PVP_LOSS_MOTES} Starmote.</small>
       <button class="wood-btn levelall" data-pvp="fight" ${can ? '' : 'disabled'}>${s.pvp.tickets > 0 ? 'Battle! (1 ticket)' : 'No tickets left'}</button>
       ${strong ? `<button class="wood-btn levelall" data-pvp="quick" ${can ? '' : 'disabled'} title="Skip the fight and take the win">Quick Battle (1 ticket)</button>` : `<small>Quick Battle opens when your attack team has ${Math.round((PVP_QUICK_CP - 1) * 100)}% more CP than theirs and looks like an easy win.</small>`}`;
   }
@@ -2621,6 +2644,16 @@ export class UI {
       case 'buy':
         if (s.buyPvpTicket()) play('unlock');
         break;
+      case 'shop':
+        this.pvpView = 'shop';
+        break;
+      case 'arena-buy': {
+        const got = s.buyArena(btn.dataset.item ?? '');
+        if (!got) return;
+        play('unlock');
+        if (Array.isArray(got)) this.showModal('Glyph Chest', got.map((g) => (g.glyph ? glyphCard(g.glyph) : `<p>+${g.dust} Glyph Dust (bag full)</p>`)).join(''), 'Okay');
+        break;
+      }
       case 'notes-ok':
         s.pvp.notes = [];
         s.save();
@@ -2641,7 +2674,7 @@ export class UI {
   /** The result line after a Colosseum fight (live or Quick Battle). */
   private pvpResultHtml(r: ReturnType<GameState['finishPvp']>, quick = false) {
     if (!r) return '';
-    return `<p class="tf-result ${r.won ? 'win' : 'lose'}">${quick ? 'Quick Battle win!' : r.won ? 'Victory!' : 'Defeat.'} ${r.trophies > 0 ? `+${r.trophies} trophies` : r.trophies < 0 ? `${r.trophies} trophies` : 'No trophies lost'} · +${r.starmotes} Starmote${r.starmotes === 1 ? '' : 's'}${r.firstWin ? ' (first win today +10)' : ''}</p>${r.rankAfter !== r.rankBefore ? `<p>${r.rankAfter > r.rankBefore ? 'Ranked up' : 'Dropped'} to <b>${rankName(r.rankAfter)}</b>!</p>` : ''}`;
+    return `<p class="tf-result ${r.won ? 'win' : 'lose'}">${quick ? 'Quick Battle win!' : r.won ? 'Victory!' : 'Defeat.'} ${r.trophies > 0 ? `+${r.trophies} trophies` : r.trophies < 0 ? `${r.trophies} trophies` : 'No trophies lost'} · +${r.glory} Glory · +${r.starmotes} Starmote${r.starmotes === 1 ? '' : 's'} saved for the season payout${r.firstWin ? ' (first win today +10)' : ''}</p>${r.rankAfter !== r.rankBefore ? `<p>${r.rankAfter > r.rankBefore ? 'Ranked up' : 'Dropped'} to <b>${rankName(r.rankAfter)}</b>!</p>` : ''}`;
   }
 
   /** Quick Battle: when the attack team is clearly stronger, skip the fight and take the win. */

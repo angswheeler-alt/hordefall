@@ -120,3 +120,15 @@ export function quarryCarry(sig: Signature | undefined, streak: number, plus = f
   if (sig?.kind !== 'quarry') return 0;
   return Math.floor(streak * (plus ? sig.plusKeep : sig.keep));
 }
+
+/**
+ * Combo Counter (Pasta): one hit at `combo` hits so far, `sinceLast` seconds after the previous hit. Any target counts;
+ * a gap longer than `idle` halves it (a full reset made him the weakest on wave stages, balance bench 2026-11-11). `alone` (6★ Last One Standing, every teammate down) never resets and counts double.
+ * Returns the new combo and this hit's damage multiplier.
+ */
+export function gritStep(sig: Signature | undefined, combo: number, sinceLast: number, alone = false): { combo: number; mult: number } {
+  if (sig?.kind !== 'grit') return { combo: 0, mult: 1 };
+  const start = !alone && sinceLast > sig.idle ? Math.floor(combo / 2) : combo;
+  const next = start + (alone ? 2 : 1);
+  return { combo: next, mult: 1 + Math.min(sig.max, sig.perHit * next) };
+}

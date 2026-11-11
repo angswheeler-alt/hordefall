@@ -136,7 +136,8 @@ describe('full roster', () => {
 
   it('releases every hero (heroes without art use placeholder art)', async () => {
     const { RELEASED_HEROES } = await import('../src/data');
-    for (const h of HEROES) expect(RELEASED_HEROES, h.id).toContain(h.id);
+    // Pasta stays hidden while his kit is tested (src/heroes/pasta.ts).
+    for (const h of HEROES) if (h.id !== 'pasta') expect(RELEASED_HEROES, h.id).toContain(h.id);
   });
 
   it('makes every hero a single unit (no squads), with troop text that says so', () => {
@@ -154,5 +155,23 @@ describe('full roster', () => {
       if (fx.kind === 'atk' || fx.kind === 'hp' || fx.kind === 'def') expect(fx.value, h.id).toBeLessThanOrEqual(1.25);
       if (fx.kind === 'damageTaken') expect(fx.value, h.id).toBeGreaterThanOrEqual(0.88);
     }
+  });
+});
+
+describe('Combo Counter (Pasta)', async () => {
+  const { gritStep } = await import('../src/kits');
+  const sig = { kind: 'grit', perHit: 0.02, max: 1, idle: 3, standSeconds: 5 } as const;
+  it('adds +2% per hit in a row on any target, capped at +100%', () => {
+    expect(gritStep(sig, 0, 99).mult).toBeCloseTo(1.02);
+    expect(gritStep(sig, 9, 1).mult).toBeCloseTo(1.2);
+    expect(gritStep(sig, 80, 1).mult).toBeCloseTo(2);
+  });
+  it('halves after the idle gap, except when Last One Standing', () => {
+    expect(gritStep(sig, 30, 3.5).combo).toBe(16);
+    expect(gritStep(sig, 30, 3.5, true).combo).toBe(32);
+    expect(gritStep(sig, 30, 2).combo).toBe(31);
+  });
+  it('does nothing for other Signatures', () => {
+    expect(gritStep({ kind: 'combo', perHit: 0.1, max: 0.5 }, 10, 1)).toEqual({ combo: 0, mult: 1 });
   });
 });
