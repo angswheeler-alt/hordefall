@@ -27,7 +27,7 @@ export const WHATS_NEW_SHOWN = 8;
 
 /** Newest first. */
 export const WHATS_NEW: WhatsNewEntry[] = [
-  { id: 'rebirth', date: '2026-11-11', text: '<b>Rebirth</b> (Rekindle page, Ember level +8,000): reset Ember levels for a permanent Rekindle boost. Long stalls now pay extra.' },
+  { id: 'rebirth', date: '2026-11-11', text: '<b>Ashfall</b> (Rekindle page, Ember level +8,000): reset Ember levels for a permanent Rekindle boost. Long stalls now pay extra.' },
   { id: 'alchemist-ore-trials', date: '2026-11-07', text: '<b>Alchemist</b> now trades Ore and Crystal too. <b>Trial levels 34-40</b> need lower stages, so they open sooner.' },
   { id: 'essence-stone-sinks', date: '2026-11-07', text: '<b>Relics</b>: new Attunement (Essence for +1% ATK/HP per rank), Tempering for maxed relics, and an Alchemist for spare Essence and Stones.' },
   { id: 'boss-relics', date: '2026-11-07', text: '<b>Boss relics</b>: each Guild Boss drops its own rare items. Use them to build its two relics. Guild relics past Lv 10 need them too.' },

@@ -1762,15 +1762,15 @@ export class UI {
     );
   }
 
-  /** Rebirth: asked once, because every Ember level goes back to zero. */
+  /** Ashfall: asked once, because every Ember level goes back to zero. */
   private confirmRebirth() {
     const s = this.state;
     if (!s.canRebirth()) return;
     const level = Math.round(s.rebirthTeamLevel());
     this.showModal(
-      'Rebirth?',
+      'Ashfall?',
       `Your team's average Ember level is <b>+${level.toLocaleString()}</b>. Every Ember level goes back to <b>+0</b>, your unspent Embers and this run are lost, and you start over at stage 1 with heroes at gold level 1.<br><br>In return every Rekindle from now on pays <b>${REBIRTH_PAY_STAGES} stages further, for good</b> (x${Math.pow(PAY_STAGE_GROWTH, REBIRTH_PAY_STAGES).toFixed(2)} Embers each time). Until your team is back at +${level.toLocaleString()}, Rekindle pays by your record stage, so the climb back is quick. Trials still count your highest Ember levels. Stars, Gems, relics and your player level stay.`,
-      'Rebirth',
+      'Ashfall',
       () => {
         this.closeRekindle();
         this.hooks.rebirth();
@@ -2880,7 +2880,7 @@ export class UI {
     const need = Math.max(REBIRTH_FROM_LEVEL, Math.floor(s.rebirthLevel) + 1);
     $('rk-rb-text').textContent = s.canRebirth()
       ? `Ready. Reset every Ember level to +0 for ${REBIRTH_PAY_STAGES} permanent extra pay stages on every Rekindle.`
-      : `Opens when your team's average Ember level reaches +${need.toLocaleString()} (now +${lvl.toLocaleString()}). A Rebirth resets Ember levels for ${REBIRTH_PAY_STAGES} permanent extra pay stages.`;
+      : `Opens when your team's average Ember level reaches +${need.toLocaleString()} (now +${lvl.toLocaleString()}). An Ashfall resets Ember levels for ${REBIRTH_PAY_STAGES} permanent extra pay stages.`;
     $('rk-levels').textContent = `+${(s.emberLevelsAffordable(base) - s.emberLevelsAffordable(0)).toLocaleString()}`;
     $('rk-levels').title = s.runBestStage < s.bestStage ? `Your record is stage ${s.bestStage.toLocaleString()}. Runs a little short of it still pay well.` : '';
     $('rk-keeperbonus').textContent = `x${s.keeperBonus().toFixed(2)}`;
