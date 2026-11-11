@@ -82,10 +82,47 @@ export function emberPayStage(runBestStage: number, lifetimeBest = runBestStage)
   return lifetimeBest - Math.min(short, EMBER_SOFT_ZONE) / 2 - Math.max(0, short - EMBER_SOFT_ZONE);
 }
 
+/**
+ * Ember payout growth per stage (emberMid, frozen 2026-11-08): 6% a stage up to
+ * stage 2,000, then 6.05% a stage, then 6.2% a stage from stage 4,000.
+ */
+export const EMBER_PAY_BANDS: Array<[from: number, rate: number]> = [
+  [2000, 1.0605],
+  [4000, 1.062],
+];
+
 /** Ember payout multiplier from the run's best stage (x1 just past the Rekindle stage). */
 export function emberStageBonus(runBestStage: number, rekindleStage: number, lifetimeBest = runBestStage): Decimal {
-  return Decimal.pow(1.06, emberPayStage(runBestStage, lifetimeBest) - rekindleStage - 1);
+  const pay = emberPayStage(runBestStage, lifetimeBest);
+  let bonus = Decimal.pow(1.06, pay - rekindleStage - 1);
+  EMBER_PAY_BANDS.forEach(([from, rate], i) => {
+    const to = i + 1 < EMBER_PAY_BANDS.length ? EMBER_PAY_BANDS[i + 1][0] : 1e9;
+    bonus = bonus.times(Decimal.pow(rate / 1.06, Math.min(Math.max(pay, from), to) - from));
+  });
+  return bonus;
 }
+
+/** One extra "pay stage" is worth this much more Embers (the payout growth past stage 4,000). */
+export const PAY_STAGE_GROWTH = 1.062;
+
+/**
+ * Plateau breaker: once the best stage has not passed a new 50-stage milestone for
+ * PLATEAU_GRACE_DAYS, Rekindle pays as if PLATEAU_STAGES_PER_DAY more stages were
+ * reached for every further day, up to PLATEAU_STAGES_CAP. Passing a milestone resets it.
+ */
+export const PLATEAU_STEP = 50;
+export const PLATEAU_GRACE_DAYS = 3;
+export const PLATEAU_STAGES_PER_DAY = 5;
+export const PLATEAU_STAGES_CAP = 100;
+
+/** Extra pay stages the stall breaker gives after `days` without a new milestone. */
+export function plateauStages(days: number): number {
+  return Math.min(PLATEAU_STAGES_CAP, Math.max(0, days - PLATEAU_GRACE_DAYS) * PLATEAU_STAGES_PER_DAY);
+}
+
+/** Rebirth: opens at this team average Ember level; each one adds permanent pay stages. */
+export const REBIRTH_FROM_LEVEL = 8000;
+export const REBIRTH_PAY_STAGES = 10;
 
 /** Embers granted for a Rekindle with this as the highest stage reached in the run. */
 export function emberYield(runBestStage: number, rekindleStage: number, keeperBonus = 1, lifetimeBest = runBestStage): Decimal {

@@ -14,7 +14,7 @@ import { HERO_ANIMS } from './heroAnims';
 import { setMuted, setVolumes } from './sfx';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES } from './bossAnims';
 import { offlineNote } from './offlineNote';
-import { guildBossElement, utcWeekStart, bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberRefund, emberBulk, emberStageBonus, keeperThreshold, fmt, fmtDuration, compareTag, NUMBER_LETTERS_NOTE } from './formulas';
+import { guildBossElement, utcWeekStart, bulkCost, upgradeCost, stallUpgradeCost, stallBulkCost, trialHp, isBossStage, emberCost, emberRefund, emberBulk, emberStageBonus, keeperThreshold, fmt, fmtDuration, compareTag, NUMBER_LETTERS_NOTE, PAY_STAGE_GROWTH, REBIRTH_FROM_LEVEL, REBIRTH_PAY_STAGES } from './formulas';
 import type { WelcomeSection } from './welcome';
 import { WHATS_NEW_TITLE } from './whatsNew';
 import type { GameState, OfflineReport, SummonDrop, RekindleResult, TrialResult, PvpOpponent } from './state';
@@ -163,7 +163,7 @@ export class UI {
   constructor(
     private state: GameState,
     private scene: () => BattleScene | undefined,
-    private hooks: { simulateAway: () => void; resetAccount: () => Promise<string | null>; rekindle: (mult: number) => void },
+    private hooks: { simulateAway: () => void; resetAccount: () => Promise<string | null>; rekindle: (mult: number) => void; rebirth: () => void },
   ) {
     setFormArt((id) => this.state.heroArtKey(id));
     this.journalUi = new JournalUI(this.state, this);
@@ -1392,6 +1392,7 @@ export class UI {
       this.hooks.rekindle(Number(btn.dataset.mult));
     });
 
+    $('rk-rb-btn').addEventListener('click', () => this.confirmRebirth());
     $('summon').addEventListener('click', () => this.confirmChest());
     $('gs-hourglass').addEventListener('click', () => {
       const gold = this.state.useHourglass();
@@ -1758,6 +1759,24 @@ export class UI {
       },
       true,
       'Cancel',
+    );
+  }
+
+  /** Rebirth: asked once, because every Ember level goes back to zero. */
+  private confirmRebirth() {
+    const s = this.state;
+    if (!s.canRebirth()) return;
+    const level = Math.round(s.rebirthTeamLevel());
+    this.showModal(
+      'Rebirth?',
+      `Your team's average Ember level is <b>+${level.toLocaleString()}</b>. Every Ember level goes back to <b>+0</b>, your unspent Embers and this run are lost, and you start over at stage 1 with heroes at gold level 1.<br><br>In return every Rekindle from now on pays <b>${REBIRTH_PAY_STAGES} stages further, for good</b> (x${Math.pow(PAY_STAGE_GROWTH, REBIRTH_PAY_STAGES).toFixed(2)} Embers each time). Until your team is back at +${level.toLocaleString()}, Rekindle pays by your record stage, so the climb back is quick. Trials still count your highest Ember levels. Stars, Gems, relics and your player level stay.`,
+      'Rebirth',
+      () => {
+        this.closeRekindle();
+        this.hooks.rebirth();
+      },
+      true,
+      'Not yet',
     );
   }
 
@@ -2844,8 +2863,24 @@ export class UI {
     const base = s.pendingEmbers();
     $('rk-embers').textContent = `+${fmt(base)}`;
     $('rk-stage').textContent = s.runBestStage.toLocaleString();
-    const stageBonus = emberStageBonus(s.runBestStage, REKINDLE_STAGE, s.bestStage);
+    const stageBonus = emberStageBonus(s.payRunStage(), REKINDLE_STAGE, s.bestStage);
     $('rk-stagebonus').textContent = `x${stageBonus.lt(100) ? stageBonus.toNumber().toFixed(2) : fmt(stageBonus)}`;
+    const plateau = s.plateauPayStages();
+    $('rk-plateau-row').hidden = $('rk-plateau').hidden = plateau <= 0;
+    $('rk-plateau').textContent = `x${Math.pow(PAY_STAGE_GROWTH, plateau).toFixed(2)}`;
+    $('rk-plateau').title = `No new 50-stage milestone for a few days: Rekindle pays as if ${Math.round(plateau)} stages further. A new milestone resets it.`;
+    const rb = s.rebirthPayStages();
+    $('rk-rebirth-row').hidden = $('rk-rebirthbonus').hidden = rb <= 0;
+    $('rk-rebirthbonus').textContent = `x${Math.pow(PAY_STAGE_GROWTH, rb).toFixed(2)}`;
+    $('rk-rebirthbonus').title = s.rebirthCatchUp() ? `Climbing back: Rekindle pays by your record stage until the team is at +${Math.round(s.rebirthLevel).toLocaleString()} Ember levels.` : '';
+    const lvl = Math.round(s.rebirthTeamLevel());
+    $('rk-rebirth').hidden = s.rebirths === 0 && lvl < REBIRTH_FROM_LEVEL / 2;
+    $('rk-rb-count').textContent = String(s.rebirths);
+    $<HTMLButtonElement>('rk-rb-btn').disabled = !s.canRebirth();
+    const need = Math.max(REBIRTH_FROM_LEVEL, Math.floor(s.rebirthLevel) + 1);
+    $('rk-rb-text').textContent = s.canRebirth()
+      ? `Ready. Reset every Ember level to +0 for ${REBIRTH_PAY_STAGES} permanent extra pay stages on every Rekindle.`
+      : `Opens when your team's average Ember level reaches +${need.toLocaleString()} (now +${lvl.toLocaleString()}). A Rebirth resets Ember levels for ${REBIRTH_PAY_STAGES} permanent extra pay stages.`;
     $('rk-levels').textContent = `+${(s.emberLevelsAffordable(base) - s.emberLevelsAffordable(0)).toLocaleString()}`;
     $('rk-levels').title = s.runBestStage < s.bestStage ? `Your record is stage ${s.bestStage.toLocaleString()}. Runs a little short of it still pay well.` : '';
     $('rk-keeperbonus').textContent = `x${s.keeperBonus().toFixed(2)}`;

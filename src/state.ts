@@ -3,7 +3,7 @@ import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, MILESTONE_STEP, milestoneReward, dayKey, type MilestoneReward, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
 import { HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_CHEST_GEMS, GOLD_CHEST_GEMS_PER_DAY, GUILD_BOSS_ASC_CRESTS, GUILD_BOSS_ASC_LEVELS, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_DEALS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TRIAL_EVENT_DAYS, TRIAL_EVENT_MEDAL_MULT, TICKET_CRATE, HERO_VOUCHER, MONTHLY_CREST_PACK, ALL_TRIALS_DAYS, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, AUTO_BOSS_SECONDS, NORMAL_STAGE_LOSSES, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, OFFLINE_STAGE_HP, OFFLINE_STAGE_ATTACKERS, OFFLINE_MOB_COOLDOWN, OFFLINE_STAGE_TIME, elementMultiplier, bossElement, bossHasElement, elementBossShare, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_SET_START_SHARE, RELIC_STORED_SHARE, RELIC_SET_OWNED_SHARE, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, trialFirstWin, STAR_CRESTS, MAX_STARS, REGULAR_MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, RAISED_RARITY_OLD_COST, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_WARSTEEL_PACKS_PER_DAY, GUILD_CHESTS_PER_WEEK, GUILD_WARSTEEL_PACK, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, AWAKEN_STARMOTES, MAX_AWAKEN, AWAKEN_STAT_MULT, AWAKEN_UNLOCK_LEVEL, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
 import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_TEMPER_CAP, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicCost, guildRelicEffect, warsteelForFight, warsteelForKill, warsteelForWeek, type GuildRelicDef, type GuildRelicEffect, BOSS_RELICS, BOSS_RELIC_SLOTS, BOSS_RELIC_MAX_LEVEL, BOSS_HEART_PITY, bossRelicCost, guildRelicItemCost, rollBossItems, type BossItemCounts, type BossRelicDef } from './guildRelics';
-import { utcWeekStart, guildBossElement, relicCost, bossHp, bossAtk, enemyHp, enemyAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberCost, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, isBossStage } from './formulas';
+import { utcWeekStart, guildBossElement, relicCost, bossHp, bossAtk, enemyHp, enemyAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberCost, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, isBossStage, plateauStages, PLATEAU_STEP, PAY_STAGE_GROWTH, REBIRTH_FROM_LEVEL, REBIRTH_PAY_STAGES } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { STAR_EMBER_BONUS, FIXED_LEVEL, RENAMED_HEROES, PLAYABLE_HEROES, RELEASED_HEROES, ASCENDANT_CHEST, START_GOLD, isElementBossStage, bossWeakness } from './data';
 import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills';
@@ -316,6 +316,12 @@ export class GameState {
   gold = new Decimal(START_GOLD);
   stage = 1;
   bestStage = 1;
+  /** When the best stage last passed a new milestone (plateau breaker, see formulas.ts). */
+  bestStageAt = Date.now();
+  /** Rebirths done, the team's average Ember level at the last one, and each hero's highest Ember level ever (Trials count it). */
+  rebirths = 0;
+  rebirthLevel = 0;
+  emberPeak: Record<string, number> = {};
   /** Highest stage reached since the last Rekindle; sets the Ember payout. */
   runBestStage = 1;
   /** Where this run started: 1, or later with a Rekindle head start. */
@@ -535,6 +541,7 @@ export class GameState {
 
   reachStage(stage: number) {
     this.stage = stage;
+    if (Math.floor(stage / PLATEAU_STEP) > Math.floor(this.bestStage / PLATEAU_STEP)) this.bestStageAt = Date.now();
     this.bestStage = Math.max(this.bestStage, stage);
     this.runBestStage = Math.max(this.runBestStage, stage);
   }
@@ -2283,7 +2290,7 @@ export class GameState {
 
   /** Heroes owned with at least this many Ember levels. */
   heroesAtEmber(level: number): number {
-    return HEROES.filter((h) => (this.levels[h.id] ?? 0) > 0 && (this.emberLevels[h.id] ?? 0) >= level).length;
+    return HEROES.filter((h) => (this.levels[h.id] ?? 0) > 0 && Math.max(this.emberLevels[h.id] ?? 0, this.emberPeak[h.id] ?? 0) >= level).length;
   }
 
   /** Whether the player meets a Trial level's hero requirement. */
@@ -2548,7 +2555,75 @@ export class GameState {
   }
 
   pendingEmbers(): Decimal {
-    return emberYield(this.runBestStage, REKINDLE_STAGE, this.keeperBonus(), this.bestStage).times((1 + this.relicBonus('embers')) * (1 + this.obsBonus('embers'))).floor();
+    return emberYield(this.payRunStage(), REKINDLE_STAGE, this.keeperBonus(), this.bestStage)
+      .times((1 + this.relicBonus('embers')) * (1 + this.obsBonus('embers')))
+      .times(this.payStageBonus())
+      .floor();
+  }
+
+  /** Whether the team is still climbing back after a Rebirth (below the Ember level it gave up). */
+  rebirthCatchUp() {
+    return this.rebirths > 0 && this.rebirthTeamLevel() < this.rebirthLevel;
+  }
+
+  /** The run stage Rekindle pays by: this run's best, or the record while catching up after a Rebirth. */
+  payRunStage() {
+    return this.rebirthCatchUp() ? Math.max(this.runBestStage, this.bestStage) : this.runBestStage;
+  }
+
+  /** Extra pay stages from the plateau breaker (days without a new milestone). */
+  plateauPayStages() {
+    return plateauStages((Date.now() - this.bestStageAt) / 86400000);
+  }
+
+  /** Extra pay stages for good from Rebirths. */
+  rebirthPayStages() {
+    return this.rebirths * REBIRTH_PAY_STAGES;
+  }
+
+  /** Embers multiplier from the plateau breaker and Rebirths together. */
+  payStageBonus(): number {
+    return Math.pow(PAY_STAGE_GROWTH, this.plateauPayStages() + this.rebirthPayStages());
+  }
+
+  /** Average Ember level of the current team. */
+  rebirthTeamLevel() {
+    const team = HEROES.filter((h) => this.inLineup(h.id));
+    return team.length ? team.reduce((t, h) => t + (this.emberLevels[h.id] ?? 0), 0) / team.length : 0;
+  }
+
+  canRebirth() {
+    const level = this.rebirthTeamLevel();
+    return level >= REBIRTH_FROM_LEVEL && level > this.rebirthLevel;
+  }
+
+  /**
+   * Rebirth: every Ember level and all unspent Embers go back to zero and the run starts again.
+   * In return every later Rekindle pays more, for good, and pays by your record stage until the
+   * team is back at the level it gave up.
+   */
+  rebirth(): boolean {
+    if (!this.canRebirth()) return false;
+    this.rebirthLevel = this.rebirthTeamLevel();
+    for (const h of HEROES) {
+      const lv = this.emberLevels[h.id] ?? 0;
+      this.emberPeak[h.id] = Math.max(this.emberPeak[h.id] ?? 0, lv);
+      this.emberLevels[h.id] = 0;
+    }
+    this.embers = new Decimal(0);
+    this.rebirths += 1;
+    this.gold = new Decimal(0);
+    const start = this.headStart ? this.headStartStage() : 1;
+    this.stage = start;
+    this.runBestStage = start;
+    this.runStartStage = start;
+    for (const def of STALLS) this.stalls[def.id] = { level: 0, progress: 0 };
+    this.autoAdvance = true;
+    for (const h of HEROES) this.levels[h.id] = h.unlockCost === 0 ? 1 : this.levels[h.id] > 0 ? 1 : 0;
+    this.secondsPerStage = 20;
+    this.goldPerSec = 0;
+    this.save();
+    return true;
   }
 
   /**
@@ -4619,6 +4694,10 @@ export class GameState {
       embers: bigSave(this.embers),
       emberLevels: this.emberLevels,
       rekindles: this.rekindles,
+      bestStageAt: this.bestStageAt,
+      rebirths: this.rebirths,
+      rebirthLevel: this.rebirthLevel,
+      emberPeak: this.emberPeak,
       lifetimeEmbers: bigSave(this.lifetimeEmbers),
       stats: this.stats,
       daily: this.daily,
@@ -4777,6 +4856,10 @@ export class GameState {
       this.embers = bigLoad(d.embers);
       this.emberLevels = { ...this.emberLevels, ...(d.emberLevels ?? {}) };
       this.rekindles = d.rekindles ?? 0;
+      this.bestStageAt = Number.isFinite(d.bestStageAt) ? Math.min(Date.now(), Math.floor(d.bestStageAt)) : Date.now();
+      this.rebirths = Math.max(0, Math.floor(Number(d.rebirths) || 0));
+      this.rebirthLevel = Math.max(0, Number(d.rebirthLevel) || 0);
+      this.emberPeak = d.emberPeak && typeof d.emberPeak === 'object' ? Object.fromEntries(Object.entries(d.emberPeak).map(([k, v]) => [k, Math.max(0, Math.floor(Number(v) || 0))])) : {};
       this.observatory = cleanObservatory(d.observatory);
       this.obsRefunded = d.obsRefunded === true;
       this.journal = cleanJournal(d.journal);
@@ -4994,6 +5077,7 @@ export class GameState {
     }
     this.stage = Math.max(1, Math.floor(num(this.stage, 1)));
     this.bestStage = Math.max(this.stage, Math.floor(num(this.bestStage, this.stage)));
+    this.bestStageAt = Math.min(Date.now(), num(this.bestStageAt, Date.now()));
     this.runBestStage = Math.max(this.stage, Math.floor(num(this.runBestStage, this.stage)));
     this.runStartStage = Math.min(this.runBestStage, Math.max(1, Math.floor(num(this.runStartStage, 1))));
     this.headStart = this.headStart !== false;

@@ -65,6 +65,9 @@ const ui = new UI(state, scene, {
       ui.showRekindled(result);
     }
   },
+  rebirth: () => {
+    if (state.rebirth()) scene()?.restart();
+  },
   resetAccount: async () => {
     // Freezes saving (here and in cloud uploads) so the reset sticks.
     const error = await account.reset();

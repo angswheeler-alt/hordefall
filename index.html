@@ -389,6 +389,8 @@
           <dl>
             <dt>Best stage this run</dt><dd id="rk-stage"></dd>
             <dt>Stage bonus</dt><dd id="rk-stagebonus"></dd>
+            <dt id="rk-plateau-row">Plateau breaker</dt><dd id="rk-plateau"></dd>
+            <dt id="rk-rebirth-row">Rebirth bonus</dt><dd id="rk-rebirthbonus"></dd>
             <dt>Team Ember levels</dt><dd id="rk-levels"></dd>
             <dt>Player bonus</dt><dd id="rk-keeperbonus"></dd>
             <dt id="rk-obs-row">Ember Lens</dt><dd id="rk-obsbonus"></dd>
@@ -414,6 +416,11 @@
           <div class="rk-keeper-head"><span>Player level</span><b id="rk-level"></b><span id="rk-nextlvl" class="rk-note"></span></div>
           <div class="rk-bar"><div id="rk-bar-gain"></div><div id="rk-bar-fill"></div></div>
           <div class="rk-bar-nums"><span id="rk-bar-now"></span><span id="rk-bar-next"></span></div>
+        </section>
+        <section id="rk-rebirth" class="rk-keeper" hidden>
+          <div class="rk-keeper-head"><span>Rebirth</span><b id="rk-rb-count"></b></div>
+          <p id="rk-rb-text" class="rk-note"></p>
+          <button id="rk-rb-btn" class="rk-rebirth-btn" type="button">Rebirth</button>
         </section>
         <label id="rk-head" class="rk-head" hidden><input id="rk-head-on" type="checkbox" /><span id="rk-head-text"></span></label>
         <p id="rk-reset-note" class="rk-note">You go back to stage 1 and every hero drops to gold level 1. Embers, Ember levels, stars and Gems stay.</p>
