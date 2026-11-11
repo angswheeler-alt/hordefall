@@ -635,7 +635,7 @@ export const ULT_COOLDOWN = 30;
 export { ULT_MULTIPLIER } from './heroText';
 export const OFFLINE_CAP_HOURS = 12;
 /** 2x battle speed unlocks once the player first reaches this stage. */
-export const SPEED_UNLOCK_STAGE = 25;
+export const SPEED_UNLOCK_STAGE = 10;
 /** Rekindle unlocks after first clearing this stage. */
 export const REKINDLE_STAGE = 125;
 

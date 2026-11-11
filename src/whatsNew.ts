@@ -27,6 +27,7 @@ export const WHATS_NEW_SHOWN = 8;
 
 /** Newest first. */
 export const WHATS_NEW: WhatsNewEntry[] = [
+  { id: 'hero-power', date: '2026-11-11', text: '<b>Hero Power</b> on the Heroes tab now climbs with every Level Up. 2x speed unlocks at stage 10 and switches itself on.' },
   { id: 'rebirth', date: '2026-11-11', text: '<b>Ashfall</b> (Rekindle page, Ember level +8,000): reset Ember levels for a permanent Rekindle boost. Long stalls now pay extra.' },
   { id: 'alchemist-ore-trials', date: '2026-11-07', text: '<b>Alchemist</b> now trades Ore and Crystal too. <b>Trial levels 34-40</b> need lower stages, so they open sooner.' },
   { id: 'essence-stone-sinks', date: '2026-11-07', text: '<b>Relics</b>: new Attunement (Essence for +1% ATK/HP per rank), Tempering for maxed relics, and an Alchemist for spare Essence and Stones.' },

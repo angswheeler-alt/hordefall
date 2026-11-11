@@ -1336,7 +1336,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (prevBest < SPEED_UNLOCK_STAGE && this.state.bestStage >= SPEED_UNLOCK_STAGE) {
       this.time.delayedCall(1100, () => {
-        this.banner('2x SPEED UNLOCKED!', '#7dff9a');
+        this.banner('2x SPEED ON!', '#7dff9a');
         play('unlock');
       });
     }
