@@ -619,6 +619,13 @@ export class GameState {
     return total;
   }
 
+  /** Combat Power for guild join rules: every recruited hero at the fixed level, so Ember levels (and a Rebirth) don't change it. */
+  guildCombatPower(): Decimal {
+    let total = new Decimal(0);
+    for (const h of HEROES) if ((this.levels[h.id] ?? 0) > 0) total = total.plus(this.fixedCombatPower(h));
+    return total;
+  }
+
   /** Every number on the hero's stat pages, as battle uses them. */
   heroStats(base: HeroDef, level = this.heroLevel(base.id)): HeroStats {
     const def = this.formDef(base);
