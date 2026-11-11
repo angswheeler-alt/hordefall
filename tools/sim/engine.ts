@@ -783,14 +783,16 @@ export async function runSim(cfg: SimConfig) {
   const ASCEND_DAYS = Number(process.env.SIM_ASCEND_DAYS ?? 7);
   let ascBest = 0;
   function maybeAscend(): boolean {
-    if (typeof s.canEmberAscend !== 'function' || !s.canEmberAscend()) return false;
+    // study variants call it canEmberAscend / emberAscend; the game itself has canRebirth / rebirth
+    const can = typeof s.canRebirth === 'function' ? () => s.canRebirth() : typeof s.canEmberAscend === 'function' ? () => s.canEmberAscend() : null;
+    if (!can || !can()) return false;
     // only after a new record since the last one: a player would not give up levels twice for the same wall
     if (s.bestStage <= ascBest || (NOW - s.bestStageAt) / 86400000 < ASCEND_DAYS) return false;
     thaw();
-    const level = s.ascendLevel(), best = s.bestStage;
-    if (!s.emberAscend()) { freeze(); return false; }
+    const level = s.rebirthTeamLevel ? s.rebirthTeamLevel() : s.ascendLevel(), best = s.bestStage;
+    if (!(s.rebirth ? s.rebirth() : s.emberAscend())) { freeze(); return false; }
     ascBest = best;
-    ascends.push({ n: s.ascensions, day: +day().toFixed(2), level: Math.round(level), best });
+    ascends.push({ n: s.rebirths ?? s.ascensions, day: +day().toFixed(2), level: Math.round(level), best });
     runStartActive = activeSec; runBestAt = s.runBestStage; lastBestAt = activeSec;
     dirty();
     freeze();
@@ -839,7 +841,7 @@ export async function runSim(cfg: SimConfig) {
     const glyphN = lu.map((h) => s.heroGlyphs(h.id).length);
     const ascForms = HEROES.filter((h: Hero) => String(h.id).startsWith('asc_') && s.levels[h.id] > 0).map((h: Hero) => `${h.id}:${(s.stars[h.id] ?? 0) + 1}*F${s.formOf(h.id) + 1}`);
     const rec = {
-      tag, day: +day().toFixed(2), activeH: +(activeSec / 3600).toFixed(2), stage: s.stage, best: s.bestStage, rekindles: s.rekindles, ascensions: s.ascensions ?? 0, keeper: s.keeperLevel(),
+      tag, day: +day().toFixed(2), activeH: +(activeSec / 3600).toFixed(2), stage: s.stage, best: s.bestStage, rekindles: s.rekindles, ascensions: s.rebirths ?? s.ascensions ?? 0, keeper: s.keeperLevel(),
       owned: owned.length, rarity: rar, stars, team: lu.map((h) => `${h.name}(${s.formDef(h).rarity[0]}${(s.stars[h.id] ?? 0) + 1}★${s.awaken[h.id] ? '+' + s.awaken[h.id] + 'p' : ''})`),
       teamSize: lu.length, teamStarsAvg: avg(lu.map((h) => (s.stars[h.id] ?? 0) + 1)), teamStarsMax: Math.max(0, ...owned.map((h: Hero) => (s.stars[h.id] ?? 0) + 1)),
       goldLvAvg: avg(lu.map((h) => s.levels[h.id])), goldLvMax: Math.max(0, ...lu.map((h) => s.levels[h.id])),

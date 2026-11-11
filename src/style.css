@@ -198,6 +198,8 @@ button.link[disabled] { display: none; }
 #rk-bar-fill { background: linear-gradient(90deg, #d8641f, var(--ember)); }
 #rk-bar-gain { background: rgba(255,216,74,.45); }
 .rk-bar-nums { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.rk-rebirth-btn { width: 100%; margin-top: 8px; padding: 10px; font-weight: 700; background: #b32fb8; border-color: #b32fb8; color: #fff; }
+.rk-rebirth-btn:disabled { opacity: .45; }
 .rk-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
 .rk-buttons button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; font-weight: 700; min-height: 64px; justify-content: center; }
 .rk-buttons button small { font-weight: 600; font-size: 12px; color: var(--ember); font-variant-numeric: tabular-nums; }
