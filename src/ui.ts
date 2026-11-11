@@ -108,6 +108,9 @@ interface HeroRow {
   level: HTMLElement;
   emberBadge: HTMLElement;
   stats: HTMLElement;
+  /** Last Power shown, so a rise can flash. */
+  power?: Decimal;
+  powerFlashUntil?: number;
   button: HTMLButtonElement;
   label: HTMLElement;
   cost: HTMLElement;
@@ -3558,7 +3561,12 @@ export class UI {
       } else {
         const next = eff + shown.levels;
         const now = s.heroPower(r.def, eff);
-        setHtml(r.stats, `<span class="st atk">${SWORD}${fmt(now.atk)} <span class="next">→ ${fmt(s.heroPower(r.def, next).atk)}</span></span><span class="st hp">${HEART}${fmt(now.hp)}</span><span class="st cp" title="Combat Power">CP ${fmt(s.heroCombatPower(r.def))}</span>`);
+        // Power counts gold levels, so it climbs with every Level Up (Combat Power doesn't: user 2026-11-11).
+        const power = s.heroLivePower(r.def);
+        if (r.power && power.gt(r.power)) r.powerFlashUntil = Date.now() + 700;
+        const grew = (r.powerFlashUntil ?? 0) > Date.now();
+        r.power = power;
+        setHtml(r.stats, `<span class="st atk">${SWORD}${fmt(now.atk)} <span class="next">→ ${fmt(s.heroPower(r.def, next).atk)}</span></span><span class="st hp">${HEART}${fmt(now.hp)}</span><span class="st cp${grew ? ' up' : ''}" title="Power right now, gold levels included. Combat Power on leaderboards counts only lasting upgrades.">Power ${fmt(power)}</span>`);
         r.label.textContent = shown.levels === 1 ? 'Level Up' : `Level +${shown.levels}`;
       }
       if (locked) {

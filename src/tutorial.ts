@@ -10,6 +10,7 @@ import { INTRO, TUTORIAL_DONE, advanceIntro, pendingTip, type GuideStep, type Gu
 const COVERS = ['#modal', '#sheet', '#rk', '#coll', '#settings', '#social', '#acct-dialog', '#trial-hud'];
 
 export class Tutorial {
+  private openedAt = Date.now();
   private root = document.createElement('div');
   private hole = document.createElement('div');
   private bubble = document.createElement('div');
@@ -67,6 +68,7 @@ export class Tutorial {
       bestStage: this.state.bestStage,
       firstChest: this.state.stats.summons === 0 && this.state.gems >= CHEST_COST,
       unlockReady: HEROES.some((h) => this.state.canUnlock(h)),
+      sessionSeconds: (Date.now() - this.openedAt) / 1000,
     };
   }
 

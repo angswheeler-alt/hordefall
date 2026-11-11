@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { GameState } from '../src/state';
-import { INTRO, TIPS, TIP_IDS, TUTORIAL_DONE, OLD_TUTORIAL_DONE, advanceIntro, pendingTip, type GuideView } from '../src/tutorialSteps';
+import { INTRO, TIPS, TIP_IDS, TUTORIAL_DONE, CHEST_NUDGE_SECONDS, OLD_TUTORIAL_DONE, advanceIntro, pendingTip, type GuideView } from '../src/tutorialSteps';
 import { CHEST_COST, CHEST_DROPS, HEROES } from '../src/data';
 
-const view = (v: Partial<GuideView> = {}): GuideView => ({ tab: 'home', leveled: false, bossButton: false, ultReady: false, rekindleButton: false, bestStage: 1, firstChest: false, unlockReady: false, ...v });
+const view = (v: Partial<GuideView> = {}): GuideView => ({ tab: 'home', leveled: false, bossButton: false, ultReady: false, rekindleButton: false, bestStage: 1, firstChest: false, unlockReady: false, sessionSeconds: 0, ...v });
 
 beforeEach(() => localStorage.clear());
 
@@ -69,6 +69,19 @@ describe('First-time guide', () => {
     expect(pendingTip(TUTORIAL_DONE, [], view({ firstChest: true, tab: 'heroes' }))?.id).toBe('chest');
     expect(pendingTip(TUTORIAL_DONE, ['chest'], view({ firstChest: true, tab: 'heroes' }))).toBeNull();
     expect(pendingTip(TUTORIAL_DONE, ['chest'], view({ unlockReady: true, tab: 'heroes' }))?.id).toBe('unlock');
+  });
+
+  it('nudges a player who skipped the guide toward the first chest from home, after a while', () => {
+    expect(pendingTip(TUTORIAL_DONE, [], view({ firstChest: true, sessionSeconds: CHEST_NUDGE_SECONDS - 1 }))).toBeNull();
+    expect(pendingTip(TUTORIAL_DONE, [], view({ firstChest: true, sessionSeconds: CHEST_NUDGE_SECONDS }))?.id).toBe('chestHome');
+    // Once on Heroes the chest-button tip takes over.
+    expect(pendingTip(TUTORIAL_DONE, ['chestHome'], view({ firstChest: true, tab: 'heroes', sessionSeconds: 999 }))?.id).toBe('chest');
+  });
+
+  it('points at the Heroes tab from anywhere when a hero is ready to unlock', () => {
+    expect(pendingTip(TUTORIAL_DONE, [], view({ unlockReady: true }))?.id).toBe('unlockTab');
+    expect(pendingTip(TUTORIAL_DONE, [], view({ unlockReady: true, tab: 'shop' }))?.id).toBe('unlockTab');
+    expect(pendingTip(TUTORIAL_DONE, ['unlockTab'], view({ unlockReady: true, tab: 'heroes' }))?.id).toBe('unlock');
   });
 });
 

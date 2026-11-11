@@ -18,6 +18,8 @@ export interface GuideView {
   firstChest: boolean;
   /** A hero has enough crests to unlock. */
   unlockReady: boolean;
+  /** Seconds since the game was opened this time. */
+  sessionSeconds: number;
 }
 
 export interface GuideStep {
@@ -29,6 +31,9 @@ export interface GuideStep {
   button?: string;
   done?: (v: GuideView) => boolean;
 }
+
+/** How long into a session before the home screen nudges a player who has never opened a Hero Chest. */
+export const CHEST_NUDGE_SECONDS = 120;
 
 export const INTRO: GuideStep[] = [
   {
@@ -115,6 +120,24 @@ export const TIPS: GuideTip[] = [
     text: 'You have Gems for a Hero Chest. Its crests unlock new heroes, and a bigger team clears stages much faster.',
     button: 'Got it',
     when: (v) => v.firstChest && v.tab === 'heroes',
+  },
+  {
+    // A player who skipped the guide still hears about their first chest, from home (2026-11-11).
+    id: 'chestHome',
+    target: '#tabbar button[data-tab="heroes"]',
+    title: 'Free hero waiting',
+    text: 'You have Gems for a Hero Chest. Tap Heroes and open it: your first chest always brings a new hero to fight beside you.',
+    button: 'Got it',
+    when: (v) => v.firstChest && v.tab !== 'heroes' && v.sessionSeconds >= CHEST_NUDGE_SECONDS,
+  },
+  {
+    // The unlock tip below only shows on the Heroes tab, so first point the way there.
+    id: 'unlockTab',
+    target: '#tabbar button[data-tab="heroes"]',
+    title: 'New hero ready!',
+    text: 'You have the crests to unlock a hero. Tap Heroes to add them to your team.',
+    button: 'Got it',
+    when: (v) => v.unlockReady && v.tab !== 'heroes',
   },
   {
     id: 'unlock',
