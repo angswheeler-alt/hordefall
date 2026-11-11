@@ -172,6 +172,10 @@ export const VARIANTS: Record<string, { text: string; edits: Edit[] }> = {
   asc20c10k: { text: 'emberMid v2 + Ascension with catch-up, opens at team Ember level 10,000, each one adds 20 pay stages for good', edits: [emberCurve([[2000, 1.0605], [4000, 1.062]]), ...stallBreaker(3, 5, 100, 50, true), ...prestige(20, 0, 10000, true)] },
   lateEmber64: { text: 'emberMid + Ember payout 6.4% per stage from stage 10,000', edits: [emberCurve([[2000, 1.0605], [4000, 1.062], [10000, 1.064]])] },
   lateEmber65at11k: { text: 'emberMid + Ember payout 6.5% per stage from stage 11,000', edits: [emberCurve([[2000, 1.0605], [4000, 1.062], [11000, 1.065]])] },
+  // 2026-11-11 relic pace: 8★ relics opened ~day 169 for a regular player; slow the top relics (7★ and 8★ cost x k).
+  relicTop3: { text: '7★ and 8★ relics cost 3x (craft and levels)', edits: [['data.ts', 'const T7 = 1_200_000_000;\nconst T8 = 10_000_000_000;', 'const T7 = 3_600_000_000;\nconst T8 = 30_000_000_000;']] },
+  relicTop5: { text: '7★ and 8★ relics cost 5x (craft and levels)', edits: [['data.ts', 'const T7 = 1_200_000_000;\nconst T8 = 10_000_000_000;', 'const T7 = 6_000_000_000;\nconst T8 = 50_000_000_000;']] },
+  relicTop10: { text: '7★ and 8★ relics cost 10x (craft and levels)', edits: [['data.ts', 'const T7 = 1_200_000_000;\nconst T8 = 10_000_000_000;', 'const T7 = 12_000_000_000;\nconst T8 = 100_000_000_000;']] },
   'ember6.2': { text: 'Flat: Ember payout 6.2% per stage from stage 2,000', edits: [emberCurve([[2000, 1.062]])] },
 };
 
