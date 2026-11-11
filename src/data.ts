@@ -1084,11 +1084,13 @@ export interface RelicDef {
 // 4★ and up cost 10x what they first did (Samuel, 2026-10-21): by the time 4★ relics open, Trials have
 // piled up millions of Essence, and at the old prices every 4★ set was bought within about a day.
 // 6★-8★ moved up with them so each star still costs more than the one below.
+// 7★ and 8★ cost 5x more again (Samuel, 2026-11-11): with faster late-game Embers a regular player could own every
+// relic, 8★ included, by about day 170. At 5x the simulator opens 8★ relics around day 315 (casual players in year two).
 const T4 = 3_000_000;
 const T5 = 20_000_000;
 const T6 = 150_000_000;
-const T7 = 1_200_000_000;
-const T8 = 10_000_000_000;
+const T7 = 6_000_000_000;
+const T8 = 50_000_000_000;
 export const RELICS: RelicDef[] = [
   // Normal relics
   { id: 'warbanner', name: 'Warbanner', stars: 1, fx: [['atk', 46]], essences: ['fire', 'dark'], craft: 10, blurb: 'A torn battle flag that still makes everyone swing harder.' },
