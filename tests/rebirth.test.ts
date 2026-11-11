@@ -121,3 +121,14 @@ describe('Rebirth', () => {
     expect(copy.payStageBonus()).toBeCloseTo(s.payStageBonus(), 6);
   });
 });
+
+describe('Guild join Combat Power', () => {
+  it('ignores Ember levels, so a Rebirth does not change it', () => {
+    const s = new GameState();
+    const before = s.guildCombatPower();
+    for (const h of team(s)) s.emberLevels[h.id] = 5000;
+    expect(s.guildCombatPower().eq(before)).toBe(true);
+    expect(s.totalCombatPower().gt(before)).toBe(true);
+    expect(before.gt(0)).toBe(true);
+  });
+});

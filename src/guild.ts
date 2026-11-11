@@ -513,7 +513,7 @@ export class Guild {
   }
 
   private myCp() {
-    const cp = this.state.totalCombatPower();
+    const cp = this.state.guildCombatPower();
     return { cp: cp.toString(), cpLog: cp.gt(1) ? Math.max(0, cp.log10()) : 0 };
   }
 
@@ -770,6 +770,7 @@ export class Guild {
         <label>Who can join <select name="mode"><option value="open" selected>Open: anyone who qualifies</option><option value="apply">Apply: leader or officers accept</option></select></label>
         <label>Minimum stage <input name="min" type="number" min="0" step="50" value="0"></label>
         <label>Minimum Combat Power <input name="cp" inputmode="decimal" autocomplete="off" placeholder="none (e.g. 1.5M)" value=""></label>
+        <p class="rk-note">Guild Combat Power counts stars, relics and gear, not Ember levels. Yours: <b>${fmt(this.state.guildCombatPower())}</b></p>
         <button type="submit" class="hot rw-wide">Create guild</button>
       </form></div>
       <div class="rw-card"><h3>Join a guild <small id="g-list-note"></small></h3><ul id="g-list" class="rw-list"></ul></div>`;
@@ -827,7 +828,7 @@ export class Guild {
                 ? `<div id="g-claims"></div><div class="rw-card g-boss" id="g-boss"></div><div class="rw-card"><h3>This week's damage <small id="g-board-note"></small></h3><ul id="g-board" class="rw-list"></ul></div><div class="rw-card"><h3>Levels beaten</h3><ul id="g-kills" class="rw-list"></ul></div>`
                 : `<div class="rw-card"><h3>Your request <small id="g-ask-note"></small></h3><div id="g-mine"></div></div><div class="rw-card"><h3>Guildmates' requests</h3><ul id="g-requests" class="rw-list"></ul></div>`;
       if (this.view === 'members' && this.me!.role !== 'member') {
-        $('g-edit-box').innerHTML = `<div class="rw-card"><h3>Guild settings</h3><form id="g-edit" class="g-form"><input name="description" maxlength="140" placeholder="A line about your guild" value="${esc(g.description)}"><label>Who can join <select name="mode"><option value="open"${g.join_mode !== 'apply' ? ' selected' : ''}>Open: anyone who qualifies</option><option value="apply"${g.join_mode === 'apply' ? ' selected' : ''}>Apply: leader or officers accept</option></select></label><label>Minimum stage <input name="min" type="number" min="0" step="50" value="${g.min_stage}"></label><label>Minimum Combat Power <input name="cp" inputmode="decimal" autocomplete="off" placeholder="none (e.g. 1.5M)" value="${(g.min_cp_log ?? 0) > 0 && g.min_cp ? fmt(new Decimal(g.min_cp)) : ''}"></label><button type="submit" class="rw-wide">Save</button></form></div>`;
+        $('g-edit-box').innerHTML = `<div class="rw-card"><h3>Guild settings</h3><form id="g-edit" class="g-form"><input name="description" maxlength="140" placeholder="A line about your guild" value="${esc(g.description)}"><label>Who can join <select name="mode"><option value="open"${g.join_mode !== 'apply' ? ' selected' : ''}>Open: anyone who qualifies</option><option value="apply"${g.join_mode === 'apply' ? ' selected' : ''}>Apply: leader or officers accept</option></select></label><label>Minimum stage <input name="min" type="number" min="0" step="50" value="${g.min_stage}"></label><label>Minimum Combat Power <input name="cp" inputmode="decimal" autocomplete="off" placeholder="none (e.g. 1.5M)" value="${(g.min_cp_log ?? 0) > 0 && g.min_cp ? fmt(new Decimal(g.min_cp)) : ''}"></label><p class="rk-note">Guild Combat Power counts stars, relics and gear, not Ember levels. Yours: <b>${fmt(this.state.guildCombatPower())}</b></p><button type="submit" class="rw-wide">Save</button></form></div>`;
       }
     }
     if (this.view === 'chat') this.renderChat();
