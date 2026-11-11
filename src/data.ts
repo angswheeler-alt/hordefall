@@ -1,5 +1,6 @@
 import { VS, ULT, ultX, HEAL_BASIC } from './heroText';
 import { ROSTER_HEROES } from './heroes';
+import { PASTA } from './heroes/pasta';
 
 export type Element = 'water' | 'fire' | 'earth' | 'light' | 'dark';
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
@@ -72,7 +73,9 @@ export type Signature =
   /** Each attack adds 1 Heat (+perStack ATK each); the attack after `max` Heat is an Eruption: `mult` damage to every enemy near the target (6★: plusMult), sets them Burning, and Heat starts over. */
   | { kind: 'heat'; perStack: number; max: number; mult: number; plusMult: number }
   /** Shoots the toughest enemy in reach. Each shot in a row at it adds perHit damage, up to max; when it falls, `keep` of the streak carries to the next one (6★: plusKeep). */
-  | { kind: 'quarry'; perHit: number; max: number; keep: number; plusKeep: number };
+  | { kind: 'quarry'; perHit: number; max: number; keep: number; plusKeep: number }
+  /** Pasta's Combo Counter: every hit in a row (any target) adds perHit ATK, up to max; `idle` seconds without a hit halves it. 6★ Last One Standing: the first hit that would fell him (or the moment every teammate is down) leaves him standing, he can't fall for `standSeconds`, and for the rest of that life the combo never drops and each hit counts double. */
+  | { kind: 'grit'; perHit: number; max: number; idle: number; standSeconds: number };
 
 /** What a standard hero's Ultimate does on top of the big hit (or full heal), and its 5★ twist. */
 export type UltEffect =
@@ -502,6 +505,7 @@ export const HEROES: HeroDef[] = [
     sp2: { name: 'Purify', text: 'Deals 25% more damage to bosses.', effect: { kind: 'bossDamage', value: 1.25 } },
     aura: { name: 'Blessing', text: 'Light heroes +15% HP.', effect: { kind: 'hp', value: 1.15, team: true, element: 'light' } } },
   ...ROSTER_HEROES,
+  PASTA,
 ];
 
 /** Old hero ids from saves before the 20-hero roster, and who replaced them. */

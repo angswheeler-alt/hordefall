@@ -100,7 +100,7 @@ import { PLACEHOLDER_SIZE, placeholderBase64Url } from './mobPlaceholders';
 import { MUTANT_GOLD, rollMutation, type Mutation } from './mutations';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES, type BossAnim } from './bossAnims';
 import type { EffectKind } from './data';
-import { comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets, drenchVuln, heatStep, quarryMult, quarryCarry } from './kits';
+import { gritStep, comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets, drenchVuln, heatStep, quarryMult, quarryCarry } from './kits';
 import { STAT_BASE, FREEZE_BLAST_RADIUS, BOSS_STUN_CHANCE, BOSS_STUN_SECONDS, type HeroStats } from './stats';
 import { heroProfile } from './profiles';
 import { canReach, enemyGoal, flyerVictim, isMelee, pickVictim } from './reach';
@@ -262,6 +262,10 @@ interface Unit {
   maskUsed?: boolean;
   /** Zeal (Signature 'zeal'): attacks in a row. */
   zeal: number;
+  /** Combo Counter (Signature 'grit'): hits in a row, when the last one landed, and whether Last One Standing fired this life. */
+  grit: number;
+  gritAt: number;
+  standUsed?: boolean;
   /** Rising Heat (Signature 'heat'): Heat built toward the next Eruption. */
   heat: number;
   /** Drench (Signature 'drench'): takes drenchMult damage from Water heroes until drenchUntil. */
@@ -774,6 +778,8 @@ export class BattleScene extends Phaser.Scene {
       streak: 0,
       chargeStacks: 0,
       zeal: 0,
+      grit: 0,
+      gritAt: -99,
       heat: 0,
       drenchUntil: 0,
       drenchMult: 1,
@@ -2199,6 +2205,16 @@ export class BattleScene extends Phaser.Scene {
     const left = target.maxHp.gt(0) ? target.hp.plus(target.shield).minus(dmg).div(target.maxHp).toNumber() : 1;
     const masked = target.alive && mask?.kind === 'mask' && maskTriggers(mask, left, !!target.maskUsed);
     if (masked) dmg = Decimal.min(dmg, Decimal.max(0, target.hp.plus(target.shield).minus(target.maxHp.times(0.01))));
+    // Last One Standing (Pasta 6★): the first blow that would fell him leaves him standing; he can't fall for a few
+    // seconds and his combo never drops for the rest of that life. (Waiting for him to be the last one alive never
+    // fired: he fights up front and fell first or second in every test.)
+    const grit = target.def?.signature;
+    if (target.alive && grit?.kind === 'grit' && this.sigPlus(target) && !target.standUsed && left <= 0) {
+      dmg = Decimal.max(0, target.hp.plus(target.shield).minus(target.maxHp.times(0.01)));
+      target.standUsed = true;
+      target.guardUntil = Math.max(target.guardUntil, this.clock + grit.standSeconds);
+      this.floatText(target.x, target.y - 38, 'NOT YET!', '#ffd84a', 11);
+    }
     if (target.alive) this.meter(e, 'dealt', Decimal.min(dmg, target.hp.plus(target.shield)));
     this.damageUnit(target, dmg, null);
     if (masked && target.alive && mask?.kind === 'mask') {
@@ -2354,6 +2370,21 @@ export class BattleScene extends Phaser.Scene {
       this.floatText(h.x, h.y - 34, 'ERUPTION!', '#ff8a3a', 11);
       this.sparks(target.x, target.y - 6, 0xff6a2a, 12);
     }
+    // Combo Counter: every hit in a row, on any enemy, adds ATK; a pause resets it. 6★ Last One Standing: when every
+    // teammate is down the combo never resets, counts double, and he can't fall for a few seconds (once a life).
+    let gritMult = 1;
+    if (sig?.kind === 'grit') {
+      const alone = !!h.standUsed || this.sigPlus(h) && this.heroes.length > 1 && this.heroes.every((o) => o === h || !o.alive);
+      if (alone && !h.standUsed) {
+        h.standUsed = true;
+        h.guardUntil = Math.max(h.guardUntil, this.clock + sig.standSeconds);
+        this.floatText(h.x, h.y - 38, 'NOT YET!', '#ffd84a', 11);
+      }
+      const g = gritStep(sig, h.grit, this.clock - h.gritAt, alone);
+      h.grit = g.combo;
+      h.gritAt = this.clock;
+      gritMult = g.mult;
+    }
     let dealt = new Decimal(0);
     for (let i = 0; i < strikes; i++) {
       // Hawkeye: shots at an enemy at full HP always crit. Owl Eyes: shots at flyers always crit.
@@ -2393,7 +2424,8 @@ export class BattleScene extends Phaser.Scene {
           (t.burnUntil > this.clock ? vsBurning : 1) *
           (splash ? 1 + st.aoeDmg : 1) *
           (charged ? chargeDamageMult(charged, t.isBoss) : 1) *
-          torrentDmg;
+          torrentDmg *
+          gritMult;
         const amount = atk.times(mult);
         // Lifesteal only counts hits that land (element-locked bosses shrug off the rest).
         dealt = dealt.plus(t.lockStage === undefined ? amount : amount.times(elementBossShare(t.lockStage, this.dealsAs(h))));
@@ -2751,6 +2783,8 @@ export class BattleScene extends Phaser.Scene {
       u.respawnAt = respawnTime(this.clock, this.mul('respawn', null) * (this.pvp ? PVP_RESPAWN_MULT : 1));
       u.chargeStacks = 0;
       u.zeal = 0;
+      u.grit = 0;
+      u.standUsed = false;
       u.maskUsed = false;
       this.puff(u.x, u.y, 0xffffff);
       if (this.trial) u.view.setVisible(false);

@@ -1,3 +1,4 @@
+import { GLORY_DAILY } from '../src/arenaShop';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameState } from '../src/state';
 import { AWAKEN_UNLOCK_LEVEL, HEROES } from '../src/data';
@@ -63,7 +64,8 @@ describe('While you were away: Colosseum', () => {
     s.pvpTick(FRI);
     const lines = colosseumNews(s, SAT);
     expect(lines.join(' ')).toMatch(/Daily reward/);
-    expect(s.starmotes).toBe(RANK_DAILY[0]);
+    expect(s.glory).toBe(GLORY_DAILY[0]);
+    expect(s.pvp.season).toBe(RANK_DAILY[0]);
   });
 
   it('counts defense fights since the player left, newest first, with safe names', () => {
