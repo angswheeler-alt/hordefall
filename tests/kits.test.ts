@@ -179,4 +179,9 @@ describe('Boiling Over (Pasta)', async () => {
   it('does nothing for other Signatures', () => {
     expect(gritStep({ kind: 'combo', perHit: 0.1, max: 0.5 }, 10, 1)).toEqual({ combo: 0, mult: 1, form: false });
   });
+  it('his Ultimate boils him over and his aura only boosts the team during the form', async () => {
+    const { PASTA } = await import('../src/heroes/pasta');
+    expect(PASTA.ult).toMatchObject({ kind: 'boil', extend: 3, plusSeconds: 2 });
+    expect(PASTA.aura?.effect).toEqual({ kind: 'boilRally', value: 1.2, team: true });
+  });
 });

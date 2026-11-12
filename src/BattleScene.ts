@@ -1033,11 +1033,16 @@ export class BattleScene extends Phaser.Scene {
     return (u.formUntil ?? 0) > this.clock;
   }
 
-  /** Start Pasta's dark form: double hits and he can't fall for formSeconds, drawn black and red. */
-  private startForm(u: Unit, label: string) {
+  /** Kitchen Pep Talk (Pasta's aura): team damage while any hero is boiling over. */
+  private boilRally(h: Unit) {
+    return this.heroes.some((a) => a.alive && this.inForm(a)) ? this.mul('boilRally', h) : 1;
+  }
+
+  /** Start Pasta's dark form: double hits and he can't fall for formSeconds (+`extra`), drawn black and red. */
+  private startForm(u: Unit, label: string, extra = 0) {
     const sig = u.def?.signature;
     if (sig?.kind !== 'grit') return;
-    u.formUntil = this.clock + sig.formSeconds;
+    u.formUntil = this.clock + sig.formSeconds + extra;
     u.grit = Math.max(u.grit, sig.formAt);
     this.floatText(u.x, u.y - 38, label, '#ff4a4a', 11);
     this.sparks(u.x, u.y - 10, 0xff2a2a, 12);
@@ -2445,7 +2450,8 @@ export class BattleScene extends Phaser.Scene {
           (splash ? 1 + st.aoeDmg : 1) *
           (charged ? chargeDamageMult(charged, t.isBoss) : 1) *
           torrentDmg *
-          gritMult;
+          gritMult *
+          this.boilRally(h);
         const amount = atk.times(mult);
         // Lifesteal only counts hits that land (element-locked bosses shrug off the rest).
         dealt = dealt.plus(t.lockStage === undefined ? amount : amount.times(elementBossShare(t.lockStage, this.dealsAs(h))));
@@ -2555,6 +2561,7 @@ export class BattleScene extends Phaser.Scene {
       this.floatText(e.x + Phaser.Math.Between(-6, 6), e.y - 22, fmt(pdmg), '#8dff6a', 9);
       this.meter(e.poisonBy, 'dealt', Decimal.min(pdmg, e.hp));
       this.meter(e, 'taken', Decimal.min(pdmg, e.hp));
+      { const k = e.poisonBy?.def?.id; if (k) { const o = (((window as any).__dmg ??= {})[k] ??= { dmg: 0, heal: 0, taken: 0, deaths: 0 }); o.dmg += Decimal.min(pdmg, e.hp.max(0)).toNumber(); } }
       e.hp = e.hp.minus(pdmg);
       this.drawHpBar(e);
       if (e.hp.lte(0)) this.kill(e, e.poisonBy ?? null);
@@ -2595,6 +2602,7 @@ export class BattleScene extends Phaser.Scene {
       this.meter(e.burnBy, 'dealt', burnt);
       this.meter(e, 'taken', burnt);
       if (e.markUntil > this.clock) e.hp = e.hp.minus(dmg.times(e.markMult - 1));
+      { const k = e.burnBy?.def?.id; if (k) { const o = (((window as any).__dmg ??= {})[k] ??= { dmg: 0, heal: 0, taken: 0, deaths: 0 }); o.dmg += Decimal.min(dmg, e.hp.max(0)).toNumber(); } }
       e.hp = e.hp.minus(dmg);
       this.drawHpBar(e);
       if (e.hp.lte(0)) this.kill(e, e.burnBy ?? null);
@@ -2684,6 +2692,8 @@ export class BattleScene extends Phaser.Scene {
     this.meter(source, 'dealt', landed);
     this.meter(target, 'taken', landed);
     target.hp = target.hp.minus(toHp);
+    if (target.side === 'enemy') { const k = source?.def?.id; if (k) { const o = (((window as any).__dmg ??= {})[k] ??= { dmg: 0, heal: 0, taken: 0, deaths: 0 }); o.dmg += Decimal.min(toHp, target.hp.plus(toHp).max(0)).toNumber(); } }
+    else if (target.def) { const o = (((window as any).__dmg ??= {})[target.def.id] ??= { dmg: 0, heal: 0, taken: 0, deaths: 0 }); o.taken += toHp.toNumber(); }
     this.drawHpBar(target);
     this.hitFeedback(target, amount, source, crit);
     target.body.setTintFill(0xffffff);
@@ -2728,6 +2738,7 @@ export class BattleScene extends Phaser.Scene {
   private heal(target: Unit, amount: Decimal, healer?: Unit) {
     play('heal');
     this.sparks(target.x, target.y, 0x7dff9a, 5);
+    if (healer?.def) { const o = (((window as any).__dmg ??= {})[healer.def.id] ??= { dmg: 0, heal: 0, taken: 0, deaths: 0 }); o.heal += Decimal.min(amount, target.maxHp.minus(target.hp)).toNumber(); }
     const split = splitHeal(healer?.def?.signature, amount, target.maxHp.minus(target.hp), target.shield, target.maxHp, this.sigPlus(healer));
     // Support Mastery: healing clears stuns.
     if (healer && this.mastery(healer, 'Support')) target.rootedUntil = Math.min(target.rootedUntil, this.clock);
@@ -2746,6 +2757,7 @@ export class BattleScene extends Phaser.Scene {
 
   private kill(u: Unit, source: Unit | null) {
     u.alive = false;
+    if (u.side !== 'enemy' && u.def) (((window as any).__dmg ??= {})[u.def.id] ??= { dmg: 0, heal: 0, taken: 0, deaths: 0 }).deaths++;
     // Executioner+ (6★): kills take time off the Ultimate cooldown.
     if (u.side === 'enemy' && source?.def?.signature?.kind === 'execute' && this.sigPlus(source)) source.ultReadyAt -= SIG_PLUS.killUltRefund;
     if (u.side === 'enemy' && u.burnUntil > this.clock && u.burnBy?.alive) {
@@ -2960,6 +2972,20 @@ export class BattleScene extends Phaser.Scene {
         this.sparks(target.x, target.y - 6, color, 10);
         this.damageUnit(target, dmg.times((plus ? ult.plusMult : ult.mult) * this.elem(this.dealsAs(h), target)), h, true);
       }
+      return true;
+    }
+    if (ult?.kind === 'boil') {
+      // Boil Over (Pasta): a heavy slash on the toughest enemy in reach, then the dark form at once.
+      const target = this.enemies.filter((e) => e.alive && e.x >= h.x - 30 && e.x <= h.x + 260).sort((a, b) => b.hp.cmp(a.hp))[0];
+      if (target) {
+        h.x = Math.max(h.x, target.x - 20);
+        h.view.x = h.x;
+        this.ultFx(h, target.x, target.x, target);
+        this.sparks(target.x, target.y - 6, color, 10);
+        this.damageUnit(target, dmg.times((plus ? ult.plusMult : ult.mult) * this.elem(this.dealsAs(h), target) * this.boilRally(h)), h, true);
+      }
+      if (this.inForm(h)) h.formUntil! += ult.extend;
+      else this.startForm(h, 'BOIL OVER!', plus ? ult.plusSeconds : 0);
       return true;
     }
     if (ult?.kind === 'crescent') {
