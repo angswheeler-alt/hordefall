@@ -573,13 +573,24 @@ export class GameState {
     return Math.pow(STAR_STAT_MULT, this.stars[id] ?? 0) * Math.pow(AWAKEN_STAT_MULT, this.awaken[id] ?? 0);
   }
 
+  /**
+   * The element whose relic, boss relic and attunement bonuses a hero gets: its own, or for a hero with no element
+   * (Pasta) whichever element's ATK bonus is highest for this player (user, 2026-11-12). Only one element's, never several.
+   */
+  boostElement(def: HeroDef): Element {
+    if (!def.noElement) return def.element;
+    const atkOf = (e: Element) => (1 + this.relicBonus(e)) * (1 + this.guildRelicBonus('elemAtk', e)) * (1 + this.attuneBonus(e));
+    return (['water', 'fire', 'earth', 'light', 'dark'] as Element[]).reduce((best, e) => (atkOf(e) > atkOf(best) ? e : best), def.element);
+  }
+
   /** ATK and HP after levels, stars (x STAR_STAT_MULT each), ATK/HP star skills and relics. `level` overrides the hero's current level. */
   heroPower(base: HeroDef, level = this.heroLevel(base.id)): { atk: Decimal; hp: Decimal; defense: Decimal } {
     const def = this.formDef(base);
     const starMult = this.starMultiplier(def.id);
-    const attune = 1 + this.attuneBonus(def.element);
-    const atkRelics = (1 + this.relicBonus('atk') + this.relicBonus(def.element)) * (1 + this.researchBonus('combat')) * (1 + this.guildRelicBonus('atk') + this.guildRelicBonus('elemAtk', def.element)) * attune;
-    const hpRelics = (1 + this.relicBonus('hp') + this.relicBonus(`${def.element}Hp`)) * (1 + this.guildRelicBonus('hp') + this.guildRelicBonus('elemHp', def.element)) * attune;
+    const el = this.boostElement(def);
+    const attune = 1 + this.attuneBonus(el);
+    const atkRelics = (1 + this.relicBonus('atk') + this.relicBonus(el)) * (1 + this.researchBonus('combat')) * (1 + this.guildRelicBonus('atk') + this.guildRelicBonus('elemAtk', el)) * attune;
+    const hpRelics = (1 + this.relicBonus('hp') + this.relicBonus(`${el}Hp`)) * (1 + this.guildRelicBonus('hp') + this.guildRelicBonus('elemHp', el)) * attune;
     const fx = this.effects();
     const prof = heroProfile(def);
     const weapon = weaponMult(this.weaponLevel(base.id)) * masteryMult(this.masteryRank(base.id));
@@ -587,7 +598,7 @@ export class GameState {
     return {
       atk: heroAtk(def, level).times(starMult * prof.atkMult * mulEffect(fx, 'atk', def.id) * atkRelics * weapon * (1 + g.atk)),
       hp: heroHp(def, level).times(starMult * prof.hpMult * mulEffect(fx, 'hp', def.id) * hpRelics * weapon * (1 + g.hp)),
-      defense: heroDef(def, level).times(starMult * prof.defMult * mulEffect(fx, 'def', def.id) * (1 + this.relicBonus('def') + this.relicBonus(`${def.element}Def`)) * (1 + this.guildRelicBonus('def')) * (1 + g.def)),
+      defense: heroDef(def, level).times(starMult * prof.defMult * mulEffect(fx, 'def', def.id) * (1 + this.relicBonus('def') + this.relicBonus(`${el}Def`)) * (1 + this.guildRelicBonus('def')) * (1 + g.def)),
     };
   }
 
@@ -4016,7 +4027,7 @@ export class GameState {
     }
     for (const id of this.bossRelicEquipped) {
       const def = BOSS_RELICS.find((r) => r.id === id);
-      if (!def || ((effect === 'elemAtk' || effect === 'elemHp') && heroAffinity(def) !== element)) continue;
+      if (!def || ((effect === 'elemAtk' || effect === 'elemHp') && def.element !== element)) continue;
       total += guildRelicEffect(def, effect, this.bossRelics[id] ?? 0);
     }
     return total;
