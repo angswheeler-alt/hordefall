@@ -27,8 +27,9 @@ function toCss(b: ArtBounds, scale: number, ox: number, oy: number, boxH: number
  * Head-and-shoulders portrait in a square box: zoomed so the top of the figure fills the box (less for wide
  * creatures, never so far that more than the whole figure shows), centred on the part that shows.
  */
-export function portraitFit(b: ArtBounds, frames = 1): FitCss {
-  const [, , x0, y0, x1, y1, headX] = b;
+export function portraitFit(b: ArtBounds, frames = 1, top?: number): FitCss {
+  const [, , x0, , x1, y1, headX] = b;
+  const y0 = top ?? b[3];
   const w = x1 - x0;
   const h = y1 - y0;
   const s = Math.max(Math.min(1 / (h * 0.62), 1 / (w * 0.95)), 1 / (h * 1.05));
@@ -42,10 +43,16 @@ export function wholeFit(b: ArtBounds, boxH: number): FitCss {
   return toCss(b, s, 0.5 - ((x0 + x1) / 2) * s, boxH - y1 * s, boxH, 1);
 }
 
+/**
+ * Where a face starts (sprite y) for pictures whose topmost pixels aren't the head: a weapon raised high
+ * pushed the head to the bottom of the portrait (user 2026-11-12: Pasta's cleaver). Measured by eye.
+ */
+export const FACE_TOP: Record<string, number> = { pasta: 22, pasta_dark: 17 };
+
 const inline = (c: FitCss | null) => (c ? `;background-size:${c.backgroundSize};background-position:${c.backgroundPosition}` : '');
 
 /** Inline CSS (leading ';') for a hero face centred on that art's figure; '' when the art is unknown. */
-export const heroFaceCss = (art: string) => inline(HERO_BOUNDS[art] ? portraitFit(HERO_BOUNDS[art]) : null);
+export const heroFaceCss = (art: string) => inline(HERO_BOUNDS[art] ? portraitFit(HERO_BOUNDS[art], 1, FACE_TOP[art]) : null);
 /** Inline CSS for a hero's whole figure in a box `boxH` tall per 1 wide (the Collection tiles). */
 export const heroWholeCss = (art: string, boxH: number) => inline(HERO_BOUNDS[art] ? wholeFit(HERO_BOUNDS[art], boxH) : null);
 /**

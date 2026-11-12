@@ -2598,8 +2598,7 @@ export class UI {
       .filter((i) => i.hero)
       .slice(0, 4)
       .map((i) => {
-        const def = HEROES.find((h) => h.id === i.hero)!;
-        return `<span class="face art" style="${faceStyle(def)}">${HERO_ANIMS[heroArtKey(def.id)] ? '' : def.name[0]}</span>`;
+        return this.arenaFace(HEROES.find((h) => h.id === i.hero)!);
       })
       .join('');
     const note = canBuy ? `${canBuy} item${canBuy === 1 ? '' : 's'} you can buy now` : 'Hero crests, Wild Crests, Stones and more';
@@ -2609,6 +2608,11 @@ export class UI {
     </button>`;
   }
 
+  /** A shop hero's picture with a thin border in its rarity colour (Pasta has his own, Unique). */
+  private arenaFace(def: HeroDef) {
+    return `<span class="face art arena-face r-${arenaRarity(def)}" style="${faceStyle(def)}">${HERO_ANIMS[heroArtKey(def.id)] ? '' : def.name[0]}</span>`;
+  }
+
   /** The Arena Shop page inside the Colosseum (src/arenaShop.ts). */
   private arenaShopHtml() {
     const s = this.state;
@@ -2616,11 +2620,9 @@ export class UI {
       .map((item) => {
         const left = s.arenaLeft(item);
         const def = item.hero ? HEROES.find((h) => h.id === item.hero) : undefined;
-        const pic = def
-          ? crestFace(def, `<span class="face art" style="${faceStyle(def)}">${HERO_ANIMS[heroArtKey(def.id)] ? '' : def.name[0]}</span>`)
-          : `<span class="arena-ico">${ARENA_ICON[item.kind]}</span>`;
+        const pic = def ? this.arenaFace(def) : `<span class="arena-ico">${ARENA_ICON[item.kind]}</span>`;
         const name = def ? `${item.amount} ${def.name} crests` : ARENA_NAME[item.kind](item.amount);
-        const rar = def ? `<small class="rar-${def.rarity}">${def.id === PASTA_ID ? 'Unique' : def.rarity[0].toUpperCase() + def.rarity.slice(1)}</small>` : '';
+        const rar = def ? `<small class="rar-${arenaRarity(def)}">${def.id === PASTA_ID ? 'Unique' : def.rarity[0].toUpperCase() + def.rarity.slice(1)}</small>` : '';
         return `<div class="arena-item">${pic}<div class="who"><b>${name}</b>${rar}<small>${left}/${item.perWeek} left this season</small></div>
           <button class="wood-btn small" data-pvp="arena-buy" data-item="${item.id}" ${s.glory < item.price || left <= 0 ? 'disabled' : ''}>${item.price} Glory</button></div>`;
       })
@@ -3700,6 +3702,11 @@ export class UI {
  * A hero's crest: the hero's face inside its rarity's medal frame (the user's art, 2026-11-01). `inner` is the
  * face element; the frame image and the window it sits in come from CSS (.crest-face.r-<rarity>).
  */
+/** Rarity shown in the Arena Shop: Pasta is 'unique', everyone else their own rarity. */
+function arenaRarity(def: HeroDef): string {
+  return def.id === PASTA_ID ? 'unique' : def.rarity;
+}
+
 export function crestFace(def: HeroDef, inner: string): string {
   return `<span class="crest-face r-${isAscendant(def.id) ? 'ascendant' : def.rarity}">${inner}</span>`;
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { HERO_ANIMS } from '../src/heroAnims';
 import { BOSS_ANIMS } from '../src/bossAnims';
 import { HERO_BOUNDS, BOSS_BOUNDS, type ArtBounds } from '../src/portraitBounds';
-import { bossBox, portraitFit, wholeFit, type FitCss } from '../src/portrait';
+import { FACE_TOP, bossBox, portraitFit, wholeFit, type FitCss } from '../src/portrait';
 
 /** Where sprite pixel (x, y) lands in a box 1 wide and boxH tall, undoing the CSS percentages. */
 function place(b: ArtBounds, css: FitCss, x: number, y: number, boxH = 1, frames = 1) {
@@ -22,6 +22,17 @@ describe('centred portraits', () => {
   it('centres every hero face on its figure, top of the figure near the top', () => {
     for (const [id, b] of Object.entries(HERO_BOUNDS)) {
       const p = place(b, portraitFit(b), b[6], b[3]);
+      expect(Math.abs(p.x - 0.5), id).toBeLessThan(0.01);
+      expect(Math.abs(p.y - 0.05), id).toBeLessThan(0.01);
+    }
+  });
+
+  it('starts a face at the head, not at a raised weapon, where FACE_TOP says so', () => {
+    for (const [id, top] of Object.entries(FACE_TOP)) {
+      const b = HERO_BOUNDS[id];
+      expect(b, id).toBeDefined();
+      expect(top, id).toBeGreaterThan(b[3]);
+      const p = place(b, portraitFit(b, 1, top), b[6], top);
       expect(Math.abs(p.x - 0.5), id).toBeLessThan(0.01);
       expect(Math.abs(p.y - 0.05), id).toBeLessThan(0.01);
     }
