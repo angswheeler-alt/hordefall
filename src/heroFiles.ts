@@ -10,3 +10,6 @@ const BUNDLED: Record<string, string> = Object.fromEntries(
 );
 
 export const heroFile = (name: string): string => BUNDLED[name] ?? `heroes/${name}.png`;
+
+/** True when `name` ships inside the game code (src/assets/heroes) rather than public/heroes. */
+export const isBundledHero = (name: string): boolean => name in BUNDLED;

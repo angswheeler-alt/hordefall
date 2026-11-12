@@ -1,4 +1,5 @@
-import { heroFile } from './heroFiles';
+import { heroFile, isBundledHero } from './heroFiles';
+import pastaBurstUrl from './assets/fx/pasta-burst-f6.png';
 import Phaser from 'phaser';
 import Decimal from 'break_infinity.js';
 import {
@@ -268,6 +269,8 @@ interface Unit {
   gritAt: number;
   formUntil?: number;
   standUsed?: boolean;
+  /** The sprite he wore before turning into his dark form (Pasta), to turn back to. */
+  formFrom?: string;
   /** Rising Heat (Signature 'heat'): Heat built toward the next Eruption. */
   heat: number;
   /** Drench (Signature 'drench'): takes drenchMult damage from Water heroes until drenchUntil. */
@@ -434,6 +437,8 @@ export type { PvpMeterRow } from './battleMeter';
 const PVP_CRYSTAL_HP = 1.5;
 /** Pasta's dark form tint until it has its own art (black and red). */
 const FORM_TINT = 0xff5a5a;
+/** Pasta's Boiling Over sprite (art/heroes/pasta_dark); without it the form is a red tint. */
+const FORM_ART = 'pasta_dark';
 /** Seconds a Colosseum battle may run; then the crystal with more HP left (as a share) wins, ties to the defender. */
 const PVP_LIVE_TIME = 90;
 
@@ -519,6 +524,9 @@ export class BattleScene extends Phaser.Scene {
     // Hero sprites (32x32, feet on row 30). A hero without a file falls back to its placeholder block.
     for (const h of HEROES) if (HERO_ANIMS[h.id]) this.load.image(`hero-${h.id}`, heroFile(h.id));
     // Ascendant heroes' later forms (src/ascendant.ts) need no standing file: create() cuts it from the attack strip.
+    // Extra looks that ship in the game code (e.g. Pasta's dark form) bring their own standing file.
+    for (const id of Object.keys(HERO_ANIMS)) if (!HEROES.some((h) => h.id === id) && isBundledHero(id)) this.load.image(`hero-${id}`, heroFile(id));
+    this.load.spritesheet('fx-pasta-burst', pastaBurstUrl, { frameWidth: 41, frameHeight: 66 });
     for (const [id, a] of Object.entries(HERO_ANIMS)) {
       const size = { frameWidth: a.frame[0], frameHeight: a.frame[1] };
       this.load.spritesheet(`hero-${id}-run`, heroFile(`${id}_run`), size);
@@ -562,6 +570,7 @@ export class BattleScene extends Phaser.Scene {
       tex.context.drawImage(this.textures.get(`hero-${f.art}-attack`).getSourceImage() as CanvasImageSource, 0, 0, w, h, 0, 0, w, h);
       tex.refresh();
     }
+    if (!this.anims.exists('fx-pasta-burst')) this.anims.create({ key: 'fx-pasta-burst', frames: this.anims.generateFrameNumbers('fx-pasta-burst', { start: 0, end: 5 }), frameRate: 12, repeat: 0 });
     for (const [id, a] of Object.entries(HERO_ANIMS)) {
       if (!this.anims.exists(`${id}-run`)) {
         this.anims.create({ key: `${id}-run`, frames: this.anims.generateFrameNumbers(`hero-${id}-run`, { start: 0, end: a.run - 1 }), frameRate: RUN_FPS, repeat: -1 });
@@ -1046,15 +1055,49 @@ export class BattleScene extends Phaser.Scene {
     u.grit = Math.max(u.grit, sig.formAt);
     this.floatText(u.x, u.y - 38, label, '#ff4a4a', 11);
     this.sparks(u.x, u.y - 10, 0xff2a2a, 12);
-    u.body.setTint(FORM_TINT);
+    this.formBurst(u);
+    if (u.anim && u.anim.id !== FORM_ART && this.anims.exists(`${FORM_ART}-run`)) {
+      u.formFrom = u.anim.id;
+      this.swapArt(u, FORM_ART);
+    }
+    this.formTint(u);
   }
 
-  /** The dark form ran out: the combo is used up. */
+  /** The dark form ran out: the combo is used up and he turns back. */
   private endForm(u: Unit) {
     u.formUntil = 0;
     u.grit = 0;
+    if (u.formFrom) { this.swapArt(u, u.formFrom); u.formFrom = undefined; }
     if (u.body.active) u.body.clearTint();
   }
+
+  /** In the form: the dark sprite needs no tint; without it (art missing) he is drawn red. */
+  private formTint(u: Unit) {
+    if (!u.body.active) return;
+    if (u.formFrom) u.body.clearTint();
+    else u.body.setTint(FORM_TINT);
+  }
+
+  /** Swap a frame-animated hero to another sprite set, standing on the same feet, keeping what it was doing. */
+  private swapArt(u: Unit, id: string) {
+    const a = u.anim, def = HERO_ANIMS[id];
+    if (!a || !def || !u.body.active) return;
+    const state = a.state;
+    a.id = id;
+    a.state = 'idle';
+    u.body.setOrigin(def.feet[0] / def.frame[0], def.feet[1] / def.frame[1]);
+    if (state === 'run') this.setAnim(u, 'run');
+    else u.body.stop().setTexture(`hero-${id}`);
+  }
+
+  /** Black smoke and red cracks erupt around him as he turns (user art, 6 frames), in front of the sprite swap. */
+  private formBurst(u: Unit) {
+    if (!this.anims.exists('fx-pasta-burst')) return;
+    const fx = this.add.sprite(u.view.x, u.view.y + FOOT_Y + 2, 'fx-pasta-burst').setOrigin(0.5, 1).setDepth(u.view.depth + 1).setScale(1.2);
+    fx.play('fx-pasta-burst');
+    fx.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => fx.destroy());
+  }
+
 
   /**
    * Stun, freeze or root an enemy for `seconds` (bosses: `bossSeconds`, half by default, and not again until
@@ -2700,7 +2743,7 @@ export class BattleScene extends Phaser.Scene {
     this.time.delayedCall(60, () => {
       if (!target.body.active) return;
       if (target.side === 'enemy') this.restTint(target);
-      else if (this.inForm(target)) target.body.setTint(FORM_TINT);
+      else if (this.inForm(target)) this.formTint(target);
       else target.body.clearTint();
     });
     if (target.hp.lte(0)) this.kill(target, source);
@@ -2819,6 +2862,7 @@ export class BattleScene extends Phaser.Scene {
       u.respawnAt = respawnTime(this.clock, this.mul('respawn', null) * (this.pvp ? PVP_RESPAWN_MULT : 1));
       u.chargeStacks = 0;
       u.zeal = 0;
+      if (this.inForm(u)) this.endForm(u);
       u.grit = 0;
       u.formUntil = 0;
       u.standUsed = false;
