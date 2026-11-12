@@ -8,3 +8,7 @@ const store = new Map<string, string>();
   /** Test helper: every key currently stored. */
   keys: () => [...store.keys()],
 };
+
+// Rare Pasta drops never fire in tests unless a test turns them on (tests/arena-shop.test.ts).
+import { pastaLuck } from '../src/arenaShop';
+pastaLuck.roll = () => 1;

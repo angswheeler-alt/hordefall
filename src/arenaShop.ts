@@ -17,7 +17,7 @@ export const GLORY_LOSS = 3;
 export const GLORY_DAILY = [10, 12, 14, 16, 18, 20, 24, 27, 30, 34, 38, 42, 46, 50, 55, 60];
 
 /** Pasta (src/heroes/pasta.ts) joins the drops and the shop once his art is in. */
-export const PASTA_RELEASED = false;
+export const PASTA_RELEASED = true;
 export const PASTA_ID = 'pasta';
 /** Crests to unlock Pasta (Epics take 80; he is one of a kind). */
 export const PASTA_UNLOCK = 100;
@@ -70,6 +70,9 @@ export function fightGlory(won: boolean): number {
 export function pastaDrop(rnd: () => number, chance: number, crests = 1, released = PASTA_RELEASED): number {
   return released && rnd() < chance ? crests : 0;
 }
+
+/** Random source for the rare Pasta drops (tests swap it so results never depend on luck). */
+export const pastaLuck = { roll: (): number => Math.random() };
 
 /** Shop labels for the non-hero items. */
 export const ARENA_NAME: Record<ArenaItemKind, (n: number) => string> = {

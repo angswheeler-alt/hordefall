@@ -519,8 +519,15 @@ export const RELEASED_HEROES: readonly string[] = [
   'shade', 'vex', 'rook', 'dread', 'wraith', 'nyx', 'dawn', 'lumen', 'sol', 'aegis', 'seraph',
   // Samuel (2026-10-15): release new heroes as soon as they're balanced; they use placeholder art until theirs lands.
   'shellby', 'celeste', 'ruin', 'brasha', 'tusk', ...ROSTER_HEROES.map((h) => h.id),
+  // Samuel (2026-11-12): Pasta, crests only from rare drops and the Arena Shop (src/arenaShop.ts).
+  'pasta',
 ];
 export const PLAYABLE_HEROES: HeroDef[] = HEROES.filter((h) => RELEASED_HEROES.includes(h.id));
+/**
+ * Released heroes that random pools may hand out (chests, Trials, shops, Wild Crests, lenders, made-up foes).
+ * Pasta is left out: his crests come only from his own rare drops and the Arena Shop (src/arenaShop.ts).
+ */
+export const POOL_HEROES: HeroDef[] = PLAYABLE_HEROES.filter((h) => h.id !== 'pasta');
 
 export const RENAMED_HEROES: Record<string, string> = { marin: 'brine', tide: 'brine', bramble: 'thorn', pyra: 'ember', nox: 'shade', solenne: 'lumen' };
 

@@ -518,7 +518,8 @@ describe('trial tickets', () => {
     const s = fresh();
     for (const element of TRIAL_ROTATION) {
       const pool = s.trialPool(element);
-      const all = PLAYABLE_HEROES.filter((h) => h.element === element && h.rarity !== 'legendary' && !isAscendant(h.id));
+      // Pasta is left out: his crests come only from his rare drops and the Arena Shop.
+      const all = PLAYABLE_HEROES.filter((h) => h.element === element && h.rarity !== 'legendary' && !isAscendant(h.id) && h.id !== 'pasta');
       expect(pool.map((h) => h.id).sort()).toEqual(all.map((h) => h.id).sort());
       expect(pool.length).toBeGreaterThan(0);
     }
