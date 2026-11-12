@@ -92,6 +92,8 @@ export type UltEffect =
   | { kind: 'mark'; mult: number; seconds: number; plusMult: number; plusSeconds: number }
   /** One blow on the toughest enemy in reach for `mult` x the Ultimate hit (no area). 5★: plusMult. */
   | { kind: 'strike'; mult: number; plusMult: number }
+  /** Pasta: a blow on the toughest enemy in reach for `mult` x the hit, then he boils over at once (already boiling: +`extend` s). 5★: plusMult, and the form lasts `plusSeconds` longer. */
+  | { kind: 'boil'; mult: number; plusMult: number; extend: number; plusSeconds: number }
   /** After the hit, every non-Fire hero deals Earth damage for `seconds` (5★: plusSeconds). */
   | { kind: 'earthen'; seconds: number; plusSeconds: number }
   /** Healers: on top of the full heal, shields every living hero for `share` of the caster's max HP (5★: plusShare). */
@@ -198,7 +200,9 @@ export type EffectKind =
   // enemyVuln: multiplies damage enemies take. moveSpeed: multiplies how fast heroes walk.
   | 'charm' | 'blind' | 'enemyVuln' | 'moveSpeed'
   // Hero-sheet stats (for the hero stat page; chances are 0.05 = 5%).
-  | 'frenzy' | 'effectRes' | 'stunChance' | 'freezeChance' | 'burnChance' | 'poisonChance' | 'ultAtk' | 'aoeDmg';
+  | 'frenzy' | 'effectRes' | 'stunChance' | 'freezeChance' | 'burnChance' | 'poisonChance' | 'ultAtk' | 'aoeDmg'
+  // boilRally: multiplies team damage only while a hero is in Pasta's dark form (Boiling Over).
+  | 'boilRally';
 
 export interface Effect {
   kind: EffectKind;
