@@ -157,20 +157,26 @@ describe('full roster', () => {
   });
 });
 
-describe('Combo Counter (Pasta)', async () => {
+describe('Boiling Over (Pasta)', async () => {
   const { gritStep } = await import('../src/kits');
-  const sig = { kind: 'grit', perHit: 0.02, max: 1, idle: 3, standSeconds: 5 } as const;
-  it('adds +2% per hit in a row on any target, capped at +100%', () => {
-    expect(gritStep(sig, 0, 99).mult).toBeCloseTo(1.02);
-    expect(gritStep(sig, 9, 1).mult).toBeCloseTo(1.2);
-    expect(gritStep(sig, 80, 1).mult).toBeCloseTo(2);
+  const sig = { kind: 'grit', perHit: 0.04, max: 1, idle: 5, formAt: 25, formSeconds: 6, formMult: 2 } as const;
+  it('adds +4% per hit in a row on any target, and halves after the idle gap', () => {
+    expect(gritStep(sig, 0, 99).mult).toBeCloseTo(1.04);
+    expect(gritStep(sig, 9, 1).mult).toBeCloseTo(1.4);
+    expect(gritStep(sig, 20, 6).combo).toBe(11);
+    expect(gritStep(sig, 20, 4).combo).toBe(21);
   });
-  it('halves after the idle gap, except when Last One Standing', () => {
-    expect(gritStep(sig, 30, 3.5).combo).toBe(16);
-    expect(gritStep(sig, 30, 3.5, true).combo).toBe(32);
-    expect(gritStep(sig, 30, 2).combo).toBe(31);
+  it('the 25th hit in a row starts the dark form: double hits at the full +100%', () => {
+    expect(gritStep(sig, 23, 1)).toEqual({ combo: 24, mult: expect.closeTo(1.96), form: false });
+    const g = gritStep(sig, 24, 1);
+    expect(g.form).toBe(true);
+    expect(g.combo).toBe(25);
+    expect(g.mult).toBeCloseTo(4);
+  });
+  it('in the form the combo holds and every hit counts double, even after a pause', () => {
+    expect(gritStep(sig, 25, 9, true)).toEqual({ combo: 25, mult: 4, form: false });
   });
   it('does nothing for other Signatures', () => {
-    expect(gritStep({ kind: 'combo', perHit: 0.1, max: 0.5 }, 10, 1)).toEqual({ combo: 0, mult: 1 });
+    expect(gritStep({ kind: 'combo', perHit: 0.1, max: 0.5 }, 10, 1)).toEqual({ combo: 0, mult: 1, form: false });
   });
 });

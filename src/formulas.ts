@@ -194,11 +194,11 @@ export const HERO_ATK_MULT = 1.2;
  */
 export const RARITY_STAT_MULT: Record<HeroDef['rarity'], number> = { common: 1, rare: 2.25, epic: 5, legendary: 11 };
 export function heroAtk(def: HeroDef, level: number): Decimal {
-  return levelScale(level).times(def.baseAtk * HERO_ATK_MULT * (RARITY_STAT_MULT[def.rarity] ?? 1));
+  return levelScale(level).times(def.baseAtk * HERO_ATK_MULT * (RARITY_STAT_MULT[def.statRarity ?? def.rarity] ?? 1));
 }
 
 export function heroHp(def: HeroDef, level: number): Decimal {
-  return levelScale(level).times(def.baseHp * (RARITY_STAT_MULT[def.rarity] ?? 1));
+  return levelScale(level).times(def.baseHp * (RARITY_STAT_MULT[def.statRarity ?? def.rarity] ?? 1));
 }
 
 /** Defense grows with level like ATK and HP. Without a baseDef it is a small share of HP, so tanky heroes defend best. */

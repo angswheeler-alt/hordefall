@@ -122,13 +122,17 @@ export function quarryCarry(sig: Signature | undefined, streak: number, plus = f
 }
 
 /**
- * Combo Counter (Pasta): one hit at `combo` hits so far, `sinceLast` seconds after the previous hit. Any target counts;
- * a gap longer than `idle` halves it (a full reset made him the weakest on wave stages, balance bench 2026-11-11). `alone` (6★ Last One Standing, every teammate down) never resets and counts double.
- * Returns the new combo and this hit's damage multiplier.
+ * Combo Counter (Pasta, Samuel 2026-11-12): one hit at `combo` hits so far, `sinceLast` seconds after the previous hit.
+ * Any target counts; a gap longer than `idle` halves it. Reaching `formAt` hits starts his dark form (Boiling Over):
+ * the combo holds there and every hit counts `formMult` times while it lasts; when it ends the combo drops to 0
+ * (the scene does that, see formEnd). `inForm`: the form is running. Returns the new combo, this hit's damage
+ * multiplier and whether this hit started the form.
  */
-export function gritStep(sig: Signature | undefined, combo: number, sinceLast: number, alone = false): { combo: number; mult: number } {
-  if (sig?.kind !== 'grit') return { combo: 0, mult: 1 };
-  const start = !alone && sinceLast > sig.idle ? Math.floor(combo / 2) : combo;
-  const next = start + (alone ? 2 : 1);
-  return { combo: next, mult: 1 + Math.min(sig.max, sig.perHit * next) };
+export function gritStep(sig: Signature | undefined, combo: number, sinceLast: number, inForm = false): { combo: number; mult: number; form: boolean } {
+  if (sig?.kind !== 'grit') return { combo: 0, mult: 1, form: false };
+  const atk = (n: number) => 1 + Math.min(sig.max, sig.perHit * n);
+  if (inForm) return { combo, mult: atk(combo) * sig.formMult, form: false };
+  const next = (sinceLast > sig.idle ? Math.floor(combo / 2) : combo) + 1;
+  const form = next >= sig.formAt;
+  return { combo: next, mult: atk(next) * (form ? sig.formMult : 1), form };
 }
