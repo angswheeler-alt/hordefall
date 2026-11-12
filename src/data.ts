@@ -122,7 +122,10 @@ export type UltEffect =
 export interface HeroDef {
   id: string;
   name: string;
+  /** For a hero with noElement this only picks its art colours and Essence; it fights as 'none' (heroAffinity). */
   element: Element;
+  /** No element (Pasta): 2x to Water/Fire/Earth, 1x to Light/Dark, takes 1x from all (elementMultiplier). */
+  noElement?: boolean;
   rarity: Rarity;
   /** Base stats as this rarity instead (Pasta: an Epic by crests with Legendary-level stats, Samuel 2026-11-12). */
   statRarity?: Rarity;
@@ -547,7 +550,23 @@ export const RENAMED_HEROES: Record<string, string> = { marin: 'brine', tide: 'b
 export const STRONG_VS: Record<Element, Element> = { water: 'fire', fire: 'earth', earth: 'water', light: 'dark', dark: 'light' };
 export const WEAK_VS: Record<Element, Element> = { water: 'earth', fire: 'water', earth: 'fire', light: 'light', dark: 'dark' };
 
-export function elementMultiplier(attacker: Element, defender: Element): number {
+/**
+ * A hero with no element (Pasta, user 2026-11-12): deals NO_ELEMENT_MULT to Water, Fire and Earth, normal
+ * damage to Light and Dark, and takes normal damage from everything.
+ */
+export type Affinity = Element | 'none';
+export const NO_ELEMENT_MULT = 2;
+export const NO_ELEMENT_COLOR = 0x9a96a8;
+
+/** What a hero fights as: its element, or 'none' for a hero with no element. */
+export const heroAffinity = (def: { element: Element; noElement?: boolean }): Affinity => (def.noElement ? 'none' : def.element);
+
+/** A hero's colour on cards and buttons (grey for no element). */
+export const heroElementColor = (def: { element: Element; noElement?: boolean }): number => (def.noElement ? NO_ELEMENT_COLOR : ELEMENT_COLORS[def.element]);
+
+export function elementMultiplier(attacker: Affinity, defender: Affinity): number {
+  if (defender === 'none') return 1;
+  if (attacker === 'none') return defender === 'light' || defender === 'dark' ? 1 : NO_ELEMENT_MULT;
   if (STRONG_VS[attacker] === defender) return attacker === 'light' || attacker === 'dark' ? 2 : 4;
   if (WEAK_VS[attacker] === defender) return 0.5;
   return 1;
@@ -591,7 +610,7 @@ export function bossWeakness(stage: number): Element | null {
  * not stuck forever. `attacker` is the element the hit counts as; null (no hero behind it) never hurts.
  */
 export const ELEMENT_BOSS_OTHER_SHARE = 0.2;
-export function elementBossShare(stage: number, attacker: Element | null): number {
+export function elementBossShare(stage: number, attacker: Affinity | null): number {
   if (!isElementBossStage(stage)) return 1;
   const weak = bossWeakness(stage);
   if (weak === null || attacker === weak) return 1;
@@ -599,7 +618,7 @@ export function elementBossShare(stage: number, attacker: Element | null): numbe
 }
 
 /** True when a hit of `attacker`'s element does nothing to the stage's boss (only hits with no hero behind them). */
-export function bossImmuneTo(stage: number, attacker: Element | null): boolean {
+export function bossImmuneTo(stage: number, attacker: Affinity | null): boolean {
   return elementBossShare(stage, attacker) === 0;
 }
 

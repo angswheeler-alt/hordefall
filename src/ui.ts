@@ -7,7 +7,7 @@ import { testAdjust, testMaxAll, testMaxHero, testRange, testRecruit, testValue,
 import Decimal from 'break_infinity.js';
 import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { STAR_EMBER_BONUS, GUILD_BOSS_NAMES, GOLD_CHEST_GEMS_PER_DAY, GUILD_BOSS_SECONDS, HEROES, byRarity, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_SLIDER_MAX, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_SET_START_SHARE, RELIC_STORED_SHARE, RELIC_SET_OWNED_SHARE, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, trialFirstWin, ESSENCE_NAMES, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, elementMultiplier, nextBossInfo, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { heroAffinity, heroElementColor, STAR_EMBER_BONUS, GUILD_BOSS_NAMES, GOLD_CHEST_GEMS_PER_DAY, GUILD_BOSS_SECONDS, HEROES, byRarity, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_SLIDER_MAX, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_SET_START_SHARE, RELIC_STORED_SHARE, RELIC_SET_OWNED_SHARE, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, trialFirstWin, ESSENCE_NAMES, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, elementMultiplier, nextBossInfo, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicEffect, guildRelicItemCost, BOSS_RELICS, BOSS_RELIC_SLOTS, BOSS_RELIC_MAX_LEVEL, BOSS_ITEM_NAMES, BOSS_ITEM_CHANCE, type GuildRelicEffect, type BossItemCounts } from './guildRelics';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
@@ -90,7 +90,7 @@ export const heroArtKey = (id: string) => formArt(id);
 // Legendaries get --leg:1, a gold-and-orange ring.
 // `art` picks another picture; by default an Ascendant hero shows its current form's art (see setFormArt).
 export const faceStyle = (def: HeroDef, art = heroArtKey(def.id)) =>
-  `background-color:${hex(ELEMENT_COLORS[def.element])};--art:${heroArt(art)}${HERO_ANIMS[art] ? heroFaceCss(art) : ';color:#fff !important;text-shadow:0 1px 0 #000 !important'}${isAscendant(def.id) ? ';--asc:1' : def.rarity === 'legendary' ? ';--leg:1' : ''}`;
+  `background-color:${hex(heroElementColor(def))};--art:${heroArt(art)}${HERO_ANIMS[art] ? heroFaceCss(art) : ';color:#fff !important;text-shadow:0 1px 0 #000 !important'}${isAscendant(def.id) ? ';--asc:1' : def.rarity === 'legendary' ? ';--leg:1' : ''}`;
 const SWORD = '<i class="ico ico-atk" aria-hidden="true"></i>';
 const HEART = '<i class="ico ico-hp" aria-hidden="true"></i>';
 const ULT_ICONS: Record<string, string> = {
@@ -212,7 +212,7 @@ export class UI {
       root.innerHTML = `
         <div class="face art" role="button" tabindex="0" aria-label="Open ${def.name}" style="${faceStyle(def)}">${def.name[0]}<span class="pember"></span><span class="plv"></span></div>
         <div class="who" role="button" tabindex="0" aria-label="Open ${def.name}">
-          <div class="banner" style="--el:${hex(ELEMENT_COLORS[def.element])}"><span class="name">${def.name}</span><span class="stars-mini"></span></div>
+          <div class="banner" style="--el:${hex(heroElementColor(def))}"><span class="name">${def.name}</span><span class="stars-mini"></span></div>
           <div class="stats"></div>
           <div class="meta">${rarityTag(def)} ${heroTitle(def)} <span class="ember-chip"></span></div>
         </div>
@@ -284,12 +284,12 @@ export class UI {
   private renderCollection() {
     const s = this.state;
     const shown = this.shownHeroes();
-    const elements = [...new Set(shown.map((h) => h.element))];
+    const elements = [...new Set(shown.map((h) => heroAffinity(h)))];
     const owned = shown.filter((h) => (s.levels[h.id] ?? 0) > 0).length;
     $('coll-count').textContent = `${owned}/${shown.length}`;
     $('coll-legend').textContent = `Legendary medals: ${s.legendaryMedals.toLocaleString()}. ${LEGENDARY_HOW}`;
     const groups = elements.map((el) => {
-      const tiles = byRarity(shown.filter((h) => h.element === el))
+      const tiles = byRarity(shown.filter((h) => heroAffinity(h) === el))
         .map((h) => {
           const recruited = (s.levels[h.id] ?? 0) > 0;
           const crests = s.medalsFor(h.id);
@@ -299,7 +299,7 @@ export class UI {
           const pct = need ? Math.min(100, (crests / need) * 100) : 0;
           const stars = recruited ? `<span class="ct-stars">★${(s.stars[h.id] ?? 0) + 1}</span>` : '';
           const foot = maxed ? '<span class="ct-maxed">Maxed</span>' : `<div class="ct-bar"><i style="width:${pct}%"></i></div><span class="ct-count">${crests.toLocaleString()}</span>`;
-          return `<div class="ct${recruited ? '' : ' locked'}${s.canUnlock(h) ? ' ready' : ''}${s.inLineup(h.id) ? ' team' : ''}${isAscendant(h.id) ? ' asc' : h.rarity === 'legendary' ? ' leg' : ''}"><button type="button" class="ct-tile" data-coll="${h.id}" aria-label="${h.name}" style="--el:${hex(ELEMENT_COLORS[el])}"><span class="ct-art" style="--art:${heroArt(heroArtKey(h.id))}${heroWholeCss(heroArtKey(h.id), CT_ART_H)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span>${stars}<span class="ct-name">${h.name}${rarityTag(s.formDef(h))}</span></button>${foot}</div>`;
+          return `<div class="ct${recruited ? '' : ' locked'}${s.canUnlock(h) ? ' ready' : ''}${s.inLineup(h.id) ? ' team' : ''}${isAscendant(h.id) ? ' asc' : h.rarity === 'legendary' ? ' leg' : ''}"><button type="button" class="ct-tile" data-coll="${h.id}" aria-label="${h.name}" style="--el:${hex(heroElementColor(h))}"><span class="ct-art" style="--art:${heroArt(heroArtKey(h.id))}${heroWholeCss(heroArtKey(h.id), CT_ART_H)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span>${stars}<span class="ct-name">${h.name}${rarityTag(s.formDef(h))}</span></button>${foot}</div>`;
         })
         .join('');
       return `<section class="ct-group">${tiles}</section>`;
@@ -370,7 +370,7 @@ export class UI {
     const peek = this.teamPeek ? HEROES.find((h) => h.id === this.teamPeek) : undefined;
     const swapping = this.teamSwap ? HEROES.find((h) => h.id === this.teamSwap) : undefined;
     const boss = guildBossElement(utcWeekStart(Date.now()));
-    const edge = (h: HeroDef) => (tab === 'guild' ? elementMultiplier(h.element, boss) : 1);
+    const edge = (h: HeroDef) => (tab === 'guild' ? elementMultiplier(heroAffinity(h), boss) : 1);
     const starsOf = (h: HeroDef) => `<span class="tm-stars">${'★'.repeat(Math.max(1, (s.stars[h.id] ?? 0) + 1))}</span>`;
     const face = (h: HeroDef, cls = '') => `<span class="face art${cls}" style="${faceStyle(h)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span>`;
     const slotCost = s.nextTeamSlotCost();
@@ -432,7 +432,7 @@ export class UI {
       const cards = shown
         .map(
           (h) =>
-            `<button type="button" class="tm-card${ids.includes(h.id) ? ' on' : ''}" data-peek="${h.id}" style="--el:${hex(ELEMENT_COLORS[h.element])}" title="${cap(h.rarity)} ${h.type}">${edgeTag(h)}${face(h)}<b class="tm-name r-${h.rarity}">${h.name}</b><small>${level(h)}</small><small class="tm-cp">CP ${fmt(cps.get(h.id)!)}</small>${bar(cps.get(h.id)!)}${starsOf(h)}</button>`,
+            `<button type="button" class="tm-card${ids.includes(h.id) ? ' on' : ''}" data-peek="${h.id}" style="--el:${hex(heroElementColor(h))}" title="${cap(h.rarity)} ${h.type}">${edgeTag(h)}${face(h)}<b class="tm-name r-${h.rarity}">${h.name}</b><small>${level(h)}</small><small class="tm-cp">CP ${fmt(cps.get(h.id)!)}</small>${bar(cps.get(h.id)!)}${starsOf(h)}</button>`,
         )
         .join('');
       const tools = swapping
@@ -550,7 +550,7 @@ export class UI {
         ? `<button type="button" class="hot" data-swap="${h.id}">Swap in</button>`
         : `<button type="button" class="hot" data-lineup="${h.id}">Add to team</button>`;
     const why = on && count <= 1 ? 'The team needs at least one hero.' : !on && full ? `The team is full (${s.teamSlots}). Tap Swap in, then pick who they replace.` : '';
-    return `<div class="tm-peek" style="--el:${hex(ELEMENT_COLORS[h.element])}">
+    return `<div class="tm-peek" style="--el:${hex(heroElementColor(h))}">
       <div class="tm-peek-head"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span>
         <div><b class="tm-peek-name">${h.name}</b> ${rarityTag(h)}<small>${heroTitle(h)} · ${'★'.repeat(Math.max(1, (s.stars[h.id] ?? 0) + 1))}</small>
         <small>Level ${s.heroLevel(h.id).toLocaleString()}${ember ? ` (incl. +${ember.toLocaleString()} Ember)` : ''} · ${on ? 'In team' : 'Benched'}</small></div></div>
@@ -1209,7 +1209,7 @@ export class UI {
     for (const def of HEROES) {
       const button = document.createElement('button');
       button.className = 'ult';
-      button.style.setProperty('--el', hex(ELEMENT_COLORS[def.element]));
+      button.style.setProperty('--el', hex(heroElementColor(def)));
       // The hero's weapon on its element's colour; the element symbol shows until the weapon has a picture.
       button.innerHTML = `<i class="ult-wp" aria-hidden="true"></i>${ULT_ICONS[def.element]}<span class="cd"></span>`;
       button.setAttribute('aria-label', `${def.name} ultimate: ${def.ultimate.name}`);
@@ -2532,7 +2532,7 @@ export class UI {
     const st = stars ?? this.state.stars[h.id] ?? 0;
     // Another player's hero (stars given) shows its base picture: their Ascendant form isn't known here.
     const art = stars === undefined ? heroArtKey(h.id) : h.id;
-    return `<span class="face art" title="${h.name} ${st + 1}★" style="${faceStyle(h, art)};border-color:${hex(ELEMENT_COLORS[h.element])}">${HERO_ANIMS[art] ? '' : h.name[0]}</span>`;
+    return `<span class="face art" title="${h.name} ${st + 1}★" style="${faceStyle(h, art)};border-color:${hex(heroElementColor(h))}">${HERO_ANIMS[art] ? '' : h.name[0]}</span>`;
   }
 
   private pvpFoeFaces(foe: PvpOpponent) {
@@ -3149,7 +3149,7 @@ export class UI {
       `<button type="button" class="gem-btn" data-hs="featured:${kind}" ${f[kind] || gems < b.gems ? 'disabled' : ''}>${f[kind] ? 'Bought' : `${label} · ${b.medals} crests<small>${b.gems} Gems</small>`}</button>`;
     setHtml(
       $('hs-featured'),
-      `${face(f.hero)}<div class="hs-feat-text"><b>Featured: ${f.hero.name}</b><small>${cap(f.hero.rarity)} · ${cap(f.hero.element)}. A new hero every Monday; every hero comes back in turn.</small></div>
+      `${face(f.hero)}<div class="hs-feat-text"><b>Featured: ${f.hero.name}</b><small>${cap(f.hero.rarity)} · ${f.hero.noElement ? 'No element' : cap(f.hero.element)}. A new hero every Monday; every hero comes back in turn.</small></div>
       <div class="hs-feat-buy">${bundle('small', FEATURED_BUNDLE, 'Bundle')}${f.bigWeek ? bundle('big', FEATURED_BIG_BUNDLE, 'Big bundle') : ''}</div>`,
     );
     const shop = s.heroShopState(now);
@@ -3757,7 +3757,7 @@ function rarityTag(def: HeroDef) {
 
 /** "Water Samurai": element and Type. */
 function heroTitle(def: HeroDef) {
-  return `${cap(def.element)} ${def.type}`;
+  return `${def.noElement ? 'No element' : cap(def.element)} ${def.type}`;
 }
 
 /** A Stall cycle length: whole seconds, or one decimal under 10s. */

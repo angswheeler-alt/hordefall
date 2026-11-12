@@ -1,4 +1,4 @@
-import { HEROES, AURA_EVOLUTIONS, MASTERY_EVOLUTIONS, SUPPORT_RALLY, TYPE_MASTERY, type Effect, type EffectKind, type HeroDef } from './data';
+import { heroAffinity, HEROES, AURA_EVOLUTIONS, MASTERY_EVOLUTIONS, SUPPORT_RALLY, TYPE_MASTERY, type Effect, type EffectKind, type HeroDef } from './data';
 
 /** A star skill that is switched on, with the hero who owns it. */
 export interface ActiveEffect {
@@ -36,7 +36,7 @@ export function activeEffects(hasStar: (id: string, star: number) => boolean, re
  * A team effect with an element reaches only heroes of that element (and never the null query).
  */
 function reaching(effects: ActiveEffect[], kind: EffectKind, heroId: string | null): Effect[] {
-  const element = heroId === null ? null : HEROES.find((h) => h.id === heroId)?.element;
+  const element = heroId === null ? null : ((d) => d && heroAffinity(d))(HEROES.find((h) => h.id === heroId));
   return effects
     .filter((a) => a.effect.kind === kind && (a.owner === heroId || (a.effect.team && (!a.effect.element || a.effect.element === element))))
     .map((a) => a.effect);
