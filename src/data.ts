@@ -1168,19 +1168,19 @@ export interface RelicSetDef {
   text: string;
 }
 export const RELIC_SETS: RelicSetDef[] = [
-  { id: 'tide', name: 'Drowned Admiral', element: 'water', bonus: [['speed', 10], ['freezeTime', 15]], text: 'Team attacks 10% faster, freeze lasts 15% longer' },
+  { id: 'tide', name: 'Drowned Admiral', element: 'water', bonus: [['speed', 13], ['freezeTime', 15]], text: 'Team attacks 13% faster, freeze lasts 15% longer' },
   { id: 'goldhand', name: 'Market Baron', element: null, bonus: [['embers', 30], ['stallTime', 100]], text: '+30% Embers from Rekindle, Stalls twice as fast' },
-  { id: 'djinn', name: 'Kiln Golem', element: 'fire', bonus: [['crit', 10], ['cost', 500]], text: '+10% crit chance, hero levels cost much less' },
+  { id: 'djinn', name: 'Kiln Golem', element: 'fire', bonus: [['crit', 4], ['cost', 500]], text: '+4% crit chance, hero levels cost much less' },
   { id: 'storm', name: 'Lighthouse Keeper', element: 'light', bonus: [['hp', 1150], ['speed', 10]], text: 'Team +1,150% HP, attacks 10% faster' },
   { id: 'earthmother', name: 'Mossback', element: 'earth', bonus: [['dodge', 10], ['def', 1150]], text: 'Team dodges 10% of attacks, +1,150% Defense' },
   { id: 'underlord', name: 'Gravewarden', element: 'dark', bonus: [['stunTime', 15], ['atk', 1150]], text: 'Stuns last 15% longer, team +1,150% ATK' },
   { id: 'griffin', name: 'Dragon Hoard', element: null, bonus: [['embers', 50], ['hp', 4600]], text: '+50% Embers from Rekindle, team +4,600% HP' },
-  { id: 'firebird', name: 'Emberwing', element: 'fire', bonus: [['burnTime', 25], ['crit', 15], ['atk', 4600]], text: 'Burns last 25% longer, +15% crit chance, team +4,600% ATK' },
+  { id: 'firebird', name: 'Emberwing', element: 'fire', bonus: [['burnTime', 25], ['crit', 3], ['atk', 1500]], text: 'Burns last 25% longer, +3% crit chance, team +1,500% ATK' },
   { id: 'wyrm', name: 'Abyss Wyrm', element: 'dark', bonus: [['stunTime', 25], ['cost', 750], ['atk', 4600]], text: 'Stuns last 25% longer, hero levels cost far less, team +4,600% ATK' },
   { id: 'titan', name: 'Stone Titan', element: 'earth', bonus: [['poisonTime', 25], ['dodge', 15], ['def', 4600]], text: 'Poison lasts 25% longer, team dodges 15% of attacks, +4,600% Defense' },
   { id: 'siren', name: 'Siren', element: 'water', bonus: [['freezeTime', 25], ['speed', 15], ['def', 4600]], text: 'Freeze lasts 25% longer, team attacks 15% faster, +4,600% Defense' },
   { id: 'leviathan', name: 'Leviathan', element: 'water', bonus: [['speed', 20], ['def', 8000]], text: 'Team attacks 20% faster, +8,000% Defense' },
-  { id: 'thunderhawk', name: 'Thunderhawk', element: 'light', bonus: [['crit', 20], ['hp', 8000]], text: '+20% crit chance, team +8,000% HP' },
+  { id: 'thunderhawk', name: 'Thunderhawk', element: 'light', bonus: [['crit', 6], ['hp', 8000]], text: '+6% crit chance, team +8,000% HP' },
   { id: 'dreadmoon', name: 'Dreadmoon', element: 'dark', bonus: [['stunTime', 35], ['cost', 1150], ['atk', 16000]], text: 'Stuns last 35% longer, hero levels cost far less, team +16,000% ATK' },
   { id: 'hallowed', name: 'Hallowed', element: null, bonus: [['embers', 75], ['atk', 32000], ['hp', 32000]], text: '+75% Embers from Rekindle, team +32,000% ATK and HP' },
 ];
@@ -1188,8 +1188,12 @@ export const RELIC_SETS: RelicSetDef[] = [
  * Set bonuses grow with the set's levels (Samuel, 2026-11-04: crafting a set gave its whole bonus at level 1, so
  * every 5★ set bonus landed within a month). A complete set gives RELIC_SET_START_SHARE of its bonus while its
  * lowest piece is level 1, rising evenly to the full bonus once every piece is level RELIC_BASE_MAX.
+ * Set balance (Samuel, 2026-11-12): sets start at 5% like their pieces (Lv 1 of 20), so a just-finished set no longer
+ * gives a day-one spike (Gravewarden was +25% team damage while most 4★ sets gave 2-5%). Crit-chance sets were cut
+ * because crit multiplies with stacked crit damage: at max Kiln Golem was +34% damage, Emberwing +80%, Thunderhawk +36%.
+ * Now every 4★ set is worth about 12-14% at max, 5★ about 20%.
  */
-export const RELIC_SET_START_SHARE = 0.25;
+export const RELIC_SET_START_SHARE = 0.05;
 /**
  * Collection bonus (Samuel, 2026-11-09): a crafted relic that isn't equipped still gives this share of its
  * effect, so owning more relics always helps while slots and choices still matter.
