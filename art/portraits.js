@@ -32,9 +32,12 @@ function bounds(id, img, fw) {
 }
 
 const heroes = {};
-for (const f of fs.readdirSync(path.join(ROOT, 'public', 'heroes')).sort()) {
+// Bundled heroes (src/assets/heroes, see src/heroFiles.ts) sit next to the public ones.
+const heroFiles = ['public/heroes', 'src/assets/heroes'].flatMap((d) =>
+  fs.existsSync(path.join(ROOT, d)) ? fs.readdirSync(path.join(ROOT, d)).map((f) => [d, f]) : []);
+for (const [d, f] of heroFiles.sort((a, b) => (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0))) {
   if (!/^[a-z0-9_]+\.png$/.test(f) || /_(run|attack)\.png$/.test(f)) continue;
-  const img = readPNG(path.join(ROOT, 'public', 'heroes', f));
+  const img = readPNG(path.join(ROOT, d, f));
   heroes[f.slice(0, -4)] = bounds(f.slice(0, -4), img, img.w);
 }
 const bosses = {};

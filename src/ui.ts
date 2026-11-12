@@ -1,3 +1,4 @@
+import { heroFile } from './heroFiles';
 import { weaponArtUrl } from './weaponArt';
 import { devToolsOn } from './devAccess';
 import { CLAIM_ROOT, claimOf } from './claims';
@@ -63,7 +64,7 @@ const escHtml = (text: string) => String(text).replace(/[&<>"']/g, (c) => `&#${c
  */
 // The Collection tile's picture box (.ct-art: inset 4% 4% 14% of a square) is this tall per 1 wide.
 const CT_ART_H = 82 / 92;
-const heroArt = (id: string) => (HERO_ANIMS[id] ? `url('${new URL(`heroes/${id}.png`, document.baseURI).href}')` : 'none');
+const heroArt = (id: string) => (HERO_ANIMS[id] ? `url('${new URL(heroFile(id), document.baseURI).href}')` : 'none');
 // Stall and relic icons (art/icons/make_icons.py), bundled so the single-file build carries them too.
 const iconUrls = (files: Record<string, string>) => Object.fromEntries(Object.entries(files).map(([f, url]) => [f.split('/').pop()!.slice(0, -4), url]));
 const STALL_ICONS = iconUrls(import.meta.glob('./assets/stalls/*.png', { eager: true, query: '?url', import: 'default' }));

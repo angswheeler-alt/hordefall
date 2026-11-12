@@ -1,3 +1,4 @@
+import { heroFile } from './heroFiles';
 import Phaser from 'phaser';
 import Decimal from 'break_infinity.js';
 import {
@@ -513,12 +514,12 @@ export class BattleScene extends Phaser.Scene {
     this.load.image('chest-gold', chestGoldUrl);
     for (const r of [...REGIONS, 'colosseum']) for (const layer of ['sky', 'far', 'ground']) this.load.image(`bg-${r}-${layer}`, `bg/${r}_${layer}.png`);
     // Hero sprites (32x32, feet on row 30). A hero without a file falls back to its placeholder block.
-    for (const h of HEROES) if (HERO_ANIMS[h.id]) this.load.image(`hero-${h.id}`, `heroes/${h.id}.png`);
+    for (const h of HEROES) if (HERO_ANIMS[h.id]) this.load.image(`hero-${h.id}`, heroFile(h.id));
     // Ascendant heroes' later forms (src/ascendant.ts) need no standing file: create() cuts it from the attack strip.
     for (const [id, a] of Object.entries(HERO_ANIMS)) {
       const size = { frameWidth: a.frame[0], frameHeight: a.frame[1] };
-      this.load.spritesheet(`hero-${id}-run`, `heroes/${id}_run.png`, size);
-      this.load.spritesheet(`hero-${id}-attack`, `heroes/${id}_attack.png`, size);
+      this.load.spritesheet(`hero-${id}-run`, heroFile(`${id}_run`), size);
+      this.load.spritesheet(`hero-${id}-attack`, heroFile(`${id}_attack`), size);
     }
     // Each mob comes repainted in every element's colours (art/mobs/animate.js).
     for (const [id, a] of Object.entries(MOB_ANIMS)) {

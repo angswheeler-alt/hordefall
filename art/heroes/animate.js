@@ -16,7 +16,11 @@ const path = require('path');
 const { readPNG, Canvas } = require('../backgrounds/png');
 
 const ROOT = __dirname;
-const OUT_DIR = path.join(ROOT, '..', '..', 'public', 'heroes');
+const PUBLIC_DIR = path.join(ROOT, '..', '..', 'public', 'heroes');
+// Heroes whose sprites are bundled into the game code (src/assets/heroes, see src/heroFiles.ts) instead of
+// public/heroes: the playable artifact is at its 511-file cap, so new heroes go here.
+const BUNDLED_DIR = path.join(ROOT, '..', '..', 'src', 'assets', 'heroes');
+const BUNDLED = new Set(['pasta']);
 const PREVIEW = path.join(ROOT, 'preview');
 const ANIMS_TS = path.join(ROOT, '..', '..', 'src', 'heroAnims.ts');
 const TARGET_HEIGHT = 50; // sprite px for a typical frame, head to feet, at size 1
@@ -232,13 +236,13 @@ function buildHero(id) {
   const strip = (list, file) => {
     const s = new Canvas(FW * list.length, FH);
     list.forEach((c, i) => s.draw(c, i * FW, 0));
-    s.save(path.join(OUT_DIR, file));
+    s.save(path.join(BUNDLED.has(id) ? BUNDLED_DIR : PUBLIC_DIR, file));
     return s;
   };
   const a = strip(frames.attack, `${id}_attack.png`);
   const r = strip(frames.run, `${id}_run.png`);
   const stand = frames.attack[0];
-  stand.save(path.join(OUT_DIR, `${id}.png`));
+  stand.save(path.join(BUNDLED.has(id) ? BUNDLED_DIR : PUBLIC_DIR, `${id}.png`));
 
   // HP bar sits above the hair: first non-empty row of the standing pose.
   let headTop = 0;
