@@ -719,6 +719,19 @@ export class UI {
     // Every mode card shows a battle backdrop that suits it, like the Colosseum's.
     const cardArt: Record<string, string> = { arena: scene('colosseum'), trials: scene('hollowmoon'), scout: scene('tidecoast'), rush: scene('stormcrag'), exp: scene('hollowmoon', '60%') };
     for (const [mode, art] of Object.entries(cardArt)) document.querySelector<HTMLElement>(`.mode-card.${mode}`)?.style.setProperty('--art', art);
+    // The Colosseum opens full screen over the lane; its backdrop is the arena itself.
+    document.querySelector<HTMLElement>('.arena-full')?.style.setProperty('--art', scene('colosseum'));
+    $('arena-back').addEventListener('click', () => {
+      // From the shop or an opponent, Back returns to the Colosseum; from there, to the Battle hub.
+      if (this.pvpView !== 'list') {
+        this.pvpView = 'list';
+        this.renderPvp();
+      } else {
+        for (const pane of document.querySelectorAll<HTMLElement>('[data-battle-pane]')) pane.hidden = pane.dataset.battlePane !== 'hub';
+        this.renderBattle();
+      }
+      document.querySelector<HTMLElement>('.arena-full')!.scrollTop = 0;
+    });
     for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-battle-go]')) {
       btn.addEventListener('click', () => {
         for (const pane of document.querySelectorAll<HTMLElement>('[data-battle-pane]')) pane.hidden = pane.dataset.battlePane !== btn.dataset.battleGo;
@@ -2543,9 +2556,10 @@ export class UI {
       setHtml($('pvp'), '<p>Finding opponents…</p>');
       return;
     }
+    if (this.pvpView === 'foe' && !p.picks[this.pvpSlot]) this.pvpView = 'list';
+    $('arena-title').textContent = this.pvpView === 'shop' ? 'Arena Shop' : this.pvpView === 'foe' ? 'Opponent' : 'Colosseum';
     if (this.pvpView === 'shop') return setHtml($('pvp'), this.arenaShopHtml());
-    if (this.pvpView === 'foe' && p.picks[this.pvpSlot]) return setHtml($('pvp'), this.pvpFoeHtml(this.pvpSlot));
-    this.pvpView = 'list';
+    if (this.pvpView === 'foe') return setHtml($('pvp'), this.pvpFoeHtml(this.pvpSlot));
     const r = rankIndex(p.trophies);
     const next = r < LEGEND ? RANK_TROPHIES[r + 1] : null;
     const fill = next === null ? 100 : ((p.trophies - RANK_TROPHIES[r]) / (next - RANK_TROPHIES[r])) * 100;
@@ -2567,11 +2581,32 @@ export class UI {
       <div class="pvp-rank"><div style="flex:1"><div class="badge-rank">${rankName(r)}</div><small>${p.trophies} trophies${next === null ? '' : ` · ${next - p.trophies} to ${rankName(r + 1)}`}</small><div class="pvp-bar"><div style="width:${fill}%"></div></div></div>
         <div class="pvp-pay">${s.glory} Glory · ${s.starmotes} Starmotes<br><small>${p.wins}W ${p.losses}L${p.streak ? ` · streak ${p.streak} (+${Math.round(s.pvpStreakBonus() * 100)}% dmg)` : ''}</small></div></div>
       <small>Daily ${GLORY_DAILY[r]} Glory at this rank. Starmotes saved this season: <b>${p.season}</b>. On Monday the season ends: you get them plus ${RANK_WEEKLY[r]} for your rank, then drop to ${rankName(rankIndex(droppedTrophies(p.trophies)))}.</small>
+      ${this.arenaBannerHtml()}
       ${foes}
-      <div class="pvp-row"><button class="wood-btn small" data-pvp="shop">Arena Shop</button><button class="wood-btn small" data-pvp="board">Leaderboard &amp; log</button><button class="wood-btn small" data-pvp="refresh" ${refreshIn ? 'disabled' : ''}>${refreshIn ? `New opponents in ${Math.floor(refreshIn / 60)}:${String(refreshIn % 60).padStart(2, '0')}` : 'New opponents'}</button>${ticketBtn}</div>
+      <div class="pvp-row"><button class="wood-btn small" data-pvp="board">Leaderboard &amp; log</button><button class="wood-btn small" data-pvp="refresh" ${refreshIn ? 'disabled' : ''}>${refreshIn ? `New opponents in ${Math.floor(refreshIn / 60)}:${String(refreshIn % 60).padStart(2, '0')}` : 'New opponents'}</button>${ticketBtn}</div>
       <div class="pvp-team"><div class="pvp-row"><b>Attack team <small>CP ${fmt(s.fixedTeamCp(s.pvpAttackTeam()))}</small></b><button class="wood-btn small" data-pvp="team" data-kind="attack">Edit</button></div><span class="faces">${s.pvpAttackTeam().map((h) => this.pvpFace(h)).join('')}</span><small>You fight with this team. Your stage team stays as it is.</small></div>
       <div class="pvp-team"><div class="pvp-row"><b>Defense team</b><button class="wood-btn small" data-pvp="team" data-kind="defense">Edit</button></div><span class="faces">${s.pvpDefenseTeam().map((h) => this.pvpFace(h)).join('')}</span><small>Other players fight this team. Losing on defense never costs trophies.</small></div>`,
     );
+  }
+
+  /** The big Arena Shop entry near the top of the Colosseum, so players notice where Glory goes. */
+  private arenaBannerHtml() {
+    const s = this.state;
+    const items = arenaItems();
+    const canBuy = items.filter((i) => s.arenaLeft(i) > 0 && s.glory >= i.price).length;
+    const peek = items
+      .filter((i) => i.hero)
+      .slice(0, 4)
+      .map((i) => {
+        const def = HEROES.find((h) => h.id === i.hero)!;
+        return `<span class="face art" style="${faceStyle(def)}">${HERO_ANIMS[heroArtKey(def.id)] ? '' : def.name[0]}</span>`;
+      })
+      .join('');
+    const note = canBuy ? `${canBuy} item${canBuy === 1 ? '' : 's'} you can buy now` : 'Hero crests, Wild Crests, Stones and more';
+    return `<button class="arena-banner" data-pvp="shop">
+      <span class="ab-text"><b>Arena Shop</b><small>${note}</small><span class="ab-glory">${s.glory} Glory</span></span>
+      <span class="ab-faces">${peek}</span><span class="ab-go">Open &#8250;</span>
+    </button>`;
   }
 
   /** The Arena Shop page inside the Colosseum (src/arenaShop.ts). */
@@ -2590,7 +2625,7 @@ export class UI {
           <button class="wood-btn small" data-pvp="arena-buy" data-item="${item.id}" ${s.glory < item.price || left <= 0 ? 'disabled' : ''}>${item.price} Glory</button></div>`;
       })
       .join('');
-    return `<div class="pvp-row"><button class="wood-btn small" data-pvp="back">‹ Back</button><b>${s.glory} Glory</b></div>
+    return `<div class="ab-wallet"><b>${s.glory}</b> Glory</div>
       <p>Spend Glory from Colosseum fights. Limits reset each Monday when the season ends.</p>
       <div class="arena-shop">${rows}</div>`;
   }
@@ -2612,8 +2647,7 @@ export class UI {
     const forecast = !fc ? '' : fc.won && avg(fc.left[0]) > 0.6 ? ['win', 'Looks winnable.'] : !fc.won && avg(fc.left[1]) > 0.6 ? ['lose', 'Looks tough. Try other elements or a stronger team.'] : ['close', 'Could go either way.'];
     const can = s.canStartPvp(slot);
     const strong = s.pvpClearlyStronger(slot, fc);
-    return `<div class="pvp-row"><button class="wood-btn small" data-pvp="back">‹ Back</button></div>
-      <div class="pvp-team"><b>${escHtml(foe.name)} <small>CP ${fmt(new Decimal(foe.cp))}</small></b><span class="faces">${this.pvpFoeFaces(foe)}</span></div>
+    return `<div class="pvp-team"><b>${escHtml(foe.name)} <small>CP ${fmt(new Decimal(foe.cp))}</small></b><span class="faces">${this.pvpFoeFaces(foe)}</span></div>
       <div class="pvp-team"><div class="pvp-row"><b>Your attack team <small>CP ${fmt(mine)}</small></b><button class="wood-btn small" data-pvp="team" data-kind="attack">Change</button></div><span class="faces">${team.map((h) => this.pvpFace(h)).join('')}</span></div>
       ${forecast ? `<small class="pvp-forecast ${forecast[0]}">${forecast[1]}</small>` : ''}
       <small>Your team starts at the blue crystal and theirs at the red one. Fallen fighters come back after 10 seconds. The first crystal destroyed loses. Win: +${PVP_WIN_TROPHIES} trophies, ${GLORY_WIN} Glory and ${PVP_WIN_MOTES} Starmotes for the season payout. Loss: -${PVP_LOSS_TROPHIES} trophies, ${GLORY_LOSS} Glory, ${PVP_LOSS_MOTES} Starmote.</small>
