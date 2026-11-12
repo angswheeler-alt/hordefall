@@ -31,6 +31,7 @@ const HERO_SIZE = {
   // The full roster. Squads (archers, scrappers, spears...) stay at 1: the game draws each fighter at 0.7.
   // Legendaries stand a head above everyone (Samuel, 2026-10-31: they must look a level above regular heroes).
   varuun: 1.6, ashtor: 1.5, talonra: 1.5,
+  pasta: 1,
   magmabrute: 1.3, bonebrute: 1.3, crabbrute: 1.25, mudbrute: 1.25, glacius: 1.25, thundrum: 1.25,
   pyrrhus: 1.2, boulder: 1.2, brightmane: 1.2, malgrave: 1.2,
   tusk: 1.15, grumm: 1.15, rime: 1.15, ruin: 1.15, brasha: 1.15, weaver: 1.15, gloom: 1.15, drakebot: 1.15,

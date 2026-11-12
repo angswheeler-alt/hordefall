@@ -5,12 +5,12 @@ import { SPEED_UNLOCK_STAGE, HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STA
 import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_TEMPER_CAP, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicCost, guildRelicEffect, warsteelForFight, warsteelForKill, warsteelForWeek, type GuildRelicDef, type GuildRelicEffect, BOSS_RELICS, BOSS_RELIC_SLOTS, BOSS_RELIC_MAX_LEVEL, BOSS_HEART_PITY, bossRelicCost, guildRelicItemCost, rollBossItems, type BossItemCounts, type BossRelicDef } from './guildRelics';
 import { utcWeekStart, guildBossElement, relicCost, bossHp, bossAtk, enemyHp, enemyAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberCost, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, isBossStage, plateauStages, PLATEAU_STEP, PAY_STAGE_GROWTH, REBIRTH_FROM_LEVEL, REBIRTH_PAY_STAGES } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
-import { STAR_EMBER_BONUS, FIXED_LEVEL, RENAMED_HEROES, PLAYABLE_HEROES, RELEASED_HEROES, ASCENDANT_CHEST, START_GOLD, isElementBossStage, bossWeakness } from './data';
+import { STAR_EMBER_BONUS, FIXED_LEVEL, RENAMED_HEROES, PLAYABLE_HEROES, POOL_HEROES, RELEASED_HEROES, ASCENDANT_CHEST, START_GOLD, isElementBossStage, bossWeakness } from './data';
 import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills';
 import { isKnight, combatPower, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
 import { OBSERVATORY, OBSERVATORY_RESPEC_GEMS, obsDef, sigilCost, sigilsSpent, sigilsEarned, cleanObservatory, type ObsBranch } from './observatory';
-import { GLORY_DAILY, fightGlory, arenaItems, PASTA_ID, PASTA_UNLOCK, pastaDrop, PASTA_CHEST_CHANCE, PASTA_CHEST_CRESTS, PASTA_TRIAL_CHANCE, PASTA_REWARD_CHANCE, type ArenaItem } from './arenaShop';
+import { GLORY_DAILY, fightGlory, arenaItems, PASTA_ID, PASTA_UNLOCK, pastaDrop, pastaLuck, PASTA_CHEST_CHANCE, PASTA_CHEST_CRESTS, PASTA_TRIAL_CHANCE, PASTA_REWARD_CHANCE, type ArenaItem } from './arenaShop';
 import { PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_TICKET_GEMS, PVP_TICKET_BUYS, PVP_REFRESH_MINUTES, PVP_CP_MIN, PVP_CP_MAX, PVP_REAL_MIN, PVP_REAL_MAX, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_FIRST_WIN_MOTES, PVP_STREAK_DMG, PVP_STREAK_MAX, PVP_QUICK_CP, PVP_QUICK_HP, rankCp, RANK_DAILY, RANK_WEEKLY, rankIndex, rankName, droppedTrophies, seededRandom, ghostName, simulatePvp, type PvpUnit, type PvpResult } from './colosseum';
 import { TUTORIAL_DONE, OLD_TUTORIAL_DONE, TIP_IDS } from './tutorialSteps';
 import { ascendBlocker, ascendNeeds, clampForm, formArtKey, resolveForm, COUNTERED_BY, type AscendBlocker, type AscendContext, type AscendantDef } from './ascendant';
@@ -300,7 +300,7 @@ export function weekIndex(now = Date.now()): number {
 const isLegendary = (id: string) => HEROES.find((h) => h.id === id)?.rarity === 'legendary';
 
 // Ascendant heroes come only from their own sources (the Ascendant Chest), never from chests, shops or Trials.
-export const SHOP_HEROES: HeroDef[] = PLAYABLE_HEROES.filter((h) => h.rarity !== 'legendary' && !isAscendant(h.id));
+export const SHOP_HEROES: HeroDef[] = POOL_HEROES.filter((h) => h.rarity !== 'legendary' && !isAscendant(h.id));
 /** Featured hero order: every shop hero once per round, mixed by a fixed hash so neighbours differ. */
 const FEATURED_ORDER: HeroDef[] = [...SHOP_HEROES].sort((a, b) => idHash(a.id) - idHash(b.id) || a.id.localeCompare(b.id));
 function idHash(id: string): number {
@@ -1378,7 +1378,7 @@ export class GameState {
       drops.push({ heroId: hero.id, crests, isNew });
     }
     // Pasta (one of a kind): a rare extra drop from any chest.
-    const pasta = pastaDrop(Math.random, PASTA_CHEST_CHANCE, PASTA_CHEST_CRESTS);
+    const pasta = pastaDrop(pastaLuck.roll, PASTA_CHEST_CHANCE, PASTA_CHEST_CRESTS);
     if (pasta) drops.push(this.givePasta(pasta));
     return drops;
   }
@@ -1638,7 +1638,7 @@ export class GameState {
     const team = this.pvpAttackTeam();
     const size = Math.max(1, team.length);
     const avgStars = team.length ? Math.round(team.reduce((t, h) => t + (this.stars[h.id] ?? 0), 0) / team.length) : 0;
-    const pool = PLAYABLE_HEROES.filter((h) => h.rarity !== 'legendary');
+    const pool = POOL_HEROES.filter((h) => h.rarity !== 'legendary');
     const heroes: Array<{ id: string; stars: number }> = [];
     while (heroes.length < Math.min(size, pool.length)) {
       const h = pool[Math.floor(rand() * pool.length)];
@@ -2401,7 +2401,7 @@ export class GameState {
    * to its Rares and Epics. A color with every hero maxed pays them all again (their medals become Legendary medals).
    */
   trialPool(element: Element): HeroDef[] {
-    const all = PLAYABLE_HEROES.filter((h) => h.element === element && h.rarity !== 'legendary' && !isAscendant(h.id));
+    const all = POOL_HEROES.filter((h) => h.element === element && h.rarity !== 'legendary' && !isAscendant(h.id));
     const open = all.filter((h) => !this.atTopStar(h.id));
     return open.length ? open : all;
   }
@@ -2459,7 +2459,7 @@ export class GameState {
     const medals = this.trialMedals();
     for (let i = 0; i < medals; i++) {
       // Pasta (one of a kind) can turn up on any element's Trial, very rarely.
-      if (pastaDrop(Math.random, PASTA_TRIAL_CHANCE)) {
+      if (pastaDrop(pastaLuck.roll, PASTA_TRIAL_CHANCE)) {
         result.medals.push(PASTA_ID);
         this.addCrests(PASTA_ID, 1);
         continue;
@@ -2867,7 +2867,7 @@ export class GameState {
     const drops: SummonDrop[] = [];
     for (let i = 0; i < (r.chests ?? 0); i++) drops.push(...this.rollChest());
     // Pasta: any other reward (dailies, login, milestones, Rush tiers...) has a small chance of a crest.
-    if (pastaDrop(Math.random, PASTA_REWARD_CHANCE)) drops.push(this.givePasta(1));
+    if (pastaDrop(pastaLuck.roll, PASTA_REWARD_CHANCE)) drops.push(this.givePasta(1));
     this.enhanceStones += r.stones ?? 0;
     this.wildCrests += r.wild ?? 0;
     if (r.tickets) {
@@ -3242,7 +3242,7 @@ export class GameState {
     const e = this.expedition;
     const seed = `exp:${e.runs}:${level}:${dayKey(now)}`;
     const rand = seededRandom(`${seed}:lenders`);
-    const pool = PLAYABLE_HEROES.filter((h) => !isAscendant(h.id) && h.rarity !== 'legendary');
+    const pool = POOL_HEROES.filter((h) => !isAscendant(h.id) && h.rarity !== 'legendary');
     const avgStars = Math.round(party.reduce((t, id) => t + (this.stars[id] ?? 0), 0) / party.length);
     const all: ExpLender[] = lenders.filter((l) => l.heroes.length).slice(0, 12);
     while (all.length < 8) {
@@ -3346,7 +3346,7 @@ export class GameState {
     const rand = seededRandom(`${r.seed}:foe:${r.row}:${r.at}`);
     const size = Math.min(6, Math.max(3, r.party.length) + (kind === 'boss' ? 1 : 0));
     const avgStars = Math.round(r.party.reduce((t, id) => t + (this.stars[id] ?? 0), 0) / r.party.length);
-    const pool = PLAYABLE_HEROES.filter((h) => !isAscendant(h.id) && (kind === 'boss' || h.rarity !== 'legendary'));
+    const pool = POOL_HEROES.filter((h) => !isAscendant(h.id) && (kind === 'boss' || h.rarity !== 'legendary'));
     const heroes: Array<{ id: string; stars: number }> = [];
     while (heroes.length < size) {
       const h = pool[Math.floor(rand() * pool.length)];
@@ -3664,7 +3664,7 @@ export class GameState {
     const best = this.fixedCombatPower(mine[0]);
     const rand = seededRandom(`rush:${this.rush.id}:${bracket}:${this.rush.rolls}`);
     const b = RUSH_BRACKETS[bracket];
-    const pool = PLAYABLE_HEROES.filter((h) => !isAscendant(h.id));
+    const pool = POOL_HEROES.filter((h) => !isAscendant(h.id));
     const foes: RushFoe[] = RUSH_FOES.map((f) => {
       const share = f.min + rand() * (f.max - f.min);
       const name = ghostName(rand);
@@ -3993,7 +3993,7 @@ export class GameState {
   /** Wild Crests one crest for this hero costs, or null for heroes they can't go to. */
   wildCrestCost(heroId: string): number | null {
     const h = HEROES.find((x) => x.id === heroId);
-    if (!h || isAscendant(h.id) || !(h.rarity in WILD_CREST_COST) || !PLAYABLE_HEROES.includes(h)) return null;
+    if (!h || isAscendant(h.id) || !(h.rarity in WILD_CREST_COST) || !POOL_HEROES.includes(h)) return null;
     return WILD_CREST_COST[h.rarity as keyof typeof WILD_CREST_COST];
   }
 

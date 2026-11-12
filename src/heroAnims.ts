@@ -111,6 +111,7 @@ export const HERO_ANIMS: Record<string, HeroAnim> = {
   nerissa: { frame: [60,49], feet: [29,48], headTop: 2, run: 5, attack: 5, hitFrame: 2 },
   nettle: { frame: [63,53], feet: [29,52], headTop: 6, run: 5, attack: 5, hitFrame: 3 },
   nyx: { frame: [53,43], feet: [25,42], headTop: 4, run: 5, attack: 5, hitFrame: 3 },
+  pasta: { frame: [53,77], feet: [24,76], headTop: 2, run: 6, attack: 5, hitFrame: 2 },
   puff: { frame: [50,48], feet: [28,47], headTop: 2, run: 5, attack: 5, hitFrame: 2 },
   pyrrhus: { frame: [99,81], feet: [52,80], headTop: 19, run: 5, attack: 5, hitFrame: 3 },
   quill: { frame: [71,66], feet: [38,65], headTop: 16, run: 5, attack: 5, hitFrame: 4 },

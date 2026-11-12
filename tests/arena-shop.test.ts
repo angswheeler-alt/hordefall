@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { GameState } from '../src/state';
 import { HEROES, AWAKEN_UNLOCK_LEVEL } from '../src/data';
 import { keeperThreshold } from '../src/formulas';
-import { ARENA_HEROES, ARENA_ITEMS, GLORY_LOSS, GLORY_WIN, PASTA_ID, PASTA_UNLOCK, arenaItems, fightGlory, pastaDrop } from '../src/arenaShop';
+import { ARENA_HEROES, ARENA_ITEMS, GLORY_LOSS, GLORY_WIN, PASTA_ID, PASTA_UNLOCK, arenaItems, fightGlory, pastaDrop, pastaLuck, PASTA_CHEST_CRESTS } from '../src/arenaShop';
 
 const MON = new Date('2026-11-09T12:00:00').getTime();
 const DAY = 86_400_000;
@@ -89,11 +89,32 @@ describe('Arena Shop', () => {
 });
 
 describe('Pasta', () => {
-  it('takes 100 crests to unlock and stays hidden from players for now', async () => {
+  it('takes 100 crests to unlock and is released', async () => {
     const { RELEASED_HEROES } = await import('../src/data');
     const s = new GameState();
     expect(s.unlockCrests(HEROES.find((h) => h.id === PASTA_ID)!)).toBe(PASTA_UNLOCK);
-    expect(RELEASED_HEROES).not.toContain(PASTA_ID);
+    expect(RELEASED_HEROES).toContain(PASTA_ID);
+  });
+
+  it('a lucky Hero Chest adds Pasta crests', () => {
+    const s = new GameState();
+    pastaLuck.roll = () => 0;
+    try {
+      const drops = (s as any).rollChest() as Array<{ heroId: string; crests: number }>;
+      expect(drops.filter((d) => d.heroId === PASTA_ID).map((d) => d.crests)).toEqual([PASTA_CHEST_CRESTS]);
+      expect(s.crests[PASTA_ID]).toBe(PASTA_CHEST_CRESTS);
+    } finally {
+      pastaLuck.roll = () => 1;
+    }
+  });
+
+  it('never lands in the random hero pools (chests, Trials, Hero Shop, Wild Crests)', async () => {
+    const { POOL_HEROES } = await import('../src/data');
+    const { SHOP_HEROES } = await import('../src/state');
+    expect(POOL_HEROES.some((h) => h.id === PASTA_ID)).toBe(false);
+    expect(SHOP_HEROES.some((h) => h.id === PASTA_ID)).toBe(false);
+    const s = new GameState();
+    for (const el of ['fire', 'water', 'earth', 'light', 'dark'] as const) expect(s.trialPool(el).some((h) => h.id === PASTA_ID)).toBe(false);
   });
 
   it('rare drops only once released, at the given chance', () => {

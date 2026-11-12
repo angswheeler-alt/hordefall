@@ -136,8 +136,7 @@ describe('full roster', () => {
 
   it('releases every hero (heroes without art use placeholder art)', async () => {
     const { RELEASED_HEROES } = await import('../src/data');
-    // Pasta stays hidden while his kit is tested (src/heroes/pasta.ts).
-    for (const h of HEROES) if (h.id !== 'pasta') expect(RELEASED_HEROES, h.id).toContain(h.id);
+    for (const h of HEROES) expect(RELEASED_HEROES, h.id).toContain(h.id);
   });
 
   it('makes every hero a single unit (no squads), with troop text that says so', () => {
