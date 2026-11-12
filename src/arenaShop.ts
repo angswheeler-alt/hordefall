@@ -43,7 +43,7 @@ export interface ArenaItem {
 export const ARENA_HEROES = ['corvin', 'skiff', 'valorian', 'kestra'];
 
 export const ARENA_ITEMS: ArenaItem[] = [
-  { id: 'pasta', kind: 'crests', hero: PASTA_ID, amount: 5, price: 100, perWeek: 15 },
+  { id: 'pasta', kind: 'crests', hero: PASTA_ID, amount: 5, price: 100, perWeek: 7 },
   { id: 'h:corvin', kind: 'crests', hero: 'corvin', amount: 10, price: 100, perWeek: 5 },
   { id: 'h:skiff', kind: 'crests', hero: 'skiff', amount: 10, price: 100, perWeek: 5 },
   { id: 'h:valorian', kind: 'crests', hero: 'valorian', amount: 5, price: 100, perWeek: 5 },
