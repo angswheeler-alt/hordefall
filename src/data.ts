@@ -75,7 +75,8 @@ export type Signature =
   /** Shoots the toughest enemy in reach. Each shot in a row at it adds perHit damage, up to max; when it falls, `keep` of the streak carries to the next one (6★: plusKeep). */
   | { kind: 'quarry'; perHit: number; max: number; keep: number; plusKeep: number }
   /** Pasta's Combo Counter: every hit in a row (any target) adds perHit ATK, up to max; `idle` seconds without a hit halves it. 6★ Last One Standing: the first hit that would fell him (or the moment every teammate is down) leaves him standing, he can't fall for `standSeconds`, and for the rest of that life the combo never drops and each hit counts double. */
-  | { kind: 'grit'; perHit: number; max: number; idle: number; standSeconds: number };
+  /** Pasta: Combo Counter; at `formAt` hits he boils over into his dark form for `formSeconds` (hits x`formMult`, can't fall), which uses up the combo. */
+  | { kind: 'grit'; perHit: number; max: number; idle: number; formAt: number; formSeconds: number; formMult: number };
 
 /** What a standard hero's Ultimate does on top of the big hit (or full heal), and its 5★ twist. */
 export type UltEffect =
@@ -121,6 +122,8 @@ export interface HeroDef {
   name: string;
   element: Element;
   rarity: Rarity;
+  /** Base stats as this rarity instead (Pasta: an Epic by crests with Legendary-level stats, Samuel 2026-11-12). */
+  statRarity?: Rarity;
   /** Combat archetype: sets the stat shape and the Knight shield (see HERO_TYPES). */
   type: HeroType;
   /** The Signature's mechanics; its name and text are `trait`. */

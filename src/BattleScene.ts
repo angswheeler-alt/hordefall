@@ -263,9 +263,10 @@ interface Unit {
   maskUsed?: boolean;
   /** Zeal (Signature 'zeal'): attacks in a row. */
   zeal: number;
-  /** Combo Counter (Signature 'grit'): hits in a row, when the last one landed, and whether Last One Standing fired this life. */
+  /** Boiling Over (Signature 'grit'): hits in a row, when the last one landed, when the dark form ends (0: not in it), and whether 6★ NOT YET! fired this life. */
   grit: number;
   gritAt: number;
+  formUntil?: number;
   standUsed?: boolean;
   /** Rising Heat (Signature 'heat'): Heat built toward the next Eruption. */
   heat: number;
@@ -431,6 +432,8 @@ export type { PvpMeterRow } from './battleMeter';
 
 /** Each crystal holds this many times its team's total HP. */
 const PVP_CRYSTAL_HP = 1.5;
+/** Pasta's dark form tint until it has its own art (black and red). */
+const FORM_TINT = 0xff5a5a;
 /** Seconds a Colosseum battle may run; then the crystal with more HP left (as a share) wins, ties to the defender. */
 const PVP_LIVE_TIME = 90;
 
@@ -1023,6 +1026,29 @@ export class BattleScene extends Phaser.Scene {
   /** Whether a hero has its 6★ Signature+. */
   private sigPlus(h: Unit | undefined | null) {
     return !!h?.def?.signature && this.has(h.def.id, SIG_PLUS_EVOLUTIONS);
+  }
+
+  /** Pasta's dark form (Boiling Over) is running. */
+  private inForm(u: Unit) {
+    return (u.formUntil ?? 0) > this.clock;
+  }
+
+  /** Start Pasta's dark form: double hits and he can't fall for formSeconds, drawn black and red. */
+  private startForm(u: Unit, label: string) {
+    const sig = u.def?.signature;
+    if (sig?.kind !== 'grit') return;
+    u.formUntil = this.clock + sig.formSeconds;
+    u.grit = Math.max(u.grit, sig.formAt);
+    this.floatText(u.x, u.y - 38, label, '#ff4a4a', 11);
+    this.sparks(u.x, u.y - 10, 0xff2a2a, 12);
+    u.body.setTint(FORM_TINT);
+  }
+
+  /** The dark form ran out: the combo is used up. */
+  private endForm(u: Unit) {
+    u.formUntil = 0;
+    u.grit = 0;
+    if (u.body.active) u.body.clearTint();
   }
 
   /**
@@ -1846,6 +1872,7 @@ export class BattleScene extends Phaser.Scene {
         else h.reviveText?.setText(`${Math.ceil(reviveIn(h, this.clock))}`);
         continue;
       }
+      if (h.formUntil && this.clock >= h.formUntil) this.endForm(h);
       this.stepHero(h, dt);
     }
     for (const e of this.enemies) if (e.alive) this.stepEnemy(e, dt);
@@ -2206,15 +2233,12 @@ export class BattleScene extends Phaser.Scene {
     const left = target.maxHp.gt(0) ? target.hp.plus(target.shield).minus(dmg).div(target.maxHp).toNumber() : 1;
     const masked = target.alive && mask?.kind === 'mask' && maskTriggers(mask, left, !!target.maskUsed);
     if (masked) dmg = Decimal.min(dmg, Decimal.max(0, target.hp.plus(target.shield).minus(target.maxHp.times(0.01))));
-    // Last One Standing (Pasta 6★): the first blow that would fell him leaves him standing; he can't fall for a few
-    // seconds and his combo never drops for the rest of that life. (Waiting for him to be the last one alive never
-    // fired: he fights up front and fell first or second in every test.)
+    // NOT YET! (Pasta 6★): the first blow each life that would fell him leaves him at 1% and starts Boiling Over.
     const grit = target.def?.signature;
-    if (target.alive && grit?.kind === 'grit' && this.sigPlus(target) && !target.standUsed && left <= 0) {
+    if (target.alive && grit?.kind === 'grit' && this.sigPlus(target) && !target.standUsed && left <= 0 && !this.inForm(target)) {
       dmg = Decimal.max(0, target.hp.plus(target.shield).minus(target.maxHp.times(0.01)));
       target.standUsed = true;
-      target.guardUntil = Math.max(target.guardUntil, this.clock + grit.standSeconds);
-      this.floatText(target.x, target.y - 38, 'NOT YET!', '#ffd84a', 11);
+      this.startForm(target, 'NOT YET!');
     }
     if (target.alive) this.meter(e, 'dealt', Decimal.min(dmg, target.hp.plus(target.shield)));
     this.damageUnit(target, dmg, null);
@@ -2371,20 +2395,15 @@ export class BattleScene extends Phaser.Scene {
       this.floatText(h.x, h.y - 34, 'ERUPTION!', '#ff8a3a', 11);
       this.sparks(target.x, target.y - 6, 0xff6a2a, 12);
     }
-    // Combo Counter: every hit in a row, on any enemy, adds ATK; a pause resets it. 6★ Last One Standing: when every
-    // teammate is down the combo never resets, counts double, and he can't fall for a few seconds (once a life).
+    // Boiling Over: every hit in a row, on any enemy, adds ATK; at the threshold he turns into his dark form
+    // (double hits, can't fall), which uses up the combo when it ends (src/kits.ts gritStep).
     let gritMult = 1;
     if (sig?.kind === 'grit') {
-      const alone = !!h.standUsed || this.sigPlus(h) && this.heroes.length > 1 && this.heroes.every((o) => o === h || !o.alive);
-      if (alone && !h.standUsed) {
-        h.standUsed = true;
-        h.guardUntil = Math.max(h.guardUntil, this.clock + sig.standSeconds);
-        this.floatText(h.x, h.y - 38, 'NOT YET!', '#ffd84a', 11);
-      }
-      const g = gritStep(sig, h.grit, this.clock - h.gritAt, alone);
+      const g = gritStep(sig, h.grit, this.clock - h.gritAt, this.inForm(h));
       h.grit = g.combo;
       h.gritAt = this.clock;
       gritMult = g.mult;
+      if (g.form) this.startForm(h, 'BOILING OVER!');
     }
     let dealt = new Decimal(0);
     for (let i = 0; i < strikes; i++) {
@@ -2649,6 +2668,9 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     let toHp = amount;
+    // Pasta's dark form: he can't fall while it runs.
+    if (target.side === 'hero' && this.inForm(target)) amount = Decimal.min(amount, Decimal.max(0, target.hp.plus(target.shield).minus(target.maxHp.times(0.01))));
+    toHp = amount;
     if (target.shield.gt(0)) {
       const soaked = Decimal.min(target.shield, amount);
       target.shield = target.shield.minus(soaked);
@@ -2668,6 +2690,7 @@ export class BattleScene extends Phaser.Scene {
     this.time.delayedCall(60, () => {
       if (!target.body.active) return;
       if (target.side === 'enemy') this.restTint(target);
+      else if (this.inForm(target)) target.body.setTint(FORM_TINT);
       else target.body.clearTint();
     });
     if (target.hp.lte(0)) this.kill(target, source);
@@ -2785,6 +2808,7 @@ export class BattleScene extends Phaser.Scene {
       u.chargeStacks = 0;
       u.zeal = 0;
       u.grit = 0;
+      u.formUntil = 0;
       u.standUsed = false;
       u.maskUsed = false;
       this.puff(u.x, u.y, 0xffffff);
