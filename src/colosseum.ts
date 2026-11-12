@@ -1,5 +1,5 @@
 import Decimal from 'break_infinity.js';
-import { elementMultiplier, type Element } from './data';
+import { elementMultiplier, type Affinity } from './data';
 import { defended } from './formulas';
 import { canReach } from './reach';
 
@@ -147,7 +147,7 @@ export function ghostName(rand: () => number): string {
 /** One fighter as the Colosseum sees it: permanent stats only (no gold levels). */
 export interface PvpUnit {
   id: string;
-  element: Element;
+  element: Affinity;
   atk: Decimal;
   hp: Decimal;
   def: Decimal;

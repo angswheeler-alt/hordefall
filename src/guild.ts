@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { warsteelForKill, warsteelForWeek, BOSS_ITEM_NAMES, BOSS_ITEM_CHANCE, type BossItemCounts } from './guildRelics';
 import { isAscendant } from './heroes/ascendant';
 import {
+  heroAffinity,
   HEROES, RELEASED_HEROES, GUILD_MAX_MEMBERS, GUILD_REQUEST_GOAL, GUILD_REQUEST_HOURS, GUILD_REQUEST_OPEN_HOURS, GUILD_DONATE_MAX, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP,
   GUILD_BOSS_ATTEMPTS, GUILD_BOSS_FIGHT_CAP, GUILD_BOSS_REST_MINUTES, GUILD_BOSS_NAMES, GUILD_BOSS_PAR_ATTEMPTS, ELEMENT_COLORS, elementMultiplier, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, guildResearchPerAttempt, GUILD_WILD_PER_WEEK, GUILD_WILD_COST, GUILD_WARSTEEL_PACKS_PER_DAY, GUILD_CHESTS_PER_WEEK, GUILD_QUESTS, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, GUILD_BOSS_ASC_CRESTS, GUILD_BOSS_ASC_LEVELS,
   type HeroDef, type GuildShopId, type Element, type ResearchBranch,
@@ -856,8 +857,8 @@ export class Guild {
     const week = guildBossWeekReward(top, boss.level - (boss.start_level ?? 1));
     const mine = this.state.guildBossDamage(boss.element);
     const team = this.state.guildBossTeam();
-    const strong = team.filter((m) => elementMultiplier(m.def.element, boss.element) > 1).length;
-    const weak = team.filter((m) => elementMultiplier(m.def.element, boss.element) < 1).length;
+    const strong = team.filter((m) => elementMultiplier(heroAffinity(m.def), boss.element) > 1).length;
+    const weak = team.filter((m) => elementMultiplier(heroAffinity(m.def), boss.element) < 1).length;
     const tip = strong ? `${strong} of your heroes hit${strong === 1 ? 's' : ''} it extra hard.` : weak ? `${weak} of your heroes ${weak === 1 ? 'is' : 'are'} weak against it.` : 'No hero in your team has the element edge.';
     const reset = Date.parse(boss.week) + 7 * 24 * HOUR - Date.now();
     const dayReset = Date.parse(today) + 24 * HOUR - Date.now();

@@ -185,3 +185,18 @@ describe('Boiling Over (Pasta)', async () => {
     expect(PASTA.aura?.effect).toEqual({ kind: 'boilRally', value: 1.2, team: true });
   });
 });
+
+describe('No element (Pasta)', () => {
+  it('deals 2x to Water, Fire and Earth, 1x to Light and Dark, and takes 1x from everything', async () => {
+    const { elementMultiplier, heroAffinity, HEROES } = await import('../src/data');
+    const pasta = HEROES.find((h) => h.id === 'pasta')!;
+    expect(heroAffinity(pasta)).toBe('none');
+    for (const e of ['water', 'fire', 'earth'] as const) expect(elementMultiplier('none', e)).toBe(2);
+    for (const e of ['light', 'dark'] as const) expect(elementMultiplier('none', e)).toBe(1);
+    for (const e of ['water', 'fire', 'earth', 'light', 'dark'] as const) expect(elementMultiplier(e, 'none')).toBe(1);
+  });
+  it('counts as an ordinary hero at the element bosses (20%), never as the weakness', async () => {
+    const { elementBossShare, ELEMENT_BOSS_OTHER_SHARE } = await import('../src/data');
+    for (const stage of [600, 700, 800, 900, 1000]) expect(elementBossShare(stage, 'none')).toBe(ELEMENT_BOSS_OTHER_SHARE);
+  });
+});

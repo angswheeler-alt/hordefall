@@ -1,7 +1,7 @@
 import { normalizeBuyAmount, type BuyAmount } from './amountSlider';
 import Decimal from 'break_infinity.js';
 import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_CYCLE, SPIN_SLICES, ACHIEVEMENTS, BOOTCAMP, STAT_KEYS, MILESTONE_STEP, milestoneReward, dayKey, type MilestoneReward, type Reward, type StatKey, type AchievementDef, type BootcampDef } from './rewards';
-import { SPEED_UNLOCK_STAGE, HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_CHEST_GEMS, GOLD_CHEST_GEMS_PER_DAY, GUILD_BOSS_ASC_CRESTS, GUILD_BOSS_ASC_LEVELS, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_DEALS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TRIAL_EVENT_DAYS, TRIAL_EVENT_MEDAL_MULT, TICKET_CRATE, HERO_VOUCHER, MONTHLY_CREST_PACK, ALL_TRIALS_DAYS, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, AUTO_BOSS_SECONDS, NORMAL_STAGE_LOSSES, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, OFFLINE_STAGE_HP, OFFLINE_STAGE_ATTACKERS, OFFLINE_MOB_COOLDOWN, OFFLINE_STAGE_TIME, elementMultiplier, bossElement, bossHasElement, elementBossShare, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_SET_START_SHARE, RELIC_STORED_SHARE, RELIC_SET_OWNED_SHARE, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, trialFirstWin, STAR_CRESTS, MAX_STARS, REGULAR_MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, RAISED_RARITY_OLD_COST, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_WARSTEEL_PACKS_PER_DAY, GUILD_CHESTS_PER_WEEK, GUILD_WARSTEEL_PACK, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, AWAKEN_STARMOTES, MAX_AWAKEN, AWAKEN_STAT_MULT, AWAKEN_UNLOCK_LEVEL, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
+import { heroAffinity, SPEED_UNLOCK_STAGE, HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_CHEST_GEMS, GOLD_CHEST_GEMS_PER_DAY, GUILD_BOSS_ASC_CRESTS, GUILD_BOSS_ASC_LEVELS, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_DEALS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TRIAL_EVENT_DAYS, TRIAL_EVENT_MEDAL_MULT, TICKET_CRATE, HERO_VOUCHER, MONTHLY_CREST_PACK, ALL_TRIALS_DAYS, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, AUTO_BOSS_SECONDS, NORMAL_STAGE_LOSSES, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, OFFLINE_STAGE_HP, OFFLINE_STAGE_ATTACKERS, OFFLINE_MOB_COOLDOWN, OFFLINE_STAGE_TIME, elementMultiplier, bossElement, bossHasElement, elementBossShare, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_SET_START_SHARE, RELIC_STORED_SHARE, RELIC_SET_OWNED_SHARE, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, trialFirstWin, STAR_CRESTS, MAX_STARS, REGULAR_MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, RAISED_RARITY_OLD_COST, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_WARSTEEL_PACKS_PER_DAY, GUILD_CHESTS_PER_WEEK, GUILD_WARSTEEL_PACK, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, AWAKEN_STARMOTES, MAX_AWAKEN, AWAKEN_STAT_MULT, AWAKEN_UNLOCK_LEVEL, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
 import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_TEMPER_CAP, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicCost, guildRelicEffect, warsteelForFight, warsteelForKill, warsteelForWeek, type GuildRelicDef, type GuildRelicEffect, BOSS_RELICS, BOSS_RELIC_SLOTS, BOSS_RELIC_MAX_LEVEL, BOSS_HEART_PITY, bossRelicCost, guildRelicItemCost, rollBossItems, type BossItemCounts, type BossRelicDef } from './guildRelics';
 import { utcWeekStart, guildBossElement, relicCost, bossHp, bossAtk, enemyHp, enemyAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberCost, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, isBossStage, plateauStages, PLATEAU_STEP, PAY_STAGE_GROWTH, REBIRTH_FROM_LEVEL, REBIRTH_PAY_STAGES } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
@@ -1244,7 +1244,7 @@ export class GameState {
    */
   bestTeamIds(kind: 'stage' | 'attack' | 'defense' | 'guild', now = Date.now()): string[] {
     const boss = guildBossElement(utcWeekStart(now));
-    const score = (h: HeroDef) => (kind === 'guild' ? this.fixedCombatPower(h).times(elementMultiplier(h.element, boss)) : kind === 'stage' ? this.heroCombatPower(h) : this.fixedCombatPower(h));
+    const score = (h: HeroDef) => (kind === 'guild' ? this.fixedCombatPower(h).times(elementMultiplier(heroAffinity(h), boss)) : kind === 'stage' ? this.heroCombatPower(h) : this.fixedCombatPower(h));
     return HEROES.filter((h) => (this.levels[h.id] ?? 0) > 0)
       .map((h) => ({ h, v: score(h) }))
       .sort((a, b) => b.v.cmp(a.v))
@@ -1551,7 +1551,7 @@ export class GameState {
   /** A hero as a Colosseum fighter: at the fixed level, no gold or Ember levels. */
   pvpUnit(def: HeroDef): PvpUnit {
     const st = this.heroStats(def, this.fixedLevel(def.id));
-    return { id: def.id, element: def.element, atk: st.atk.value, hp: st.hp.value, def: st.def.value, attacksPerSec: st.attacksPerSec.value, critRate: st.critRate, critDmg: st.critDmg, melee: def.range <= 60, flying: this.formDef(def).flying };
+    return { id: def.id, element: heroAffinity(def), atk: st.atk.value, hp: st.hp.value, def: st.def.value, attacksPerSec: st.attacksPerSec.value, critRate: st.critRate, critDmg: st.critDmg, melee: def.range <= 60, flying: this.formDef(def).flying };
   }
 
   /** Colosseum tickets regained over time. Returns seconds until the next one (0 when full). */
@@ -2272,10 +2272,10 @@ export class GameState {
     let defense = new Decimal(0);
     let incoming = 0;
     for (const m of team) {
-      dps = dps.plus(m.atk.div(m.def.attackCooldown).times(elementMultiplier(m.def.element, element) * (1 + this.researchBonus('elemental')) * this.bossDamageMult()));
+      dps = dps.plus(m.atk.div(m.def.attackCooldown).times(elementMultiplier(heroAffinity(m.def), element) * (1 + this.researchBonus('elemental')) * this.bossDamageMult()));
       hp = hp.plus(m.hp);
       defense = defense.plus(m.defense);
-      incoming += elementMultiplier(element, m.def.element);
+      incoming += elementMultiplier(element, heroAffinity(m.def));
     }
     const level = TRIAL_LEVELS[tier - 1];
     const bossHp = trialHp(level);
@@ -2308,12 +2308,12 @@ export class GameState {
     for (const { def, stats } of team) {
       const share = elementBossShare(stage, def.element);
       if (share === 0) continue;
-      const mult = (element ? elementMultiplier(def.element, element) * elemental : 1) * share;
+      const mult = (element ? elementMultiplier(heroAffinity(def), element) * elemental : 1) * share;
       const crit = 1 + Math.max(0, Math.min(1, stats.critRate)) * Math.max(0, stats.critDmg);
       dps = dps.plus(stats.atk.value.times(stats.attacksPerSec.value * mult * crit));
     }
     for (const { def, stats } of team) {
-      const hit = bossAtk(stage).times(element ? elementMultiplier(element, def.element) : 1);
+      const hit = bossAtk(stage).times(element ? elementMultiplier(element, heroAffinity(def)) : 1);
       const perSec = defended(hit, stats.def.value).div(OFFLINE_BOSS_COOLDOWN);
       survive += perSec.gt(0) ? stats.hp.value.div(perSec).toNumber() : Infinity;
     }
@@ -2955,7 +2955,7 @@ export class GameState {
   /** Damage one Guild Boss attempt deals: the Guild Boss team (fixed level) hitting for the whole fight. */
   guildBossDamage(element: Element): Decimal {
     let dps = new Decimal(0);
-    for (const m of this.guildBossTeam()) dps = dps.plus(m.atk.div(m.def.attackCooldown).times(elementMultiplier(m.def.element, element)));
+    for (const m of this.guildBossTeam()) dps = dps.plus(m.atk.div(m.def.attackCooldown).times(elementMultiplier(heroAffinity(m.def), element)));
     return dps.times(GUILD_BOSS_SECONDS * (1 + this.guildBossBonus()) * this.bossDamageMult()).floor();
   }
 
@@ -3845,7 +3845,7 @@ export class GameState {
     const h = HEROES.find((x) => x.id === heroId);
     if (!m || !h) return 0;
     const def = this.formDef(h);
-    return heroScoutScore(this.stars[heroId] ?? 0, this.awaken[heroId] ?? 0, this.weaponLevel(heroId), def.type === m.type, def.element === m.element);
+    return heroScoutScore(this.stars[heroId] ?? 0, this.awaken[heroId] ?? 0, this.weaponLevel(heroId), def.type === m.type, heroAffinity(def) === m.element);
   }
 
   /** Team Score and reward share for a slot's mission with these heroes. */
@@ -4016,7 +4016,7 @@ export class GameState {
     }
     for (const id of this.bossRelicEquipped) {
       const def = BOSS_RELICS.find((r) => r.id === id);
-      if (!def || ((effect === 'elemAtk' || effect === 'elemHp') && def.element !== element)) continue;
+      if (!def || ((effect === 'elemAtk' || effect === 'elemHp') && heroAffinity(def) !== element)) continue;
       total += guildRelicEffect(def, effect, this.bossRelics[id] ?? 0);
     }
     return total;

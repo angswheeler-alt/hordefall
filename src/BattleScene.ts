@@ -19,6 +19,8 @@ import {
   ULT_UNLOCK_LEVEL,
   SPEED_UNLOCK_STAGE,
   elementMultiplier,
+  heroAffinity,
+  type Affinity,
   enemyElement,
   bossElement,
   nextBossInfo,
@@ -1124,9 +1126,14 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Element bonus on a hit from `from` (an element, or a unit) on `to`; 1 when either side has no element. */
-  private elem(from: Element | Unit, to: Unit) {
+  private elem(from: Affinity | Unit, to: Unit) {
     if (to.noElement || (typeof from !== 'string' && from.noElement)) return 1;
-    return elementMultiplier(typeof from === 'string' ? from : from.element, to.element);
+    return elementMultiplier(typeof from === 'string' ? from : this.affinity(from), this.affinity(to));
+  }
+
+  /** What a unit fights as: its element, or 'none' for a hero with no element (Pasta). */
+  private affinity(u: Unit): Affinity {
+    return u.def ? heroAffinity(u.def) : u.element;
   }
 
   /** Multiplicative total of a star-skill effect reaching this unit; 1 when none apply. */
@@ -2327,7 +2334,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** The element a hero deals damage as: Earth for non-Fire heroes during Rootcall. */
-  private dealsAs(h: Unit): Element {
+  private dealsAs(h: Unit): Affinity {
+    if (h.def?.noElement) return 'none';
     return this.earthenUntil > this.clock && h.element !== 'fire' ? 'earth' : h.element;
   }
 
@@ -2590,7 +2598,7 @@ export class BattleScene extends Phaser.Scene {
         const by = e.frozenBy;
         this.shatter(e.x, e.y, 0x9fdcff);
         for (const o of this.enemies) {
-          if (o.alive && Math.abs(o.x - e.x) <= FREEZE_BLAST_RADIUS) this.damageUnit(o, e.frozenBlast.times(by ? this.elem(by.element, o) : 1), by ?? null);
+          if (o.alive && Math.abs(o.x - e.x) <= FREEZE_BLAST_RADIUS) this.damageUnit(o, e.frozenBlast.times(by ? this.elem(by, o) : 1), by ?? null);
         }
       }
       if (!e.alive || e.poisonUntil <= this.clock) continue;
@@ -2628,7 +2636,7 @@ export class BattleScene extends Phaser.Scene {
     this.tickPools(dt);
     for (const z of this.zones) {
       if (z.until <= this.clock) continue;
-      for (const e of this.enemies) if (e.alive && e.x >= z.x0 && e.x <= z.x1) this.ignite(e, z.dps.times(this.elem(z.by.element, e)), 1, z.by);
+      for (const e of this.enemies) if (e.alive && e.x >= z.x0 && e.x <= z.x1) this.ignite(e, z.dps.times(this.elem(z.by, e)), 1, z.by);
     }
     for (const z of this.zones) if (z.until <= this.clock) z.view.destroy();
     this.zones = this.zones.filter((z) => z.until > this.clock);
@@ -2810,7 +2818,7 @@ export class BattleScene extends Phaser.Scene {
       if (burst > 0) {
         this.shatter(u.x, u.y, 0xff8a3a);
         for (const e of this.enemies) {
-          if (e.alive && Math.abs(e.x - u.x) <= WILDFIRE_RADIUS) this.damageUnit(e, by.atk.times(burst * this.elem(by.element, e)), by);
+          if (e.alive && Math.abs(e.x - u.x) <= WILDFIRE_RADIUS) this.damageUnit(e, by.atk.times(burst * this.elem(by, e)), by);
         }
       }
     }
@@ -3234,7 +3242,7 @@ export class BattleScene extends Phaser.Scene {
         if (plus) {
           this.time.delayedCall(600 / this.speedMultiplier(), () => {
             if (this.transitioning) return;
-            for (const e of this.enemies) if (e.alive && e.x >= x0 && e.x <= x1) this.damageUnit(e, dmg.times(ult.second * this.elem(h.element, e)), h);
+            for (const e of this.enemies) if (e.alive && e.x >= x0 && e.x <= x1) this.damageUnit(e, dmg.times(ult.second * this.elem(h, e)), h);
           });
         }
         break;
@@ -3329,7 +3337,7 @@ export class BattleScene extends Phaser.Scene {
       p.tick += dt;
       if (p.tick < 1) continue;
       p.tick -= 1;
-      for (const e of inside) this.damageUnit(e, p.dps.times(this.elem(p.by.element, e)), p.by);
+      for (const e of inside) this.damageUnit(e, p.dps.times(this.elem(p.by, e)), p.by);
     }
     this.pools = this.pools.filter((p) => p.until > this.clock);
   }
