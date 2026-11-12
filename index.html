@@ -235,10 +235,13 @@
             <div class="panel-head"><h2>Expedition</h2><button id="exp-help" class="wood-btn small">How it works</button></div>
             <div id="exp" class="exp"></div>
           </div>
-          <div data-battle-pane="arena" hidden>
-            <button class="wood-btn small trial-back" data-battle-go="hub">&#8592; Battle</button>
-            <div class="panel-head"><h2>Colosseum</h2><span id="pvp-tickets" class="trial-tickets"></span></div>
-            <div id="pvp" class="trial-card pvp"></div>
+          <div data-battle-pane="arena" class="arena-full" hidden>
+            <div class="arena-head">
+              <button id="arena-back" class="wood-btn arena-back" aria-label="Back">&#8249; Back</button>
+              <h2 id="arena-title">Colosseum</h2>
+              <span id="pvp-tickets" class="trial-tickets"></span>
+            </div>
+            <div class="arena-body"><div id="pvp" class="trial-card pvp"></div></div>
           </div>
         </section>
         <section class="panel" data-tab="shop" hidden>
