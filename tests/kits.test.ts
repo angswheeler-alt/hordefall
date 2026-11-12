@@ -200,3 +200,20 @@ describe('No element (Pasta)', () => {
     for (const stage of [600, 700, 800, 900, 1000]) expect(elementBossShare(stage, 'none')).toBe(ELEMENT_BOSS_OTHER_SHARE);
   });
 });
+
+describe('No-element relics (Pasta)', () => {
+  it('uses the single best element relic bonus the player has', async () => {
+    const { GameState } = await import('../src/state');
+    const { HEROES, RELICS } = await import('../src/data');
+    const s = new GameState() as any;
+    const pasta = HEROES.find((h) => h.id === 'pasta')!;
+    const water = HEROES.find((h) => h.element === 'water' && !h.noElement && h.rarity === 'epic')!;
+    expect(s.boostElement(water)).toBe('water');
+    // Only Water ATK relics: Pasta takes the Water bonus, like a Water hero.
+    for (const r of RELICS.filter((r) => r.fx.some(([e]) => e === 'water'))) s.relics[r.id] = 20;
+    s.equipped = Object.keys(s.relics);
+    expect(s.boostElement(pasta)).toBe('water');
+    const dark = HEROES.find((h) => h.element === 'dark' && !h.noElement)!;
+    expect(s.boostElement(dark)).toBe('dark');
+  });
+});
