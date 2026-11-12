@@ -1632,3 +1632,8 @@ i.bitem.t2 { border-radius: 0; clip-path: polygon(50% 100%, 0 40%, 12% 8%, 35% 4
 .ab-wallet { align-self: flex-start; padding: 3px 12px; border-radius: 99px; background: rgba(60,25,0,.75); border: 2px solid #7a4a00; color: #ffe27a; font-weight: 800; }
 .ab-wallet b { font-size: 18px; }
 @media (prefers-reduced-motion: reduce) { .arena-banner::after { animation: none; display: none; } }
+/* Arena Shop heroes: a thin rarity-coloured frame with a soft glow instead of the big crest medal. */
+.arena-face { --rc: #e8ecf5; width: 46px !important; height: 46px !important; flex: none; border-radius: 10px !important; border: 2px solid var(--rc) !important; box-shadow: 0 0 6px color-mix(in srgb, var(--rc) 45%, transparent), inset 0 0 0 1px rgba(0,0,0,.35); background-color: #1a2033; }
+.arena-face.r-rare { --rc: #6fb6ff; } .arena-face.r-epic { --rc: #c38bff; } .arena-face.r-legendary { --rc: #ffb347; } .arena-face.r-unique { --rc: #ff6b5e; }
+.arena-banner .arena-face { width: 32px !important; height: 32px !important; border-radius: 7px !important; }
+.arena-item .rar-unique { color: #ff8a7e; }
