@@ -273,6 +273,8 @@ interface Unit {
   standUsed?: boolean;
   /** The sprite he wore before turning into his dark form (Pasta), to turn back to. */
   formFrom?: string;
+  /** The moving black-and-red aura while in the dark form (formAura); removed when the form ends. */
+  formFx?: { objs: Phaser.GameObjects.GameObject[]; timer: Phaser.Time.TimerEvent };
   /** Rising Heat (Signature 'heat'): Heat built toward the next Eruption. */
   heat: number;
   /** Drench (Signature 'drench'): takes drenchMult damage from Water heroes until drenchUntil. */
@@ -1063,12 +1065,124 @@ export class BattleScene extends Phaser.Scene {
       this.swapArt(u, FORM_ART);
     }
     this.formTint(u);
+    this.formAura(u);
+  }
+
+  /**
+   * Boiling Over's aura: a pulsing dark-red glow under him, black and crimson flame tongues rising and swaying
+   * around him (some behind, some in front), red crackles, and fading red afterimages while he runs.
+   */
+  private formAura(u: Unit) {
+    if (u.formFx || !u.view.active) return;
+    const def = u.anim ? HERO_ANIMS[u.anim.id] : undefined;
+    const height = def ? def.feet[1] - def.headTop : 40;
+    const midY = FOOT_Y - height / 2;
+    const glow = this.add.ellipse(0, midY + 2, height * 0.62, height * 1.08, 0x9a0012, 0.16);
+    const core = this.add.ellipse(0, FOOT_Y - 2, height * 0.9, 8, 0x1a0004, 0.7);
+    u.view.addAt(glow, 0);
+    u.view.addAt(core, 0);
+    this.tweens.add({ targets: glow, alpha: 0.3, scaleX: 1.15, scaleY: 1.05, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    this.tweens.add({ targets: core, scaleX: 1.25, alpha: 0.45, duration: 300, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    let tick = 0;
+    const timer = this.time.addEvent({
+      delay: 55,
+      loop: true,
+      callback: () => {
+        if (!u.view.active || !u.view.visible || !u.alive) return;
+        tick++;
+        // Flame tongues: black flames with crimson cores that lick up around his body, sway and fade.
+        for (let i = 0; i < 3; i++) {
+          const w = Phaser.Math.Between(4, 7), fh = Phaser.Math.Between(8, 15);
+          const fx = Phaser.Math.Between(-height / 3.5, height / 3.5), fy = FOOT_Y - Phaser.Math.Between(0, height * 0.6);
+          const outer = this.add.triangle(fx, fy, 0, fh, w / 2, 0, w, fh, Math.random() < 0.7 ? 0x0d0d0d : 0x2a0707, 0.8).setOrigin(0.5, 1);
+          const inner = this.add.triangle(fx, fy, 0, fh * 0.6, w * 0.3, 0, w * 0.6, fh * 0.6, Math.random() < 0.6 ? 0xff2a2a : 0xff6a3a, 0.9).setOrigin(0.5, 1);
+          const front = Math.random() < 0.25;
+          for (const f of [outer, inner]) {
+            if (front) u.view.add(f);
+            else u.view.addAt(f, 1);
+          }
+          const dx = Phaser.Math.Between(-6, 6), up = Phaser.Math.Between(16, 30), dur = Phaser.Math.Between(420, 680);
+          this.tweens.add({ targets: [outer, inner], y: fy - up, x: fx + dx, scaleX: 0.2, scaleY: 1.5, alpha: 0, duration: dur, ease: 'Quad.out', onComplete: () => { outer.destroy(); inner.destroy(); } });
+        }
+        // A red crackle now and then.
+        if (tick % 7 === 0) {
+          const g = this.add.graphics();
+          const x0 = Phaser.Math.Between(-height / 3, height / 3), y0 = FOOT_Y - Phaser.Math.Between(6, height * 0.8);
+          g.lineStyle(1, 0xff3b3b, 1).beginPath().moveTo(x0, y0);
+          let x = x0, y = y0;
+          for (let k = 0; k < 3; k++) { x += Phaser.Math.Between(-4, 4); y -= Phaser.Math.Between(3, 6); g.lineTo(x, y); }
+          g.strokePath();
+          u.view.add(g);
+          this.tweens.add({ targets: g, alpha: 0, duration: 140, onComplete: () => g.destroy() });
+        }
+        // Afterimages while he runs.
+        if (tick % 3 === 0 && u.anim?.state === 'run' && u.body.active) {
+          const ghost = this.add.image(u.view.x + u.body.x, u.view.y + u.body.y, u.body.texture.key, u.body.frame.name)
+            .setOrigin(u.body.originX, u.body.originY).setScale(u.body.scaleX, u.body.scaleY).setFlipX(u.body.flipX)
+            .setTintFill(0xb3121a).setAlpha(0.35).setDepth(u.view.depth - 0.2);
+          this.tweens.add({ targets: ghost, alpha: 0, duration: 260, onComplete: () => ghost.destroy() });
+        }
+      },
+    });
+    u.formFx = { objs: [glow, core], timer };
+  }
+
+  private clearFormAura(u: Unit) {
+    if (!u.formFx) return;
+    u.formFx.timer.remove();
+    for (const o of u.formFx.objs) { this.tweens.killTweensOf(o); o.destroy(); }
+    u.formFx = undefined;
+  }
+
+  /**
+   * Pasta's blows leave a mark. Normally a short black cleave with a few dark chips; in the dark form a big
+   * crimson-and-black crescent across the target, red ground cracks and black smoke.
+   */
+  private pastaHitFx(h: Unit, t: Unit) {
+    if (!t.view.active) return;
+    const form = this.inForm(h);
+    const x = t.view.x, foot = t.view.y + FOOT_Y, y = foot - 18;
+    const g = this.add.graphics().setDepth(t.view.depth + 2);
+    const r = form ? 26 : 16;
+    const from = Phaser.Math.DegToRad(-130), to = Phaser.Math.DegToRad(50);
+    const draw = (a: number, grow: number) => {
+      g.clear();
+      g.lineStyle(form ? 7 : 4, 0x0b0b0b, a).beginPath().arc(x, y, r * grow, from, to).strokePath();
+      g.lineStyle(form ? 3 : 2, form ? 0xff2a2a : 0x8a8f9c, a).beginPath().arc(x, y, r * grow - (form ? 3 : 2), from + 0.15, to - 0.1).strokePath();
+      if (form) g.lineStyle(1, 0xffd0c8, a).beginPath().arc(x, y, r * grow - 5, from + 0.4, to - 0.4).strokePath();
+    };
+    draw(1, 0.8);
+    this.tweens.addCounter({ from: 0, to: 1, duration: form ? 220 : 150, onUpdate: (tw) => { const v = tw.getValue() ?? 0; draw(1 - v, 0.8 + v * 0.35); }, onComplete: () => g.destroy() });
+    // Chips flying off the blade.
+    for (let i = 0; i < (form ? 6 : 3); i++) {
+      const c = this.add.rectangle(x, y, 2, 2, form && i % 2 ? 0xff3b3b : 0x141414).setDepth(t.view.depth + 2);
+      const ang = Phaser.Math.FloatBetween(-1.2, 0.6), dist = Phaser.Math.Between(10, form ? 26 : 16);
+      this.tweens.add({ targets: c, x: x + Math.cos(ang) * dist, y: y + Math.sin(ang) * dist, alpha: 0, duration: 260, onComplete: () => c.destroy() });
+    }
+    if (!form) return;
+    // Red ground cracks under the target.
+    const cr = this.add.graphics().setDepth(t.view.depth - 0.5);
+    cr.lineStyle(1, 0xff2a2a, 1);
+    for (let k = 0; k < 4; k++) {
+      let cx = x, cy = foot;
+      cr.beginPath().moveTo(cx, cy);
+      const dir = k < 2 ? -1 : 1;
+      for (let j = 0; j < 3; j++) { cx += dir * Phaser.Math.Between(3, 7); cy += Phaser.Math.Between(-2, 2); cr.lineTo(cx, cy); }
+      cr.strokePath();
+    }
+    this.tweens.add({ targets: cr, alpha: 0, delay: 120, duration: 300, onComplete: () => cr.destroy() });
+    // Black smoke puffing up.
+    for (let i = 0; i < 3; i++) {
+      const sm = this.add.circle(x + Phaser.Math.Between(-8, 8), foot - Phaser.Math.Between(2, 10), Phaser.Math.Between(3, 5), 0x111111, 0.7).setDepth(t.view.depth + 1);
+      this.tweens.add({ targets: sm, y: sm.y - 14, scale: 1.8, alpha: 0, duration: 420, onComplete: () => sm.destroy() });
+    }
   }
 
   /** The dark form ran out: the combo is used up and he turns back. */
   private endForm(u: Unit) {
     u.formUntil = 0;
     u.grit = 0;
+    this.clearFormAura(u);
     if (u.formFrom) { this.swapArt(u, u.formFrom); u.formFrom = undefined; }
     if (u.body.active) u.body.clearTint();
   }
@@ -2460,6 +2574,7 @@ export class BattleScene extends Phaser.Scene {
       h.gritAt = this.clock;
       gritMult = g.mult;
       if (g.form) this.startForm(h, 'BOILING OVER!');
+      this.pastaHitFx(h, target);
     }
     let dealt = new Decimal(0);
     for (let i = 0; i < strikes; i++) {
