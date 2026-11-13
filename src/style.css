@@ -1473,6 +1473,8 @@ i.ticket.rush-ticket { background: linear-gradient(180deg, #e7a6ff, #8a3ab8); bo
 #jr { position: fixed; inset: 0; z-index: 15; background: rgba(8,4,20,.75); display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; }
 .jr-card { background: linear-gradient(180deg, #3e2c1e, var(--panel)); border-color: #8a6238; padding-top: 40px; }
 .jr-badge { background: radial-gradient(circle at 40% 35%, #e3b26b, #8a6238 60%, #3e2c1e); box-shadow: 0 0 18px rgba(255,200,90,.45); }
+.mail-home { background: linear-gradient(180deg, #6a4a1c, #3f2a10); border-color: #d9a441; }
+.mail-home-ico { width: 30px; height: 30px; flex: none; background: center/contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Crect x='1' y='3' width='14' height='10' fill='%235a3418'/%3E%3Crect x='2' y='4' width='12' height='8' fill='%23f2e6c4'/%3E%3Cpath d='M2 4h1v1h1v1h1v1h1v1h1v1h2V8h1V7h1V6h1V5h1V4h1v1h-1v1h-1v1h-1v1h-1v1H9v1H7V9H6V8H5V7H4V6H3V5H2z' fill='%23a8642c'/%3E%3Crect x='7' y='8' width='2' height='2' fill='%23d6322a'/%3E%3C/svg%3E"); image-rendering: pixelated; }
 .jr-badge .jr-home-ico { width: 36px; height: 36px; }
 .jr-card h2 { text-align: center; margin: 0 0 6px; }
 .jr-sum { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
