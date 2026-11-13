@@ -1639,3 +1639,9 @@ i.bitem.t2 { border-radius: 0; clip-path: polygon(50% 100%, 0 40%, 12% 8%, 35% 4
 .arena-face.r-rare { --rc: #6fb6ff; } .arena-face.r-epic { --rc: #c38bff; } .arena-face.r-legendary { --rc: #ffb347; } .arena-face.r-unique { --rc: #ff6b5e; }
 .arena-banner .arena-face { width: 32px !important; height: 32px !important; border-radius: 7px !important; }
 .arena-item .rar-unique { color: #ff8a7e; }
+/* The full-screen Colosseum hides the lane, wallet and tab bar behind it (iOS layered them on top). A fight still shows the lane. */
+body.arena-open:not(.in-trial) #app > :not(#panels), body.arena-open:not(.in-trial) #tabbar { visibility: hidden; }
+/* Tall pop-ups (Hunting Journal, Rekindle, Observatory, chat): the badge above each card sat under the status bar (and a card taller than the screen lost its
+   top for good). Room for the badge below the safe area; auto margins centre the card only when it fits. */
+#rk, #obs, #jr, #wchat { align-items: flex-start; padding-top: calc(38px + var(--safe-top)); padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+#rk > *, #obs > *, #jr > *, #wchat > * { margin-top: auto; margin-bottom: auto; }
