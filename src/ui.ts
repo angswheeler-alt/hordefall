@@ -1368,6 +1368,7 @@ export class UI {
       this.renderRekindle();
     });
     $('home-obs').addEventListener('click', () => this.openObservatory());
+    $('home-mail').addEventListener('click', () => this.openMailbox());
     this.journalUi.bind();
     $('jr-rules').textContent = journalRulesText();
     $('obs-close').addEventListener('click', () => ($('obs').hidden = true));
@@ -3325,6 +3326,20 @@ export class UI {
     }
   }
 
+  /** The Mailbox: the first unclaimed gift, with its hero, and Claim. */
+  private openMailbox() {
+    const gift = this.state.openMail()[0];
+    if (!gift) return;
+    const def = HEROES.find((h) => h.id === gift.hero)!;
+    const owned = (this.state.levels[def.id] ?? 0) > 0;
+    const body = `<p>${gift.text}</p><div class="summon-grid"><div class="drop"><div class="face art" style="${faceStyle(def)}"></div><b>${def.name}</b><span class="crest">${owned ? `+${this.state.unlockCrests(def)} Crests (you already have him)` : '1\u2605 hero'}</span></div></div>`;
+    this.showModal(gift.title, body, 'Claim', () => {
+      const drop = this.state.claimMail(gift.id);
+      if (drop) this.showModal('Gift claimed', `${dropCards([drop])}<p>${drop.joined ? `${def.name} joined your heroes.` : `${def.name}'s crests were added.`}</p>`, 'Done');
+      this.render();
+    });
+  }
+
   /** When the offline reach was last worked out (it runs the boss checks, so not every frame). */
   private offlineAt = 0;
 
@@ -3337,6 +3352,13 @@ export class UI {
       const max = s.maxOffline();
       $('home-offline').textContent = max.stage.toLocaleString();
       $('home-offline-note').textContent = offlineNote(s.autoAdvance, max, s.stage);
+    }
+
+    const mail = s.openMail();
+    $('home-mail').hidden = mail.length === 0;
+    if (mail.length) {
+      $('home-mail-count').textContent = String(mail.length);
+      $('home-mail-note').textContent = mail[0].title;
     }
 
     const obsOn = s.observatoryOpen();
@@ -3723,7 +3745,7 @@ export function dropCards(drops: SummonDrop[]): string {
     .sort((a, b) => Number(b.isNew) - Number(a.isNew))
     .map((d) => {
       const def = HEROES.find((h) => h.id === d.heroId)!;
-      return `<div class="drop">${crestFace(def, `<div class="face art" style="${faceStyle(def)}">${def.name[0]}</div>`)}<b>${def.name}</b>${d.joined ? '<span class="new">JOINED YOUR TEAM</span>' : d.isNew ? '<span class="new">READY TO UNLOCK</span>' : ''}<span class="crest">+${d.crests} Crests</span></div>`;
+      return `<div class="drop">${crestFace(def, `<div class="face art" style="${faceStyle(def)}">${def.name[0]}</div>`)}<b>${def.name}</b>${d.joined ? '<span class="new">JOINED YOUR TEAM</span>' : d.isNew ? '<span class="new">READY TO UNLOCK</span>' : ''}${d.crests ? `<span class="crest">+${d.crests} Crests</span>` : ''}</div>`;
     })
     .join('');
   return `<div class="summon-grid${merged.size > 9 ? ' many' : ''}">${cards}</div>`;
