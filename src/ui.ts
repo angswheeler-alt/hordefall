@@ -728,6 +728,7 @@ export class UI {
         this.renderPvp();
       } else {
         for (const pane of document.querySelectorAll<HTMLElement>('[data-battle-pane]')) pane.hidden = pane.dataset.battlePane !== 'hub';
+        this.syncArenaOpen();
         this.renderBattle();
       }
       document.querySelector<HTMLElement>('.arena-full')!.scrollTop = 0;
@@ -736,6 +737,7 @@ export class UI {
       btn.addEventListener('click', () => {
         for (const pane of document.querySelectorAll<HTMLElement>('[data-battle-pane]')) pane.hidden = pane.dataset.battlePane !== btn.dataset.battleGo;
         $('panels').scrollTop = 0;
+        this.syncArenaOpen();
         this.renderBattle();
       });
     }
@@ -3565,8 +3567,18 @@ export class UI {
     return parts.join('');
   }
 
+  /**
+   * body.arena-open while the full-screen Colosseum shows. On iOS the scrolling #panels is its own layer, so
+   * the lane buttons (Rekindle, Auto boss, 2x, Settings) and the tab bar drew on top of it; CSS hides them.
+   */
+  private syncArenaOpen() {
+    const pane = document.querySelector<HTMLElement>('.arena-full');
+    document.body.classList.toggle('arena-open', this.tab === 'battle' && !!pane && !pane.hidden);
+  }
+
   render() {
     this.tapPending = false;
+    this.syncArenaOpen();
     this.renderPvpMeter();
     $('devtools').hidden = !devToolsOn();
     // The Rekindle page stays live: the run keeps going behind it.
