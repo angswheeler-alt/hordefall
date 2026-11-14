@@ -136,7 +136,8 @@ describe('full roster', () => {
 
   it('releases every hero (heroes without art use placeholder art)', async () => {
     const { RELEASED_HEROES } = await import('../src/data');
-    for (const h of HEROES) expect(RELEASED_HEROES, h.id).toContain(h.id);
+    // Kairo waits for his art (tests/kairo.test.ts).
+    for (const h of HEROES) if (h.id !== 'kairo') expect(RELEASED_HEROES, h.id).toContain(h.id);
   });
 
   it('makes every hero a single unit (no squads), with troop text that says so', () => {

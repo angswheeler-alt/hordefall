@@ -1,6 +1,7 @@
 import { VS, ULT, ultX, HEAL_BASIC } from './heroText';
 import { ROSTER_HEROES } from './heroes';
 import { PASTA } from './heroes/pasta';
+import { KAIRO } from './heroes/kairo';
 
 export type Element = 'water' | 'fire' | 'earth' | 'light' | 'dark';
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
@@ -76,7 +77,10 @@ export type Signature =
   | { kind: 'quarry'; perHit: number; max: number; keep: number; plusKeep: number }
   /** Pasta's Combo Counter: every hit in a row (any target) adds perHit ATK, up to max; `idle` seconds without a hit halves it. 6★ Last One Standing: the first hit that would fell him (or the moment every teammate is down) leaves him standing, he can't fall for `standSeconds`, and for the rest of that life the combo never drops and each hit counts double. */
   /** Pasta: Combo Counter; at `formAt` hits he boils over into his dark form for `formSeconds` (hits x`formMult`, can't fall), which uses up the combo. */
-  | { kind: 'grit'; perHit: number; max: number; idle: number; formAt: number; formSeconds: number; formMult: number };
+  | { kind: 'grit'; perHit: number; max: number; idle: number; formAt: number; formSeconds: number; formMult: number }
+  // Power Surge (Kairo): every `every` seconds alive in a fight he climbs a stage (atk.length stages); stage N adds atk[N-1]
+  // to his ATK, and from stage `hasteFrom` his attack cooldown is x haste. Falling resets it.
+  | { kind: 'surge'; every: number; atk: number[]; haste: number; hasteFrom: number };
 
 /** What a standard hero's Ultimate does on top of the big hit (or full heal), and its 5★ twist. */
 export type UltEffect =
@@ -94,6 +98,8 @@ export type UltEffect =
   | { kind: 'strike'; mult: number; plusMult: number }
   /** Pasta: a blow on the toughest enemy in reach for `mult` x the hit, then he boils over at once (already boiling: +`extend` s). 5★: plusMult, and the form lasts `plusSeconds` longer. */
   | { kind: 'boil'; mult: number; plusMult: number; extend: number; plusSeconds: number }
+  // Sky Cannon (Kairo): every enemy ahead in the lane takes mult x the Ultimate hit; 5★ Spirit Sphere adds perAlly per living teammate (up to maxAllies).
+  | { kind: 'cannon'; mult: number; perAlly: number; maxAllies: number }
   /** After the hit, every non-Fire hero deals Earth damage for `seconds` (5★: plusSeconds). */
   | { kind: 'earthen'; seconds: number; plusSeconds: number }
   /** Healers: on top of the full heal, shields every living hero for `share` of the caster's max HP (5★: plusShare). */
@@ -205,7 +211,10 @@ export type EffectKind =
   // Hero-sheet stats (for the hero stat page; chances are 0.05 = 5%).
   | 'frenzy' | 'effectRes' | 'stunChance' | 'freezeChance' | 'burnChance' | 'poisonChance' | 'ultAtk' | 'aoeDmg'
   // boilRally: multiplies team damage only while a hero is in Pasta's dark form (Boiling Over).
-  | 'boilRally';
+  | 'boilRally'
+  // afterimage: adds `value` dodge, and a dodge makes the next hit a sure crit (Kairo). surgeRally: team ATK +value per
+  // Power Surge stage of the highest-surging hero (Kairo's aura).
+  | 'afterimage' | 'surgeRally';
 
 export interface Effect {
   kind: EffectKind;
@@ -516,6 +525,8 @@ export const HEROES: HeroDef[] = [
     aura: { name: 'Blessing', text: 'Light heroes +15% HP.', effect: { kind: 'hp', value: 1.15, team: true, element: 'light' } } },
   ...ROSTER_HEROES,
   PASTA,
+  // Samuel (2026-11-14): Kairo, hidden until his art is in (add 'kairo' to RELEASED_HEROES then).
+  KAIRO,
 ];
 
 /** Old hero ids from saves before the 20-hero roster, and who replaced them. */
@@ -537,7 +548,7 @@ export const PLAYABLE_HEROES: HeroDef[] = HEROES.filter((h) => RELEASED_HEROES.i
  * Released heroes that random pools may hand out (chests, Trials, shops, Wild Crests, lenders, made-up foes).
  * Pasta is left out: his crests come only from his own rare drops and the Arena Shop (src/arenaShop.ts).
  */
-export const POOL_HEROES: HeroDef[] = PLAYABLE_HEROES.filter((h) => h.id !== 'pasta');
+export const POOL_HEROES: HeroDef[] = PLAYABLE_HEROES.filter((h) => h.id !== 'pasta' && h.id !== 'kairo');
 
 export const RENAMED_HEROES: Record<string, string> = { marin: 'brine', tide: 'brine', bramble: 'thorn', pyra: 'ember', nox: 'shade', solenne: 'lumen' };
 

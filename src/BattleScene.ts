@@ -104,7 +104,7 @@ import { PLACEHOLDER_SIZE, placeholderBase64Url } from './mobPlaceholders';
 import { MUTANT_GOLD, rollMutation, type Mutation } from './mutations';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES, type BossAnim } from './bossAnims';
 import type { EffectKind } from './data';
-import { gritStep, comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets, drenchVuln, heatStep, quarryMult, quarryCarry } from './kits';
+import { gritStep, comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets, drenchVuln, heatStep, quarryMult, quarryCarry, surgeStage, surgeMults, cannonMult } from './kits';
 import { STAT_BASE, FREEZE_BLAST_RADIUS, BOSS_STUN_CHANCE, BOSS_STUN_SECONDS, type HeroStats } from './stats';
 import { heroProfile } from './profiles';
 import { canReach, enemyGoal, flyerVictim, isMelee, pickVictim } from './reach';
@@ -267,6 +267,10 @@ interface Unit {
   /** Zeal (Signature 'zeal'): attacks in a row. */
   zeal: number;
   /** Boiling Over (Signature 'grit'): hits in a row, when the last one landed, when the dark form ends (0: not in it), and whether 6★ NOT YET! fired this life. */
+  /** Power Surge (Signature 'surge', Kairo): when this life's surge clock started, extra stages (6★), and the stage shown. */
+  surgeFrom: number;
+  surgeBonus: number;
+  surge: number;
   grit: number;
   gritAt: number;
   formUntil?: number;
@@ -437,6 +441,10 @@ export type { PvpMeterRow } from './battleMeter';
 
 /** Each crystal holds this many times its team's total HP. */
 const PVP_CRYSTAL_HP = 1.5;
+/** Kairo's Power Surge tints and text colours by stage: pale gold, gold, sky-blue (src/kits.ts surgeStage). */
+const SURGE_TINT = [0xfff2b0, 0xffd84a, 0x9fe8ff];
+const SURGE_TEXT = ['#fff2b0', '#ffd84a', '#9fe8ff'];
+
 /** Pasta's dark form tint until it has its own art (black and red). */
 const FORM_TINT = 0xff5a5a;
 /** Pasta's Boiling Over sprite (art/heroes/pasta_dark); without it the form is a red tint. */
@@ -793,6 +801,9 @@ export class BattleScene extends Phaser.Scene {
       streak: 0,
       chargeStacks: 0,
       zeal: 0,
+      surgeFrom: this.clock,
+      surgeBonus: 0,
+      surge: 0,
       grit: 0,
       gritAt: -99,
       heat: 0,
@@ -1042,6 +1053,25 @@ export class BattleScene extends Phaser.Scene {
   /** Pasta's dark form (Boiling Over) is running. */
   private inForm(u: Unit) {
     return (u.formUntil ?? 0) > this.clock;
+  }
+
+  /** Power Surge (Kairo): climb a stage every few seconds alive; each new stage flares his aura. */
+  private stepSurge(h: Unit) {
+    const stage = surgeStage(h.def?.signature, this.clock - h.surgeFrom, h.surgeBonus);
+    if (stage > h.surge) {
+      h.surge = stage;
+      this.floatText(h.x, h.y - 38, `SURGE ${'I'.repeat(stage)}`, SURGE_TEXT[stage - 1] ?? '#ffe066', 11);
+      this.sparks(h.x, h.y - 10, SURGE_TINT[stage - 1] ?? 0xffe066, 8 + stage * 3);
+    }
+    if (h.surge > 0 && h.body.active && !h.body.isTinted) h.body.setTint(SURGE_TINT[h.surge - 1] ?? 0xffe066);
+  }
+
+  /** Training Partner (Kairo's aura): team ATK per surge stage of the highest-surging hero. */
+  private surgeRally(h: Unit) {
+    const per = this.sum('surgeRally', h);
+    if (!per) return 1;
+    const top = Math.max(0, ...this.heroes.filter((a) => a.alive).map((a) => a.surge));
+    return 1 + per * top;
   }
 
   /** Kitchen Pep Talk (Pasta's aura): team damage while any hero is boiling over. */
@@ -1390,6 +1420,9 @@ export class BattleScene extends Phaser.Scene {
     h.body.setAlpha(1);
     h.hp = h.maxHp.times(hpShare);
     h.rootedUntil = 0;
+    h.surgeFrom = this.clock;
+    h.surgeBonus = 0;
+    h.surge = 0;
     this.giveKnightShield(h);
     h.x = x;
     h.view.setPosition(h.x, h.y).setAlpha(1).setVisible(true);
@@ -1928,6 +1961,7 @@ export class BattleScene extends Phaser.Scene {
         continue;
       }
       if (h.formUntil && this.clock >= h.formUntil) this.endForm(h);
+      if (h.def?.signature?.kind === 'surge') this.stepSurge(h);
       this.stepHero(h, dt);
     }
     for (const e of this.enemies) if (e.alive) this.stepEnemy(e, dt);
@@ -2059,7 +2093,7 @@ export class BattleScene extends Phaser.Scene {
   /** Seconds until a hero's next attack: Atk per sec from the stat sheet, sped up by Rogue Wave+ and Frenzy. */
   private cooldownFor(h: Unit) {
     const base = h.stats ? 1 / h.stats.attacksPerSec.value : h.cooldown;
-    return base * (h.hasteUntil > this.clock ? h.hasteMult : 1) * zealState(h.def?.signature, h.zeal, this.sigPlus(h)).cooldown;
+    return base * (h.hasteUntil > this.clock ? h.hasteMult : 1) * zealState(h.def?.signature, h.zeal, this.sigPlus(h)).cooldown * surgeMults(h.def?.signature, h.surge).cooldown;
   }
 
   /** Enemies the heroes fight: everyone but those under Puppet Bind for now. */
@@ -2274,9 +2308,10 @@ export class BattleScene extends Phaser.Scene {
       this.floatText(target.x, target.y - 26, 'MISS', '#fff6a0', 11);
       return;
     }
-    if (Math.random() < (target.stats ? target.stats.dodge.value : this.sum('dodge', target))) {
+    if (Math.random() < (target.stats ? target.stats.dodge.value : this.sum('dodge', target) + this.sum('afterimage', target))) {
       this.floatText(target.x, target.y - 26, 'MISS', '#c9b8ff', 11);
-      if (this.mastery(target, 'Rogue')) target.riposte = true;
+      // Rogue Mastery and Afterimage (Kairo): the next hit after a dodge is a sure crit.
+      if (this.mastery(target, 'Rogue') || this.sum('afterimage', target) > 0) target.riposte = true;
       return;
     }
     const torrent = torrentMults(target.def?.signature, this.hpRatio(target), this.sigPlus(target)).taken;
@@ -2297,6 +2332,14 @@ export class BattleScene extends Phaser.Scene {
     }
     if (target.alive) this.meter(e, 'dealt', Decimal.min(dmg, target.hp.plus(target.shield)));
     this.damageUnit(target, dmg, null);
+    // Power Surge+ (Kairo 6★): the first time each life he drops under 20% HP he heals 30% and surges up a stage.
+    if (target.alive && target.def?.signature?.kind === 'surge' && this.sigPlus(target) && !target.standUsed && this.hpRatio(target) < SIG_PLUS.surgeBelow) {
+      target.standUsed = true;
+      this.heal(target, target.maxHp.times(SIG_PLUS.surgeHeal), target);
+      target.surgeBonus++;
+      this.floatText(target.x, target.y - 46, 'SECOND WIND!', '#9fe8ff', 11);
+      this.stepSurge(target);
+    }
     if (masked && target.alive && mask?.kind === 'mask') {
       target.maskUsed = true;
       this.heal(target, target.maxHp.times(mask.heal), target);
@@ -2461,6 +2504,7 @@ export class BattleScene extends Phaser.Scene {
       gritMult = g.mult;
       if (g.form) this.startForm(h, 'BOILING OVER!');
     }
+    const surgeMult = surgeMults(sig, h.surge).dmg;
     let dealt = new Decimal(0);
     for (let i = 0; i < strikes; i++) {
       // Hawkeye: shots at an enemy at full HP always crit. Owl Eyes: shots at flyers always crit.
@@ -2502,7 +2546,9 @@ export class BattleScene extends Phaser.Scene {
           (charged ? chargeDamageMult(charged, t.isBoss) : 1) *
           torrentDmg *
           gritMult *
-          this.boilRally(h);
+          surgeMult *
+          this.boilRally(h) *
+          this.surgeRally(h);
         const amount = atk.times(mult);
         // Lifesteal only counts hits that land (element-locked bosses shrug off the rest).
         dealt = dealt.plus(t.lockStage === undefined ? amount : amount.times(elementBossShare(t.lockStage, this.dealsAs(h))));
@@ -2875,6 +2921,9 @@ export class BattleScene extends Phaser.Scene {
       u.formUntil = 0;
       u.standUsed = false;
       u.maskUsed = false;
+      u.surge = 0;
+      u.surgeBonus = 0;
+      if (u.def?.signature?.kind === 'surge' && u.body.active) u.body.clearTint();
       this.puff(u.x, u.y, 0xffffff);
       if (this.trial) u.view.setVisible(false);
       else this.ghostHero(u);
@@ -3038,6 +3087,22 @@ export class BattleScene extends Phaser.Scene {
       }
       if (this.inForm(h)) h.formUntil! += ult.extend;
       else this.startForm(h, 'BOIL OVER!', plus ? ult.plusSeconds : 0);
+      return true;
+    }
+    if (ult?.kind === 'cannon') {
+      // Sky Cannon (Kairo): a golden blast down the whole lane; every enemy ahead takes the full hit.
+      // 5★ Spirit Sphere: harder for each living teammate.
+      const allies = this.heroes.filter((a) => a.alive && a !== h).length;
+      const mult = cannonMult(ult, plus, allies) * surgeMults(def.signature, h.surge).dmg * this.surgeRally(h);
+      if (!this.ultFx(h, h.x + 20, ENEMY_CRYSTAL_X)) {
+        const beam = this.add.rectangle(h.x + 20, h.y - 8, 10, 14, 0xffe066, 0.85).setOrigin(0, 0.5).setDepth(999);
+        this.tweens.add({ targets: beam, width: ENEMY_CRYSTAL_X - h.x, alpha: 0.2, duration: 380, onComplete: () => beam.destroy() });
+      }
+      for (const e of this.enemies.filter((e) => e.alive && e.x >= h.x - 30)) {
+        this.sparks(e.x, e.y - 6, 0xffe066, 5);
+        this.damageUnit(e, dmg.times(mult * this.elem(this.dealsAs(h), e)), h, e.isBoss);
+      }
+      if (!this.bossAlive()) this.damageCrystal(dmg.times(mult), h);
       return true;
     }
     if (ult?.kind === 'crescent') {

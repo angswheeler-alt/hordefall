@@ -683,7 +683,7 @@ export class GameState {
       effectRes: { value: prof.effectRes + sum('effectRes'), base: prof.effectRes },
       frenzy: { value: prof.frenzy + sum('frenzy') + glyph.frenzy, base: prof.frenzy },
       lifesteal: glyph.lifesteal,
-      dodge: { value: prof.dodge + sum('dodge') + this.relicBonus('dodge'), base: prof.dodge },
+      dodge: { value: prof.dodge + sum('dodge') + sum('afterimage') + this.relicBonus('dodge'), base: prof.dodge },
       stunChance: prof.stunChance + sum('stunChance'),
       stunTime: this.relicBonus('stunTime') + prof.effectTime + build.stun.time + build.stun.dmg,
       aoeRadius: splashMult - 1,
