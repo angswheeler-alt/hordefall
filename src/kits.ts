@@ -19,6 +19,9 @@ export const SIG_PLUS = {
   /** Executioner: HP share it works below, and Ultimate cooldown refunded per kill. */
   executeBelow: 0.4,
   killUltRefund: 2,
+  /** Power Surge+ (Kairo): HP share that triggers it, and the heal it gives. */
+  surgeBelow: 0.2,
+  surgeHeal: 0.3,
 };
 
 /**
@@ -135,4 +138,26 @@ export function gritStep(sig: Signature | undefined, combo: number, sinceLast: n
   const next = (sinceLast > sig.idle ? Math.floor(combo / 2) : combo) + 1;
   const form = next >= sig.formAt;
   return { combo: next, mult: atk(next) * (form ? sig.formMult : 1), form };
+}
+
+/**
+ * Power Surge (Kairo, Samuel 2026-11-14): his surge stage after `seconds` alive in this fight, plus `bonus` stages
+ * (6★ jump), capped at the last stage. 0 = no surge.
+ */
+export function surgeStage(sig: Signature | undefined, seconds: number, bonus = 0): number {
+  if (sig?.kind !== 'surge') return 0;
+  return Math.max(0, Math.min(sig.atk.length, Math.floor(Math.max(0, seconds) / sig.every) + bonus));
+}
+
+/** Power Surge at `stage`: his damage multiplier and attack cooldown multiplier. */
+export function surgeMults(sig: Signature | undefined, stage: number): { dmg: number; cooldown: number } {
+  if (sig?.kind !== 'surge' || stage <= 0) return { dmg: 1, cooldown: 1 };
+  const s = Math.min(stage, sig.atk.length);
+  return { dmg: 1 + sig.atk[s - 1], cooldown: s >= sig.hasteFrom ? sig.haste : 1 };
+}
+
+/** Sky Cannon: the hit multiplier, with 5★ Spirit Sphere adding perAlly for each living teammate (up to maxAllies). */
+export function cannonMult(ult: { kind: string; mult?: number; perAlly?: number; maxAllies?: number } | undefined, plus: boolean, alliesAlive: number): number {
+  if (ult?.kind !== 'cannon') return 1;
+  return (ult.mult ?? 1) * (plus ? 1 + (ult.perAlly ?? 0) * Math.min(ult.maxAllies ?? 0, Math.max(0, alliesAlive)) : 1);
 }

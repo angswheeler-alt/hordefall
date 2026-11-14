@@ -17,5 +17,6 @@ export const ROSTER_PROFILES: Record<string, HeroProfile> = { ...WATER_PROFILES,
   asc_light: { crit: 0.1, effectRes: 0.3, specialty: 'Holy armor: 10% crit and 30% Effect Resistance' },
   asc_water: { freezeChance: 0.08, aoeDmg: 0.1, specialty: 'Tide magic: 8% chance to freeze and +10% splash damage' },
   asc_earth: { aoeDmg: 0.15, atkMult: 0.95, specialty: 'Wind magic: +15% splash damage, a little less ATK' },
+  kairo: { critDmg: 1.4, dodge: 0.05, specialty: 'Martial arts: +40% crit damage and dodges 5% of attacks' },
   pasta: { hpMult: 1.05, effectRes: 0.25, specialty: 'No magic to break: +5% HP and 25% Effect Resistance' },
 };
