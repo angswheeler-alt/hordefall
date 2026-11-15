@@ -144,12 +144,13 @@ describe('Kairo in the Arena Shop', () => {
     expect(new GameState().unlockCrests(HEROES.find((h) => h.id === KAIRO_ID)!)).toBe(PASTA_UNLOCK);
   });
 
-  it('a lucky chest before his release still gives only Pasta', () => {
+  it('a lucky chest gives Pasta and Gogu each their own crests', () => {
     const s = new GameState();
     pastaLuck.roll = () => 0;
     try {
-      const drops = (s as any).rollChest() as Array<{ heroId: string }>;
-      expect(drops.some((d) => d.heroId === 'kairo')).toBe(false);
+      const drops = (s as any).rollChest() as Array<{ heroId: string; crests: number }>;
+      expect(drops.filter((d) => d.heroId === 'kairo').map((d) => d.crests)).toEqual([PASTA_CHEST_CRESTS]);
+      expect(drops.filter((d) => d.heroId === PASTA_ID).map((d) => d.crests)).toEqual([PASTA_CHEST_CRESTS]);
     } finally {
       pastaLuck.roll = () => 1;
     }

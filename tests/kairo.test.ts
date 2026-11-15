@@ -8,6 +8,7 @@ const kairo = HEROES.find((h) => h.id === 'kairo')!;
 describe('Kairo', () => {
   it('is a Light Brawler with his own Signature, Ultimate and 6★ text', () => {
     expect(kairo).toBeTruthy();
+    expect(kairo.name).toBe('Gogu');
     expect(kairo.element).toBe('light');
     expect(kairo.type).toBe('Brawler');
     expect(kairo.signature?.kind).toBe('surge');
@@ -16,8 +17,8 @@ describe('Kairo', () => {
     for (const h of HEROES) if (h !== kairo) expect(h.signature?.kind, h.id).not.toBe('surge');
   });
 
-  it('stays hidden and out of random pools until his art is in', () => {
-    expect(RELEASED_HEROES).not.toContain('kairo');
+  it('is released but stays out of random pools (Arena Shop and rare drops only)', () => {
+    expect(RELEASED_HEROES).toContain('kairo');
     expect(POOL_HEROES.some((h) => h.id === 'kairo')).toBe(false);
   });
 

@@ -1,17 +1,17 @@
 import type { HeroDef } from '../data';
 
 /**
- * Kairo (2026-11-14, Samuel): a one-of-a-kind cheerful mountain martial artist who lives to fight someone stronger.
+ * Gogu (id kairo; 2026-11-14, Samuel, renamed from Kairo 2026-11-15): a one-of-a-kind cheerful mountain martial artist who lives to fight someone stronger.
  * Original design: his own name, look and kit. Power Surge (golden aura stages that climb the longer he stays up)
  * at 1★, a lane-wide Sky Cannon Ultimate, and at 6★ a second wind when he is nearly down.
- * Hidden (not in RELEASED_HEROES) until his art is in.
+ * Released 2026-11-15; every player who existed then gets him at 1★ from the Mailbox (src/mail.ts 'gogu-launch').
  */
 export const KAIRO: HeroDef = {
-  id: 'kairo', rarity: 'epic', statRarity: 'legendary', name: 'Kairo', element: 'light',
+  id: 'kairo', rarity: 'epic', statRarity: 'legendary', name: 'Gogu', element: 'light',
   type: 'Brawler', baseAtk: 5.8, baseHp: 90, range: 30, attackCooldown: 0.85, moveSpeed: 135, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
   signature: { kind: 'surge', every: 8, atk: [0.3, 0.6, 1, 1.5], haste: 0.85, hasteFrom: 2, drainFrom: 4, drain: 0.02, drainFloor: 0.1 },
   sigPlus: 'The first time each life he drops under 20% HP, he heals 30% of his max HP and jumps up a surge stage.',
-  ult: { kind: 'cannon', mult: 1, perAlly: 0.2, maxAllies: 5 },
+  ult: { kind: 'cannon', mult: 1, lane: 0.4, perAlly: 0.2, maxAllies: 5 },
   ultPlus: 'Spirit Sphere: the blast hits 20% harder for each living teammate (up to +100%).',
   bio: 'A cheerful martial artist from the high mountain passes who trains every waking hour and lives for a fight with someone stronger. The longer a battle lasts, the brighter his golden aura burns.',
   basic: { name: 'Mountain Fist', text: 'Quick punches and kicks at the nearest enemy ahead.' },

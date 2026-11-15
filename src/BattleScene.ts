@@ -3121,16 +3121,16 @@ export class BattleScene extends Phaser.Scene {
       // Sky Cannon (Kairo): a golden blast down the whole lane; every enemy ahead takes the full hit.
       // 5★ Spirit Sphere: harder for each living teammate.
       const allies = this.heroes.filter((a) => a.alive && a !== h).length;
-      const mult = cannonMult(ult, plus, allies) * surgeMults(def.signature, h.surge).dmg * this.surgeRally(h);
+      const mult = cannonMult(ult, plus, allies) * this.surgeRally(h);
       if (!this.ultFx(h, h.x + 20, ENEMY_CRYSTAL_X)) {
         const beam = this.add.rectangle(h.x + 20, h.y - 8, 10, 14, 0xffe066, 0.85).setOrigin(0, 0.5).setDepth(999);
         this.tweens.add({ targets: beam, width: ENEMY_CRYSTAL_X - h.x, alpha: 0.2, duration: 380, onComplete: () => beam.destroy() });
       }
       for (const e of this.enemies.filter((e) => e.alive && e.x >= h.x - 30)) {
         this.sparks(e.x, e.y - 6, 0xffe066, 5);
-        this.damageUnit(e, dmg.times(mult * this.elem(this.dealsAs(h), e)), h, e.isBoss);
+        this.damageUnit(e, dmg.times(mult * (e.isBoss ? 1 : ult.lane / ult.mult) * this.elem(this.dealsAs(h), e)), h, e.isBoss);
       }
-      if (!this.bossAlive()) this.damageCrystal(dmg.times(mult), h);
+      if (!this.bossAlive()) this.damageCrystal(dmg.times(mult * ult.lane / ult.mult), h);
       return true;
     }
     if (ult?.kind === 'crescent') {
