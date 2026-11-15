@@ -38,7 +38,7 @@ import { holdToRepeat } from './hold';
 import { ScoutUI } from './scoutUi';
 import { WILD_CREST_COST } from './scouting';
 import { GlyphUI, glyphCard } from './glyphUi';
-import { arenaItems, ARENA_ICON, ARENA_NAME, GLORY_DAILY, GLORY_WIN, GLORY_LOSS, PASTA_ID } from './arenaShop';
+import { arenaItems, ARENA_ICON, ARENA_NAME, GLORY_DAILY, GLORY_WIN, GLORY_LOSS, isUnique } from './arenaShop';
 import { JournalUI, journalRulesText } from './journalUi';
 import { bossPicHtml, heroFaceCss, heroWholeCss } from './portrait';
 import { RushUI, rushResultHtml } from './rushUi';
@@ -2625,7 +2625,7 @@ export class UI {
         const def = item.hero ? HEROES.find((h) => h.id === item.hero) : undefined;
         const pic = def ? this.arenaFace(def) : `<span class="arena-ico">${ARENA_ICON[item.kind]}</span>`;
         const name = def ? `${item.amount} ${def.name} crests` : ARENA_NAME[item.kind](item.amount);
-        const rar = def ? `<small class="rar-${arenaRarity(def)}">${def.id === PASTA_ID ? 'Unique' : def.rarity[0].toUpperCase() + def.rarity.slice(1)}</small>` : '';
+        const rar = def ? `<small class="rar-${arenaRarity(def)}">${isUnique(def.id) ? 'Unique' : def.rarity[0].toUpperCase() + def.rarity.slice(1)}</small>` : '';
         return `<div class="arena-item">${pic}<div class="who"><b>${name}</b>${rar}<small>${left}/${item.perWeek} left this season</small></div>
           <button class="wood-btn small" data-pvp="arena-buy" data-item="${item.id}" ${s.glory < item.price || left <= 0 ? 'disabled' : ''}>${item.price} Glory</button></div>`;
       })
@@ -3736,9 +3736,9 @@ export class UI {
  * A hero's crest: the hero's face inside its rarity's medal frame (the user's art, 2026-11-01). `inner` is the
  * face element; the frame image and the window it sits in come from CSS (.crest-face.r-<rarity>).
  */
-/** Rarity shown in the Arena Shop: Pasta is 'unique', everyone else their own rarity. */
+/** Rarity shown in the Arena Shop: Pasta and Kairo are 'unique', everyone else their own rarity. */
 function arenaRarity(def: HeroDef): string {
-  return def.id === PASTA_ID ? 'unique' : def.rarity;
+  return isUnique(def.id) ? 'unique' : def.rarity;
 }
 
 export function crestFace(def: HeroDef, inner: string): string {

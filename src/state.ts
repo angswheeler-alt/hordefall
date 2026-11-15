@@ -11,7 +11,7 @@ import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills
 import { isKnight, combatPower, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
 import { OBSERVATORY, OBSERVATORY_RESPEC_GEMS, obsDef, sigilCost, sigilsSpent, sigilsEarned, cleanObservatory, type ObsBranch } from './observatory';
-import { GLORY_DAILY, fightGlory, arenaItems, PASTA_ID, PASTA_UNLOCK, pastaDrop, pastaLuck, PASTA_CHEST_CHANCE, PASTA_CHEST_CRESTS, PASTA_TRIAL_CHANCE, PASTA_REWARD_CHANCE, type ArenaItem } from './arenaShop';
+import { GLORY_DAILY, fightGlory, arenaItems, isUnique, releasedUniques, PASTA_ID, PASTA_UNLOCK, pastaDrop, pastaLuck, PASTA_CHEST_CHANCE, PASTA_CHEST_CRESTS, PASTA_TRIAL_CHANCE, PASTA_REWARD_CHANCE, type ArenaItem } from './arenaShop';
 import { PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_TICKET_GEMS, PVP_TICKET_BUYS, PVP_REFRESH_MINUTES, PVP_CP_MIN, PVP_CP_MAX, PVP_REAL_MIN, PVP_REAL_MAX, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_FIRST_WIN_MOTES, PVP_STREAK_DMG, PVP_STREAK_MAX, PVP_QUICK_CP, PVP_QUICK_HP, rankCp, RANK_DAILY, RANK_WEEKLY, rankIndex, rankName, droppedTrophies, seededRandom, ghostName, simulatePvp, type PvpUnit, type PvpResult } from './colosseum';
 import { TUTORIAL_DONE, OLD_TUTORIAL_DONE, TIP_IDS } from './tutorialSteps';
 import { ascendBlocker, ascendNeeds, clampForm, formArtKey, resolveForm, COUNTERED_BY, type AscendBlocker, type AscendContext, type AscendantDef } from './ascendant';
@@ -1315,7 +1315,7 @@ export class GameState {
   /** Medals a locked hero needs to unlock (0 for the free starter); Legendary heroes take Legendary medals. */
   unlockCrests(def: HeroDef): number {
     if (def.unlockCost === 0) return 0;
-    if (def.id === PASTA_ID) return PASTA_UNLOCK;
+    if (isUnique(def.id)) return PASTA_UNLOCK;
     return def.rarity === 'legendary' ? LEGENDARY_UNLOCK_MEDALS : UNLOCK_CRESTS[def.rarity];
   }
 
@@ -1391,9 +1391,11 @@ export class GameState {
       const isNew = locked && before < need && before + crests >= need;
       drops.push({ heroId: hero.id, crests, isNew });
     }
-    // Pasta (one of a kind): a rare extra drop from any chest.
-    const pasta = pastaDrop(pastaLuck.roll, PASTA_CHEST_CHANCE, PASTA_CHEST_CRESTS);
-    if (pasta) drops.push(this.givePasta(pasta));
+    // One-of-a-kind heroes (Pasta, Kairo): each rolls its own rare extra drop from any chest.
+    for (const id of releasedUniques()) {
+      const n = pastaDrop(pastaLuck.roll, PASTA_CHEST_CHANCE, PASTA_CHEST_CRESTS);
+      if (n) drops.push(this.giveUnique(id, n));
+    }
     return drops;
   }
 
@@ -1425,10 +1427,15 @@ export class GameState {
 
   /** Pasta crests from a rare drop, as a chest-style drop line. */
   givePasta(crests: number): SummonDrop {
-    const before = this.crests[PASTA_ID] ?? 0;
-    const locked = (this.levels[PASTA_ID] ?? 0) === 0;
-    this.addCrests(PASTA_ID, crests);
-    return { heroId: PASTA_ID, crests, isNew: locked && before < PASTA_UNLOCK && before + crests >= PASTA_UNLOCK };
+    return this.giveUnique(PASTA_ID, crests);
+  }
+
+  /** Crests for a one-of-a-kind hero (Pasta, Kairo), as a chest drop. */
+  giveUnique(id: string, crests: number): SummonDrop {
+    const before = this.crests[id] ?? 0;
+    const locked = (this.levels[id] ?? 0) === 0;
+    this.addCrests(id, crests);
+    return { heroId: id, crests, isNew: locked && before < PASTA_UNLOCK && before + crests >= PASTA_UNLOCK };
   }
 
   /**
@@ -2498,10 +2505,11 @@ export class GameState {
     const pool = this.trialPool(element);
     const medals = this.trialMedals();
     for (let i = 0; i < medals; i++) {
-      // Pasta (one of a kind) can turn up on any element's Trial, very rarely.
-      if (pastaDrop(pastaLuck.roll, PASTA_TRIAL_CHANCE)) {
-        result.medals.push(PASTA_ID);
-        this.addCrests(PASTA_ID, 1);
+      // One-of-a-kind heroes (Pasta, Kairo) can turn up on any element's Trial, very rarely (each its own roll).
+      const unique = releasedUniques().find(() => pastaDrop(pastaLuck.roll, PASTA_TRIAL_CHANCE));
+      if (unique) {
+        result.medals.push(unique);
+        this.addCrests(unique, 1);
         continue;
       }
       const hero = pickByRarity(pool, TRIAL_RARITY_WEIGHTS);
@@ -2907,7 +2915,7 @@ export class GameState {
     const drops: SummonDrop[] = [];
     for (let i = 0; i < (r.chests ?? 0); i++) drops.push(...this.rollChest());
     // Pasta: any other reward (dailies, login, milestones, Rush tiers...) has a small chance of a crest.
-    if (pastaDrop(pastaLuck.roll, PASTA_REWARD_CHANCE)) drops.push(this.givePasta(1));
+    for (const id of releasedUniques()) if (pastaDrop(pastaLuck.roll, PASTA_REWARD_CHANCE)) drops.push(this.giveUnique(id, 1));
     this.enhanceStones += r.stones ?? 0;
     this.wildCrests += r.wild ?? 0;
     if (r.tickets) {
