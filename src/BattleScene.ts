@@ -104,7 +104,7 @@ import { PLACEHOLDER_SIZE, placeholderBase64Url } from './mobPlaceholders';
 import { MUTANT_GOLD, rollMutation, type Mutation } from './mutations';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES, type BossAnim } from './bossAnims';
 import type { EffectKind } from './data';
-import { gritStep, comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets, drenchVuln, heatStep, quarryMult, quarryCarry, surgeStage, surgeMults, cannonMult } from './kits';
+import { gritStep, comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets, drenchVuln, heatStep, quarryMult, quarryCarry, surgeStage, surgeMults, surgeDrain, cannonMult } from './kits';
 import { STAT_BASE, FREEZE_BLAST_RADIUS, BOSS_STUN_CHANCE, BOSS_STUN_SECONDS, type HeroStats } from './stats';
 import { heroProfile } from './profiles';
 import { canReach, enemyGoal, flyerVictim, isMelee, pickVictim } from './reach';
@@ -441,9 +441,12 @@ export type { PvpMeterRow } from './battleMeter';
 
 /** Each crystal holds this many times its team's total HP. */
 const PVP_CRYSTAL_HP = 1.5;
+/** Afterimage (Kairo): how far down the lane he can blink to reach the enemy he dodged. */
+const AFTERIMAGE_BLINK = 240;
+
 /** Kairo's Power Surge tints and text colours by stage: pale gold, gold, sky-blue (src/kits.ts surgeStage). */
-const SURGE_TINT = [0xfff2b0, 0xffd84a, 0x9fe8ff];
-const SURGE_TEXT = ['#fff2b0', '#ffd84a', '#9fe8ff'];
+const SURGE_TINT = [0xfff2b0, 0xffd84a, 0x9fe8ff, 0xff6a5a];
+const SURGE_TEXT = ['#fff2b0', '#ffd84a', '#9fe8ff', '#ff6a5a'];
 
 /** Pasta's dark form tint until it has its own art (black and red). */
 const FORM_TINT = 0xff5a5a;
@@ -1056,14 +1059,36 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Power Surge (Kairo): climb a stage every few seconds alive; each new stage flares his aura. */
-  private stepSurge(h: Unit) {
-    const stage = surgeStage(h.def?.signature, this.clock - h.surgeFrom, h.surgeBonus);
+  private stepSurge(h: Unit, dt = 0) {
+    const sig = h.def?.signature;
+    const stage = surgeStage(sig, this.clock - h.surgeFrom, h.surgeBonus);
     if (stage > h.surge) {
       h.surge = stage;
-      this.floatText(h.x, h.y - 38, `SURGE ${'I'.repeat(stage)}`, SURGE_TEXT[stage - 1] ?? '#ffe066', 11);
+      const over = sig?.kind === 'surge' && stage >= sig.drainFrom;
+      this.floatText(h.x, h.y - 38, over ? 'OVERDRIVE!' : `SURGE ${'I'.repeat(stage)}`, SURGE_TEXT[stage - 1] ?? '#ffe066', 11);
       this.sparks(h.x, h.y - 10, SURGE_TINT[stage - 1] ?? 0xffe066, 8 + stage * 3);
     }
+    // Overdrive burns his own HP (never below the floor); that can set off his 6★ second wind.
+    if (dt > 0 && h.maxHp.gt(0)) {
+      const now = this.hpRatio(h);
+      const next = surgeDrain(sig, h.surge, now, dt);
+      if (next < now) {
+        h.hp = h.maxHp.times(next);
+        this.drawHpBar(h);
+        this.secondWind(h);
+      }
+    }
     if (h.surge > 0 && h.body.active && !h.body.isTinted) h.body.setTint(SURGE_TINT[h.surge - 1] ?? 0xffe066);
+  }
+
+  /** Power Surge+ (Kairo 6★): the first time each life he drops under 20% HP he heals 30% and surges up a stage. */
+  private secondWind(h: Unit) {
+    if (!h.alive || h.def?.signature?.kind !== 'surge' || !this.sigPlus(h) || h.standUsed || this.hpRatio(h) >= SIG_PLUS.surgeBelow) return;
+    h.standUsed = true;
+    this.heal(h, h.maxHp.times(SIG_PLUS.surgeHeal), h);
+    h.surgeBonus++;
+    this.floatText(h.x, h.y - 46, 'SECOND WIND!', '#9fe8ff', 11);
+    this.stepSurge(h);
   }
 
   /** Training Partner (Kairo's aura): team ATK per surge stage of the highest-surging hero. */
@@ -1961,7 +1986,7 @@ export class BattleScene extends Phaser.Scene {
         continue;
       }
       if (h.formUntil && this.clock >= h.formUntil) this.endForm(h);
-      if (h.def?.signature?.kind === 'surge') this.stepSurge(h);
+      if (h.def?.signature?.kind === 'surge') this.stepSurge(h, dt);
       this.stepHero(h, dt);
     }
     for (const e of this.enemies) if (e.alive) this.stepEnemy(e, dt);
@@ -2312,6 +2337,16 @@ export class BattleScene extends Phaser.Scene {
       this.floatText(target.x, target.y - 26, 'MISS', '#c9b8ff', 11);
       // Rogue Mastery and Afterimage (Kairo): the next hit after a dodge is a sure crit.
       if (this.mastery(target, 'Rogue') || this.sum('afterimage', target) > 0) target.riposte = true;
+      // Afterimage: he blinks straight up to the attacker (a shooter down the lane too) and strikes back at once.
+      if (this.sum('afterimage', target) > 0 && target.alive && e.alive) {
+        const gap = e.x - target.x;
+        if (gap > target.range && gap <= AFTERIMAGE_BLINK) {
+          this.puff(target.x, target.y, 0xfff2b0);
+          target.x = e.x - Math.min(target.range, 20);
+          target.view.x = target.x;
+        }
+        target.cooldownLeft = 0;
+      }
       return;
     }
     const torrent = torrentMults(target.def?.signature, this.hpRatio(target), this.sigPlus(target)).taken;
@@ -2332,14 +2367,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (target.alive) this.meter(e, 'dealt', Decimal.min(dmg, target.hp.plus(target.shield)));
     this.damageUnit(target, dmg, null);
-    // Power Surge+ (Kairo 6★): the first time each life he drops under 20% HP he heals 30% and surges up a stage.
-    if (target.alive && target.def?.signature?.kind === 'surge' && this.sigPlus(target) && !target.standUsed && this.hpRatio(target) < SIG_PLUS.surgeBelow) {
-      target.standUsed = true;
-      this.heal(target, target.maxHp.times(SIG_PLUS.surgeHeal), target);
-      target.surgeBonus++;
-      this.floatText(target.x, target.y - 46, 'SECOND WIND!', '#9fe8ff', 11);
-      this.stepSurge(target);
-    }
+    this.secondWind(target);
     if (masked && target.alive && mask?.kind === 'mask') {
       target.maskUsed = true;
       this.heal(target, target.maxHp.times(mask.heal), target);
