@@ -173,7 +173,7 @@ export function cannonMult(ult: { kind: string; mult?: number; perAlly?: number;
 
 /**
  * Gogu's look for each Power Surge stage (Samuel 2026-11-15, each stage a new colour and look): I gold aura,
- * II blue-lightning aura, III long-haired gold form with lightning (kairo_ascend3), IV Overdrive red. Returns the best sprite for `stage` that `has` (loaded), else the best of a
+ * II blue-lightning aura, III long-haired gold form with lightning (kairo_ascend3), IV Overdrive, his final form (blue hair, blue lightning). Returns the best sprite for `stage` that `has` (loaded), else the best of a
  * lower stage, or null (he stays in his normal sprite, tinted).
  */
 export const SURGE_FORMS: Record<number, string[]> = {
