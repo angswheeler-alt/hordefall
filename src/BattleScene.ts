@@ -1359,6 +1359,9 @@ export class BattleScene extends Phaser.Scene {
     this.drawBackground();
     const boss = isBossStage(stage);
     this.bossTimer = boss ? BOSS_TIME_LIMIT : 0;
+    // Power Surge builds across normal stages and starts over at every boss (Samuel 2026-11-15), so Gogu
+    // transforms during each boss fight.
+    if (boss) for (const h of this.heroes) if (h.alive && h.def?.signature?.kind === 'surge') this.resetSurge(h);
     if (boss) {
       this.spawnEnemy(true);
       const weak = bossWeakness(stage);
@@ -1443,6 +1446,17 @@ export class BattleScene extends Phaser.Scene {
         u.shadow.x = u.view.x;
         u.shadow.setVisible(u.view.visible).setAlpha(0.3 * u.view.alpha);
       }
+    }
+  }
+
+  /** Gogu back to his base form: Power Surge from zero, normal sprite, no tint. */
+  private resetSurge(u: Unit) {
+    u.surgeFrom = this.clock;
+    u.surge = 0;
+    u.surgeBonus = 0;
+    if (u.def?.signature?.kind === 'surge') {
+      if (u.formFrom) { this.swapArt(u, u.formFrom); u.formFrom = undefined; }
+      if (u.body.active) u.body.clearTint();
     }
   }
 
@@ -2957,12 +2971,7 @@ export class BattleScene extends Phaser.Scene {
       u.formUntil = 0;
       u.standUsed = false;
       u.maskUsed = false;
-      u.surge = 0;
-      u.surgeBonus = 0;
-      if (u.def?.signature?.kind === 'surge') {
-        if (u.formFrom) { this.swapArt(u, u.formFrom); u.formFrom = undefined; }
-        if (u.body.active) u.body.clearTint();
-      }
+      this.resetSurge(u);
       this.puff(u.x, u.y, 0xffffff);
       if (this.trial) u.view.setVisible(false);
       else this.ghostHero(u);
