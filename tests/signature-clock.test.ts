@@ -19,7 +19,7 @@ describe('timed Signatures tick in every mode', () => {
     const pvp = body('updatePvp');
     expect(pvp).toContain('this.stepKit(h, dt)');
     expect(pvp).toContain('this.stepKit(e, dt)');
-    expect(body('stepKit')).toContain('this.stepSurge(u, dt)');
+    expect(body('stepKit')).toContain('this.stepSignatureClock(u, dt)');
   });
   it('stages', () => {
     const update = src.slice(src.indexOf('  update(_time'), src.indexOf('this.tickBurns(dt);', src.indexOf('  update(_time')));
