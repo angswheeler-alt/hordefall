@@ -91,6 +91,7 @@ export const HERO_ANIMS: Record<string, HeroAnim> = {
   juggles: { frame: [56,48], feet: [33,47], headTop: 6, run: 4, attack: 5, hitFrame: 0 },
   kairo: { frame: [42,54], feet: [18,53], headTop: 3, run: 6, attack: 5, hitFrame: 2 },
   kairo_ascend3: { frame: [62,125], feet: [30,124], headTop: 61, run: 6, attack: 5, hitFrame: 1 },
+  kairo_overdrive: { frame: [54,91], feet: [28,90], headTop: 14, run: 6, attack: 5, hitFrame: 2 },
   kairo_surge: { frame: [65,85], feet: [24,84], headTop: 7, run: 6, attack: 5, hitFrame: 2 },
   kairo_surge1: { frame: [61,89], feet: [21,88], headTop: 5, run: 6, attack: 5, hitFrame: 3 },
   kestra: { frame: [61,56], feet: [29,55], headTop: 8, run: 5, attack: 5, hitFrame: 2 },

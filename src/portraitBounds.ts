@@ -83,6 +83,7 @@ export const HERO_BOUNDS: Record<string, ArtBounds> = {
   juggles: [56, 48, 7, 6, 54, 47, 35],
   kairo: [42, 54, 5, 3, 30, 53, 18.4],
   kairo_ascend3: [62, 125, 9, 10, 54, 118, 30.1],
+  kairo_overdrive: [54, 91, 9, 14, 48, 89, 28.8],
   kairo_surge: [65, 85, 3, 7, 46, 84, 24.1],
   kairo_surge1: [61, 89, 3, 5, 41, 86, 21],
   kestra: [61, 56, 4, 8, 55, 55, 29.9],
