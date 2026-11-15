@@ -2764,7 +2764,9 @@ export class UI {
     const defender = foe.userId;
     $('trial-hud-note').textContent = 'No gold or Ember levels here: stars, relics, weapons and Glyphs decide. No Ultimates; fighters get back up after 10 seconds. Destroy the red crystal before they destroy yours.';
     $('trial-leave').textContent = 'Leave';
-    scene.startPvp(ids, s.pvpFoeUnits(foe).map((f) => ({ def: f.def, stats: f.stats })), bonus, (won) => {
+    // Fair fight: the defense team fights with its full kits and DEF, like the attack team (user, 2026-11-15).
+    const foes = s.pvpFoeUnits(foe).map((f) => ({ def: f.def, stats: f.stats, owner: f.owner }));
+    scene.startPvp(ids, foes, bonus, (won) => {
       $('trial-leave').textContent = 'Back';
       const r = s.finishPvp(won);
       if (defender) void this.pvpServer?.reportFight(defender, won);
@@ -2774,7 +2776,7 @@ export class UI {
         if (scene.inPvp()) this.showModal('Colosseum', html, 'Okay', () => this.endPvpScreen());
       }, 1200);
       this.render();
-    });
+    }, { fair: true });
   }
 
   /** The battle meter under the Colosseum or Trial lane: damage dealt, taken and healed by each fighter so far. */

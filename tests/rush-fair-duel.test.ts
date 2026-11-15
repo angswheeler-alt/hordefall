@@ -68,7 +68,10 @@ describe('Rush foes fight with their own kit', () => {
     const body = ui.slice(ui.indexOf('  fightRush('), ui.indexOf('  expeditionLenders('));
     expect(body).toContain('owner: f.owner');
     expect(body).toContain('fair: true');
-    // The Colosseum and Expeditions keep their old rules for now.
+    // Colosseum fights are fair too (user, 2026-11-15); Expeditions keep their old rules for now.
+    const arena = ui.slice(ui.indexOf('  private fightPvp('), ui.indexOf('  private renderPvpMeter('));
+    expect(arena).toContain('owner: f.owner');
+    expect(arena).toContain('{ fair: true }');
     const col = ui.slice(ui.indexOf('  fightExpedition('), ui.indexOf('  fightExpedition(') + 1500);
     expect(col).not.toContain('fair: true');
   });
@@ -83,8 +86,7 @@ describe('Rush foes fight with their own kit', () => {
     // Both sides' surge and form tick in PvP now (they never did on the player's side either).
     expect(pvp).toContain('this.stepKit(h, dt);');
     const kit = method('stepKit');
-    expect(kit).toContain('this.endForm(u)');
-    expect(kit).toContain('this.stepSurge(u, dt)');
+    expect(kit).toContain('this.stepSignatureClock(u, dt)');
   });
 
   it('star skills and effects are read from the unit’s own save', () => {
