@@ -1074,6 +1074,16 @@ export class BattleScene extends Phaser.Scene {
     return (u.formUntil ?? 0) > this.clock;
   }
 
+  /**
+   * Timed Signatures, every mode (stages, Trials, Guild Boss, Colosseum/Rush, both sides): Pasta's dark form running out
+   * and Gogu's Power Surge climbing. Before 2026-11-15 this only ran on stages, so outside them Gogu never surged and
+   * Pasta's form never ended.
+   */
+  private stepSignatureClock(u: Unit, dt: number) {
+    if (u.formUntil && this.clock >= u.formUntil) this.endForm(u);
+    if (u.def?.signature?.kind === 'surge') this.stepSurge(u, dt);
+  }
+
   /** Power Surge (Kairo): climb a stage every few seconds alive; each new stage flares his aura. */
   private stepSurge(h: Unit, dt = 0) {
     const sig = h.def?.signature;
@@ -1814,6 +1824,13 @@ export class BattleScene extends Phaser.Scene {
     e.rootedUntil = 0;
     e.burnUntil = 0;
     e.poisonUntil = 0;
+    // An opposing Pasta or Gogu comes back like the player's own: combo and form spent, Gogu in his base form.
+    if (e.def) {
+      if (this.inForm(e)) this.endForm(e);
+      e.grit = 0;
+      e.formUntil = 0;
+      this.resetSurge(e);
+    }
     e.x = ENEMY_CRYSTAL_X - 20;
     this.tweens.killTweensOf(e.view);
     e.view.setPosition(e.x, e.y).setAlpha(1).setScale(1).setVisible(true);
@@ -2074,8 +2091,7 @@ export class BattleScene extends Phaser.Scene {
         else h.reviveText?.setText(`${Math.ceil(reviveIn(h, this.clock))}`);
         continue;
       }
-      if (h.formUntil && this.clock >= h.formUntil) this.endForm(h);
-      if (h.def?.signature?.kind === 'surge') this.stepSurge(h, dt);
+      this.stepSignatureClock(h, dt);
       this.stepHero(h, dt);
     }
     for (const e of this.enemies) if (e.alive) this.stepEnemy(e, dt);
@@ -2106,7 +2122,11 @@ export class BattleScene extends Phaser.Scene {
       t.timeLeft -= dt;
       t.fought += dt;
     }
-    for (const h of this.heroes) if (h.alive) this.stepHero(h, dt);
+    for (const h of this.heroes) {
+      if (!h.alive) continue;
+      this.stepSignatureClock(h, dt);
+      this.stepHero(h, dt);
+    }
     for (const e of this.enemies) if (e.alive) this.stepEnemy(e, dt);
     this.tickBurns(dt);
     this.tickStatus(dt);
