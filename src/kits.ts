@@ -170,3 +170,14 @@ export function cannonMult(ult: { kind: string; mult?: number; perAlly?: number;
   if (ult?.kind !== 'cannon') return 1;
   return (ult.mult ?? 1) * (plus ? 1 + (ult.perAlly ?? 0) * Math.min(ult.maxAllies ?? 0, Math.max(0, alliesAlive)) : 1);
 }
+
+/**
+ * Gogu's look for each Power Surge stage (Samuel 2026-11-15): stage II the blue-lightning form, III the big
+ * white-blue aura, IV (Overdrive) the red form. Returns the highest-stage sprite at or below `stage` that
+ * `has` (loaded), or null for none (he stays in his normal sprite, tinted).
+ */
+export const SURGE_FORMS: Record<number, string> = { 2: 'kairo_surge', 3: 'kairo_surge3', 4: 'kairo_overdrive' };
+export function surgeArt(stage: number, has: (id: string) => boolean): string | null {
+  for (let s = stage; s >= 2; s--) if (SURGE_FORMS[s] && has(SURGE_FORMS[s])) return SURGE_FORMS[s];
+  return null;
+}

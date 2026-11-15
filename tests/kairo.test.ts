@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { HEROES, POOL_HEROES, RELEASED_HEROES } from '../src/data';
-import { surgeStage, surgeMults, surgeDrain, cannonMult, SIG_PLUS } from '../src/kits';
+import { surgeStage, surgeMults, surgeDrain, cannonMult, surgeArt, SIG_PLUS } from '../src/kits';
 import { ultFxStyle } from '../src/ultFx';
 
 const kairo = HEROES.find((h) => h.id === 'kairo')!;
@@ -74,5 +74,15 @@ describe('Kairo', () => {
   it('Afterimage adds dodge on his stat sheet and the aura is a team effect', () => {
     expect(kairo.sp1.effect).toEqual({ kind: 'afterimage', value: 0.15 });
     expect(kairo.aura.effect?.team).toBe(true);
+  });
+
+  it('picks the best surge look he has for his stage', () => {
+    const only2 = (id: string) => id === 'kairo_surge';
+    expect(surgeArt(1, only2)).toBeNull();
+    expect(surgeArt(2, only2)).toBe('kairo_surge');
+    expect(surgeArt(4, only2)).toBe('kairo_surge');
+    const all = () => true;
+    expect(surgeArt(3, all)).toBe('kairo_surge3');
+    expect(surgeArt(4, all)).toBe('kairo_overdrive');
   });
 });

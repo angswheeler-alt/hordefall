@@ -104,6 +104,7 @@ import { PLACEHOLDER_SIZE, placeholderBase64Url } from './mobPlaceholders';
 import { MUTANT_GOLD, rollMutation, type Mutation } from './mutations';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES, type BossAnim } from './bossAnims';
 import type { EffectKind } from './data';
+import { surgeArt } from './kits';
 import { gritStep, comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets, drenchVuln, heatStep, quarryMult, quarryCarry, surgeStage, surgeMults, surgeDrain, cannonMult } from './kits';
 import { STAT_BASE, FREEZE_BLAST_RADIUS, BOSS_STUN_CHANCE, BOSS_STUN_SECONDS, type HeroStats } from './stats';
 import { heroProfile } from './profiles';
@@ -445,9 +446,6 @@ const PVP_CRYSTAL_HP = 1.5;
 const AFTERIMAGE_BLINK = 240;
 
 /** Kairo's Power Surge tints and text colours by stage: pale gold, gold, sky-blue (src/kits.ts surgeStage). */
-/** Gogu's surge form sprite and the stage it starts at (without the sprite he is only tinted). */
-const SURGE_ART = 'kairo_surge';
-const SURGE_FORM_STAGE = 3;
 const SURGE_TINT = [0xfff2b0, 0xffd84a, 0x9fe8ff, 0xff6a5a];
 const SURGE_TEXT = ['#fff2b0', '#ffd84a', '#9fe8ff', '#ff6a5a'];
 
@@ -1070,10 +1068,11 @@ export class BattleScene extends Phaser.Scene {
       const over = sig?.kind === 'surge' && stage >= sig.drainFrom;
       this.floatText(h.x, h.y - 38, over ? 'OVERDRIVE!' : `SURGE ${'I'.repeat(stage)}`, SURGE_TEXT[stage - 1] ?? '#ffe066', 11);
       this.sparks(h.x, h.y - 10, SURGE_TINT[stage - 1] ?? 0xffe066, 8 + stage * 3);
-      // From stage III he turns into his surge form (user art: blue lightning aura), if its sprite is in.
-      if (stage >= SURGE_FORM_STAGE && h.anim && h.anim.id !== SURGE_ART && this.anims.exists(`${SURGE_ART}-run`)) {
-        h.formFrom = h.anim.id;
-        this.swapArt(h, SURGE_ART);
+      // Each stage from II has its own look (user art); a stage without its sprite keeps the last one he has.
+      const art = surgeArt(stage, (id) => this.anims.exists(`${id}-run`));
+      if (art && h.anim && h.anim.id !== art) {
+        h.formFrom ??= h.anim.id;
+        this.swapArt(h, art);
         if (h.body.active) h.body.clearTint();
       }
     }
