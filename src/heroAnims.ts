@@ -90,6 +90,7 @@ export const HERO_ANIMS: Record<string, HeroAnim> = {
   howl: { frame: [81,62], feet: [37,61], headTop: 11, run: 5, attack: 5, hitFrame: 3 },
   juggles: { frame: [56,48], feet: [33,47], headTop: 6, run: 4, attack: 5, hitFrame: 0 },
   kairo: { frame: [42,54], feet: [18,53], headTop: 3, run: 6, attack: 5, hitFrame: 2 },
+  kairo_surge: { frame: [45,57], feet: [19,56], headTop: 9, run: 6, attack: 5, hitFrame: 2 },
   kestra: { frame: [61,56], feet: [29,55], headTop: 8, run: 5, attack: 5, hitFrame: 2 },
   kiln: { frame: [80,57], feet: [32,56], headTop: 5, run: 5, attack: 5, hitFrame: 3 },
   kindra: { frame: [65,48], feet: [30,47], headTop: 5, run: 5, attack: 5, hitFrame: 2 },

@@ -445,6 +445,9 @@ const PVP_CRYSTAL_HP = 1.5;
 const AFTERIMAGE_BLINK = 240;
 
 /** Kairo's Power Surge tints and text colours by stage: pale gold, gold, sky-blue (src/kits.ts surgeStage). */
+/** Gogu's surge form sprite and the stage it starts at (without the sprite he is only tinted). */
+const SURGE_ART = 'kairo_surge';
+const SURGE_FORM_STAGE = 3;
 const SURGE_TINT = [0xfff2b0, 0xffd84a, 0x9fe8ff, 0xff6a5a];
 const SURGE_TEXT = ['#fff2b0', '#ffd84a', '#9fe8ff', '#ff6a5a'];
 
@@ -1067,6 +1070,12 @@ export class BattleScene extends Phaser.Scene {
       const over = sig?.kind === 'surge' && stage >= sig.drainFrom;
       this.floatText(h.x, h.y - 38, over ? 'OVERDRIVE!' : `SURGE ${'I'.repeat(stage)}`, SURGE_TEXT[stage - 1] ?? '#ffe066', 11);
       this.sparks(h.x, h.y - 10, SURGE_TINT[stage - 1] ?? 0xffe066, 8 + stage * 3);
+      // From stage III he turns into his surge form (user art: blue lightning aura), if its sprite is in.
+      if (stage >= SURGE_FORM_STAGE && h.anim && h.anim.id !== SURGE_ART && this.anims.exists(`${SURGE_ART}-run`)) {
+        h.formFrom = h.anim.id;
+        this.swapArt(h, SURGE_ART);
+        if (h.body.active) h.body.clearTint();
+      }
     }
     // Overdrive burns his own HP (never below the floor); that can set off his 6★ second wind.
     if (dt > 0 && h.maxHp.gt(0)) {
@@ -1078,7 +1087,7 @@ export class BattleScene extends Phaser.Scene {
         this.secondWind(h);
       }
     }
-    if (h.surge > 0 && h.body.active && !h.body.isTinted) h.body.setTint(SURGE_TINT[h.surge - 1] ?? 0xffe066);
+    if (h.surge > 0 && !h.formFrom && h.body.active && !h.body.isTinted) h.body.setTint(SURGE_TINT[h.surge - 1] ?? 0xffe066);
   }
 
   /** Power Surge+ (Kairo 6★): the first time each life he drops under 20% HP he heals 30% and surges up a stage. */
@@ -2951,7 +2960,10 @@ export class BattleScene extends Phaser.Scene {
       u.maskUsed = false;
       u.surge = 0;
       u.surgeBonus = 0;
-      if (u.def?.signature?.kind === 'surge' && u.body.active) u.body.clearTint();
+      if (u.def?.signature?.kind === 'surge') {
+        if (u.formFrom) { this.swapArt(u, u.formFrom); u.formFrom = undefined; }
+        if (u.body.active) u.body.clearTint();
+      }
       this.puff(u.x, u.y, 0xffffff);
       if (this.trial) u.view.setVisible(false);
       else this.ghostHero(u);
