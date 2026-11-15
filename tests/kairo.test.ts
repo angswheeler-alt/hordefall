@@ -81,7 +81,7 @@ describe('Kairo', () => {
     expect(surgeArt(1, only2)).toBeNull();
     expect(surgeArt(2, only2)).toBe('kairo_surge');
     expect(surgeArt(4, only2)).toBe('kairo_surge');
-    expect(surgeArt(3, (id) => id === 'kairo_surge3' || id === 'kairo_surge')).toBe('kairo_surge3');
+    expect(surgeArt(3, (id) => id === 'kairo_surge')).toBe('kairo_surge');
     const all = () => true;
     expect(surgeArt(1, all)).toBe('kairo_surge1');
     expect(surgeArt(3, all)).toBe('kairo_ascend3');
