@@ -41,6 +41,7 @@ import { GlyphUI, glyphCard } from './glyphUi';
 import { arenaItems, ARENA_ICON, ARENA_NAME, GLORY_DAILY, GLORY_WIN, GLORY_LOSS } from './arenaShop';
 import { JournalUI, journalRulesText } from './journalUi';
 import { bossPicHtml, heroFaceCss, heroWholeCss } from './portrait';
+import { heroForms } from './heroForms';
 import { RushUI, rushResultHtml } from './rushUi';
 import { ExpeditionUI, expEndHtml } from './expeditionUi';
 import type { ExpLender } from './expedition';
@@ -64,6 +65,8 @@ const escHtml = (text: string) => String(text).replace(/[&<>"']/g, (c) => `&#${c
  */
 // The Collection tile's picture box (.ct-art: inset 4% 4% 14% of a square) is this tall per 1 wide.
 const CT_ART_H = 82 / 92;
+/** Share of a form card's picture box the whole sprite fills. */
+const FORM_ART_H = 0.92;
 const heroArt = (id: string) => (HERO_ANIMS[id] ? `url('${new URL(heroFile(id), document.baseURI).href}')` : 'none');
 // Stall and relic icons (art/icons/make_icons.py), bundled so the single-file build carries them too.
 const iconUrls = (files: Record<string, string>) => Object.fromEntries(Object.entries(files).map(([f, url]) => [f.split('/').pop()!.slice(0, -4), url]));
@@ -299,7 +302,7 @@ export class UI {
           const pct = need ? Math.min(100, (crests / need) * 100) : 0;
           const stars = recruited ? `<span class="ct-stars">★${(s.stars[h.id] ?? 0) + 1}</span>` : '';
           const foot = maxed ? '<span class="ct-maxed">Maxed</span>' : `<div class="ct-bar"><i style="width:${pct}%"></i></div><span class="ct-count">${crests.toLocaleString()}</span>`;
-          return `<div class="ct${recruited ? '' : ' locked'}${s.canUnlock(h) ? ' ready' : ''}${s.inLineup(h.id) ? ' team' : ''}${isAscendant(h.id) ? ' asc' : h.unique ? ' uni' : h.rarity === 'legendary' ? ' leg' : ''}"><button type="button" class="ct-tile" data-coll="${h.id}" aria-label="${h.name}" style="--el:${hex(heroElementColor(h))}"><span class="ct-art" style="--art:${heroArt(heroArtKey(h.id))}${heroWholeCss(heroArtKey(h.id), CT_ART_H)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span>${stars}<span class="ct-name">${h.name}${rarityTag(s.formDef(h))}</span></button>${foot}</div>`;
+          return `<div class="ct${recruited ? '' : ' locked'}${s.canUnlock(h) ? ' ready' : ''}${s.inLineup(h.id) ? ' team' : ''}${isAscendant(h.id) ? ' asc' : h.unique ? ' uni' : h.rarity === 'legendary' ? ' leg' : ''}"><button type="button" class="ct-tile" data-coll="${h.id}" aria-label="${h.name}" style="--el:${hex(heroElementColor(h))}"><span class="ct-art" style="--art:${heroArt(heroArtKey(h.id))}${heroWholeCss(heroArtKey(h.id), CT_ART_H)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span>${stars}<span class="ct-name">${h.name}${rarityTag(s.formDef(h))}</span>${heroForms(h.id, (k) => !!HERO_ANIMS[k]) ? '<span class="ct-evo" title="Changes form: see Stars">EVO</span>' : ''}</button>${foot}</div>`;
         })
         .join('');
       return `<section class="ct-group">${tiles}</section>`;
@@ -2015,6 +2018,13 @@ export class UI {
     $('sheet-test').hidden = !TEST_MODE;
     if (TEST_MODE) this.renderTestRows(id);
 
+    // Heroes that change form show every look, with how each is reached (Samuel 2026-11-15).
+    const forms = heroForms(id, (k) => !!HERO_ANIMS[k]);
+    $('sheet-forms').hidden = !forms;
+    if (forms) {
+      const at = isAscendant(id) && gold > 0 ? s.formOf(id) : -1;
+      setHtml($('sheet-forms-list'), forms.map((f, i) => `<div class="form-card${i === at ? ' now' : ''}"><span class="form-art" style="--art:${heroArt(f.art)}${heroWholeCss(f.art, FORM_ART_H)}"></span><b>${f.name}</b><small>${f.how}</small></div>`).join(''));
+    }
     // A hero is 1★ when unlocked; each evolution adds a star, up to 7★ (Ascendant heroes 8★).
     setHtml($('sheet-stars'), [0, ...STAR_CRESTS].slice(0, Math.max(s.maxStars(id), stars) + 1).map((_, i) => `<span class="${gold > 0 && i <= stars ? 'on' : ''}">★</span>`).join(''));
     // Pink awakening stars sit under the yellow ones once awakening opens (or the hero has some).
