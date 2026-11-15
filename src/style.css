@@ -1652,3 +1652,12 @@ body.arena-open:not(.in-trial) #app > :not(#panels), body.arena-open:not(.in-tri
    top for good). Room for the badge below the safe area; auto margins centre the card only when it fits. */
 #rk, #obs, #jr, #wchat { align-items: flex-start; padding-top: calc(38px + var(--safe-top)); padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
 #rk > *, #obs > *, #jr > *, #wchat > * { margin-top: auto; margin-bottom: auto; }
+
+/* Heroes that change form: a Forms strip on the Stars tab and an EVO badge on Collection tiles (Samuel 2026-11-15). */
+.forms-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scroll-snap-type: x proximity; }
+.form-card { flex: 0 0 96px; scroll-snap-align: start; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; border-radius: 8px; background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.12); text-align: center; }
+.form-card.now { border-color: #ffd84a; box-shadow: 0 0 0 1px #ffd84a inset; }
+.form-art { position: relative; width: 84px; height: 84px; background-image: var(--art); background-repeat: no-repeat; background-size: contain; background-position: center bottom; image-rendering: pixelated; }
+.form-card b { font-size: 12px; line-height: 1.15; }
+.form-card small { font-size: 10px; line-height: 1.2; opacity: .8; }
+.ct-evo { position: absolute; right: 3px; top: 3px; padding: 0 4px; border-radius: 6px; font-size: 8px; font-weight: 900; letter-spacing: .5px; color: #fff; background: linear-gradient(135deg, #ff6b5e, #8a5cff); box-shadow: 0 1px 2px rgba(0,0,0,.6); pointer-events: none; }
