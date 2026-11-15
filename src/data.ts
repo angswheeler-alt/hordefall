@@ -5,11 +5,14 @@ import { KAIRO } from './heroes/kairo';
 
 export type Element = 'water' | 'fire' | 'earth' | 'light' | 'dark';
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
-const RARITY_RANK: Record<Rarity, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
+/** The rank a hero shows: its rarity, or 'unique' for one-of-a-kind heroes (Pasta, Gogu; Samuel 2026-11-15). */
+export type Rank = Rarity | 'unique';
+const RANK_ORDER: Record<Rank, number> = { common: 0, rare: 1, epic: 2, legendary: 3, unique: 4 };
+export const heroRank = (def: { rarity: Rarity; unique?: boolean }): Rank => (def.unique ? 'unique' : def.rarity);
 
-/** Heroes ordered Common, Rare, Epic, Legendary; heroes of the same rarity keep their order. */
-export function byRarity<T extends { rarity: Rarity }>(heroes: readonly T[]): T[] {
-  return [...heroes].sort((a, b) => RARITY_RANK[a.rarity] - RARITY_RANK[b.rarity]);
+/** Heroes ordered Common, Rare, Epic, Legendary, Unique; heroes of the same rank keep their order. */
+export function byRarity<T extends { rarity: Rarity; unique?: boolean }>(heroes: readonly T[]): T[] {
+  return [...heroes].sort((a, b) => RANK_ORDER[heroRank(a)] - RANK_ORDER[heroRank(b)]);
 }
 /**
  * The hero standard (design/base-heroes.md): every hero has one of ten Types, the combat archetype
@@ -133,6 +136,8 @@ export interface HeroDef {
   element: Element;
   /** No element (Pasta): 2x to Water/Fire/Earth, 1x to Light/Dark, takes 1x from all (elementMultiplier). */
   noElement?: boolean;
+  /** One of a kind (Pasta, Gogu): shown with its own Unique rank; its rarity still sets costs. */
+  unique?: boolean;
   rarity: Rarity;
   /** Base stats as this rarity instead (Pasta: an Epic by crests with Legendary-level stats, Samuel 2026-11-12). */
   statRarity?: Rarity;

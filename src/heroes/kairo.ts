@@ -7,7 +7,7 @@ import type { HeroDef } from '../data';
  * Released 2026-11-15; every player who existed then gets him at 1★ from the Mailbox (src/mail.ts 'gogu-launch').
  */
 export const KAIRO: HeroDef = {
-  id: 'kairo', rarity: 'epic', statRarity: 'legendary', name: 'Gogu', element: 'light',
+  id: 'kairo', rarity: 'epic', unique: true, statRarity: 'legendary', name: 'Gogu', element: 'light',
   type: 'Brawler', baseAtk: 5.8, baseHp: 90, range: 30, attackCooldown: 0.85, moveSpeed: 135, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
   signature: { kind: 'surge', every: 8, atk: [0.3, 0.6, 1, 1.5], haste: 0.85, hasteFrom: 2, drainFrom: 4, drain: 0.02, drainFloor: 0.1 },
   sigPlus: 'The first time each life he drops under 20% HP, he heals 30% of his max HP and jumps up a surge stage.',
