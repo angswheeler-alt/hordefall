@@ -104,6 +104,7 @@ import { PLACEHOLDER_SIZE, placeholderBase64Url } from './mobPlaceholders';
 import { MUTANT_GOLD, rollMutation, type Mutation } from './mutations';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES, type BossAnim } from './bossAnims';
 import type { EffectKind } from './data';
+import { surgeArt } from './kits';
 import { gritStep, comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets, drenchVuln, heatStep, quarryMult, quarryCarry, surgeStage, surgeMults, surgeDrain, cannonMult } from './kits';
 import { STAT_BASE, FREEZE_BLAST_RADIUS, BOSS_STUN_CHANCE, BOSS_STUN_SECONDS, type HeroStats } from './stats';
 import { heroProfile } from './profiles';
@@ -1067,6 +1068,13 @@ export class BattleScene extends Phaser.Scene {
       const over = sig?.kind === 'surge' && stage >= sig.drainFrom;
       this.floatText(h.x, h.y - 38, over ? 'OVERDRIVE!' : `SURGE ${'I'.repeat(stage)}`, SURGE_TEXT[stage - 1] ?? '#ffe066', 11);
       this.sparks(h.x, h.y - 10, SURGE_TINT[stage - 1] ?? 0xffe066, 8 + stage * 3);
+      // Each stage from II has its own look (user art); a stage without its sprite keeps the last one he has.
+      const art = surgeArt(stage, (id) => this.anims.exists(`${id}-run`));
+      if (art && h.anim && h.anim.id !== art) {
+        h.formFrom ??= h.anim.id;
+        this.swapArt(h, art);
+        if (h.body.active) h.body.clearTint();
+      }
     }
     // Overdrive burns his own HP (never below the floor); that can set off his 6★ second wind.
     if (dt > 0 && h.maxHp.gt(0)) {
@@ -1078,7 +1086,7 @@ export class BattleScene extends Phaser.Scene {
         this.secondWind(h);
       }
     }
-    if (h.surge > 0 && h.body.active && !h.body.isTinted) h.body.setTint(SURGE_TINT[h.surge - 1] ?? 0xffe066);
+    if (h.surge > 0 && !h.formFrom && h.body.active && !h.body.isTinted) h.body.setTint(SURGE_TINT[h.surge - 1] ?? 0xffe066);
   }
 
   /** Power Surge+ (Kairo 6★): the first time each life he drops under 20% HP he heals 30% and surges up a stage. */
@@ -2951,7 +2959,10 @@ export class BattleScene extends Phaser.Scene {
       u.maskUsed = false;
       u.surge = 0;
       u.surgeBonus = 0;
-      if (u.def?.signature?.kind === 'surge' && u.body.active) u.body.clearTint();
+      if (u.def?.signature?.kind === 'surge') {
+        if (u.formFrom) { this.swapArt(u, u.formFrom); u.formFrom = undefined; }
+        if (u.body.active) u.body.clearTint();
+      }
       this.puff(u.x, u.y, 0xffffff);
       if (this.trial) u.view.setVisible(false);
       else this.ghostHero(u);

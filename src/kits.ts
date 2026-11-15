@@ -170,3 +170,17 @@ export function cannonMult(ult: { kind: string; mult?: number; perAlly?: number;
   if (ult?.kind !== 'cannon') return 1;
   return (ult.mult ?? 1) * (plus ? 1 + (ult.perAlly ?? 0) * Math.min(ult.maxAllies ?? 0, Math.max(0, alliesAlive)) : 1);
 }
+
+/**
+ * Gogu's look for each Power Surge stage (Samuel 2026-11-15, each stage a new colour and look): I gold aura,
+ * II blue-lightning aura, III long-haired gold form (kairo_ascend3; the big blue aura kairo_surge3 stands in until
+ * that art lands), IV Overdrive red. Returns the best sprite for `stage` that `has` (loaded), else the best of a
+ * lower stage, or null (he stays in his normal sprite, tinted).
+ */
+export const SURGE_FORMS: Record<number, string[]> = {
+  1: ['kairo_surge1'], 2: ['kairo_surge'], 3: ['kairo_ascend3', 'kairo_surge3'], 4: ['kairo_overdrive'],
+};
+export function surgeArt(stage: number, has: (id: string) => boolean): string | null {
+  for (let s = stage; s >= 1; s--) for (const id of SURGE_FORMS[s] ?? []) if (has(id)) return id;
+  return null;
+}
