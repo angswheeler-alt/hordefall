@@ -2045,6 +2045,11 @@ export class UI {
     setHtml($('sheet-stats'), statPages(sheetStats, gold > 0 ? String(eff) : 'Locked', this.statPage, top, gold > 0 ? fmt(s.heroCombatPower(def)) : ''));
 
     $('sheet-gold-lvl').textContent = gold > 0 ? String(gold) : '(locked)';
+    // Only heroes on the team take gold or Ember levels (benched ones keep their Embers).
+    const levelBlock = gold > 0 ? s.levelBlock(id) : null;
+    const benchNote = $('sheet-bench-note');
+    benchNote.hidden = levelBlock === null;
+    benchNote.textContent = levelBlock ? `${levelBlock}. Benched heroes keep their Ember levels.` : '';
     const { levels, cost } = bulkCost(def, gold, s.buyAmount, s.gold, s.levelCostMult());
     const shown = levels > 0 ? { levels, cost } : bulkCost(def, gold, 1, s.gold, s.levelCostMult());
     const goldBtn = $<HTMLButtonElement>('sheet-gold-up');
@@ -2057,7 +2062,7 @@ export class UI {
     } else {
       (goldBtn.querySelector('.label') as HTMLElement).textContent = `Level +${shown.levels}`;
       (goldBtn.querySelector('.cost') as HTMLElement).textContent = fmt(shown.cost);
-      goldBtn.disabled = shown.cost.gt(s.gold);
+      goldBtn.disabled = shown.cost.gt(s.gold) || levelBlock !== null;
     }
 
     const starBonus = s.starEmberLevels(id) - ember;
@@ -2068,7 +2073,7 @@ export class UI {
     const emberBtn = $<HTMLButtonElement>('sheet-ember-up');
     (emberBtn.querySelector('.label') as HTMLElement).textContent = `Ember +${eShown.levels}`;
     (emberBtn.querySelector('.cost') as HTMLElement).textContent = `${fmt(eShown.cost)} Ember${eShown.cost.eq(1) ? '' : 's'}`;
-    emberBtn.disabled = eShown.cost.gt(s.embers);
+    emberBtn.disabled = eShown.cost.gt(s.embers) || levelBlock !== null;
     $('sheet-buyamt').textContent = buyAmountLabel(s.buyAmount);
     $('sheet-ember-note').textContent = `Ember levels stay on this hero through Rekindle and out of the team, and count on stages and in Trials. Each star above 1★ makes them count ${STAR_EMBER_BONUS * 100}% more. Only a reset takes them off.`;
     $('sheet-ember-reset').hidden = ember <= 0;
@@ -3517,12 +3522,8 @@ export class UI {
       }
       return false;
     }
-    const { levels, cost } = bulkCost(def, level, this.state.buyAmount, this.state.gold, this.state.levelCostMult());
-    if (levels === 0 || cost.gt(this.state.gold)) return false;
-    this.state.gold = this.state.gold.minus(cost);
-    this.state.levels[def.id] = level + levels;
+    if (this.state.buyGoldLevels(def.id, this.state.buyAmount) <= 0) return false;
     play('levelup');
-    this.state.track('levels', levels);
     this.scene()?.syncHeroes();
     this.render();
     return true;
