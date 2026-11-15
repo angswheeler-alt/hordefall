@@ -91,7 +91,7 @@ export const HERO_ANIMS: Record<string, HeroAnim> = {
   juggles: { frame: [56,48], feet: [33,47], headTop: 6, run: 4, attack: 5, hitFrame: 0 },
   kairo: { frame: [42,54], feet: [18,53], headTop: 3, run: 6, attack: 5, hitFrame: 2 },
   kairo_surge: { frame: [51,65], feet: [21,64], headTop: 10, run: 6, attack: 5, hitFrame: 2 },
-  kairo_surge1: { frame: [48,69], feet: [17,68], headTop: 4, run: 6, attack: 5, hitFrame: 3 },
+  kairo_surge1: { frame: [48,70], feet: [17,69], headTop: 5, run: 6, attack: 5, hitFrame: 3 },
   kairo_surge3: { frame: [57,80], feet: [24,79], headTop: 12, run: 6, attack: 5, hitFrame: 4 },
   kestra: { frame: [61,56], feet: [29,55], headTop: 8, run: 5, attack: 5, hitFrame: 2 },
   kiln: { frame: [80,57], feet: [32,56], headTop: 5, run: 5, attack: 5, hitFrame: 3 },
