@@ -68,7 +68,10 @@ describe('Rush foes fight with their own kit', () => {
     const body = ui.slice(ui.indexOf('  fightRush('), ui.indexOf('  expeditionLenders('));
     expect(body).toContain('owner: f.owner');
     expect(body).toContain('fair: true');
-    // The Colosseum and Expeditions keep their old rules for now.
+    // Colosseum fights are fair too (user, 2026-11-15); Expeditions keep their old rules for now.
+    const arena = ui.slice(ui.indexOf('  private fightPvp('), ui.indexOf('  private renderPvpMeter('));
+    expect(arena).toContain('owner: f.owner');
+    expect(arena).toContain('{ fair: true }');
     const col = ui.slice(ui.indexOf('  fightExpedition('), ui.indexOf('  fightExpedition(') + 1500);
     expect(col).not.toContain('fair: true');
   });

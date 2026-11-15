@@ -443,8 +443,10 @@ interface PvpLive {
   label: string;
   /** Rush: one hero a side, so melee heroes can hit flyers too (otherwise a melee hero could never beat a flyer). */
   anyReach: boolean;
-  /** Rush: the foe fights with its full hero kit (Signature, star skills, DEF), so even duels are even. */
+  /** Rush and Colosseum: foes fight with their full hero kits (Signature, star skills, DEF), so even fights are even. */
   fair: boolean;
+  /** Frames run so far (a fair fight alternates which side moves first). */
+  frame?: number;
   /** Expedition Boons: stat multipliers for each of the player's own heroes. */
   boost?: (def: HeroDef) => { atk: number; hp: number; def: number };
 }
@@ -1772,21 +1774,34 @@ export class BattleScene extends Phaser.Scene {
   private updatePvp(dt: number, realDt: number) {
     const p = this.pvp!;
     p.timeLeft -= dt;
-    for (const h of this.heroes) {
-      if (!h.alive) {
-        if (this.clock >= h.respawnAt) this.reviveHero(h);
-        else h.reviveText?.setText(`${Math.ceil(reviveIn(h, this.clock))}`);
-        continue;
+    const stepHeroes = () => {
+      for (const h of this.heroes) {
+        if (!h.alive) {
+          if (this.clock >= h.respawnAt) this.reviveHero(h);
+          else h.reviveText?.setText(`${Math.ceil(reviveIn(h, this.clock))}`);
+          continue;
+        }
+        this.stepKit(h, dt);
       }
-      this.stepKit(h, dt);
-    }
-    for (const e of this.enemies) {
-      if (!e.alive) {
-        if (this.clock >= e.respawnAt) this.reviveFoe(e);
-        continue;
+    };
+    const stepFoes = () => {
+      for (const e of this.enemies) {
+        if (!e.alive) {
+          if (this.clock >= e.respawnAt) this.reviveFoe(e);
+          continue;
+        }
+        if (e.kit) this.stepKit(e, dt);
+        else this.stepEnemy(e, dt);
       }
-      if (e.kit) this.stepKit(e, dt);
-      else this.stepEnemy(e, dt);
+    };
+    // In a fair fight the sides take turns going first each frame, so neither always lands the first blow.
+    p.frame = (p.frame ?? 0) + 1;
+    if (p.fair && p.frame % 2 === 0) {
+      stepFoes();
+      stepHeroes();
+    } else {
+      stepHeroes();
+      stepFoes();
     }
     this.tickBurns(dt);
     this.tickStatus(dt);
@@ -3000,6 +3015,11 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: target.body, scaleX: 1.25 * scale, scaleY: 0.8 * scale, duration: 50, yoyo: true, onComplete: () => target.body.setScale(scale) });
     if (target.side === 'hero') {
       play('hurt');
+      // In a fair fight the foes' melee hits shove the player's heroes back a step too, as theirs do to the foes.
+      if (this.pvp?.fair && source?.kit && source.def && source.def.range <= 60) {
+        target.x = Math.max(target.x - (crit ? 16 : 6), PLAYER_CRYSTAL_X + 12);
+        this.tweens.add({ targets: target.view, x: target.x, duration: 90, ease: 'Quad.out' });
+      }
       return;
     }
     const color = source ? ELEMENT_COLORS[source.element] : 0xffffff;
