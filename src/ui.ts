@@ -2860,7 +2860,8 @@ export class UI {
     $('trial-hud-name').textContent = `Rush vs ${foe.name}`;
     $('trial-hud-note').textContent = 'One hero a side, no gold or Ember levels, no Ultimates; melee heroes can hit flyers here. Destroy the red crystal before they destroy yours.';
     $('trial-leave').textContent = 'Leave';
-    const units = s.pvpFoeUnits(s.rushOpponent(foe)).map((f) => ({ def: f.def, stats: f.stats }));
+    // Fair duel: the foe fights with its full kit too, so an even fight is a coin flip whoever attacks.
+    const units = s.pvpFoeUnits(s.rushOpponent(foe)).map((f) => ({ def: f.def, stats: f.stats, owner: f.owner }));
     scene.startPvp([heroId], units, 0, (won) => {
       $('trial-leave').textContent = 'Back';
       const html = rushResultHtml(s.finishRush(won));
@@ -2868,7 +2869,7 @@ export class UI {
         if (scene.inPvp()) this.showModal('Rush', html, 'Okay', () => this.endPvpScreen());
       }, 1200);
       this.render();
-    }, { label: 'Rush', anyReach: true });
+    }, { label: 'Rush', anyReach: true, fair: true });
   }
 
   /** Players whose heroes Expedition Taverns can offer (friends, Colosseum players); empty offline. */
