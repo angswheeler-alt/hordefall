@@ -1820,8 +1820,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** One step of a fighter with a hero kit in a PvP fight: Pasta's form runs out, Gogu's surge climbs, then it acts. */
   private stepKit(u: Unit, dt: number) {
-    if (u.formUntil && this.clock >= u.formUntil) this.endForm(u);
-    if (u.def?.signature?.kind === 'surge') this.stepSurge(u, dt);
+    this.stepSignatureClock(u, dt);
     this.stepHero(u, dt);
   }
 

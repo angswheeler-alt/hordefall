@@ -86,8 +86,7 @@ describe('Rush foes fight with their own kit', () => {
     // Both sides' surge and form tick in PvP now (they never did on the player's side either).
     expect(pvp).toContain('this.stepKit(h, dt);');
     const kit = method('stepKit');
-    expect(kit).toContain('this.endForm(u)');
-    expect(kit).toContain('this.stepSurge(u, dt)');
+    expect(kit).toContain('this.stepSignatureClock(u, dt)');
   });
 
   it('star skills and effects are read from the unit’s own save', () => {
