@@ -80,7 +80,8 @@ export type Signature =
   | { kind: 'grit'; perHit: number; max: number; idle: number; formAt: number; formSeconds: number; formMult: number }
   // Power Surge (Kairo): every `every` seconds alive in a fight he climbs a stage (atk.length stages); stage N adds atk[N-1]
   // to his ATK, and from stage `hasteFrom` his attack cooldown is x haste. Falling resets it.
-  | { kind: 'surge'; every: number; atk: number[]; haste: number; hasteFrom: number };
+  // From stage `drainFrom` (Overdrive) he loses `drain` of max HP a second, never below `drainFloor` of it.
+  | { kind: 'surge'; every: number; atk: number[]; haste: number; hasteFrom: number; drainFrom: number; drain: number; drainFloor: number };
 
 /** What a standard hero's Ultimate does on top of the big hit (or full heal), and its 5★ twist. */
 export type UltEffect =
@@ -212,7 +213,8 @@ export type EffectKind =
   | 'frenzy' | 'effectRes' | 'stunChance' | 'freezeChance' | 'burnChance' | 'poisonChance' | 'ultAtk' | 'aoeDmg'
   // boilRally: multiplies team damage only while a hero is in Pasta's dark form (Boiling Over).
   | 'boilRally'
-  // afterimage: adds `value` dodge, and a dodge makes the next hit a sure crit (Kairo). surgeRally: team ATK +value per
+  // afterimage: adds `value` dodge; a dodge makes him blink up to the attacker (if it is in AFTERIMAGE_BLINK) and strike back
+  // at once with a sure crit (Kairo). surgeRally: team ATK +value per
   // Power Surge stage of the highest-surging hero (Kairo's aura).
   | 'afterimage' | 'surgeRally';
 

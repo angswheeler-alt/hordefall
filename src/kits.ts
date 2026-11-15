@@ -149,6 +149,15 @@ export function surgeStage(sig: Signature | undefined, seconds: number, bonus = 
   return Math.max(0, Math.min(sig.atk.length, Math.floor(Math.max(0, seconds) / sig.every) + bonus));
 }
 
+/**
+ * Overdrive (Power Surge's last stage): HP share he has after `dt` seconds of the burn, from `hpShare` now.
+ * Never takes him below drainFloor (and never raises him if he is already under it).
+ */
+export function surgeDrain(sig: Signature | undefined, stage: number, hpShare: number, dt: number): number {
+  if (sig?.kind !== 'surge' || stage < sig.drainFrom || hpShare <= sig.drainFloor) return hpShare;
+  return Math.max(sig.drainFloor, hpShare - sig.drain * dt);
+}
+
 /** Power Surge at `stage`: his damage multiplier and attack cooldown multiplier. */
 export function surgeMults(sig: Signature | undefined, stage: number): { dmg: number; cooldown: number } {
   if (sig?.kind !== 'surge' || stage <= 0) return { dmg: 1, cooldown: 1 };
