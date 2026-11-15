@@ -186,14 +186,18 @@ function buildHero(id) {
   const want = fs.existsSync(path.join(dir, 'frames.json')) ? JSON.parse(fs.readFileSync(path.join(dir, 'frames.json'), 'utf8')) : {};
   // frames.json `attackScale`: the attack sheet's figures carry tall effects (aura pillars), so size it from the
   // run sheet instead: attack source px per sprite px = run's x attackScale (attack body height / run body height).
+  // frames.json `runSize` / `attackSize`: extra size for one sheet, when its aura or effects make the body come out
+  // smaller than in the other (a form's body should match the base hero's).
+  const runSize = want.runSize ?? 1, attackSize = want.attackSize ?? 1;
   const runOwn = want.attackScale ? figures(path.join(dir, 'run_sheet.png'), TARGET_HEIGHT * size, undefined, want.run) : null;
-  const attack = figures(path.join(dir, 'attack_sheet.png'), TARGET_HEIGHT * size, runOwn ? runOwn[0].block * want.attackScale : undefined, want.attack);
+  const attack = figures(path.join(dir, 'attack_sheet.png'), TARGET_HEIGHT * size * attackSize,
+    runOwn ? (runOwn[0].block * want.attackScale) / attackSize : undefined, want.attack);
   // Sheets cut from one image by split.js are drawn at one size, so the run keeps the attack's scale (a hero who
   // rides a balloon between fights stays the same size in it); separately generated sheets each find their own.
   const oneImage = fs.existsSync(path.join(dir, 'split.json'));
   const small = {
     attack: attack.map(shrink),
-    run: figures(path.join(dir, 'run_sheet.png'), TARGET_HEIGHT * size, oneImage ? attack[0].block : undefined, want.run).map(shrink),
+    run: figures(path.join(dir, 'run_sheet.png'), TARGET_HEIGHT * size * runSize, oneImage ? attack[0].block : undefined, want.run).map(shrink),
   };
   // One canvas for every frame: head anchor at a fixed column, ground on the bottom rows.
   let minX = 0, maxX = 0, minY = 0;
