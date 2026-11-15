@@ -7,7 +7,7 @@ import type { HeroDef } from '../data';
  */
 export const PASTA: HeroDef = {
   id: 'pasta', rarity: 'epic', statRarity: 'legendary', name: 'Pasta', element: 'dark',
-  noElement: true, type: 'Brawler', baseAtk: 6, baseHp: 95, range: 30, attackCooldown: 0.9, moveSpeed: 125, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
+  noElement: true, unique: true, type: 'Brawler', baseAtk: 6, baseHp: 95, range: 30, attackCooldown: 0.9, moveSpeed: 125, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1,
   signature: { kind: 'grit', perHit: 0.05, max: 1, idle: 5, formAt: 25, formSeconds: 6, formMult: 2 },
   sigPlus: 'NOT YET!: the first blow each life that would fell him leaves him standing and throws him straight into Boiling Over.',
   ult: { kind: 'boil', mult: 1.5, plusMult: 2, extend: 3, plusSeconds: 2 },
