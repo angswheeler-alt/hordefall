@@ -38,3 +38,21 @@ describe('Mailbox: Pasta gift for existing players', () => {
     expect(drop!.crests).toBeGreaterThan(0);
   });
 });
+
+describe('Mailbox: Gogu gift for current players', () => {
+  it('opens for saves from before his release, not for new saves', () => {
+    expect(loadedMail(undefined)['gogu-launch']).toBe('open');
+    expect(loadedMail({ 'pasta-launch': 'claimed' })['gogu-launch']).toBe('open');
+    expect(newSaveMail()['gogu-launch']).toBe('none');
+  });
+
+  it('claiming gives Gogu at 1★, once', () => {
+    const s = new GameState() as any;
+    s.mail['gogu-launch'] = 'open';
+    const drop = s.claimMail('gogu-launch');
+    expect(drop?.joined).toBe(true);
+    expect(s.levels.kairo).toBe(1);
+    expect(s.stars.kairo ?? 0).toBe(0);
+    expect(s.claimMail('gogu-launch')).toBeNull();
+  });
+});

@@ -99,8 +99,8 @@ export type UltEffect =
   | { kind: 'strike'; mult: number; plusMult: number }
   /** Pasta: a blow on the toughest enemy in reach for `mult` x the hit, then he boils over at once (already boiling: +`extend` s). 5★: plusMult, and the form lasts `plusSeconds` longer. */
   | { kind: 'boil'; mult: number; plusMult: number; extend: number; plusSeconds: number }
-  // Sky Cannon (Kairo): every enemy ahead in the lane takes mult x the Ultimate hit; 5★ Spirit Sphere adds perAlly per living teammate (up to maxAllies).
-  | { kind: 'cannon'; mult: number; perAlly: number; maxAllies: number }
+  // Sky Cannon (Kairo): bosses ahead in the lane take mult x the Ultimate hit, everything else `lane` x it; 5★ Spirit Sphere adds perAlly per living teammate (up to maxAllies).
+  | { kind: 'cannon'; mult: number; lane: number; perAlly: number; maxAllies: number }
   /** After the hit, every non-Fire hero deals Earth damage for `seconds` (5★: plusSeconds). */
   | { kind: 'earthen'; seconds: number; plusSeconds: number }
   /** Healers: on top of the full heal, shields every living hero for `share` of the caster's max HP (5★: plusShare). */
@@ -527,7 +527,7 @@ export const HEROES: HeroDef[] = [
     aura: { name: 'Blessing', text: 'Light heroes +15% HP.', effect: { kind: 'hp', value: 1.15, team: true, element: 'light' } } },
   ...ROSTER_HEROES,
   PASTA,
-  // Samuel (2026-11-14): Kairo, hidden until his art is in (add 'kairo' to RELEASED_HEROES then).
+  // Samuel (2026-11-14): Gogu (id kairo), released 2026-11-15.
   KAIRO,
 ];
 
@@ -544,6 +544,8 @@ export const RELEASED_HEROES: readonly string[] = [
   'shellby', 'celeste', 'ruin', 'brasha', 'tusk', ...ROSTER_HEROES.map((h) => h.id),
   // Samuel (2026-11-12): Pasta, crests only from rare drops and the Arena Shop (src/arenaShop.ts).
   'pasta',
+  // Samuel (2026-11-15): Gogu (id kairo), the same way, sold next to Pasta.
+  'kairo',
 ];
 export const PLAYABLE_HEROES: HeroDef[] = HEROES.filter((h) => RELEASED_HEROES.includes(h.id));
 /**

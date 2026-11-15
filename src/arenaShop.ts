@@ -22,9 +22,9 @@ export const PASTA_ID = 'pasta';
 /**
  * Kairo (src/heroes/kairo.ts), the second one-of-a-kind hero (Samuel 2026-11-15): sold next to Pasta with the same
  * price and weekly limit, and his own rare drops at Pasta's odds (a separate roll, so Pasta's stay the same).
- * Glory is NOT raised: players choose which of the two to focus. Flip to true (and add him to RELEASED_HEROES) with his art.
+ * Glory is NOT raised: players choose which of the two to focus. Released 2026-11-15 with his art (shown in game as Gogu).
  */
-export const KAIRO_RELEASED = false;
+export const KAIRO_RELEASED = true;
 export const KAIRO_ID = 'kairo';
 /** The one-of-a-kind heroes: crests only from their own rare drops and the Arena Shop, PASTA_UNLOCK crests to unlock. */
 export const UNIQUE_HEROES = [PASTA_ID, KAIRO_ID];
