@@ -68,7 +68,8 @@ import crystalEnemyUrl from './assets/ui/crystal-enemy.png';
 import chestWoodUrl from './assets/ui/chest-wood.png';
 import chestBronzeUrl from './assets/ui/chest-bronze.png';
 import chestGoldUrl from './assets/ui/chest-gold.png';
-import { sumEffect, mulEffect, everyNth, procEffect, procs } from './skills';
+import { sumEffect, mulEffect, everyNth, procEffect, procs, type ActiveEffect } from './skills';
+import { forward, ahead, mirrorX } from './duel';
 import { exitRunStep, marchCap, marchStep } from './movement';
 import { respawnTime, reviveIn, stageStartRevives } from './respawn';
 import { chestsAllowed, chestTapArea, laneMode, CHEST_SCALE, CHEST_Y_MAX, CHEST_Y_MIN } from './chests';
@@ -278,6 +279,12 @@ interface Unit {
   standUsed?: boolean;
   /** The sprite he wore before turning into his dark form (Pasta), to turn back to. */
   formFrom?: string;
+  /** A Rush duelist on the enemy side: it fights with its full hero kit (src/duel.ts), like the player's hero. */
+  kit?: boolean;
+  /** Whose stars and star skills count for this unit (a Rush duelist's own save); the player's when unset. */
+  owner?: GameState;
+  /** The owner's star-skill effects, worked out once when the duel starts. */
+  ownerFx?: ActiveEffect[];
   /** Rising Heat (Signature 'heat'): Heat built toward the next Eruption. */
   heat: number;
   /** Drench (Signature 'drench'): takes drenchMult damage from Water heroes until drenchUntil. */
@@ -413,6 +420,8 @@ export interface GuildBossFightSetup {
 export interface PvpFoe {
   def: HeroDef;
   stats: HeroStats;
+  /** The opponent's own save (a ghost), whose star skills the hero fights with in a fair duel. */
+  owner?: GameState;
 }
 
 /** A live Colosseum battle: both teams start at their own crystal; the first crystal destroyed loses. */
@@ -434,6 +443,8 @@ interface PvpLive {
   label: string;
   /** Rush: one hero a side, so melee heroes can hit flyers too (otherwise a melee hero could never beat a flyer). */
   anyReach: boolean;
+  /** Rush: the foe fights with its full hero kit (Signature, star skills, DEF), so even duels are even. */
+  fair: boolean;
   /** Expedition Boons: stat multipliers for each of the player's own heroes. */
   boost?: (def: HeroDef) => { atk: number; hp: number; def: number };
 }
@@ -934,6 +945,10 @@ export class BattleScene extends Phaser.Scene {
   /** The tint an enemy rests at: ice blue while frozen, else its element (animated bosses and mobs keep their art). */
   private restTint(e: Unit) {
     if (e.frozenUntil > this.clock) e.body.setTint(0x9fdcff);
+    else if (e.side === 'hero') {
+      if (this.inForm(e)) this.formTint(e);
+      else e.body.clearTint();
+    }
     else if (e.shiny && !e.body.postFX) return; // the rainbow tween owns its tint
     else if (e.bossArt || e.mob) e.body.clearTint();
     else e.body.setTint(ELEMENT_COLORS[e.element]);
@@ -1046,12 +1061,12 @@ export class BattleScene extends Phaser.Scene {
 
   /** Whether a hero has its 7★ Type Mastery and is of this Type. */
   private mastery(h: Unit, type: HeroType) {
-    return h.def?.type === type && this.has(h.def.id, MASTERY_EVOLUTIONS);
+    return h.def?.type === type && this.ownerOf(h).hasStar(h.def.id, MASTERY_EVOLUTIONS);
   }
 
   /** Whether a hero has its 6★ Signature+. */
   private sigPlus(h: Unit | undefined | null) {
-    return !!h?.def?.signature && this.has(h.def.id, SIG_PLUS_EVOLUTIONS);
+    return !!h?.def?.signature && this.ownerOf(h).hasStar(h.def.id, SIG_PLUS_EVOLUTIONS);
   }
 
   /** Pasta's dark form (Boiling Over) is running. */
@@ -1103,13 +1118,13 @@ export class BattleScene extends Phaser.Scene {
   private surgeRally(h: Unit) {
     const per = this.sum('surgeRally', h);
     if (!per) return 1;
-    const top = Math.max(0, ...this.heroes.filter((a) => a.alive).map((a) => a.surge));
+    const top = Math.max(0, ...this.alliesOf(h).filter((a) => a.alive).map((a) => a.surge));
     return 1 + per * top;
   }
 
   /** Kitchen Pep Talk (Pasta's aura): team damage while any hero is boiling over. */
   private boilRally(h: Unit) {
-    return this.heroes.some((a) => a.alive && this.inForm(a)) ? this.mul('boilRally', h) : 1;
+    return this.alliesOf(h).some((a) => a.alive && this.inForm(a)) ? this.mul('boilRally', h) : 1;
   }
 
   /** Start Pasta's dark form: double hits and he can't fall for formSeconds (+`extra`), drawn black and red. */
@@ -1185,7 +1200,37 @@ export class BattleScene extends Phaser.Scene {
 
   /** Additive total of a star-skill effect reaching this unit (team-wide plus its own). null = team-wide only. */
   private sum(kind: EffectKind, u: Unit | null) {
-    return sumEffect(this.state.effects(), kind, u?.def?.id ?? null);
+    return sumEffect(this.fxOf(u), kind, u?.def?.id ?? null);
+  }
+
+  /** Whose stars and star skills count for a unit: a Rush duelist's own save, otherwise the player's. */
+  private ownerOf(u: Unit | null | undefined): GameState {
+    return u?.owner ?? this.state;
+  }
+
+  /** The star-skill effects that reach a unit's side: a Rush duelist's own, otherwise the player's. */
+  private fxOf(u: Unit | null | undefined): ActiveEffect[] {
+    return u?.ownerFx ?? this.state.effects();
+  }
+
+  /** A unit that fights with a full hero kit: the player's heroes, and a Rush duelist. */
+  private kitted(u: Unit) {
+    return !!u.def && (u.side === 'hero' || !!u.kit);
+  }
+
+  /** The units on `u`'s own side of the lane. */
+  private alliesOf(u: Unit): Unit[] {
+    return u.side === 'hero' ? this.heroes : this.enemies;
+  }
+
+  /** Everyone on the other side of the lane from `u`. */
+  private oppsOf(u: Unit): Unit[] {
+    return u.side === 'hero' ? this.enemies : this.heroes;
+  }
+
+  /** The opponents `u` may pick as a target (for heroes: enemies not under Puppet Bind or underground). */
+  private foesOf(u: Unit): Unit[] {
+    return u.side === 'hero' ? this.foes() : this.heroes.filter((h) => h.alive);
   }
 
   /** Element bonus on a hit from `from` (an element, or a unit) on `to`; 1 when either side has no element. */
@@ -1201,7 +1246,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Multiplicative total of a star-skill effect reaching this unit; 1 when none apply. */
   private mul(kind: EffectKind, u: Unit | null) {
-    return mulEffect(this.state.effects(), kind, u?.def?.id ?? null);
+    return mulEffect(this.fxOf(u), kind, u?.def?.id ?? null);
   }
 
   /** `behind` pushes a regular enemy further past the right edge so groups arrive one after another. */
@@ -1597,12 +1642,12 @@ export class BattleScene extends Phaser.Scene {
    * blue crystal and the opponent's team at the red one. Fallen fighters on both sides get back up after
    * the usual wait; the first crystal destroyed loses. `onEnd` gets the outcome once.
    */
-  startPvp(ids: string[], foes: PvpFoe[], bonus: number, onEnd: (won: boolean) => void, opts: { label?: string; anyReach?: boolean; allies?: PvpFoe[]; boost?: PvpLive['boost'] } = {}) {
+  startPvp(ids: string[], foes: PvpFoe[], bonus: number, onEnd: (won: boolean) => void, opts: { label?: string; anyReach?: boolean; fair?: boolean; allies?: PvpFoe[]; boost?: PvpLive['boost'] } = {}) {
     if (this.trial || this.pvp) return;
     this.nextStageTimer?.remove();
     this.nextStageTimer = undefined;
     this.clearChests();
-    this.pvp = { ids: new Set(ids), bonus, mine: { hp: new Decimal(1), max: new Decimal(1) }, theirs: { hp: new Decimal(1), max: new Decimal(1) }, timeLeft: PVP_LIVE_TIME, done: false, onEnd, meter: new Map(ids.map((id) => [id, meterRow(id)])), foeMeter: meterRow('foes'), foeRows: new Map(foes.map((f) => [f.def.id, meterRow(f.def.id)])), label: opts.label ?? 'Colosseum', anyReach: !!opts.anyReach, boost: opts.boost };
+    this.pvp = { ids: new Set(ids), bonus, mine: { hp: new Decimal(1), max: new Decimal(1) }, theirs: { hp: new Decimal(1), max: new Decimal(1) }, timeLeft: PVP_LIVE_TIME, done: false, onEnd, meter: new Map(ids.map((id) => [id, meterRow(id)])), foeMeter: meterRow('foes'), foeRows: new Map(foes.map((f) => [f.def.id, meterRow(f.def.id)])), label: opts.label ?? 'Colosseum', anyReach: !!opts.anyReach, fair: !!opts.fair, boost: opts.boost };
     const ults = new Map(this.heroes.map((h) => [h.def?.id, h.ultReadyAt]));
     for (const h of this.heroes) h.view.destroy();
     this.heroes = [];
@@ -1644,7 +1689,8 @@ export class BattleScene extends Phaser.Scene {
     }
     for (const [i, f] of foes.entries()) {
       {
-        // Every foe hero is one unit.
+        // Every foe hero is one unit. In a fair duel (Rush) it fights with its full kit, rolling its own crits.
+        const kit = !!opts.fair;
         const e = this.makeUnit({
           side: 'enemy',
           def: f.def,
@@ -1652,7 +1698,7 @@ export class BattleScene extends Phaser.Scene {
           x: ENEMY_CRYSTAL_X - 20 - i * 6,
           hp: f.stats.hp.value,
           // Foes have no crit rolls of their own: their hits carry the average crit.
-          atk: f.stats.atk.value.times(1 + f.stats.critRate * f.stats.critDmg),
+          atk: kit ? f.stats.atk.value : f.stats.atk.value.times(1 + f.stats.critRate * f.stats.critDmg),
           range: f.def.range,
           cooldown: 1 / Math.max(0.05, f.stats.attacksPerSec.value),
           speed: f.stats.moveSpeed.value,
@@ -1661,6 +1707,12 @@ export class BattleScene extends Phaser.Scene {
         });
         e.defense = f.stats.def.value;
         e.stats = f.stats;
+        if (kit) {
+          e.kit = true;
+          e.owner = f.owner;
+          e.ownerFx = (f.owner ?? this.state).effects();
+          this.giveKnightShield(e);
+        }
         this.enemies.push(e);
       }
     }
@@ -1716,14 +1768,15 @@ export class BattleScene extends Phaser.Scene {
         else h.reviveText?.setText(`${Math.ceil(reviveIn(h, this.clock))}`);
         continue;
       }
-      this.stepHero(h, dt);
+      this.stepKit(h, dt);
     }
     for (const e of this.enemies) {
       if (!e.alive) {
         if (this.clock >= e.respawnAt) this.reviveFoe(e);
         continue;
       }
-      this.stepEnemy(e, dt);
+      if (e.kit) this.stepKit(e, dt);
+      else this.stepEnemy(e, dt);
     }
     this.tickBurns(dt);
     this.tickStatus(dt);
@@ -1740,10 +1793,24 @@ export class BattleScene extends Phaser.Scene {
     if (this.state.autoUlt) for (const h of this.heroes) this.tryAutoUlt(h);
   }
 
+  /** One step of a fighter with a hero kit in a PvP fight: Pasta's form runs out, Gogu's surge climbs, then it acts. */
+  private stepKit(u: Unit, dt: number) {
+    if (u.formUntil && this.clock >= u.formUntil) this.endForm(u);
+    if (u.def?.signature?.kind === 'surge') this.stepSurge(u, dt);
+    this.stepHero(u, dt);
+  }
+
   /** A fallen Colosseum foe gets back up at the red crystal. */
   private reviveFoe(e: Unit) {
     e.alive = true;
     e.hp = e.maxHp;
+    if (e.kit) {
+      e.surgeFrom = this.clock;
+      e.surgeBonus = 0;
+      e.surge = 0;
+      e.shield = new Decimal(0);
+      this.giveKnightShield(e);
+    }
     e.rootedUntil = 0;
     e.burnUntil = 0;
     e.poisonUntil = 0;
@@ -2078,14 +2145,19 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private stepHeroAction(h: Unit, dt: number) {
-    h.cooldownLeft -= dt;
+    const dir = forward(h.side);
+    const allies = this.alliesOf(h);
+    // In a fair duel the other side's kit reaches this one too: Drench/Spore slows and Dread Veil.
+    const slow = h.slowUntil > this.clock ? h.slowMult : 1;
+    const veil = this.pvp?.fair ? mulEffect(this.fxOf(this.oppsOf(h).find((o) => o.def)), 'enemyHaste', null) : 1;
+    h.cooldownLeft -= dt * slow * veil;
     h.engaged = false;
     // Stunned by a boss.
     if (h.rootedUntil > this.clock) return;
     const def = h.def!;
 
     if (def.heals) {
-      const hurt = this.heroes
+      const hurt = allies
         .filter((a) => a.alive && a.hp.lt(a.maxHp.times(0.75)) && Math.abs(a.x - h.x) <= h.range)
         .sort((a, b) => a.hp.div(a.maxHp).toNumber() - b.hp.div(b.maxHp).toNumber())[0];
       if (hurt && h.cooldownLeft <= 0) {
@@ -2100,10 +2172,10 @@ export class BattleScene extends Phaser.Scene {
     }
 
     // Melee heroes can't reach flying foes (src/reach.ts); with nothing else in reach they head for the crystal.
-    const foes = this.foes().filter((e) => this.reaches(h, e));
-    let target = this.nearest(h, foes, 1);
+    const foes = this.foesOf(h).filter((e) => this.reaches(h, e));
+    let target = this.nearest(h, foes, dir);
     // A foe that slipped behind (a mob waiting under a flying hero) still gets hit when it's in reach.
-    if (!target || target.x - h.x > h.range) target = this.behind(h, foes) ?? target;
+    if (!target || ahead(h.x, target.x, h.side) > h.range) target = this.behind(h, foes) ?? target;
     const dist = target ? Math.abs(target.x - h.x) : Infinity;
     // Combat comes first: an enemy in range stops the hero, however fast it walks.
     if (target && dist <= h.range) {
@@ -2114,26 +2186,32 @@ export class BattleScene extends Phaser.Scene {
       }
       return;
     }
-    const crystalDist = ENEMY_CRYSTAL_X - 14 - h.x;
-    const canHitCrystal = !this.bossAlive();
+    // The crystal it marches on: the red one for the player's heroes, the blue one for a Rush duelist.
+    const crystalX = dir > 0 ? ENEMY_CRYSTAL_X : PLAYER_CRYSTAL_X;
+    const crystalDist = ahead(h.x, crystalX - 14 * dir, h.side);
+    const canHitCrystal = dir < 0 || !this.bossAlive();
     if (crystalDist <= h.range && (!target || dist > crystalDist)) {
       h.engaged = true;
       if (canHitCrystal && h.cooldownLeft <= 0) {
         h.cooldownLeft = this.cooldownFor(h);
-        if (def.range > 60) this.shot(h, ENEMY_CRYSTAL_X, LANE_TOP + 26, ELEMENT_COLORS[def.element]);
-        else this.lunge(h, 1);
+        if (def.range > 60) this.shot(h, crystalX, LANE_TOP + 26, ELEMENT_COLORS[def.element]);
+        else this.lunge(h, dir);
         if (h.anim) this.setAnim(h, 'attack');
-        this.damageCrystal(h.atk, h);
+        if (dir > 0) this.damageCrystal(h.atk, h);
+        else this.damagePlayerCrystal(h.atk, h);
       }
       if (!target) return;
     }
     // Walking breaks a Zeal streak.
     h.zeal = 0;
     // Walk at this hero's own Move Speed, held to its Type's place in the team (src/movement.ts).
+    // A Rush duelist walks the same rules seen from the other end of the lane (src/duel.ts mirrorX).
+    const see = (x: number) => (dir > 0 ? x : mirrorX(x, PLAYER_CRYSTAL_X, ENEMY_CRYSTAL_X));
     const stopAt = ENEMY_CRYSTAL_X - 14 - Math.min(h.range, 30);
-    const team = this.heroes.map((u) => ({ x: u.x, type: u.def!.type, alive: u.alive, engaged: !!u.engaged }));
-    const self = team[this.heroes.indexOf(h)];
-    h.x = marchStep(h.x, h.speed * this.mul('moveSpeed', h), dt, marchCap(self, team), stopAt);
+    const kin = allies.filter((u) => u.def);
+    const team = kin.map((u) => ({ x: see(u.x), type: u.def!.type, alive: u.alive, engaged: !!u.engaged }));
+    const self = team[kin.indexOf(h)];
+    h.x = see(marchStep(see(h.x), h.speed * this.mul('moveSpeed', h) * slow, dt, marchCap(self, team), stopAt));
     h.view.x = h.x;
   }
 
@@ -2331,7 +2409,8 @@ export class BattleScene extends Phaser.Scene {
 
   /** Nearest living foe behind hero `h` (further than the usual slack) that is still in its reach. */
   private behind(h: Unit, pool: Unit[]): Unit | undefined {
-    return pool.filter((o) => o.alive && h.x - o.x > 12 && h.x - o.x <= h.range).sort((a, b) => b.x - a.x)[0];
+    const back = (o: Unit) => -ahead(h.x, o.x, h.side);
+    return pool.filter((o) => o.alive && back(o) > 12 && back(o) <= h.range).sort((a, b) => back(a) - back(b))[0];
   }
 
   /** Nearest living opponent in front of `u` (dir 1 = right, -1 = left), with a little slack behind. */
@@ -2355,25 +2434,43 @@ export class BattleScene extends Phaser.Scene {
       this.floatText(target.x, target.y - 26, 'MISS', '#fff6a0', 11);
       return;
     }
+    const mult = this.elem(e, target) * (e.weakUntil > this.clock ? e.weakMult : 1);
+    if (!this.takeHit(e, target, e.atk.times(mult))) return;
+    // Boss hits can stun a hero; Effect Resistance is the chance to shrug it off.
+    if (e.isBoss && target.alive && !target.def?.steadfast && Math.random() < BOSS_STUN_CHANCE) {
+      if (Math.random() < (target.stats?.effectRes.value ?? 0)) this.floatText(target.x, target.y - 26, 'RESIST', '#9effa8', 9);
+      else {
+        target.rootedUntil = this.clock + BOSS_STUN_SECONDS;
+        this.floatText(target.x, target.y - 26, 'STUNNED', '#ffd84a', 9);
+      }
+    }
+  }
+
+  /**
+   * A hit of `raw` (element already counted) from `e` on a fighter with a hero kit: an enemy's hit on a hero, or
+   * one Rush duelist's hit on the other. It can be dodged (null), then DEF and the target's defensive skills count
+   * (damage taken, Torrent, Wraith Mask, NOT YET!, Frost Curse, reflect, Second Wind). Returns the damage dealt.
+   */
+  private takeHit(e: Unit, target: Unit, raw: Decimal, crit = false): Decimal | null {
+    const back = forward(target.side);
     if (Math.random() < (target.stats ? target.stats.dodge.value : this.sum('dodge', target) + this.sum('afterimage', target))) {
       this.floatText(target.x, target.y - 26, 'MISS', '#c9b8ff', 11);
       // Rogue Mastery and Afterimage (Kairo): the next hit after a dodge is a sure crit.
       if (this.mastery(target, 'Rogue') || this.sum('afterimage', target) > 0) target.riposte = true;
       // Afterimage: he blinks straight up to the attacker (a shooter down the lane too) and strikes back at once.
       if (this.sum('afterimage', target) > 0 && target.alive && e.alive) {
-        const gap = e.x - target.x;
+        const gap = ahead(target.x, e.x, target.side);
         if (gap > target.range && gap <= AFTERIMAGE_BLINK) {
           this.puff(target.x, target.y, 0xfff2b0);
-          target.x = e.x - Math.min(target.range, 20);
+          target.x = e.x - back * Math.min(target.range, 20);
           target.view.x = target.x;
         }
         target.cooldownLeft = 0;
       }
-      return;
+      return null;
     }
     const torrent = torrentMults(target.def?.signature, this.hpRatio(target), this.sigPlus(target)).taken;
-    const mult = this.elem(e, target) * this.mul('damageTaken', target) * (e.weakUntil > this.clock ? e.weakMult : 1) * torrent;
-    let dmg = defended(e.atk.times(mult), target.defense);
+    let dmg = defended(raw.times(this.mul('damageTaken', target) * torrent), target.defense);
     // Wraith Mask: once a life, a hit that would take the hero under the line (even a killing blow) leaves him
     // standing; then the mask heals him and he fights faster for a while.
     const mask = target.def?.signature;
@@ -2387,8 +2484,11 @@ export class BattleScene extends Phaser.Scene {
       target.standUsed = true;
       this.startForm(target, 'NOT YET!');
     }
-    if (target.alive) this.meter(e, 'dealt', Decimal.min(dmg, target.hp.plus(target.shield)));
-    this.damageUnit(target, dmg, null);
+    const landed = Decimal.min(dmg, target.hp.plus(target.shield));
+    // A duelist's hit counts on the meter inside damageUnit; an enemy's is counted here.
+    const source = this.kitted(e) ? e : null;
+    if (target.alive && !source) this.meter(e, 'dealt', landed);
+    this.damageUnit(target, dmg, source, crit);
     this.secondWind(target);
     if (masked && target.alive && mask?.kind === 'mask') {
       target.maskUsed = true;
@@ -2408,14 +2508,6 @@ export class BattleScene extends Phaser.Scene {
         this.floatText(e.x, e.y - 30, 'CURSED', '#9fdcff', 10);
       }
     }
-    // Boss hits can stun a hero; Effect Resistance is the chance to shrug it off.
-    if (e.isBoss && target.alive && !target.def?.steadfast && Math.random() < BOSS_STUN_CHANCE) {
-      if (Math.random() < (target.stats?.effectRes.value ?? 0)) this.floatText(target.x, target.y - 26, 'RESIST', '#9effa8', 9);
-      else {
-        target.rootedUntil = this.clock + BOSS_STUN_SECONDS;
-        this.floatText(target.x, target.y - 26, 'STUNNED', '#ffd84a', 9);
-      }
-    }
     const reflect = this.sum('reflect', target) + signatureReflect(target.def?.signature);
     if (reflect > 0) {
       this.damageUnit(e, dmg.times(reflect), target);
@@ -2424,6 +2516,7 @@ export class BattleScene extends Phaser.Scene {
         if (this.control(e, SIG_PLUS.reflectStunSeconds)) this.floatText(e.x, e.y - 30, 'STUN', '#ffd84a', 9);
       }
     }
+    return landed;
   }
 
   /** The element a hero deals damage as: Earth for non-Fire heroes during Rootcall. */
@@ -2434,9 +2527,9 @@ export class BattleScene extends Phaser.Scene {
 
   /** Faery Shield: every Nth heal or attack shields a random living ally. */
   private ward(h: Unit) {
-    const w = procEffect(this.state.effects(), 'ward', h.def!.id);
+    const w = procEffect(this.fxOf(h), 'ward', h.def!.id);
     if (!procs(w, h.attacks)) return;
-    const living = this.heroes.filter((a) => a.alive);
+    const living = this.alliesOf(h).filter((a) => a.alive);
     const a = living[Math.floor(Math.random() * living.length)];
     if (!a) return;
     a.shield = Decimal.max(a.shield, h.maxHp.times(w!.value));
@@ -2446,13 +2539,15 @@ export class BattleScene extends Phaser.Scene {
 
   private heroAttack(h: Unit, target: Unit) {
     const def = h.def!;
+    const dir = forward(h.side);
+    const opps = this.oppsOf(h);
     // Quarry: always shoot the toughest enemy in reach.
     if (def.signature?.kind === 'quarry') {
-      const toughest = this.foes().filter((e) => e.alive && Math.abs(e.x - h.x) <= h.range && this.reaches(h, e)).sort((a, b) => b.hp.cmp(a.hp))[0];
+      const toughest = this.foesOf(h).filter((e) => e.alive && Math.abs(e.x - h.x) <= h.range && this.reaches(h, e)).sort((a, b) => b.hp.cmp(a.hp))[0];
       if (toughest) target = toughest;
     }
     if (def.range > 60) this.shot(h, target.x, target.y, ELEMENT_COLORS[def.element]);
-    else this.lunge(h, 1);
+    else this.lunge(h, dir);
     if (h.anim) this.setAnim(h, 'attack');
     h.attacks++;
     this.ward(h);
@@ -2472,8 +2567,8 @@ export class BattleScene extends Phaser.Scene {
     // Zeal: each attack in a row speeds up the next ones (cooldownFor), and a full streak sends out light waves.
     if (def.signature?.kind === 'zeal') h.zeal++;
     const zealWave = zealState(def.signature, h.zeal, this.sigPlus(h)).wave;
-    const nth = everyNth(this.state.effects(), def.id);
-    const fx = this.state.effects();
+    const fx = this.fxOf(h);
+    const nth = everyNth(fx, def.id);
     const slam = procEffect(fx, 'slam', def.id);
     const snowball = procEffect(fx, 'snowball', def.id);
     const assassin = procEffect(fx, 'assassinate', def.id);
@@ -2482,7 +2577,7 @@ export class BattleScene extends Phaser.Scene {
     if (procs(charm, h.attacks) && !target.isBoss && target.alive) {
       target.charmUntil = this.clock + charm!.value;
       this.floatText(target.x, target.y - 34, 'POSSESSED', '#c9b8ff', 10);
-      const next = this.nearest(h, this.foes().filter((e) => this.reaches(h, e)), 1);
+      const next = this.nearest(h, this.foesOf(h).filter((e) => this.reaches(h, e)), dir);
       if (!next) return;
       target = next;
     }
@@ -2507,11 +2602,11 @@ export class BattleScene extends Phaser.Scene {
     }
     // Shadow Pounce: every Nth attack blinks to the farthest enemy in reach, or to a boss in reach.
     if (procs(assassin, h.attacks)) {
-      const inReach = this.enemies.filter((e) => e.alive && e.x >= h.x && e.x - h.x <= ASSASSIN_REACH && this.reaches(h, e));
-      const far = inReach.find((e) => e.isBoss) ?? inReach.sort((a, b) => b.x - a.x)[0];
+      const inReach = opps.filter((e) => e.alive && ahead(h.x, e.x, h.side) >= 0 && ahead(h.x, e.x, h.side) <= ASSASSIN_REACH && this.reaches(h, e));
+      const far = inReach.find((e) => e.isBoss) ?? inReach.sort((a, b) => ahead(h.x, b.x, h.side) - ahead(h.x, a.x, h.side))[0];
       if (far && far !== target) {
         this.puff(h.x, h.y, 0x9b59d0);
-        h.x = Math.max(h.x, far.x - 16);
+        h.x = dir > 0 ? Math.max(h.x, far.x - 16) : Math.min(h.x, far.x + 16);
         h.view.x = h.x;
         target = far;
       }
@@ -2562,7 +2657,7 @@ export class BattleScene extends Phaser.Scene {
       h.riposte = false;
       // Samurai Mastery: crits take time off the Ultimate cooldown.
       if (crit && this.mastery(h, 'Samurai')) h.ultReadyAt -= 0.5;
-      let atk = (crit ? h.atk.times(critMult) : h.atk).times(beacon * rage * this.state.boostMult('horn'));
+      let atk = (crit ? h.atk.times(critMult) : h.atk).times(beacon * rage * (h.owner ? 1 : this.state.boostMult('horn')));
       const procced = !!(nth && nth.every && h.attacks % nth.every === 0);
       if (procced) atk = atk.times(nth!.value);
       // Slam: every Nth attack slams every enemy near the target.
@@ -2574,16 +2669,18 @@ export class BattleScene extends Phaser.Scene {
       const rolled = procs(snowball, h.attacks);
       const splash = def.splash ? Math.max(def.splash * (1 + st.aoeRadius), zealWave) : slammed || heat.erupt ? SLAM_RADIUS : zealWave;
       let targets: Unit[];
-      if (charged?.boost === 'area') targets = this.enemies.filter((e) => e.alive && Math.abs(e.x - target.x) <= Math.max(splash, CHARGE_AREA));
-      else if (charged?.boost === 'pierce') targets = [target, ...this.enemies.filter((e) => e.alive && e !== target && e.x > target.x && e.x - target.x <= CHARGE_LINE)];
-      else if (splash) targets = this.enemies.filter((e) => e.alive && Math.abs(e.x - target.x) <= splash);
+      // How far an opponent stands past the target, in the direction this fighter hits.
+      const past = (e: Unit) => ahead(target.x, e.x, h.side);
+      if (charged?.boost === 'area') targets = opps.filter((e) => e.alive && Math.abs(e.x - target.x) <= Math.max(splash, CHARGE_AREA));
+      else if (charged?.boost === 'pierce') targets = [target, ...opps.filter((e) => e.alive && e !== target && past(e) > 0 && past(e) <= CHARGE_LINE)];
+      else if (splash) targets = opps.filter((e) => e.alive && Math.abs(e.x - target.x) <= splash);
       else {
         // Piercing shots also hit the next enemies just behind the target.
         const pierce = Math.round(this.sum('pierce', h));
-        const behind = pierce > 0 ? this.enemies.filter((e) => e.alive && e !== target && e.x > target.x && e.x - target.x <= 60).sort((a, b) => a.x - b.x).slice(0, pierce) : [];
+        const behind = pierce > 0 ? opps.filter((e) => e.alive && e !== target && past(e) > 0 && past(e) <= 60).sort((a, b) => past(a) - past(b)).slice(0, pierce) : [];
         targets = [target, ...behind];
         // Rolling Snowball: every Nth shot rolls through the enemies just behind the target.
-        if (rolled) targets = [target, ...this.enemies.filter((e) => e.alive && e !== target && e.x > target.x && e.x - target.x <= SNOWBALL_REACH)];
+        if (rolled) targets = [target, ...opps.filter((e) => e.alive && e !== target && past(e) > 0 && past(e) <= SNOWBALL_REACH)];
       }
       for (const t of targets) {
         const mult =
@@ -2600,9 +2697,16 @@ export class BattleScene extends Phaser.Scene {
           this.boilRally(h) *
           this.surgeRally(h);
         const amount = atk.times(mult);
-        // Lifesteal only counts hits that land (element-locked bosses shrug off the rest).
-        dealt = dealt.plus(t.lockStage === undefined ? amount : amount.times(elementBossShare(t.lockStage, this.dealsAs(h))));
-        this.damageUnit(t, amount, h, crit);
+        // A hero with a kit of its own (a Rush duel) can dodge, has DEF and its own defensive skills.
+        if (this.kitted(t)) {
+          const landed = this.takeHit(h, t, amount, crit);
+          if (!landed) continue;
+          dealt = dealt.plus(landed);
+        } else {
+          // Lifesteal only counts hits that land (element-locked bosses shrug off the rest).
+          dealt = dealt.plus(t.lockStage === undefined ? amount : amount.times(elementBossShare(t.lockStage, this.dealsAs(h))));
+          this.damageUnit(t, amount, h, crit);
+        }
         if (t.alive) this.applyEffects(h, t, amount, procced);
         if (t.alive && heat.erupt) this.ignite(t, amount.times(STAT_BASE.burnDps), STAT_BASE.burnSeconds, h);
         if (t.alive && blinded) {
@@ -2618,12 +2722,15 @@ export class BattleScene extends Phaser.Scene {
     // Spirit: every Nth attack the hero's spirit also hits other enemies in reach.
     const spirits = spiritTargets(sig, h.attacks, this.sigPlus(h));
     if (spirits > 0 && sig?.kind === 'spirit') {
-      const others = this.foes().filter((e) => e.alive && e !== target && Math.abs(e.x - h.x) <= h.range && this.reaches(h, e)).slice(0, spirits);
+      const others = this.foesOf(h).filter((e) => e.alive && e !== target && Math.abs(e.x - h.x) <= h.range && this.reaches(h, e)).slice(0, spirits);
       for (const o of others) {
         this.shot(h, o.x, o.y, ELEMENT_COLORS[def.element]);
         const amount = h.atk.times(sig.mult * this.elem(element, o) * (o.isBoss ? bossMult : 1));
-        dealt = dealt.plus(amount);
-        this.damageUnit(o, amount, h);
+        if (this.kitted(o)) dealt = dealt.plus(this.takeHit(h, o, amount) ?? 0);
+        else {
+          dealt = dealt.plus(amount);
+          this.damageUnit(o, amount, h);
+        }
       }
     }
     if (lifesteal > 0 && h.alive && h.hp.lt(h.maxHp)) {
@@ -2640,7 +2747,8 @@ export class BattleScene extends Phaser.Scene {
     const sig = h.def?.signature;
     // Knock-back: hits push regular enemies back.
     if (sig?.kind === 'knockback' && !t.isBoss) {
-      t.x = Math.min(t.x + sig.push, ENEMY_CRYSTAL_X - 12);
+      // Pushed back toward its own crystal (a Rush duelist knocks the player's hero back to the left).
+      t.x = h.side === 'hero' ? Math.min(t.x + sig.push, ENEMY_CRYSTAL_X - 12) : Math.max(t.x - sig.push, PLAYER_CRYSTAL_X + 12);
       this.tweens.add({ targets: t.view, x: t.x, duration: 160, ease: 'Quad.out' });
     }
     // Drench: soaked enemies move slower and take more from Water heroes.
@@ -2686,14 +2794,14 @@ export class BattleScene extends Phaser.Scene {
 
   /** Frozen enemies whose ice ran out burst, hurting them and enemies close by; poisoned enemies take their ticks. */
   private tickStatus(dt: number) {
-    for (const e of this.enemies) {
+    for (const e of this.statusTargets()) {
       if (!e.alive) continue;
       if (e.frozenUntil > 0 && e.frozenUntil <= this.clock) {
         e.frozenUntil = 0;
         this.restTint(e);
         const by = e.frozenBy;
         this.shatter(e.x, e.y, 0x9fdcff);
-        for (const o of this.enemies) {
+        for (const o of this.alliesOf(e)) {
           if (o.alive && Math.abs(o.x - e.x) <= FREEZE_BLAST_RADIUS) this.damageUnit(o, e.frozenBlast.times(by ? this.elem(by, o) : 1), by ?? null);
         }
       }
@@ -2713,6 +2821,11 @@ export class BattleScene extends Phaser.Scene {
       this.drawHpBar(e);
       if (e.hp.lte(0)) this.kill(e, e.poisonBy ?? null);
     }
+  }
+
+  /** Who can be burning, poisoned or frozen: the enemies, and in a Rush duel the player's hero too. */
+  private statusTargets(): Unit[] {
+    return this.pvp?.fair ? [...this.enemies, ...this.heroes] : this.enemies;
   }
 
   /** Set an enemy Burning, keeping the stronger burn if it already burns. */
@@ -2736,7 +2849,7 @@ export class BattleScene extends Phaser.Scene {
     }
     for (const z of this.zones) if (z.until <= this.clock) z.view.destroy();
     this.zones = this.zones.filter((z) => z.until > this.clock);
-    for (const e of this.enemies) {
+    for (const e of this.statusTargets()) {
       if (!e.alive || e.burnUntil <= this.clock) continue;
       e.burnTick += dt;
       if (e.burnTick < BURN_TICK) continue;
@@ -2758,7 +2871,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Regeneration star skills (a hero's own, plus team-wide auras). */
   private regenerate(dt: number) {
-    for (const h of this.heroes) {
+    for (const h of this.pvp?.fair ? [...this.heroes, ...this.enemies.filter((e) => e.kit)] : this.heroes) {
       if (!h.alive) continue;
       const rate = this.sum('regen', h);
       if (rate <= 0 || h.hp.gte(h.maxHp)) continue;
@@ -2801,10 +2914,14 @@ export class BattleScene extends Phaser.Scene {
     amount = amount.times(this.lockShare(target, source));
     // Sanctuary: no damage at all for a while.
     if (target.side === 'hero' && target.guardUntil > this.clock) return;
-    if (target.side === 'enemy' && target.markUntil > this.clock) amount = amount.times(target.markMult);
+    // Marks (Frost Curse, Snowball) only land on the other side; in a Rush duel that can be the player's hero too.
+    if (target.markUntil > this.clock) amount = amount.times(target.markMult);
     // Drench: drenched enemies take more from Water heroes.
-    if (target.side === 'enemy' && target.drenchUntil > this.clock && source?.side === 'hero' && source.element === 'water') amount = amount.times(target.drenchMult);
+    const rival = !!source && source.side !== target.side && this.kitted(source);
+    if (target.drenchUntil > this.clock && rival && source!.element === 'water') amount = amount.times(target.drenchMult);
     if (target.side === 'enemy') amount = amount.times(this.mul('enemyVuln', null));
+    // A Rush duelist's own Shatter Armor reaches the player's hero.
+    else if (rival && source!.kit) amount = amount.times(mulEffect(this.fxOf(source), 'enemyVuln', null));
     // Slayer's Spear (a guild relic): heroes hit every boss harder.
     if (target.isBoss && target.side === 'enemy' && source?.side === 'hero') amount = amount.times(this.state.bossDamageMult());
     // Hunting Journal: a little more damage against enemies the player has beaten many of.
@@ -2824,7 +2941,7 @@ export class BattleScene extends Phaser.Scene {
     }
     let toHp = amount;
     // Pasta's dark form: he can't fall while it runs.
-    if (target.side === 'hero' && this.inForm(target)) amount = Decimal.min(amount, Decimal.max(0, target.hp.plus(target.shield).minus(target.maxHp.times(0.01))));
+    if (this.kitted(target) && this.inForm(target)) amount = Decimal.min(amount, Decimal.max(0, target.hp.plus(target.shield).minus(target.maxHp.times(0.01))));
     toHp = amount;
     if (target.shield.gt(0)) {
       const soaked = Decimal.min(target.shield, amount);
@@ -2907,20 +3024,22 @@ export class BattleScene extends Phaser.Scene {
     if (u.side !== 'enemy' && u.def) (((window as any).__dmg ??= {})[u.def.id] ??= { dmg: 0, heal: 0, taken: 0, deaths: 0 }).deaths++;
     // Executioner+ (6★): kills take time off the Ultimate cooldown.
     if (u.side === 'enemy' && source?.def?.signature?.kind === 'execute' && this.sigPlus(source)) source.ultReadyAt -= SIG_PLUS.killUltRefund;
-    if (u.side === 'enemy' && u.burnUntil > this.clock && u.burnBy?.alive) {
+    if ((u.side === 'enemy' || this.pvp?.fair) && u.burnUntil > this.clock && u.burnBy?.alive) {
       // Wildfire: a Burning enemy that dies explodes.
       const by = u.burnBy;
       const burst = this.sum('burnBurst', by);
       if (burst > 0) {
         this.shatter(u.x, u.y, 0xff8a3a);
-        for (const e of this.enemies) {
+        for (const e of this.alliesOf(u)) {
           if (e.alive && Math.abs(e.x - u.x) <= WILDFIRE_RADIUS) this.damageUnit(e, by.atk.times(burst * this.elem(by, e)), by);
         }
       }
     }
     if (u.side === 'enemy' && this.pvp) {
       // A Colosseum foe pays nothing; it fades and comes back at its crystal after the usual wait.
-      u.respawnAt = respawnTime(this.clock, PVP_RESPAWN_MULT);
+      // A Rush duelist loses its kit's build-up like a fallen hero, and its own respawn skills count.
+      u.respawnAt = respawnTime(this.clock, (u.kit ? mulEffect(this.fxOf(u), 'respawn', null) : 1) * PVP_RESPAWN_MULT);
+      if (u.kit) this.resetKit(u);
       u.hpBar.clear();
       this.tweens.add({ targets: u.view, alpha: 0, duration: 300, onComplete: () => u.view.setVisible(false) });
       this.shatter(u.x, u.y, ELEMENT_COLORS[u.element]);
@@ -2964,18 +3083,23 @@ export class BattleScene extends Phaser.Scene {
       }
     } else {
       u.respawnAt = respawnTime(this.clock, this.mul('respawn', null) * (this.pvp ? PVP_RESPAWN_MULT : 1));
-      u.chargeStacks = 0;
-      u.zeal = 0;
-      if (this.inForm(u)) this.endForm(u);
-      u.grit = 0;
-      u.formUntil = 0;
-      u.standUsed = false;
-      u.maskUsed = false;
-      this.resetSurge(u);
+      this.resetKit(u);
       this.puff(u.x, u.y, 0xffffff);
       if (this.trial) u.view.setVisible(false);
       else this.ghostHero(u);
     }
+  }
+
+  /** A fallen fighter loses what its kit built up this life (charge, zeal, combo, form, surge, once-a-life saves). */
+  private resetKit(u: Unit) {
+    u.chargeStacks = 0;
+    u.zeal = 0;
+    if (this.inForm(u)) this.endForm(u);
+    u.grit = 0;
+    u.formUntil = 0;
+    u.standUsed = false;
+    u.maskUsed = false;
+    this.resetSurge(u);
   }
 
   /** Count a kill in the Hunting Journal; a shiny pays its treasure. Tiers reached float up over the lane. */

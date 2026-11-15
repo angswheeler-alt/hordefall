@@ -1837,7 +1837,7 @@ export class GameState {
   }
 
   /** An opponent's fighters, with stats worked out the same way as the player's. */
-  pvpFoeUnits(foe: PvpOpponent): Array<{ def: HeroDef; unit: PvpUnit; stats: HeroStats }> {
+  pvpFoeUnits(foe: PvpOpponent): Array<{ def: HeroDef; unit: PvpUnit; stats: HeroStats; owner: GameState }> {
     const g = GameState.ghostState(foe);
     if (foe.snap) {
       // A real player's team fights with the stats it was saved with; the rest of the sheet comes from the hero itself.
@@ -1846,13 +1846,13 @@ export class GameState {
         const base = g.heroStats(def, 1);
         const pair = (v: string) => ({ value: new Decimal(v), base: new Decimal(v) });
         const stats: HeroStats = { ...base, atk: pair(x.atk), hp: pair(x.hp), def: pair(x.def), attacksPerSec: { value: x.aps, base: base.attacksPerSec.base }, critRate: x.crit, critDmg: x.critDmg, moveSpeed: { value: x.move, base: base.moveSpeed.base } };
-        return { def, unit: { id: def.id, element: def.element, atk: stats.atk.value, hp: stats.hp.value, def: stats.def.value, attacksPerSec: x.aps, critRate: x.crit, critDmg: x.critDmg, melee: def.range <= 60, flying: g.formDef(def).flying }, stats };
+        return { def, unit: { id: def.id, element: def.element, atk: stats.atk.value, hp: stats.hp.value, def: stats.def.value, attacksPerSec: x.aps, critRate: x.crit, critDmg: x.critDmg, melee: def.range <= 60, flying: g.formDef(def).flying }, stats, owner: g };
       });
     }
     return foe.heroes.map((x) => {
       const def = HEROES.find((h) => h.id === x.id)!;
       const stats = scaleStats(g.heroStats(def, g.fixedLevel(def.id)), foe.power ?? 1);
-      return { def, unit: { ...g.pvpUnit(def), atk: stats.atk.value, hp: stats.hp.value, def: stats.def.value }, stats };
+      return { def, unit: { ...g.pvpUnit(def), atk: stats.atk.value, hp: stats.hp.value, def: stats.def.value }, stats, owner: g };
     });
   }
 
