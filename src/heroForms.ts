@@ -4,7 +4,7 @@
  */
 import { FORM_RARITIES, formArtKey } from './ascendant';
 import { ascendantDef } from './heroes/ascendant';
-import { SURGE_FORMS } from './kits';
+import { SURGE_FORMS, titanArtKey } from './kits';
 import { HEROES } from './data';
 
 export interface HeroForm {
@@ -30,7 +30,7 @@ export function heroForms(id: string, has: (art: string) => boolean): HeroForm[]
   }
   const def = HEROES.find((h) => h.id === id);
   if (!def) return null;
-  const sig = def.signature as { kind: string; every?: number; formAt?: number; formSeconds?: number } | undefined;
+  const sig = def.signature as { kind: string; every?: number; formAt?: number; formSeconds?: number; seconds?: number } | undefined;
   if (sig?.kind === 'surge' && sig.every) {
     const forms: HeroForm[] = [{ name: def.name, art: id, how: 'His normal look' }];
     for (let stage = 1; stage <= 4; stage++) {
@@ -43,6 +43,12 @@ export function heroForms(id: string, has: (art: string) => boolean): HeroForm[]
     return [
       { name: def.name, art: id, how: 'His normal look' },
       { name: 'Boiling Over', art: `${id}_dark`, how: `After ${sig.formAt} hits in a row or his Ultimate, for ${sig.formSeconds} s` },
+    ];
+  }
+  if (sig?.kind === 'titan' && has(titanArtKey(id))) {
+    return [
+      { name: def.name, art: id, how: 'His normal look' },
+      { name: 'Titan', art: titanArtKey(id), how: `At full Rage or with his Ultimate, for ${sig.seconds} s` },
     ];
   }
   return null;

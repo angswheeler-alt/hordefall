@@ -106,7 +106,7 @@ import { MUTANT_GOLD, rollMutation, type Mutation } from './mutations';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES, type BossAnim } from './bossAnims';
 import type { EffectKind } from './data';
 import { surgeArt } from './kits';
-import { gritStep, comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets, drenchVuln, heatStep, quarryMult, quarryCarry, surgeStage, surgeMults, surgeDrain, cannonMult, bannerStep } from './kits';
+import { gritStep, comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets, drenchVuln, heatStep, quarryMult, quarryCarry, surgeStage, surgeMults, surgeDrain, cannonMult, bannerStep, rageStep, titanForm, titanArtKey, TITAN_STAND_IN_SCALE } from './kits';
 import { STAT_BASE, FREEZE_BLAST_RADIUS, BOSS_STUN_CHANCE, BOSS_STUN_SECONDS, type HeroStats } from './stats';
 import { heroProfile } from './profiles';
 import { canReach, enemyGoal, flyerVictim, isMelee, pickVictim } from './reach';
@@ -275,6 +275,17 @@ interface Unit {
   surge: number;
   /** Squire's Banner (Signature 'banner', Hamlet): when the banner last went up. */
   bannerAt: number;
+  /**
+   * Titan Shift (Signature 'titan', Yeren): Rage toward the next shift, when the titan ends (0: not a titan), what is
+   * left of the titan's stone body and its full size, the sprite he wore before (to turn back to), and how big his
+   * sprite is drawn (the stand-in titan is his normal sprite drawn bigger).
+   */
+  rage: number;
+  titanUntil: number;
+  titanHp?: Decimal;
+  titanMax?: Decimal;
+  titanFrom?: string;
+  bodyScale?: number;
   grit: number;
   gritAt: number;
   formUntil?: number;
@@ -828,6 +839,8 @@ export class BattleScene extends Phaser.Scene {
       surgeBonus: 0,
       surge: 0,
       bannerAt: this.clock,
+      rage: 0,
+      titanUntil: 0,
       grit: 0,
       gritAt: -99,
       heat: 0,
@@ -966,13 +979,14 @@ export class BattleScene extends Phaser.Scene {
   private drawHpBar(u: Unit) {
     const ratio = u.maxHp.gt(0) ? Math.max(0, Math.min(1, u.hp.div(u.maxHp).toNumber())) : 0;
     const w = u.barWidth;
+    const grow = u.bodyScale ?? 1;
     const top = u.anim
-      ? FOOT_Y - HERO_ANIMS[u.anim.id].feet[1] + HERO_ANIMS[u.anim.id].headTop - 5
+      ? FOOT_Y - (HERO_ANIMS[u.anim.id].feet[1] - HERO_ANIMS[u.anim.id].headTop) * grow - 5
       : u.bossArt
         ? bossHeadY(BOSS_ANIMS[u.bossArt.id]) - 5
         : u.mob
           ? FOOT_Y - MOB_ANIMS[u.mob.id].feet[1] + MOB_ANIMS[u.mob.id].headTop - 5
-          : -u.body.height / 2 - 7;
+          : (-u.body.height * grow) / 2 - 7;
     u.hpBar.clear();
     u.hpBar.fillStyle(0x000000, 0.7).fillRect(-w / 2 - 1, top - 1, w + 2, 5);
     u.hpBar.fillStyle(u.side === 'hero' ? 0x4cff7a : 0xff4c4c, 1).fillRect(-w / 2, top, w * ratio, 3);
@@ -980,6 +994,12 @@ export class BattleScene extends Phaser.Scene {
     // A Shieldbearer's shield shows as a steel bar against its own full size.
     if (u.guardMax && u.shield.gt(0)) u.hpBar.fillStyle(0x000000, 0.7).fillRect(-w / 2 - 1, top - 4, w + 2, 3).fillStyle(0xc8d4e0, 1).fillRect(-w / 2, top - 3, w * Math.min(1, u.shield.div(u.guardMax).toNumber()), 1.5);
     else if (u.shield.gt(0) && u.maxHp.gt(0)) u.hpBar.fillStyle(0xbfe8ff, 1).fillRect(-w / 2, top - 2, w * Math.min(1, u.shield.div(u.maxHp).toNumber() * 5), 2);
+    // Titan Shift: the titan's stone body as a sandstone bar over the HP bar; otherwise his Rage as a thin orange line under it.
+    if (u.titanHp && u.titanMax?.gt(0)) {
+      u.hpBar.fillStyle(0x000000, 0.7).fillRect(-w / 2 - 1, top - 5, w + 2, 4).fillStyle(0xd9a46a, 1).fillRect(-w / 2, top - 4, w * Math.max(0, Math.min(1, u.titanHp.div(u.titanMax).toNumber())), 2);
+    } else if (u.def?.signature?.kind === 'titan' && u.alive) {
+      u.hpBar.fillStyle(0x000000, 0.6).fillRect(-w / 2 - 1, top + 4, w + 2, 2).fillStyle(0xff8a2a, 1).fillRect(-w / 2, top + 4, w * Math.min(1, u.rage / u.def.signature.rage), 1.5);
+    }
   }
 
   /** Create units for newly recruited heroes and refresh stats after upgrades. */
@@ -1010,8 +1030,8 @@ export class BattleScene extends Phaser.Scene {
         u.maxHp = hp;
         u.atk = atk;
         u.def = def;
-        // Ascending can change reach.
-        u.range = def.range;
+        // Ascending can change reach; Yeren's titan reaches further.
+        u.range = def.range + (this.inTitan(u) && def.signature?.kind === 'titan' ? def.signature.reach : 0);
         u.defense = defense;
         u.stats = stats;
         u.speed = stats.moveSpeed.value;
@@ -1092,6 +1112,116 @@ export class BattleScene extends Phaser.Scene {
     if (u.formUntil && this.clock >= u.formUntil) this.endForm(u);
     if (u.def?.signature?.kind === 'surge') this.stepSurge(u, dt);
     if (u.def?.signature?.kind === 'banner') this.stepBanner(u);
+    if (u.titanUntil && this.clock >= u.titanUntil) this.endTitan(u);
+  }
+
+  /** Yeren is a titan right now. */
+  private inTitan(u: Unit) {
+    return u.titanUntil > this.clock;
+  }
+
+  /**
+   * Titan Shift: Rage from `hits` attacks he landed and `hpLost` (share of max HP) he took. A full bar turns him into
+   * the titan. Nothing builds while he already is one.
+   */
+  private gainRage(u: Unit, hits: number, hpLost: number) {
+    const sig = u.def?.signature;
+    if (sig?.kind !== 'titan' || !u.alive || this.inTitan(u)) return;
+    const r = rageStep(sig, u.rage, hits, hpLost, this.mul('rageGain', u));
+    u.rage = r.rage;
+    if (r.shift) this.startTitan(u, 'TITAN SHIFT!');
+    else this.drawHpBar(u);
+  }
+
+  /**
+   * Yeren shifts: a bolt from the sky, a burst of dust and rock, and he stands up as a giant of living rock. The titan
+   * gets its own stone body (soaks every hit, see damageUnit), hits harder and slower, stomps and reaches further.
+   */
+  private startTitan(u: Unit, label: string) {
+    const sig = u.def?.signature;
+    if (sig?.kind !== 'titan' || !u.alive) return;
+    const form = titanForm(sig, this.sigPlus(u), this.mul('titanBody', u));
+    u.rage = 0;
+    u.titanUntil = this.clock + form.seconds;
+    u.titanMax = u.maxHp.times(form.body);
+    u.titanHp = u.titanMax;
+    u.range = u.def!.range + sig.reach;
+    this.floatText(u.x, u.y - 60, label, '#ffb347', 12);
+    this.titanBolt(u);
+    const art = titanArtKey(u.def!.id);
+    if (u.anim && this.anims.exists(`${art}-run`)) {
+      u.titanFrom = u.anim.id;
+      this.swapArt(u, art);
+      u.bodyScale = 1;
+    } else {
+      u.bodyScale = TITAN_STAND_IN_SCALE;
+      if (u.body.active) this.tweens.add({ targets: u.body, scaleX: TITAN_STAND_IN_SCALE, scaleY: TITAN_STAND_IN_SCALE, duration: 220, ease: 'Back.out' });
+    }
+    this.titanTint(u);
+    this.cameras.main.shake(160, 0.006);
+    this.drawHpBar(u);
+  }
+
+  /** The titan's time ran out or its body broke (`broken`: he is cut out and stunned). Rage starts over either way. */
+  private endTitan(u: Unit, broken = false) {
+    const sig = u.def?.signature;
+    u.titanUntil = 0;
+    u.titanHp = undefined;
+    u.titanMax = undefined;
+    u.rage = 0;
+    if (u.def) u.range = u.def.range;
+    if (u.titanFrom) { this.swapArt(u, u.titanFrom); u.titanFrom = undefined; }
+    if (u.bodyScale && u.bodyScale !== 1 && u.body.active) {
+      this.tweens.killTweensOf(u.body);
+      u.body.setScale(1);
+    }
+    u.bodyScale = undefined;
+    if (u.body.active) u.body.clearTint();
+    if (u.view.active) {
+      for (let i = 0; i < 6; i++) {
+        const rock = this.add.rectangle(u.x + Phaser.Math.Between(-14, 14), u.y + FOOT_Y - Phaser.Math.Between(10, 40), 3, 3, 0x8a6a48).setDepth(u.view.depth + 1);
+        this.tweens.add({ targets: rock, y: u.y + FOOT_Y, alpha: 0, duration: 380, ease: 'Quad.in', onComplete: () => rock.destroy() });
+      }
+    }
+    if (broken && u.alive && sig?.kind === 'titan') {
+      u.rootedUntil = Math.max(u.rootedUntil, this.clock + sig.brokenStun);
+      this.floatText(u.x, u.y - 40, 'CUT OUT!', '#ff9a6a', 11);
+    }
+    this.drawHpBar(u);
+  }
+
+  /** The titan's colour: none on its own sprite; the stand-in (his normal sprite drawn big) turns sandstone. */
+  private titanTint(u: Unit) {
+    if (!u.body.active) return;
+    if (u.titanFrom) u.body.clearTint();
+    else u.body.setTint(0xd9a46a);
+  }
+
+  /** The shift: a yellow bolt from the sky onto him, then dust and rocks thrown out around his feet. */
+  private titanBolt(u: Unit) {
+    if (!u.view.active) return;
+    const foot = u.y + FOOT_Y, x = u.x;
+    const g = this.add.graphics().setDepth(u.view.depth + 2);
+    g.lineStyle(3, 0xfff3a0, 1).beginPath().moveTo(x + 6, foot - 140);
+    let bx = x + 6, by = foot - 140;
+    while (by < foot - 6) { bx += Phaser.Math.Between(-7, 7); by += Phaser.Math.Between(12, 20); g.lineTo(bx, Math.min(by, foot - 4)); }
+    g.strokePath();
+    this.tweens.add({ targets: g, alpha: 0, duration: 260, onComplete: () => g.destroy() });
+    this.cameras.main.flash(120, 255, 240, 190);
+    for (let i = 0; i < 10; i++) {
+      const dust = this.add.circle(x + Phaser.Math.Between(-10, 10), foot - Phaser.Math.Between(0, 6), Phaser.Math.Between(3, 6), 0xb89a74, 0.8).setDepth(u.view.depth + 1);
+      const dir = i % 2 ? 1 : -1;
+      this.tweens.add({ targets: dust, x: dust.x + dir * Phaser.Math.Between(14, 34), y: dust.y - Phaser.Math.Between(4, 18), scale: 2, alpha: 0, duration: 520, onComplete: () => dust.destroy() });
+    }
+    this.sparks(x, foot - 20, 0xffb347, 14);
+  }
+
+  /** The titan's stomp: a ring of dust and a crack where the fist lands. */
+  private stompFx(t: Unit) {
+    if (!t.view.active) return;
+    const foot = t.view.y + FOOT_Y;
+    const ring = this.add.ellipse(t.x, foot, 10, 4, 0xb89a74, 0.7).setDepth(t.view.depth - 0.5);
+    this.tweens.add({ targets: ring, scaleX: 8, scaleY: 3, alpha: 0, duration: 320, onComplete: () => ring.destroy() });
   }
 
   /** Squire's Banner (Hamlet): every few seconds, heroes near him get an ATK boost and a small heal. */
@@ -1559,6 +1689,8 @@ export class BattleScene extends Phaser.Scene {
     // Power Surge builds across normal stages and starts over at every boss (Samuel 2026-11-15), so Gogu
     // transforms during each boss fight.
     if (boss) for (const h of this.heroes) if (h.alive && h.def?.signature?.kind === 'surge') this.resetSurge(h);
+    // Titan Shift too: every boss fight starts him at normal size with no Rage, so he shifts during the fight.
+    if (boss) for (const h of this.heroes) if (h.def?.signature?.kind === 'titan') { if (h.titanHp) this.endTitan(h); h.rage = 0; this.drawHpBar(h); }
     if (boss) {
       this.spawnEnemy(true);
       const weak = bossWeakness(stage);
@@ -1987,6 +2119,8 @@ export class BattleScene extends Phaser.Scene {
       e.grit = 0;
       e.formUntil = 0;
       this.resetSurge(e);
+      if (e.titanHp) this.endTitan(e);
+      e.rage = 0;
     }
     e.x = ENEMY_CRYSTAL_X - 20;
     this.tweens.killTweensOf(e.view);
@@ -2395,7 +2529,7 @@ export class BattleScene extends Phaser.Scene {
   /** Seconds until a hero's next attack: Atk per sec from the stat sheet, sped up by Rogue Wave+ and Frenzy. */
   private cooldownFor(h: Unit) {
     const base = h.stats ? 1 / h.stats.attacksPerSec.value : h.cooldown;
-    return base * (h.hasteUntil > this.clock ? h.hasteMult : 1) * zealState(h.def?.signature, h.zeal, this.sigPlus(h)).cooldown * surgeMults(h.def?.signature, h.surge).cooldown;
+    return base * (h.hasteUntil > this.clock ? h.hasteMult : 1) * zealState(h.def?.signature, h.zeal, this.sigPlus(h)).cooldown * surgeMults(h.def?.signature, h.surge).cooldown * (this.inTitan(h) ? titanForm(h.def?.signature).cooldown : 1);
   }
 
   /** Enemies the heroes fight: everyone but those under Puppet Bind for now. */
@@ -2828,6 +2962,11 @@ export class BattleScene extends Phaser.Scene {
       this.pastaHitFx(h, target);
     }
     const surgeMult = surgeMults(sig, h.surge).dmg;
+    // Titan Shift: the titan hits much harder and its fists stomp every enemy near the target.
+    const titan = this.inTitan(h) && sig?.kind === 'titan';
+    const titanMult = titan ? titanForm(sig).dmg : 1;
+    const stomp = titan ? sig.stomp : 0;
+    if (titan) this.stompFx(target);
     let dealt = new Decimal(0);
     for (let i = 0; i < strikes; i++) {
       // Hawkeye: shots at an enemy at full HP always crit. Owl Eyes: shots at flyers always crit.
@@ -2845,7 +2984,7 @@ export class BattleScene extends Phaser.Scene {
       if (barrage > 1 && sig?.kind === 'barrage') atk = atk.times(sig.mult);
       atk = atk.times(heat.mult);
       const rolled = procs(snowball, h.attacks);
-      const splash = def.splash ? Math.max(def.splash * (1 + st.aoeRadius), zealWave) : slammed || heat.erupt ? SLAM_RADIUS : zealWave;
+      const splash = def.splash ? Math.max(def.splash * (1 + st.aoeRadius), zealWave) : slammed || heat.erupt ? SLAM_RADIUS : Math.max(zealWave, stomp);
       let targets: Unit[];
       // How far an opponent stands past the target, in the direction this fighter hits.
       const past = (e: Unit) => ahead(target.x, e.x, h.side);
@@ -2872,6 +3011,7 @@ export class BattleScene extends Phaser.Scene {
           torrentDmg *
           gritMult *
           surgeMult *
+          titanMult *
           this.boilRally(h) *
           this.surgeRally(h);
         const amount = atk.times(mult);
@@ -2917,6 +3057,8 @@ export class BattleScene extends Phaser.Scene {
       h.hp = h.hp.plus(stolen);
       this.drawHpBar(h);
     }
+    // Titan Shift: every blow that lands fills his Rage (a full bar shifts him for his next attacks).
+    if (sig?.kind === 'titan' && dealt.gt(0)) this.gainRage(h, 1, 0);
   }
 
   /** Roll the hero's stun, freeze, burn and poison chances on an enemy it just hit for `amount`. */
@@ -3117,6 +3259,21 @@ export class BattleScene extends Phaser.Scene {
         }
       }
     }
+    // Shifter's Wall (Yeren's aura): while a teammate is a titan, the rest of the team takes less damage.
+    if (target.def && !this.inTitan(target) && this.alliesOf(target).some((a) => a !== target && a.alive && this.inTitan(a))) amount = amount.times(this.mul('titanGuard', target));
+    // Titan Shift: the titan's stone body takes the hit instead of him. When it breaks he is cut out (the rest of
+    // that blow is lost) and stunned.
+    if (target.titanHp && this.inTitan(target)) {
+      const hit = amount.times(titanForm(target.def?.signature, this.sigPlus(target)).hide);
+      const taken = Decimal.min(target.titanHp, hit);
+      target.titanHp = target.titanHp.minus(taken);
+      this.meter(source, 'dealt', taken);
+      this.meter(target, 'taken', taken);
+      this.hitFeedback(target, hit, source, crit);
+      if (target.titanHp.lte(0)) this.endTitan(target, true);
+      else this.drawHpBar(target);
+      return;
+    }
     let toHp = amount;
     // Pasta's dark form: he can't fall while it runs.
     if (this.kitted(target) && this.inForm(target)) amount = Decimal.min(amount, Decimal.max(0, target.hp.plus(target.shield).minus(target.maxHp.times(0.01))));
@@ -3134,6 +3291,8 @@ export class BattleScene extends Phaser.Scene {
     this.meter(source, 'dealt', landed);
     this.meter(target, 'taken', landed);
     target.hp = target.hp.minus(toHp);
+    // Titan Shift: losing HP fills Yeren's Rage.
+    if (target.def?.signature?.kind === 'titan' && target.maxHp.gt(0) && toHp.gt(0) && target.hp.gt(0)) this.gainRage(target, 0, Decimal.min(toHp, target.hp.plus(toHp)).div(target.maxHp).toNumber());
     if (target.side === 'enemy') { const k = source?.def?.id; if (k) { const o = (((window as any).__dmg ??= {})[k] ??= { dmg: 0, heal: 0, taken: 0, deaths: 0 }); o.dmg += Decimal.min(toHp, target.hp.plus(toHp).max(0)).toNumber(); } }
     else if (target.def) { const o = (((window as any).__dmg ??= {})[target.def.id] ??= { dmg: 0, heal: 0, taken: 0, deaths: 0 }); o.taken += toHp.toNumber(); }
     this.drawHpBar(target);
@@ -3143,6 +3302,7 @@ export class BattleScene extends Phaser.Scene {
       if (!target.body.active) return;
       if (target.side === 'enemy') this.restTint(target);
       else if (this.inForm(target)) this.formTint(target);
+      else if (this.inTitan(target)) this.titanTint(target);
       else target.body.clearTint();
     });
     if (target.hp.lte(0)) this.kill(target, source);
@@ -3154,7 +3314,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Squash, sparks, knockback, damage numbers, shake and sound for one hit. */
   private hitFeedback(target: Unit, amount: Decimal, source: Unit | null, crit: boolean) {
-    const scale = target.bossArt ? BOSS_SCALE : target.small ? SPLIT_SCALE : 1;
+    const scale = target.bossArt ? BOSS_SCALE : target.small ? SPLIT_SCALE : (target.bodyScale ?? 1);
     this.tweens.add({ targets: target.body, scaleX: 1.25 * scale, scaleY: 0.8 * scale, duration: 50, yoyo: true, onComplete: () => target.body.setScale(scale) });
     if (target.side === 'hero') {
       play('hurt');
@@ -3283,6 +3443,8 @@ export class BattleScene extends Phaser.Scene {
     u.standUsed = false;
     u.maskUsed = false;
     this.resetSurge(u);
+    if (this.inTitan(u) || u.titanHp) this.endTitan(u);
+    u.rage = 0;
   }
 
   /** Count a kill in the Hunting Journal; a shiny pays its treasure. Tiers reached float up over the lane. */
@@ -3455,6 +3617,30 @@ export class BattleScene extends Phaser.Scene {
       }
       if (this.inForm(h)) h.formUntil! += ult.extend;
       else this.startForm(h, 'BOIL OVER!', plus ? ult.plusSeconds : 0);
+      return true;
+    }
+    if (ult?.kind === 'roar') {
+      // Earthshatter Roar (Yeren): he shifts at once (already a titan: it lasts longer), and the quake hits every
+      // enemy close ahead and stuns the regular ones. 5★: they take more damage for a while.
+      if (this.inTitan(h)) {
+        h.titanUntil += ult.extend;
+        this.floatText(h.x, h.y - 60, 'ROAR!', '#ffb347', 12);
+      } else this.startTitan(h, 'TITAN SHIFT!');
+      const hit = this.enemies.filter((e) => e.alive && e.x >= h.x - 30 && e.x <= h.x + ult.radius);
+      if (!this.ultFx(h, h.x + 20, h.x + ult.radius)) {
+        const ring = this.add.ellipse(h.x + 30, h.y + FOOT_Y, 20, 8, 0xb89a74, 0.6).setDepth(999);
+        this.tweens.add({ targets: ring, scaleX: ult.radius / 8, scaleY: 3, alpha: 0, duration: 420, onComplete: () => ring.destroy() });
+      }
+      this.cameras.main.shake(220, 0.01);
+      for (const e of hit) {
+        if (plus) {
+          e.markMult = Math.max(e.markUntil > this.clock ? e.markMult : 1, ult.vuln);
+          e.markUntil = this.clock + ult.vulnSeconds;
+        }
+        this.stompFx(e);
+        this.damageUnit(e, dmg.times(ult.mult * this.elem(this.dealsAs(h), e)), h, e.isBoss);
+      }
+      for (const e of hit) if (e.alive && !e.isBoss && this.control(e, ult.stun)) this.floatText(e.x, e.y - 40, 'STUN', '#ffd84a', 9);
       return true;
     }
     if (ult?.kind === 'cannon') {

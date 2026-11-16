@@ -26,8 +26,15 @@ export const PASTA_ID = 'pasta';
  */
 export const KAIRO_RELEASED = true;
 export const KAIRO_ID = 'kairo';
+/**
+ * Yeren (src/heroes/yeren.ts), the third one (Samuel 2026-11-16, the Earth titan shifter): same deal as Gogu, his own
+ * rare drops and 5 crests for 100 Glory, 7 a week. Glory is not raised: the uniques compete for the same Glory.
+ * Off until his art is in (then flip this and move 'yeren' from HIDDEN_HEROES to RELEASED_HEROES in data.ts).
+ */
+export const YEREN_RELEASED = false;
+export const YEREN_ID = 'yeren';
 /** The one-of-a-kind heroes: crests only from their own rare drops and the Arena Shop, PASTA_UNLOCK crests to unlock. */
-export const UNIQUE_HEROES = [PASTA_ID, KAIRO_ID];
+export const UNIQUE_HEROES = [PASTA_ID, KAIRO_ID, YEREN_ID];
 export function isUnique(id: string): boolean {
   return UNIQUE_HEROES.includes(id);
 }
@@ -57,6 +64,7 @@ export const ARENA_HEROES = ['corvin', 'skiff', 'valorian', 'kestra'];
 export const ARENA_ITEMS: ArenaItem[] = [
   { id: 'pasta', kind: 'crests', hero: PASTA_ID, amount: 5, price: 100, perWeek: 7 },
   { id: 'kairo', kind: 'crests', hero: KAIRO_ID, amount: 5, price: 100, perWeek: 7 },
+  { id: 'yeren', kind: 'crests', hero: YEREN_ID, amount: 5, price: 100, perWeek: 7 },
   { id: 'h:corvin', kind: 'crests', hero: 'corvin', amount: 10, price: 100, perWeek: 5 },
   { id: 'h:skiff', kind: 'crests', hero: 'skiff', amount: 10, price: 100, perWeek: 5 },
   { id: 'h:valorian', kind: 'crests', hero: 'valorian', amount: 5, price: 100, perWeek: 5 },
@@ -67,14 +75,15 @@ export const ARENA_ITEMS: ArenaItem[] = [
   { id: 'glyph', kind: 'glyphChest', amount: 1, price: 150, perWeek: 2 },
 ];
 
-/** Items on sale now (Pasta's and Kairo's only once each is released). */
-export function arenaItems(pastaReleased = PASTA_RELEASED, kairoReleased = KAIRO_RELEASED): ArenaItem[] {
-  return ARENA_ITEMS.filter((i) => (i.hero !== PASTA_ID || pastaReleased) && (i.hero !== KAIRO_ID || kairoReleased));
+/** Items on sale now (each unique hero's crests only once that hero is released). */
+export function arenaItems(pastaReleased = PASTA_RELEASED, kairoReleased = KAIRO_RELEASED, yerenReleased = YEREN_RELEASED): ArenaItem[] {
+  const out = new Set(releasedUniques(pastaReleased, kairoReleased, yerenReleased));
+  return ARENA_ITEMS.filter((i) => !i.hero || !isUnique(i.hero) || out.has(i.hero));
 }
 
 /** The one-of-a-kind heroes that are out now (each rolls its own rare drops). */
-export function releasedUniques(pastaReleased = PASTA_RELEASED, kairoReleased = KAIRO_RELEASED): string[] {
-  return [...(pastaReleased ? [PASTA_ID] : []), ...(kairoReleased ? [KAIRO_ID] : [])];
+export function releasedUniques(pastaReleased = PASTA_RELEASED, kairoReleased = KAIRO_RELEASED, yerenReleased = YEREN_RELEASED): string[] {
+  return [...(pastaReleased ? [PASTA_ID] : []), ...(kairoReleased ? [KAIRO_ID] : []), ...(yerenReleased ? [YEREN_ID] : [])];
 }
 
 /** Glory for one finished fight. */

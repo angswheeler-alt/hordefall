@@ -50,6 +50,7 @@ export function ultFxStyle(def: FxDef): UltFxStyle {
   if (kind === 'verdict') return 'dash';
   if (kind === 'crescent' || kind === 'cannon') return 'sweep';
   if (kind === 'maelstrom' || kind === 'tempest') return 'vortex';
+  if (kind === 'roar') return 'rise';
   const words = `${def.ultimate?.name ?? ''} ${def.ultimate?.text ?? ''}`.toLowerCase();
   if (/whirl/.test(words)) return 'vortex';
   if (/pillar of|from the sky|from above|bolts of/.test(words)) return 'beam';
