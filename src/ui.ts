@@ -7,7 +7,7 @@ import { testAdjust, testMaxAll, testMaxHero, testRange, testRecruit, testValue,
 import Decimal from 'break_infinity.js';
 import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { heroAffinity, heroElementColor, STAR_EMBER_BONUS, GUILD_BOSS_NAMES, GOLD_CHEST_GEMS_PER_DAY, GUILD_BOSS_SECONDS, HEROES, byRarity, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_SLIDER_MAX, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_SET_START_SHARE, RELIC_STORED_SHARE, RELIC_SET_OWNED_SHARE, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, trialFirstWin, ESSENCE_NAMES, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, elementMultiplier, nextBossInfo, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { heroAffinity, heroElementColor, STAR_EMBER_BONUS, GUILD_BOSS_NAMES, GOLD_CHEST_GEMS_PER_DAY, GUILD_BOSS_SECONDS, HEROES, byRarity, heroRank, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_SLIDER_MAX, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_SET_START_SHARE, RELIC_STORED_SHARE, RELIC_SET_OWNED_SHARE, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, trialFirstWin, ESSENCE_NAMES, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, elementMultiplier, nextBossInfo, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicEffect, guildRelicItemCost, BOSS_RELICS, BOSS_RELIC_SLOTS, BOSS_RELIC_MAX_LEVEL, BOSS_ITEM_NAMES, BOSS_ITEM_CHANCE, type GuildRelicEffect, type BossItemCounts } from './guildRelics';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
@@ -38,9 +38,10 @@ import { holdToRepeat } from './hold';
 import { ScoutUI } from './scoutUi';
 import { WILD_CREST_COST } from './scouting';
 import { GlyphUI, glyphCard } from './glyphUi';
-import { arenaItems, ARENA_ICON, ARENA_NAME, GLORY_DAILY, GLORY_WIN, GLORY_LOSS, PASTA_ID } from './arenaShop';
+import { arenaItems, ARENA_ICON, ARENA_NAME, GLORY_DAILY, GLORY_WIN, GLORY_LOSS } from './arenaShop';
 import { JournalUI, journalRulesText } from './journalUi';
 import { bossPicHtml, heroFaceCss, heroWholeCss } from './portrait';
+import { heroForms } from './heroForms';
 import { RushUI, rushResultHtml } from './rushUi';
 import { ExpeditionUI, expEndHtml } from './expeditionUi';
 import type { ExpLender } from './expedition';
@@ -64,6 +65,8 @@ const escHtml = (text: string) => String(text).replace(/[&<>"']/g, (c) => `&#${c
  */
 // The Collection tile's picture box (.ct-art: inset 4% 4% 14% of a square) is this tall per 1 wide.
 const CT_ART_H = 82 / 92;
+/** Share of a form card's picture box the whole sprite fills. */
+const FORM_ART_H = 0.92;
 const heroArt = (id: string) => (HERO_ANIMS[id] ? `url('${new URL(heroFile(id), document.baseURI).href}')` : 'none');
 // Stall and relic icons (art/icons/make_icons.py), bundled so the single-file build carries them too.
 const iconUrls = (files: Record<string, string>) => Object.fromEntries(Object.entries(files).map(([f, url]) => [f.split('/').pop()!.slice(0, -4), url]));
@@ -90,7 +93,7 @@ export const heroArtKey = (id: string) => formArt(id);
 // Legendaries get --leg:1, a gold-and-orange ring.
 // `art` picks another picture; by default an Ascendant hero shows its current form's art (see setFormArt).
 export const faceStyle = (def: HeroDef, art = heroArtKey(def.id)) =>
-  `background-color:${hex(heroElementColor(def))};--art:${heroArt(art)}${HERO_ANIMS[art] ? heroFaceCss(art) : ';color:#fff !important;text-shadow:0 1px 0 #000 !important'}${isAscendant(def.id) ? ';--asc:1' : def.rarity === 'legendary' ? ';--leg:1' : ''}`;
+  `background-color:${hex(heroElementColor(def))};--art:${heroArt(art)}${HERO_ANIMS[art] ? heroFaceCss(art) : ';color:#fff !important;text-shadow:0 1px 0 #000 !important'}${isAscendant(def.id) ? ';--asc:1' : def.unique ? ';--uni:1' : def.rarity === 'legendary' ? ';--leg:1' : ''}`;
 const SWORD = '<i class="ico ico-atk" aria-hidden="true"></i>';
 const HEART = '<i class="ico ico-hp" aria-hidden="true"></i>';
 const ULT_ICONS: Record<string, string> = {
@@ -299,7 +302,7 @@ export class UI {
           const pct = need ? Math.min(100, (crests / need) * 100) : 0;
           const stars = recruited ? `<span class="ct-stars">★${(s.stars[h.id] ?? 0) + 1}</span>` : '';
           const foot = maxed ? '<span class="ct-maxed">Maxed</span>' : `<div class="ct-bar"><i style="width:${pct}%"></i></div><span class="ct-count">${crests.toLocaleString()}</span>`;
-          return `<div class="ct${recruited ? '' : ' locked'}${s.canUnlock(h) ? ' ready' : ''}${s.inLineup(h.id) ? ' team' : ''}${isAscendant(h.id) ? ' asc' : h.rarity === 'legendary' ? ' leg' : ''}"><button type="button" class="ct-tile" data-coll="${h.id}" aria-label="${h.name}" style="--el:${hex(heroElementColor(h))}"><span class="ct-art" style="--art:${heroArt(heroArtKey(h.id))}${heroWholeCss(heroArtKey(h.id), CT_ART_H)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span>${stars}<span class="ct-name">${h.name}${rarityTag(s.formDef(h))}</span></button>${foot}</div>`;
+          return `<div class="ct${recruited ? '' : ' locked'}${s.canUnlock(h) ? ' ready' : ''}${s.inLineup(h.id) ? ' team' : ''}${isAscendant(h.id) ? ' asc' : h.unique ? ' uni' : h.rarity === 'legendary' ? ' leg' : ''}"><button type="button" class="ct-tile" data-coll="${h.id}" aria-label="${h.name}" style="--el:${hex(heroElementColor(h))}"><span class="ct-art" style="--art:${heroArt(heroArtKey(h.id))}${heroWholeCss(heroArtKey(h.id), CT_ART_H)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span>${stars}<span class="ct-name">${h.name}${rarityTag(s.formDef(h))}</span>${heroForms(h.id, (k) => !!HERO_ANIMS[k]) ? '<span class="ct-evo" title="Changes form: see Stars">EVO</span>' : ''}</button>${foot}</div>`;
         })
         .join('');
       return `<section class="ct-group">${tiles}</section>`;
@@ -419,7 +422,7 @@ export class UI {
       const chips = [null, ...TRIAL_ROTATION]
         .map((e) => `<button type="button" class="tm-chip${this.teamFilter === e ? ' on' : ''}" data-filter="${e ?? ''}"${e ? ` style="--el:${hex(ELEMENT_COLORS[e])}"` : ''}>${e ? cap(e) : 'All'}</button>`)
         .join('');
-      const level = (h: HeroDef) => (stage ? `Lv ${s.heroLevel(h.id).toLocaleString()}` : cap(h.rarity));
+      const level = (h: HeroDef) => (stage ? `Lv ${s.heroLevel(h.id).toLocaleString()}` : cap(heroRank(h)));
       const edgeTag = (h: HeroDef) => (edge(h) > 1 ? '<i class="tm-edge strong">Strong</i>' : edge(h) < 1 ? '<i class="tm-edge weak">Weak</i>' : '');
       // A power bar under each CP: how strong this hero is next to the strongest one listed, so heroes
       // whose numbers carry different letters (14.4Qa vs 1.19Qi) still compare at a glance.
@@ -432,7 +435,7 @@ export class UI {
       const cards = shown
         .map(
           (h) =>
-            `<button type="button" class="tm-card${ids.includes(h.id) ? ' on' : ''}" data-peek="${h.id}" style="--el:${hex(heroElementColor(h))}" title="${cap(h.rarity)} ${h.type}">${edgeTag(h)}${face(h)}<b class="tm-name r-${h.rarity}">${h.name}</b><small>${level(h)}</small><small class="tm-cp">CP ${fmt(cps.get(h.id)!)}</small>${bar(cps.get(h.id)!)}${starsOf(h)}</button>`,
+            `<button type="button" class="tm-card${ids.includes(h.id) ? ' on' : ''}" data-peek="${h.id}" style="--el:${hex(heroElementColor(h))}" title="${cap(heroRank(h))} ${h.type}">${edgeTag(h)}${face(h)}<b class="tm-name r-${heroRank(h)}">${h.name}</b><small>${level(h)}</small><small class="tm-cp">CP ${fmt(cps.get(h.id)!)}</small>${bar(cps.get(h.id)!)}${starsOf(h)}</button>`,
         )
         .join('');
       const tools = swapping
@@ -728,6 +731,7 @@ export class UI {
         this.renderPvp();
       } else {
         for (const pane of document.querySelectorAll<HTMLElement>('[data-battle-pane]')) pane.hidden = pane.dataset.battlePane !== 'hub';
+        this.syncArenaOpen();
         this.renderBattle();
       }
       document.querySelector<HTMLElement>('.arena-full')!.scrollTop = 0;
@@ -736,6 +740,7 @@ export class UI {
       btn.addEventListener('click', () => {
         for (const pane of document.querySelectorAll<HTMLElement>('[data-battle-pane]')) pane.hidden = pane.dataset.battlePane !== btn.dataset.battleGo;
         $('panels').scrollTop = 0;
+        this.syncArenaOpen();
         this.renderBattle();
       });
     }
@@ -2013,6 +2018,13 @@ export class UI {
     $('sheet-test').hidden = !TEST_MODE;
     if (TEST_MODE) this.renderTestRows(id);
 
+    // Heroes that change form show every look, with how each is reached (Samuel 2026-11-15).
+    const forms = heroForms(id, (k) => !!HERO_ANIMS[k]);
+    $('sheet-forms').hidden = !forms;
+    if (forms) {
+      const at = isAscendant(id) && gold > 0 ? s.formOf(id) : -1;
+      setHtml($('sheet-forms-list'), forms.map((f, i) => `<div class="form-card${i === at ? ' now' : ''}"><span class="form-art" style="--art:${heroArt(f.art)}${heroWholeCss(f.art, FORM_ART_H)}"></span><b>${f.name}</b><small>${f.how}</small></div>`).join(''));
+    }
     // A hero is 1★ when unlocked; each evolution adds a star, up to 7★ (Ascendant heroes 8★).
     setHtml($('sheet-stars'), [0, ...STAR_CRESTS].slice(0, Math.max(s.maxStars(id), stars) + 1).map((_, i) => `<span class="${gold > 0 && i <= stars ? 'on' : ''}">★</span>`).join(''));
     // Pink awakening stars sit under the yellow ones once awakening opens (or the hero has some).
@@ -2033,6 +2045,11 @@ export class UI {
     setHtml($('sheet-stats'), statPages(sheetStats, gold > 0 ? String(eff) : 'Locked', this.statPage, top, gold > 0 ? fmt(s.heroCombatPower(def)) : ''));
 
     $('sheet-gold-lvl').textContent = gold > 0 ? String(gold) : '(locked)';
+    // Only heroes on the team take gold or Ember levels (benched ones keep their Embers).
+    const levelBlock = gold > 0 ? s.levelBlock(id) : null;
+    const benchNote = $('sheet-bench-note');
+    benchNote.hidden = levelBlock === null;
+    benchNote.textContent = levelBlock ? `${levelBlock}. Benched heroes keep their Ember levels.` : '';
     const { levels, cost } = bulkCost(def, gold, s.buyAmount, s.gold, s.levelCostMult());
     const shown = levels > 0 ? { levels, cost } : bulkCost(def, gold, 1, s.gold, s.levelCostMult());
     const goldBtn = $<HTMLButtonElement>('sheet-gold-up');
@@ -2045,7 +2062,7 @@ export class UI {
     } else {
       (goldBtn.querySelector('.label') as HTMLElement).textContent = `Level +${shown.levels}`;
       (goldBtn.querySelector('.cost') as HTMLElement).textContent = fmt(shown.cost);
-      goldBtn.disabled = shown.cost.gt(s.gold);
+      goldBtn.disabled = shown.cost.gt(s.gold) || levelBlock !== null;
     }
 
     const starBonus = s.starEmberLevels(id) - ember;
@@ -2056,7 +2073,7 @@ export class UI {
     const emberBtn = $<HTMLButtonElement>('sheet-ember-up');
     (emberBtn.querySelector('.label') as HTMLElement).textContent = `Ember +${eShown.levels}`;
     (emberBtn.querySelector('.cost') as HTMLElement).textContent = `${fmt(eShown.cost)} Ember${eShown.cost.eq(1) ? '' : 's'}`;
-    emberBtn.disabled = eShown.cost.gt(s.embers);
+    emberBtn.disabled = eShown.cost.gt(s.embers) || levelBlock !== null;
     $('sheet-buyamt').textContent = buyAmountLabel(s.buyAmount);
     $('sheet-ember-note').textContent = `Ember levels stay on this hero through Rekindle and out of the team, and count on stages and in Trials. Each star above 1★ makes them count ${STAR_EMBER_BONUS * 100}% more. Only a reset takes them off.`;
     $('sheet-ember-reset').hidden = ember <= 0;
@@ -2623,7 +2640,7 @@ export class UI {
         const def = item.hero ? HEROES.find((h) => h.id === item.hero) : undefined;
         const pic = def ? this.arenaFace(def) : `<span class="arena-ico">${ARENA_ICON[item.kind]}</span>`;
         const name = def ? `${item.amount} ${def.name} crests` : ARENA_NAME[item.kind](item.amount);
-        const rar = def ? `<small class="rar-${arenaRarity(def)}">${def.id === PASTA_ID ? 'Unique' : def.rarity[0].toUpperCase() + def.rarity.slice(1)}</small>` : '';
+        const rar = def ? `<small class="rar-${arenaRarity(def)}">${cap(heroRank(def))}</small>` : '';
         return `<div class="arena-item">${pic}<div class="who"><b>${name}</b>${rar}<small>${left}/${item.perWeek} left this season</small></div>
           <button class="wood-btn small" data-pvp="arena-buy" data-item="${item.id}" ${s.glory < item.price || left <= 0 ? 'disabled' : ''}>${item.price} Glory</button></div>`;
       })
@@ -2747,7 +2764,9 @@ export class UI {
     const defender = foe.userId;
     $('trial-hud-note').textContent = 'No gold or Ember levels here: stars, relics, weapons and Glyphs decide. No Ultimates; fighters get back up after 10 seconds. Destroy the red crystal before they destroy yours.';
     $('trial-leave').textContent = 'Leave';
-    scene.startPvp(ids, s.pvpFoeUnits(foe).map((f) => ({ def: f.def, stats: f.stats })), bonus, (won) => {
+    // Fair fight: the defense team fights with its full kits and DEF, like the attack team (user, 2026-11-15).
+    const foes = s.pvpFoeUnits(foe).map((f) => ({ def: f.def, stats: f.stats, owner: f.owner }));
+    scene.startPvp(ids, foes, bonus, (won) => {
       $('trial-leave').textContent = 'Back';
       const r = s.finishPvp(won);
       if (defender) void this.pvpServer?.reportFight(defender, won);
@@ -2757,7 +2776,7 @@ export class UI {
         if (scene.inPvp()) this.showModal('Colosseum', html, 'Okay', () => this.endPvpScreen());
       }, 1200);
       this.render();
-    });
+    }, { fair: true });
   }
 
   /** The battle meter under the Colosseum or Trial lane: damage dealt, taken and healed by each fighter so far. */
@@ -2843,7 +2862,8 @@ export class UI {
     $('trial-hud-name').textContent = `Rush vs ${foe.name}`;
     $('trial-hud-note').textContent = 'One hero a side, no gold or Ember levels, no Ultimates; melee heroes can hit flyers here. Destroy the red crystal before they destroy yours.';
     $('trial-leave').textContent = 'Leave';
-    const units = s.pvpFoeUnits(s.rushOpponent(foe)).map((f) => ({ def: f.def, stats: f.stats }));
+    // Fair duel: the foe fights with its full kit too, so an even fight is a coin flip whoever attacks.
+    const units = s.pvpFoeUnits(s.rushOpponent(foe)).map((f) => ({ def: f.def, stats: f.stats, owner: f.owner }));
     scene.startPvp([heroId], units, 0, (won) => {
       $('trial-leave').textContent = 'Back';
       const html = rushResultHtml(s.finishRush(won));
@@ -2851,7 +2871,7 @@ export class UI {
         if (scene.inPvp()) this.showModal('Rush', html, 'Okay', () => this.endPvpScreen());
       }, 1200);
       this.render();
-    }, { label: 'Rush', anyReach: true });
+    }, { label: 'Rush', anyReach: true, fair: true });
   }
 
   /** Players whose heroes Expedition Taverns can offer (friends, Colosseum players); empty offline. */
@@ -3152,7 +3172,7 @@ export class UI {
       `<button type="button" class="gem-btn" data-hs="featured:${kind}" ${f[kind] || gems < b.gems ? 'disabled' : ''}>${f[kind] ? 'Bought' : `${label} · ${b.medals} crests<small>${b.gems} Gems</small>`}</button>`;
     setHtml(
       $('hs-featured'),
-      `${face(f.hero)}<div class="hs-feat-text"><b>Featured: ${f.hero.name}</b><small>${cap(f.hero.rarity)} · ${f.hero.noElement ? 'No element' : cap(f.hero.element)}. A new hero every Monday; every hero comes back in turn.</small></div>
+      `${face(f.hero)}<div class="hs-feat-text"><b>Featured: ${f.hero.name}</b><small>${cap(heroRank(f.hero))} · ${f.hero.noElement ? 'No element' : cap(f.hero.element)}. A new hero every Monday; every hero comes back in turn.</small></div>
       <div class="hs-feat-buy">${bundle('small', FEATURED_BUNDLE, 'Bundle')}${f.bigWeek ? bundle('big', FEATURED_BIG_BUNDLE, 'Big bundle') : ''}</div>`,
     );
     const shop = s.heroShopState(now);
@@ -3505,12 +3525,8 @@ export class UI {
       }
       return false;
     }
-    const { levels, cost } = bulkCost(def, level, this.state.buyAmount, this.state.gold, this.state.levelCostMult());
-    if (levels === 0 || cost.gt(this.state.gold)) return false;
-    this.state.gold = this.state.gold.minus(cost);
-    this.state.levels[def.id] = level + levels;
+    if (this.state.buyGoldLevels(def.id, this.state.buyAmount) <= 0) return false;
     play('levelup');
-    this.state.track('levels', levels);
     this.scene()?.syncHeroes();
     this.render();
     return true;
@@ -3565,8 +3581,18 @@ export class UI {
     return parts.join('');
   }
 
+  /**
+   * body.arena-open while the full-screen Colosseum shows. On iOS the scrolling #panels is its own layer, so
+   * the lane buttons (Rekindle, Auto boss, 2x, Settings) and the tab bar drew on top of it; CSS hides them.
+   */
+  private syncArenaOpen() {
+    const pane = document.querySelector<HTMLElement>('.arena-full');
+    document.body.classList.toggle('arena-open', this.tab === 'battle' && !!pane && !pane.hidden);
+  }
+
   render() {
     this.tapPending = false;
+    this.syncArenaOpen();
     this.renderPvpMeter();
     $('devtools').hidden = !devToolsOn();
     // The Rekindle page stays live: the run keeps going behind it.
@@ -3724,9 +3750,9 @@ export class UI {
  * A hero's crest: the hero's face inside its rarity's medal frame (the user's art, 2026-11-01). `inner` is the
  * face element; the frame image and the window it sits in come from CSS (.crest-face.r-<rarity>).
  */
-/** Rarity shown in the Arena Shop: Pasta is 'unique', everyone else their own rarity. */
+/** Rarity shown in the Arena Shop: Pasta and Kairo are 'unique', everyone else their own rarity. */
 function arenaRarity(def: HeroDef): string {
-  return def.id === PASTA_ID ? 'unique' : def.rarity;
+  return heroRank(def);
 }
 
 export function crestFace(def: HeroDef, inner: string): string {
@@ -3781,7 +3807,7 @@ function medalCount(def: HeroDef, have: number, need: number) {
 }
 
 function rarityTag(def: HeroDef) {
-  return `<b class="rarity r-${def.rarity}">${cap(def.rarity)}</b>`;
+  return `<b class="rarity r-${heroRank(def)}">${cap(heroRank(def))}</b>`;
 }
 
 /** "Water Samurai": element and Type. */

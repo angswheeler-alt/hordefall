@@ -22,6 +22,14 @@ export const MAIL_GIFTS: MailGift[] = [
     hero: 'pasta',
     existingOnly: true,
   },
+  {
+    // Samuel (2026-11-15): every current player gets Gogu at 1★; stars come from the Arena Shop and rare drops.
+    id: 'gogu-launch',
+    title: 'Gogu has arrived!',
+    text: 'A gift for everyone playing today: Gogu, the mountain martial artist, at 1★.',
+    hero: 'kairo',
+    existingOnly: true,
+  },
 ];
 
 /** Mail states for a brand-new save: gifts for existing players are not theirs. */

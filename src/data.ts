@@ -1,14 +1,19 @@
 import { VS, ULT, ultX, HEAL_BASIC } from './heroText';
 import { ROSTER_HEROES } from './heroes';
 import { PASTA } from './heroes/pasta';
+import { KAIRO } from './heroes/kairo';
+import { HAMLET } from './heroes/hamlet';
 
 export type Element = 'water' | 'fire' | 'earth' | 'light' | 'dark';
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
-const RARITY_RANK: Record<Rarity, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
+/** The rank a hero shows: its rarity, or 'unique' for one-of-a-kind heroes (Pasta, Gogu; Samuel 2026-11-15). */
+export type Rank = Rarity | 'unique';
+const RANK_ORDER: Record<Rank, number> = { common: 0, rare: 1, epic: 2, legendary: 3, unique: 4 };
+export const heroRank = (def: { rarity: Rarity; unique?: boolean }): Rank => (def.unique ? 'unique' : def.rarity);
 
-/** Heroes ordered Common, Rare, Epic, Legendary; heroes of the same rarity keep their order. */
-export function byRarity<T extends { rarity: Rarity }>(heroes: readonly T[]): T[] {
-  return [...heroes].sort((a, b) => RARITY_RANK[a.rarity] - RARITY_RANK[b.rarity]);
+/** Heroes ordered Common, Rare, Epic, Legendary, Unique; heroes of the same rank keep their order. */
+export function byRarity<T extends { rarity: Rarity; unique?: boolean }>(heroes: readonly T[]): T[] {
+  return [...heroes].sort((a, b) => RANK_ORDER[heroRank(a)] - RANK_ORDER[heroRank(b)]);
 }
 /**
  * The hero standard (design/base-heroes.md): every hero has one of ten Types, the combat archetype
@@ -76,7 +81,13 @@ export type Signature =
   | { kind: 'quarry'; perHit: number; max: number; keep: number; plusKeep: number }
   /** Pasta's Combo Counter: every hit in a row (any target) adds perHit ATK, up to max; `idle` seconds without a hit halves it. 6★ Last One Standing: the first hit that would fell him (or the moment every teammate is down) leaves him standing, he can't fall for `standSeconds`, and for the rest of that life the combo never drops and each hit counts double. */
   /** Pasta: Combo Counter; at `formAt` hits he boils over into his dark form for `formSeconds` (hits x`formMult`, can't fall), which uses up the combo. */
-  | { kind: 'grit'; perHit: number; max: number; idle: number; formAt: number; formSeconds: number; formMult: number };
+  | { kind: 'grit'; perHit: number; max: number; idle: number; formAt: number; formSeconds: number; formMult: number }
+  // Power Surge (Kairo): every `every` seconds alive in a fight he climbs a stage (atk.length stages); stage N adds atk[N-1]
+  // to his ATK, and from stage `hasteFrom` his attack cooldown is x haste. Falling resets it.
+  // From stage `drainFrom` (Overdrive) he loses `drain` of max HP a second, never below `drainFloor` of it.
+  | { kind: 'surge'; every: number; atk: number[]; haste: number; hasteFrom: number; drainFrom: number; drain: number; drainFloor: number }
+  /** Squire's Banner (Hamlet): every `every` s, allies within `radius` px get +atk ATK for `seconds` s and heal `heal` of max HP; 6★ whole team, SIG_PLUS.bannerAtk. */
+  | { kind: 'banner'; every: number; radius: number; atk: number; heal: number; seconds: number };
 
 /** What a standard hero's Ultimate does on top of the big hit (or full heal), and its 5★ twist. */
 export type UltEffect =
@@ -94,10 +105,14 @@ export type UltEffect =
   | { kind: 'strike'; mult: number; plusMult: number }
   /** Pasta: a blow on the toughest enemy in reach for `mult` x the hit, then he boils over at once (already boiling: +`extend` s). 5★: plusMult, and the form lasts `plusSeconds` longer. */
   | { kind: 'boil'; mult: number; plusMult: number; extend: number; plusSeconds: number }
+  // Sky Cannon (Kairo): bosses ahead in the lane take mult x the Ultimate hit, everything else `lane` x it; 5★ Spirit Sphere adds perAlly per living teammate (up to maxAllies).
+  | { kind: 'cannon'; mult: number; lane: number; perAlly: number; maxAllies: number }
   /** After the hit, every non-Fire hero deals Earth damage for `seconds` (5★: plusSeconds). */
   | { kind: 'earthen'; seconds: number; plusSeconds: number }
   /** Healers: on top of the full heal, shields every living hero for `share` of the caster's max HP (5★: plusShare). */
   | { kind: 'teamShield'; share: number; plusShare: number }
+  /** Rally the Herd (Hamlet): full team heal (healer Ult) plus a shield of `shield` of each hero's own max HP; 5★ also cleanses. */
+  | { kind: 'rally'; shield: number }
   /** Enemies hit deal `mult` damage for `seconds` (5★: plusSeconds). */
   | { kind: 'weaken'; mult: number; seconds: number; plusSeconds: number }
   // Ascendant heroes' own Ultimates.
@@ -126,6 +141,8 @@ export interface HeroDef {
   element: Element;
   /** No element (Pasta): 2x to Water/Fire/Earth, 1x to Light/Dark, takes 1x from all (elementMultiplier). */
   noElement?: boolean;
+  /** One of a kind (Pasta, Gogu): shown with its own Unique rank; its rarity still sets costs. */
+  unique?: boolean;
   rarity: Rarity;
   /** Base stats as this rarity instead (Pasta: an Epic by crests with Legendary-level stats, Samuel 2026-11-12). */
   statRarity?: Rarity;
@@ -205,7 +222,11 @@ export type EffectKind =
   // Hero-sheet stats (for the hero stat page; chances are 0.05 = 5%).
   | 'frenzy' | 'effectRes' | 'stunChance' | 'freezeChance' | 'burnChance' | 'poisonChance' | 'ultAtk' | 'aoeDmg'
   // boilRally: multiplies team damage only while a hero is in Pasta's dark form (Boiling Over).
-  | 'boilRally';
+  | 'boilRally'
+  // afterimage: adds `value` dodge; a dodge makes him blink up to the attacker (if it is in AFTERIMAGE_BLINK) and strike back
+  // at once with a sure crit (Kairo). surgeRally: team ATK +value per
+  // Power Surge stage of the highest-surging hero (Kairo's aura).
+  | 'afterimage' | 'surgeRally';
 
 export interface Effect {
   kind: EffectKind;
@@ -516,6 +537,10 @@ export const HEROES: HeroDef[] = [
     aura: { name: 'Blessing', text: 'Light heroes +15% HP.', effect: { kind: 'hp', value: 1.15, team: true, element: 'light' } } },
   ...ROSTER_HEROES,
   PASTA,
+  // Samuel (2026-11-14): Gogu (id kairo), released 2026-11-15.
+  KAIRO,
+  // Samuel (2026-11-16): Hamlet the pig squire, from Samuel's own picture.
+  HAMLET,
 ];
 
 /** Old hero ids from saves before the 20-hero roster, and who replaced them. */
@@ -531,13 +556,19 @@ export const RELEASED_HEROES: readonly string[] = [
   'shellby', 'celeste', 'ruin', 'brasha', 'tusk', ...ROSTER_HEROES.map((h) => h.id),
   // Samuel (2026-11-12): Pasta, crests only from rare drops and the Arena Shop (src/arenaShop.ts).
   'pasta',
+  // Samuel (2026-11-15): Gogu (id kairo), the same way, sold next to Pasta.
+  'kairo',
+  // Samuel (2026-11-16): Hamlet the pig squire, a normal Rare (chests, Trials, shops).
+  'hamlet',
 ];
+/** Coded heroes still waiting for their art: kept out of every list until they are released (move the id up). */
+export const HIDDEN_HEROES: readonly string[] = [];
 export const PLAYABLE_HEROES: HeroDef[] = HEROES.filter((h) => RELEASED_HEROES.includes(h.id));
 /**
  * Released heroes that random pools may hand out (chests, Trials, shops, Wild Crests, lenders, made-up foes).
  * Pasta is left out: his crests come only from his own rare drops and the Arena Shop (src/arenaShop.ts).
  */
-export const POOL_HEROES: HeroDef[] = PLAYABLE_HEROES.filter((h) => h.id !== 'pasta');
+export const POOL_HEROES: HeroDef[] = PLAYABLE_HEROES.filter((h) => h.id !== 'pasta' && h.id !== 'kairo');
 
 export const RENAMED_HEROES: Record<string, string> = { marin: 'brine', tide: 'brine', bramble: 'thorn', pyra: 'ember', nox: 'shade', solenne: 'lumen' };
 

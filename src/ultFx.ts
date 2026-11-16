@@ -48,7 +48,7 @@ export function ultFxStyle(def: FxDef): UltFxStyle {
   const kind = def.ult?.kind;
   if (kind === 'strike' || kind === 'skyfall' || kind === 'boil') return 'strike';
   if (kind === 'verdict') return 'dash';
-  if (kind === 'crescent') return 'sweep';
+  if (kind === 'crescent' || kind === 'cannon') return 'sweep';
   if (kind === 'maelstrom' || kind === 'tempest') return 'vortex';
   const words = `${def.ultimate?.name ?? ''} ${def.ultimate?.text ?? ''}`.toLowerCase();
   if (/whirl/.test(words)) return 'vortex';

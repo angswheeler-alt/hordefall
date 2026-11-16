@@ -736,6 +736,7 @@ div.g-req { margin-bottom: 8px; }
 .rarity.r-rare, #modal .rarity.r-rare, .tm-card .rarity.r-rare { color: #5cc4ff; }
 .rarity.r-epic, #modal .rarity.r-epic, .tm-card .rarity.r-epic { color: #c06bff; }
 .rarity.r-legendary, #modal .rarity.r-legendary, .tm-card .rarity.r-legendary { color: #ffa62b; }
+.rarity.r-unique, #modal .rarity.r-unique, .tm-card .rarity.r-unique { color: #ff6b5e; }
 #sheet-rarity .rarity { font-size: 14px; }
 .ct-name .rarity { display: block; font-size: 9px; }
 .team-who .rarity { font-size: 12px; }
@@ -1094,6 +1095,11 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .ct.leg .ct-tile { border-color: #fff1a8; box-shadow: inset 0 0 0 2px #ff9a1f, 0 0 10px rgba(255,194,61,.85); }
 @keyframes leg-glow { 50% { box-shadow: 0 0 0 2px #ffc23d, 0 0 15px 4px rgba(255,140,30,.8); } }
 @media (prefers-reduced-motion: reduce) { .face[style*="--leg:1"] { animation: none; } }
+/* Unique heroes (Pasta, Gogu): their own rank above Legendary, a coral-red ring with a hot glow (--uni:1 / .uni). */
+.face[style*="--uni:1"] { position: relative; border-color: #ffd0c8 !important; box-shadow: 0 0 0 2px #ff4a3d, 0 0 9px 2px rgba(255,90,70,.75); animation: uni-glow 2s ease-in-out infinite; }
+.ct.uni .ct-tile { border-color: #ffd0c8; box-shadow: inset 0 0 0 2px #ff4a3d, 0 0 10px rgba(255,90,70,.85); }
+@keyframes uni-glow { 50% { box-shadow: 0 0 0 2px #ff7a5c, 0 0 15px 4px rgba(255,60,50,.8); } }
+@media (prefers-reduced-motion: reduce) { .face[style*="--uni:1"] { animation: none; } }
 
 /* Ascendant Chest: the hero's icon is a button that opens their kit. */
 .asc-kit-btn { flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 0; border: 0; background: none; color: var(--gold); font-size: 10px; font-weight: 800; cursor: pointer; }
@@ -1171,6 +1177,7 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 #modal.team-mode .tm-card b.tm-name.r-rare { color: #5cc4ff !important; }
 #modal.team-mode .tm-card b.tm-name.r-epic { color: #c06bff !important; }
 #modal.team-mode .tm-card b.tm-name.r-legendary { color: #ffa62b !important; }
+#modal.team-mode .tm-card b.tm-name.r-unique { color: #ff6b5e !important; }
 #modal.team-mode .tm-card small { font-size: 10px; line-height: 1.25; }
 #modal.team-mode .tm-card.on::after { font-size: 8px; top: 2px; right: 2px; padding: 0 2px; }
 #modal.team-mode .tm-edge { font-size: 8px; }
@@ -1191,6 +1198,7 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .sheet-levels { border-top: 2px solid #3d3364; padding-top: 6px; }
 .sheet-levels .levels-head { margin-bottom: 2px; }
 .sheet-levels .level-row { padding: 4px 0; border-top: 0; }
+.sheet-levels .bench-note { margin: 2px 0 4px; padding: 4px 8px; border-radius: 6px; background: rgba(255, 196, 0, 0.12); color: #ffd36b; font-size: 12px; }
 .sheet-levels .level-row .meta { font-size: 11px; line-height: 1.3; }
 .sheet-levels .level-row button { min-height: 46px; }
 .sheet-levels #sheet-ember-note { display: none; }
@@ -1639,3 +1647,18 @@ i.bitem.t2 { border-radius: 0; clip-path: polygon(50% 100%, 0 40%, 12% 8%, 35% 4
 .arena-face.r-rare { --rc: #6fb6ff; } .arena-face.r-epic { --rc: #c38bff; } .arena-face.r-legendary { --rc: #ffb347; } .arena-face.r-unique { --rc: #ff6b5e; }
 .arena-banner .arena-face { width: 32px !important; height: 32px !important; border-radius: 7px !important; }
 .arena-item .rar-unique { color: #ff8a7e; }
+/* The full-screen Colosseum hides the lane, wallet and tab bar behind it (iOS layered them on top). A fight still shows the lane. */
+body.arena-open:not(.in-trial) #app > :not(#panels), body.arena-open:not(.in-trial) #tabbar { visibility: hidden; }
+/* Tall pop-ups (Hunting Journal, Rekindle, Observatory, chat): the badge above each card sat under the status bar (and a card taller than the screen lost its
+   top for good). Room for the badge below the safe area; auto margins centre the card only when it fits. */
+#rk, #obs, #jr, #wchat { align-items: flex-start; padding-top: calc(38px + var(--safe-top)); padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+#rk > *, #obs > *, #jr > *, #wchat > * { margin-top: auto; margin-bottom: auto; }
+
+/* Heroes that change form: a Forms strip on the Stars tab and an EVO badge on Collection tiles (Samuel 2026-11-15). */
+.forms-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scroll-snap-type: x proximity; }
+.form-card { flex: 0 0 96px; scroll-snap-align: start; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; border-radius: 8px; background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.12); text-align: center; }
+.form-card.now { border-color: #ffd84a; box-shadow: 0 0 0 1px #ffd84a inset; }
+.form-art { position: relative; width: 84px; height: 84px; background-image: var(--art); background-repeat: no-repeat; background-size: contain; background-position: center bottom; image-rendering: pixelated; }
+.form-card b { font-size: 12px; line-height: 1.15; }
+.form-card small { font-size: 10px; line-height: 1.2; opacity: .8; }
+.ct-evo { position: absolute; right: 3px; top: 3px; padding: 0 4px; border-radius: 6px; font-size: 8px; font-weight: 900; letter-spacing: .5px; color: #fff; background: linear-gradient(135deg, #ff6b5e, #8a5cff); box-shadow: 0 1px 2px rgba(0,0,0,.6); pointer-events: none; }

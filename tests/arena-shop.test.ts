@@ -123,3 +123,36 @@ describe('Pasta', () => {
     expect(pastaDrop(() => 0.5, 0.01, 4, true)).toBe(0);
   });
 });
+
+describe('Kairo in the Arena Shop', () => {
+  it('sells next to Pasta at the same price and weekly limit, only once released', async () => {
+    const { KAIRO_ID } = await import('../src/arenaShop');
+    const pasta = ARENA_ITEMS.find((i) => i.hero === PASTA_ID)!;
+    const kairo = ARENA_ITEMS.find((i) => i.hero === KAIRO_ID)!;
+    expect({ ...kairo, id: 'x', hero: 'x' }).toEqual({ ...pasta, id: 'x', hero: 'x' });
+    expect(arenaItems(true, false).some((i) => i.hero === KAIRO_ID)).toBe(false);
+    expect(arenaItems(true, true).some((i) => i.hero === KAIRO_ID)).toBe(true);
+    // Glory is not raised for him: buying both full weeks costs more than a regular week's ~1,000 Glory.
+    expect(pasta.price * pasta.perWeek + kairo.price * kairo.perWeek).toBeGreaterThan(1000);
+  });
+
+  it('rolls his own drops, so Pasta keeps his odds; unlocks at the same crests', async () => {
+    const { KAIRO_ID, releasedUniques, isUnique } = await import('../src/arenaShop');
+    expect(releasedUniques(true, false)).toEqual([PASTA_ID]);
+    expect(releasedUniques(true, true)).toEqual([PASTA_ID, KAIRO_ID]);
+    expect(isUnique(KAIRO_ID)).toBe(true);
+    expect(new GameState().unlockCrests(HEROES.find((h) => h.id === KAIRO_ID)!)).toBe(PASTA_UNLOCK);
+  });
+
+  it('a lucky chest gives Pasta and Gogu each their own crests', () => {
+    const s = new GameState();
+    pastaLuck.roll = () => 0;
+    try {
+      const drops = (s as any).rollChest() as Array<{ heroId: string; crests: number }>;
+      expect(drops.filter((d) => d.heroId === 'kairo').map((d) => d.crests)).toEqual([PASTA_CHEST_CRESTS]);
+      expect(drops.filter((d) => d.heroId === PASTA_ID).map((d) => d.crests)).toEqual([PASTA_CHEST_CRESTS]);
+    } finally {
+      pastaLuck.roll = () => 1;
+    }
+  });
+});

@@ -20,7 +20,7 @@ const PUBLIC_DIR = path.join(ROOT, '..', '..', 'public', 'heroes');
 // Heroes whose sprites are bundled into the game code (src/assets/heroes, see src/heroFiles.ts) instead of
 // public/heroes: the playable artifact is at its 511-file cap, so new heroes go here.
 const BUNDLED_DIR = path.join(ROOT, '..', '..', 'src', 'assets', 'heroes');
-const BUNDLED = new Set(['pasta', 'pasta_dark']);
+const BUNDLED = new Set(['pasta', 'pasta_dark', 'kairo', 'kairo_surge1', 'kairo_surge', 'kairo_ascend3', 'kairo_overdrive', 'hamlet']);
 const PREVIEW = path.join(ROOT, 'preview');
 const ANIMS_TS = path.join(ROOT, '..', '..', 'src', 'heroAnims.ts');
 const TARGET_HEIGHT = 50; // sprite px for a typical frame, head to feet, at size 1
@@ -35,7 +35,7 @@ const HERO_SIZE = {
   // The full roster. Squads (archers, scrappers, spears...) stay at 1: the game draws each fighter at 0.7.
   // Legendaries stand a head above everyone (Samuel, 2026-10-31: they must look a level above regular heroes).
   varuun: 1.6, ashtor: 1.5, talonra: 1.5,
-  pasta: 1, pasta_dark: 1,
+  pasta: 1, pasta_dark: 1, kairo: 1, hamlet: 0.92, kairo_surge1: 1.3, kairo_surge: 1.15, kairo_ascend3: 1.3, kairo_overdrive: 1.15,
   magmabrute: 1.3, bonebrute: 1.3, crabbrute: 1.25, mudbrute: 1.25, glacius: 1.25, thundrum: 1.25,
   pyrrhus: 1.2, boulder: 1.2, brightmane: 1.2, malgrave: 1.2,
   tusk: 1.15, grumm: 1.15, rime: 1.15, ruin: 1.15, brasha: 1.15, weaver: 1.15, gloom: 1.15, drakebot: 1.15,
@@ -184,13 +184,20 @@ function buildHero(id) {
   const dir = path.join(ROOT, id);
   const size = HERO_SIZE[id] ?? 1;
   const want = fs.existsSync(path.join(dir, 'frames.json')) ? JSON.parse(fs.readFileSync(path.join(dir, 'frames.json'), 'utf8')) : {};
-  const attack = figures(path.join(dir, 'attack_sheet.png'), TARGET_HEIGHT * size, undefined, want.attack);
+  // frames.json `attackScale`: the attack sheet's figures carry tall effects (aura pillars), so size it from the
+  // run sheet instead: attack source px per sprite px = run's x attackScale (attack body height / run body height).
+  // frames.json `runSize` / `attackSize`: extra size for one sheet, when its aura or effects make the body come out
+  // smaller than in the other (a form's body should match the base hero's).
+  const runSize = want.runSize ?? 1, attackSize = want.attackSize ?? 1;
+  const runOwn = want.attackScale ? figures(path.join(dir, 'run_sheet.png'), TARGET_HEIGHT * size, undefined, want.run) : null;
+  const attack = figures(path.join(dir, 'attack_sheet.png'), TARGET_HEIGHT * size * attackSize,
+    runOwn ? (runOwn[0].block * want.attackScale) / attackSize : undefined, want.attack);
   // Sheets cut from one image by split.js are drawn at one size, so the run keeps the attack's scale (a hero who
   // rides a balloon between fights stays the same size in it); separately generated sheets each find their own.
   const oneImage = fs.existsSync(path.join(dir, 'split.json'));
   const small = {
     attack: attack.map(shrink),
-    run: figures(path.join(dir, 'run_sheet.png'), TARGET_HEIGHT * size, oneImage ? attack[0].block : undefined, want.run).map(shrink),
+    run: figures(path.join(dir, 'run_sheet.png'), TARGET_HEIGHT * size * runSize, oneImage ? attack[0].block : undefined, want.run).map(shrink),
   };
   // One canvas for every frame: head anchor at a fixed column, ground on the bottom rows.
   let minX = 0, maxX = 0, minY = 0;
@@ -245,8 +252,10 @@ function buildHero(id) {
   stand.save(path.join(BUNDLED.has(id) ? BUNDLED_DIR : PUBLIC_DIR, `${id}.png`));
 
   // HP bar sits above the hair: first non-empty row of the standing pose.
+  // frames.json `headFrom: "run"` measures it on the first run frame instead (a standing pose wrapped in a tall aura).
+  const headPose = want.headFrom === 'run' ? frames.run[0] : stand;
   let headTop = 0;
-  outer: for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) if (stand.get(x, y)[3]) { headTop = y; break outer; }
+  outer: for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) if (headPose.get(x, y)[3]) { headTop = y; break outer; }
   // The hit lands on the attack frame that reaches furthest forward.
   const reach = frames.attack.map(c => { for (let x = FW - 1; x >= 0; x--) for (let y = 0; y < FH; y++) if (c.get(x, y)[3]) return x; return 0; });
   const hitFrame = fixed.hitFrame ?? reach.indexOf(Math.max(...reach));

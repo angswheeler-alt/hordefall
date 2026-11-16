@@ -19,6 +19,11 @@ export const SIG_PLUS = {
   /** Executioner: HP share it works below, and Ultimate cooldown refunded per kill. */
   executeBelow: 0.4,
   killUltRefund: 2,
+  /** Power Surge+ (Kairo): HP share that triggers it, and the heal it gives. */
+  surgeBelow: 0.2,
+  surgeHeal: 0.3,
+  /** Squire's Banner+ (Hamlet 6★): ATK bonus, and it reaches the whole team. */
+  bannerAtk: 0.3,
 };
 
 /**
@@ -135,4 +140,57 @@ export function gritStep(sig: Signature | undefined, combo: number, sinceLast: n
   const next = (sinceLast > sig.idle ? Math.floor(combo / 2) : combo) + 1;
   const form = next >= sig.formAt;
   return { combo: next, mult: atk(next) * (form ? sig.formMult : 1), form };
+}
+
+/**
+ * Power Surge (Kairo, Samuel 2026-11-14): his surge stage after `seconds` alive in this fight, plus `bonus` stages
+ * (6★ jump), capped at the last stage. 0 = no surge.
+ */
+export function surgeStage(sig: Signature | undefined, seconds: number, bonus = 0): number {
+  if (sig?.kind !== 'surge') return 0;
+  return Math.max(0, Math.min(sig.atk.length, Math.floor(Math.max(0, seconds) / sig.every) + bonus));
+}
+
+/**
+ * Overdrive (Power Surge's last stage): HP share he has after `dt` seconds of the burn, from `hpShare` now.
+ * Never takes him below drainFloor (and never raises him if he is already under it).
+ */
+export function surgeDrain(sig: Signature | undefined, stage: number, hpShare: number, dt: number): number {
+  if (sig?.kind !== 'surge' || stage < sig.drainFrom || hpShare <= sig.drainFloor) return hpShare;
+  return Math.max(sig.drainFloor, hpShare - sig.drain * dt);
+}
+
+/** Power Surge at `stage`: his damage multiplier and attack cooldown multiplier. */
+export function surgeMults(sig: Signature | undefined, stage: number): { dmg: number; cooldown: number } {
+  if (sig?.kind !== 'surge' || stage <= 0) return { dmg: 1, cooldown: 1 };
+  const s = Math.min(stage, sig.atk.length);
+  return { dmg: 1 + sig.atk[s - 1], cooldown: s >= sig.hasteFrom ? sig.haste : 1 };
+}
+
+/** Sky Cannon: the hit multiplier, with 5★ Spirit Sphere adding perAlly for each living teammate (up to maxAllies). */
+export function cannonMult(ult: { kind: string; mult?: number; perAlly?: number; maxAllies?: number } | undefined, plus: boolean, alliesAlive: number): number {
+  if (ult?.kind !== 'cannon') return 1;
+  return (ult.mult ?? 1) * (plus ? 1 + (ult.perAlly ?? 0) * Math.min(ult.maxAllies ?? 0, Math.max(0, alliesAlive)) : 1);
+}
+
+/**
+ * Gogu's look for each Power Surge stage (Samuel 2026-11-15, each stage a new colour and look): I gold aura,
+ * II blue-lightning aura, III long-haired gold form with lightning (kairo_ascend3), IV Overdrive, his final form (blue hair, blue lightning). Returns the best sprite for `stage` that `has` (loaded), else the best of a
+ * lower stage, or null (he stays in his normal sprite, tinted).
+ */
+export const SURGE_FORMS: Record<number, string[]> = {
+  1: ['kairo_surge1'], 2: ['kairo_surge'], 3: ['kairo_ascend3'], 4: ['kairo_overdrive'],
+};
+export function surgeArt(stage: number, has: (id: string) => boolean): string | null {
+  for (let s = stage; s >= 1; s--) for (const id of SURGE_FORMS[s] ?? []) if (has(id)) return id;
+  return null;
+}
+
+/**
+ * Squire's Banner (Hamlet): whether the banner goes up now (`since` seconds after the last one), and the ATK
+ * multiplier and reach it gives (6★: whole team, SIG_PLUS.bannerAtk).
+ */
+export function bannerStep(sig: Signature | undefined, since: number, plus = false): { raise: boolean; atk: number; radius: number } {
+  if (sig?.kind !== 'banner') return { raise: false, atk: 1, radius: 0 };
+  return { raise: since >= sig.every, atk: 1 + (plus ? SIG_PLUS.bannerAtk : sig.atk), radius: plus ? Infinity : sig.radius };
 }

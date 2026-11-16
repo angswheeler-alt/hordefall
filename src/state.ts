@@ -4,14 +4,14 @@ import { DAILIES, DAILY_GEMS, MEDAL_BUNDLE_HEROES, MEDAL_BUNDLE_DAILIES, LOGIN_C
 import { MAIL_GIFTS, newSaveMail, loadedMail, type MailGift, type MailState } from './mail';
 import { heroAffinity, SPEED_UNLOCK_STAGE, HEROES, OFFLINE_CAP_HOURS, BOSS_EVERY, REKINDLE_STAGE, HEAD_START_FROM, HEAD_START_SHARE, HEAD_START_POWER, HEAD_START_MIN_PUSH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, WHEEL_PRIZES, ESSENCE_NAMES, TEAM_SLOTS_START, TEAM_SLOTS_MAX, TEAM_SLOT_COSTS, OLD_SAVE_TEAM_SLOTS, ULT_SLOTS_START, ULT_SLOT_COSTS, ULT_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_CHEST_GEMS, GOLD_CHEST_GEMS_PER_DAY, GUILD_BOSS_ASC_CRESTS, GUILD_BOSS_ASC_LEVELS, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_OFFERS, HERO_SHOP_DEALS, HERO_SHOP_REFRESH_MINUTES, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, FEATURED_BIG_EVERY, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TRIAL_EVENT_DAYS, TRIAL_EVENT_MEDAL_MULT, TICKET_CRATE, HERO_VOUCHER, MONTHLY_CREST_PACK, ALL_TRIALS_DAYS, TRIAL_ROTATION, TRIAL_SCHEDULE, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_UNLOCK_STAGE, TICKET_MINUTES, TICKET_CAP, BOSS_TIME_LIMIT, AUTO_BOSS_SECONDS, NORMAL_STAGE_LOSSES, OFFLINE_BOSS_TIME_SHARE, OFFLINE_BOSS_COOLDOWN, OFFLINE_STAGE_HP, OFFLINE_STAGE_ATTACKERS, OFFLINE_MOB_COOLDOWN, OFFLINE_STAGE_TIME, elementMultiplier, bossElement, bossHasElement, elementBossShare, STALLS, STALL_AUTO_LEVEL, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, START_GEMS, RELICS, RELIC_SETS, RELIC_SET_START_SHARE, RELIC_STORED_SHARE, RELIC_SET_OWNED_SHARE, RELIC_BASE_MAX, RELIC_ENHANCE_LEVELS, RELIC_ENHANCE_COSTS, RELIC_MAX_STARS, RELIC_START_SLOTS, RELIC_SLOT_COSTS, RELIC_SLOT_STAGES, RELIC_SHOP_SIZE, RELIC_SHOP_REFRESH_MINUTES, CHEST_COST, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, TRIAL_MEDALS, TRIAL_RARITY_WEIGHTS, trialFirstWin, STAR_CRESTS, MAX_STARS, REGULAR_MAX_STARS, UNLOCK_CRESTS, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, LEGENDARY_STAR_MEDALS, RAISED_RARITY_OLD_COST, GUILD_CREDITS_PER_MEDAL, GUILD_SHOP, type GuildShopId, GUILD_WARSTEEL_PACKS_PER_DAY, GUILD_CHESTS_PER_WEEK, GUILD_WARSTEEL_PACK, GUILD_BOOST_MINUTES, GUILD_BOOST_MAX_MINUTES, GUILD_BOOSTS, GUILD_SHOP_OFFERS, GUILD_OFFER_MEDALS, GUILD_OFFER_COST, GUILD_WILD_COST, GUILD_WILD_PER_WEEK, GUILD_QUEST_TRACK, GUILD_QUEST_PERSONAL_COINS, STAR_STAT_MULT, AWAKEN_STARMOTES, MAX_AWAKEN, AWAKEN_STAT_MULT, AWAKEN_UNLOCK_LEVEL, GUILD_BOSS_SECONDS, GUILD_BOSS_PAR_ATTEMPTS, GUILD_BOSS_GOLD_MINUTES, GUILD_RESEARCH, GUILD_RESEARCH_MAX_RANK, type ResearchBranch } from './data';
 import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_TEMPER_CAP, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicCost, guildRelicEffect, warsteelForFight, warsteelForKill, warsteelForWeek, type GuildRelicDef, type GuildRelicEffect, BOSS_RELICS, BOSS_RELIC_SLOTS, BOSS_RELIC_MAX_LEVEL, BOSS_HEART_PITY, bossRelicCost, guildRelicItemCost, rollBossItems, type BossItemCounts, type BossRelicDef } from './guildRelics';
-import { utcWeekStart, guildBossElement, relicCost, bossHp, bossAtk, enemyHp, enemyAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, emberYield, emberCost, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, isBossStage, plateauStages, PLATEAU_STEP, PAY_STAGE_GROWTH, REBIRTH_FROM_LEVEL, REBIRTH_PAY_STAGES } from './formulas';
+import { utcWeekStart, guildBossElement, relicCost, bossHp, bossAtk, enemyHp, enemyAtk, trialHp, trialDps, stallIncome, stallUpgradeCost, stallBulkCost, upgradeCost, bulkCost, emberYield, emberCost, emberRefund, emberBulk, keeperLevel, effectiveLevel, heroAtk, heroHp, heroDef, defended, goldPerKill, guildBossAttemptCoins, guildBossKillCoins, guildBossWeekReward, isBossStage, plateauStages, PLATEAU_STEP, PAY_STAGE_GROWTH, REBIRTH_FROM_LEVEL, REBIRTH_PAY_STAGES } from './formulas';
 import type { WheelPrize, HeroDef, StallDef, Element, RelicDef, RelicEffect, Rarity } from './data';
 import { STAR_EMBER_BONUS, FIXED_LEVEL, RENAMED_HEROES, PLAYABLE_HEROES, POOL_HEROES, RELEASED_HEROES, ASCENDANT_CHEST, START_GOLD, isElementBossStage, bossWeakness } from './data';
 import { activeEffects, mulEffect, sumEffect, type ActiveEffect } from './skills';
 import { isKnight, combatPower, type HeroStats } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus, BUILD_EFFECTS, type BuildEffect } from './profiles';
 import { OBSERVATORY, OBSERVATORY_RESPEC_GEMS, obsDef, sigilCost, sigilsSpent, sigilsEarned, cleanObservatory, type ObsBranch } from './observatory';
-import { GLORY_DAILY, fightGlory, arenaItems, PASTA_ID, PASTA_UNLOCK, pastaDrop, pastaLuck, PASTA_CHEST_CHANCE, PASTA_CHEST_CRESTS, PASTA_TRIAL_CHANCE, PASTA_REWARD_CHANCE, type ArenaItem } from './arenaShop';
+import { GLORY_DAILY, fightGlory, arenaItems, isUnique, releasedUniques, PASTA_ID, PASTA_UNLOCK, pastaDrop, pastaLuck, PASTA_CHEST_CHANCE, PASTA_CHEST_CRESTS, PASTA_TRIAL_CHANCE, PASTA_REWARD_CHANCE, type ArenaItem } from './arenaShop';
 import { PVP_TICKET_CAP, PVP_TICKET_MINUTES, PVP_TICKET_GEMS, PVP_TICKET_BUYS, PVP_REFRESH_MINUTES, PVP_CP_MIN, PVP_CP_MAX, PVP_REAL_MIN, PVP_REAL_MAX, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_FIRST_WIN_MOTES, PVP_STREAK_DMG, PVP_STREAK_MAX, PVP_QUICK_CP, PVP_QUICK_HP, rankCp, RANK_DAILY, RANK_WEEKLY, rankIndex, rankName, droppedTrophies, seededRandom, ghostName, simulatePvp, type PvpUnit, type PvpResult } from './colosseum';
 import { TUTORIAL_DONE, OLD_TUTORIAL_DONE, TIP_IDS } from './tutorialSteps';
 import { ascendBlocker, ascendNeeds, clampForm, formArtKey, resolveForm, COUNTERED_BY, type AscendBlocker, type AscendContext, type AscendantDef } from './ascendant';
@@ -683,7 +683,7 @@ export class GameState {
       effectRes: { value: prof.effectRes + sum('effectRes'), base: prof.effectRes },
       frenzy: { value: prof.frenzy + sum('frenzy') + glyph.frenzy, base: prof.frenzy },
       lifesteal: glyph.lifesteal,
-      dodge: { value: prof.dodge + sum('dodge') + this.relicBonus('dodge'), base: prof.dodge },
+      dodge: { value: prof.dodge + sum('dodge') + sum('afterimage') + this.relicBonus('dodge'), base: prof.dodge },
       stunChance: prof.stunChance + sum('stunChance'),
       stunTime: this.relicBonus('stunTime') + prof.effectTime + build.stun.time + build.stun.dmg,
       aoeRadius: splashMult - 1,
@@ -1315,7 +1315,7 @@ export class GameState {
   /** Medals a locked hero needs to unlock (0 for the free starter); Legendary heroes take Legendary medals. */
   unlockCrests(def: HeroDef): number {
     if (def.unlockCost === 0) return 0;
-    if (def.id === PASTA_ID) return PASTA_UNLOCK;
+    if (isUnique(def.id)) return PASTA_UNLOCK;
     return def.rarity === 'legendary' ? LEGENDARY_UNLOCK_MEDALS : UNLOCK_CRESTS[def.rarity];
   }
 
@@ -1391,9 +1391,11 @@ export class GameState {
       const isNew = locked && before < need && before + crests >= need;
       drops.push({ heroId: hero.id, crests, isNew });
     }
-    // Pasta (one of a kind): a rare extra drop from any chest.
-    const pasta = pastaDrop(pastaLuck.roll, PASTA_CHEST_CHANCE, PASTA_CHEST_CRESTS);
-    if (pasta) drops.push(this.givePasta(pasta));
+    // One-of-a-kind heroes (Pasta, Kairo): each rolls its own rare extra drop from any chest.
+    for (const id of releasedUniques()) {
+      const n = pastaDrop(pastaLuck.roll, PASTA_CHEST_CHANCE, PASTA_CHEST_CRESTS);
+      if (n) drops.push(this.giveUnique(id, n));
+    }
     return drops;
   }
 
@@ -1425,10 +1427,15 @@ export class GameState {
 
   /** Pasta crests from a rare drop, as a chest-style drop line. */
   givePasta(crests: number): SummonDrop {
-    const before = this.crests[PASTA_ID] ?? 0;
-    const locked = (this.levels[PASTA_ID] ?? 0) === 0;
-    this.addCrests(PASTA_ID, crests);
-    return { heroId: PASTA_ID, crests, isNew: locked && before < PASTA_UNLOCK && before + crests >= PASTA_UNLOCK };
+    return this.giveUnique(PASTA_ID, crests);
+  }
+
+  /** Crests for a one-of-a-kind hero (Pasta, Kairo), as a chest drop. */
+  giveUnique(id: string, crests: number): SummonDrop {
+    const before = this.crests[id] ?? 0;
+    const locked = (this.levels[id] ?? 0) === 0;
+    this.addCrests(id, crests);
+    return { heroId: id, crests, isNew: locked && before < PASTA_UNLOCK && before + crests >= PASTA_UNLOCK };
   }
 
   /**
@@ -1830,7 +1837,7 @@ export class GameState {
   }
 
   /** An opponent's fighters, with stats worked out the same way as the player's. */
-  pvpFoeUnits(foe: PvpOpponent): Array<{ def: HeroDef; unit: PvpUnit; stats: HeroStats }> {
+  pvpFoeUnits(foe: PvpOpponent): Array<{ def: HeroDef; unit: PvpUnit; stats: HeroStats; owner: GameState }> {
     const g = GameState.ghostState(foe);
     if (foe.snap) {
       // A real player's team fights with the stats it was saved with; the rest of the sheet comes from the hero itself.
@@ -1839,13 +1846,13 @@ export class GameState {
         const base = g.heroStats(def, 1);
         const pair = (v: string) => ({ value: new Decimal(v), base: new Decimal(v) });
         const stats: HeroStats = { ...base, atk: pair(x.atk), hp: pair(x.hp), def: pair(x.def), attacksPerSec: { value: x.aps, base: base.attacksPerSec.base }, critRate: x.crit, critDmg: x.critDmg, moveSpeed: { value: x.move, base: base.moveSpeed.base } };
-        return { def, unit: { id: def.id, element: def.element, atk: stats.atk.value, hp: stats.hp.value, def: stats.def.value, attacksPerSec: x.aps, critRate: x.crit, critDmg: x.critDmg, melee: def.range <= 60, flying: g.formDef(def).flying }, stats };
+        return { def, unit: { id: def.id, element: def.element, atk: stats.atk.value, hp: stats.hp.value, def: stats.def.value, attacksPerSec: x.aps, critRate: x.crit, critDmg: x.critDmg, melee: def.range <= 60, flying: g.formDef(def).flying }, stats, owner: g };
       });
     }
     return foe.heroes.map((x) => {
       const def = HEROES.find((h) => h.id === x.id)!;
       const stats = scaleStats(g.heroStats(def, g.fixedLevel(def.id)), foe.power ?? 1);
-      return { def, unit: { ...g.pvpUnit(def), atk: stats.atk.value, hp: stats.hp.value, def: stats.def.value }, stats };
+      return { def, unit: { ...g.pvpUnit(def), atk: stats.atk.value, hp: stats.hp.value, def: stats.def.value }, stats, owner: g };
     });
   }
 
@@ -2498,10 +2505,11 @@ export class GameState {
     const pool = this.trialPool(element);
     const medals = this.trialMedals();
     for (let i = 0; i < medals; i++) {
-      // Pasta (one of a kind) can turn up on any element's Trial, very rarely.
-      if (pastaDrop(pastaLuck.roll, PASTA_TRIAL_CHANCE)) {
-        result.medals.push(PASTA_ID);
-        this.addCrests(PASTA_ID, 1);
+      // One-of-a-kind heroes (Pasta, Kairo) can turn up on any element's Trial, very rarely (each its own roll).
+      const unique = releasedUniques().find(() => pastaDrop(pastaLuck.roll, PASTA_TRIAL_CHANCE));
+      if (unique) {
+        result.medals.push(unique);
+        this.addCrests(unique, 1);
         continue;
       }
       const hero = pickByRarity(pool, TRIAL_RARITY_WEIGHTS);
@@ -2801,8 +2809,33 @@ export class GameState {
     return bought;
   }
 
-  /** Buy `count` Ember levels (or as many as the Embers pay for); all or nothing for x1 / x10. */
+  /**
+   * Why a hero's gold and Ember levels can't be bought right now, or null when they can. Only heroes on
+   * the team can be levelled: a benched hero keeps their Ember levels but can't take new ones.
+   */
+  levelBlock(id: string): string | null {
+    if ((this.levels[id] ?? 0) === 0) return 'Unlock this hero first';
+    if (!this.inLineup(id)) return 'Add to team to level';
+    return null;
+  }
+
+  /** Buy `count` gold levels (or as many as the gold pays for) for a hero on the team. Returns the levels bought. */
+  buyGoldLevels(id: string, count: BuyAmount): number {
+    if (this.levelBlock(id)) return 0;
+    const def = HEROES.find((h) => h.id === id);
+    if (!def) return 0;
+    const level = this.levels[id];
+    const { levels, cost } = bulkCost(def, level, count, this.gold, this.levelCostMult());
+    if (levels <= 0 || cost.gt(this.gold)) return 0;
+    this.gold = this.gold.minus(cost);
+    this.levels[id] = level + levels;
+    this.track('levels', levels);
+    return levels;
+  }
+
+  /** Buy `count` Ember levels (or as many as the Embers pay for); all or nothing for x1 / x10. Team heroes only. */
   buyEmbers(id: string, count: BuyAmount): number {
+    if (this.levelBlock(id)) return 0;
     const level = this.emberLevels[id] ?? 0;
     const { levels, cost } = emberBulk(level, count, this.embers);
     if (levels <= 0 || cost.gt(this.embers)) return 0;
@@ -2907,7 +2940,7 @@ export class GameState {
     const drops: SummonDrop[] = [];
     for (let i = 0; i < (r.chests ?? 0); i++) drops.push(...this.rollChest());
     // Pasta: any other reward (dailies, login, milestones, Rush tiers...) has a small chance of a crest.
-    if (pastaDrop(pastaLuck.roll, PASTA_REWARD_CHANCE)) drops.push(this.givePasta(1));
+    for (const id of releasedUniques()) if (pastaDrop(pastaLuck.roll, PASTA_REWARD_CHANCE)) drops.push(this.giveUnique(id, 1));
     this.enhanceStones += r.stones ?? 0;
     this.wildCrests += r.wild ?? 0;
     if (r.tickets) {

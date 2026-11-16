@@ -19,6 +19,18 @@ export const GLORY_DAILY = [10, 12, 14, 16, 18, 20, 24, 27, 30, 34, 38, 42, 46, 
 /** Pasta (src/heroes/pasta.ts) joins the drops and the shop once his art is in. */
 export const PASTA_RELEASED = true;
 export const PASTA_ID = 'pasta';
+/**
+ * Kairo (src/heroes/kairo.ts), the second one-of-a-kind hero (Samuel 2026-11-15): sold next to Pasta with the same
+ * price and weekly limit, and his own rare drops at Pasta's odds (a separate roll, so Pasta's stay the same).
+ * Glory is NOT raised: players choose which of the two to focus. Released 2026-11-15 with his art (shown in game as Gogu).
+ */
+export const KAIRO_RELEASED = true;
+export const KAIRO_ID = 'kairo';
+/** The one-of-a-kind heroes: crests only from their own rare drops and the Arena Shop, PASTA_UNLOCK crests to unlock. */
+export const UNIQUE_HEROES = [PASTA_ID, KAIRO_ID];
+export function isUnique(id: string): boolean {
+  return UNIQUE_HEROES.includes(id);
+}
 /** Crests to unlock Pasta (Epics take 80; he is one of a kind). */
 export const PASTA_UNLOCK = 100;
 /** Rare Pasta crest drops: chance per Hero Chest (gives PASTA_CHEST_CRESTS), per Trial crest, per other reward. */
@@ -44,6 +56,7 @@ export const ARENA_HEROES = ['corvin', 'skiff', 'valorian', 'kestra'];
 
 export const ARENA_ITEMS: ArenaItem[] = [
   { id: 'pasta', kind: 'crests', hero: PASTA_ID, amount: 5, price: 100, perWeek: 7 },
+  { id: 'kairo', kind: 'crests', hero: KAIRO_ID, amount: 5, price: 100, perWeek: 7 },
   { id: 'h:corvin', kind: 'crests', hero: 'corvin', amount: 10, price: 100, perWeek: 5 },
   { id: 'h:skiff', kind: 'crests', hero: 'skiff', amount: 10, price: 100, perWeek: 5 },
   { id: 'h:valorian', kind: 'crests', hero: 'valorian', amount: 5, price: 100, perWeek: 5 },
@@ -54,9 +67,14 @@ export const ARENA_ITEMS: ArenaItem[] = [
   { id: 'glyph', kind: 'glyphChest', amount: 1, price: 150, perWeek: 2 },
 ];
 
-/** Items on sale now (Pasta's only once he is released). */
-export function arenaItems(pastaReleased = PASTA_RELEASED): ArenaItem[] {
-  return ARENA_ITEMS.filter((i) => i.hero !== PASTA_ID || pastaReleased);
+/** Items on sale now (Pasta's and Kairo's only once each is released). */
+export function arenaItems(pastaReleased = PASTA_RELEASED, kairoReleased = KAIRO_RELEASED): ArenaItem[] {
+  return ARENA_ITEMS.filter((i) => (i.hero !== PASTA_ID || pastaReleased) && (i.hero !== KAIRO_ID || kairoReleased));
+}
+
+/** The one-of-a-kind heroes that are out now (each rolls its own rare drops). */
+export function releasedUniques(pastaReleased = PASTA_RELEASED, kairoReleased = KAIRO_RELEASED): string[] {
+  return [...(pastaReleased ? [PASTA_ID] : []), ...(kairoReleased ? [KAIRO_ID] : [])];
 }
 
 /** Glory for one finished fight. */
