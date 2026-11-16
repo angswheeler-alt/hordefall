@@ -37,7 +37,7 @@ describe('Yeren, the titan shifter', () => {
     const y = items.find((i) => i.hero === YEREN_ID)!;
     const g = items.find((i) => i.hero === 'kairo')!;
     expect({ ...y, id: 'x', hero: 'x' }).toEqual({ ...g, id: 'x', hero: 'x' });
-    expect(releasedUniques(true, true, true)).toEqual(['pasta', 'kairo', 'yeren']);
+    expect(releasedUniques(true, true, true, false)).toEqual(['pasta', 'kairo', 'yeren']);
     expect(arenaItems(true, true, false).some((i) => i.hero === YEREN_ID)).toBe(false);
   });
 

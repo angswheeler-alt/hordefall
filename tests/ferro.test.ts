@@ -3,6 +3,7 @@ import { HEROES, POOL_HEROES, RELEASED_HEROES, HIDDEN_HEROES } from '../src/data
 import { reactorStep, salvoSize, salvoTargets, thrustersGrounded } from '../src/kits';
 import { arenaItems, releasedUniques, isUnique, FERRO_RELEASED } from '../src/arenaShop';
 import { canReach } from '../src/reach';
+import { HERO_ANIMS } from '../src/heroAnims';
 
 const ferro = HEROES.find((h) => h.id === 'ferro')!;
 const sig = ferro.signature;
@@ -24,13 +25,15 @@ describe('Ferro', () => {
     expect(isUnique('ferro')).toBe(true);
   });
 
-  it('stays hidden until his art is in, and never joins random pools', () => {
-    expect(FERRO_RELEASED).toBe(false);
-    expect(HIDDEN_HEROES).toContain('ferro');
-    expect(RELEASED_HEROES).not.toContain('ferro');
+  it('is released with his sprites, sold in the Arena Shop, and never joins random pools', () => {
+    expect(FERRO_RELEASED).toBe(true);
+    expect(HIDDEN_HEROES).not.toContain('ferro');
+    expect(RELEASED_HEROES).toContain('ferro');
     expect(POOL_HEROES.some((h) => h.id === 'ferro')).toBe(false);
-    expect(arenaItems().some((i) => i.hero === 'ferro')).toBe(false);
-    expect(releasedUniques()).not.toContain('ferro');
+    expect(arenaItems().some((i) => i.hero === 'ferro')).toBe(true);
+    expect(releasedUniques()).toContain('ferro');
+    expect(arenaItems(true, true, true, false).some((i) => i.hero === 'ferro')).toBe(false);
+    expect(HERO_ANIMS.ferro).toMatchObject({ run: 6, attack: 5 });
     // Released, he sells next to Pasta and Gogu at the same price and limit.
     const item = arenaItems(true, true, true, true).find((i) => i.hero === 'ferro')!;
     const gogu = arenaItems(true, true, true, true).find((i) => i.hero === 'kairo')!;

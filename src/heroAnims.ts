@@ -68,6 +68,7 @@ export const HERO_ANIMS: Record<string, HeroAnim> = {
   dread: { frame: [79,91], feet: [47,90], headTop: 23, run: 5, attack: 5, hitFrame: 3 },
   ember: { frame: [61,64], feet: [30,63], headTop: 14, run: 5, attack: 5, hitFrame: 2 },
   fern: { frame: [53,48], feet: [26,47], headTop: 11, run: 5, attack: 5, hitFrame: 3 },
+  ferro: { frame: [59,62], feet: [31,61], headTop: 7, run: 6, attack: 5, hitFrame: 1 },
   flicker: { frame: [47,43], feet: [22,42], headTop: 3, run: 4, attack: 5, hitFrame: 1 },
   flint: { frame: [82,64], feet: [45,63], headTop: 15, run: 5, attack: 5, hitFrame: 2 },
   flit: { frame: [103,49], feet: [55,48], headTop: 12, run: 5, attack: 5, hitFrame: 2 },

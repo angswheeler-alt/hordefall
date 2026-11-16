@@ -565,7 +565,7 @@ export const HEROES: HeroDef[] = [
   HAMLET,
   // Samuel (2026-11-16): Yeren, the titan shifter (third unique), hidden until his art is in.
   YEREN,
-  // Samuel (2026-11-16): Ferro, the flying armored Fire hero; hidden until his art is in.
+  // Samuel (2026-11-16): Ferro, the flying armored Fire hero, released with Samuel's sprites.
   FERRO,
 ];
 
@@ -586,9 +586,11 @@ export const RELEASED_HEROES: readonly string[] = [
   'kairo',
   // Samuel (2026-11-16): Hamlet the pig squire, a normal Rare (chests, Trials, shops).
   'hamlet',
+  // Samuel (2026-11-16): Ferro, the flying armored Fire hero, sold next to Pasta and Gogu.
+  'ferro',
 ];
 /** Coded heroes still waiting for their art: kept out of every list until they are released (move the id up). */
-export const HIDDEN_HEROES: readonly string[] = ['yeren', 'ferro'];
+export const HIDDEN_HEROES: readonly string[] = ['yeren'];
 export const PLAYABLE_HEROES: HeroDef[] = HEROES.filter((h) => RELEASED_HEROES.includes(h.id));
 /**
  * Released heroes that random pools may hand out (chests, Trials, shops, Wild Crests, lenders, made-up foes).

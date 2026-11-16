@@ -38,7 +38,7 @@ export const YEREN_ID = 'yeren';
  * same way as Pasta and Gogu. Stays hidden (data.ts HIDDEN_HEROES) until his art is in; release = flip this, move 'ferro'
  * from HIDDEN_HEROES to RELEASED_HEROES.
  */
-export const FERRO_RELEASED = false;
+export const FERRO_RELEASED = true;
 export const FERRO_ID = 'ferro';
 /** The one-of-a-kind heroes: crests only from their own rare drops and the Arena Shop, PASTA_UNLOCK crests to unlock. */
 export const UNIQUE_HEROES = [PASTA_ID, KAIRO_ID, YEREN_ID, FERRO_ID];

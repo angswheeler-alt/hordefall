@@ -138,8 +138,8 @@ describe('Kairo in the Arena Shop', () => {
 
   it('rolls his own drops, so Pasta keeps his odds; unlocks at the same crests', async () => {
     const { KAIRO_ID, releasedUniques, isUnique } = await import('../src/arenaShop');
-    expect(releasedUniques(true, false)).toEqual([PASTA_ID]);
-    expect(releasedUniques(true, true)).toEqual([PASTA_ID, KAIRO_ID]);
+    expect(releasedUniques(true, false, false, false)).toEqual([PASTA_ID]);
+    expect(releasedUniques(true, true, false, false)).toEqual([PASTA_ID, KAIRO_ID]);
     expect(isUnique(KAIRO_ID)).toBe(true);
     expect(new GameState().unlockCrests(HEROES.find((h) => h.id === KAIRO_ID)!)).toBe(PASTA_UNLOCK);
   });
