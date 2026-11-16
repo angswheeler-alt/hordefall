@@ -539,7 +539,7 @@ export const HEROES: HeroDef[] = [
   PASTA,
   // Samuel (2026-11-14): Gogu (id kairo), released 2026-11-15.
   KAIRO,
-  // Samuel (2026-11-16): Hamlet the pig squire, hidden until his art arrives (not in RELEASED_HEROES yet).
+  // Samuel (2026-11-16): Hamlet the pig squire, from Samuel's own picture.
   HAMLET,
 ];
 
@@ -558,9 +558,11 @@ export const RELEASED_HEROES: readonly string[] = [
   'pasta',
   // Samuel (2026-11-15): Gogu (id kairo), the same way, sold next to Pasta.
   'kairo',
+  // Samuel (2026-11-16): Hamlet the pig squire, a normal Rare (chests, Trials, shops).
+  'hamlet',
 ];
 /** Coded heroes still waiting for their art: kept out of every list until they are released (move the id up). */
-export const HIDDEN_HEROES: readonly string[] = ['hamlet'];
+export const HIDDEN_HEROES: readonly string[] = [];
 export const PLAYABLE_HEROES: HeroDef[] = HEROES.filter((h) => RELEASED_HEROES.includes(h.id));
 /**
  * Released heroes that random pools may hand out (chests, Trials, shops, Wild Crests, lenders, made-up foes).
