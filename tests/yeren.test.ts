@@ -4,6 +4,7 @@ import { rageStep, titanForm, titanArtKey, SIG_PLUS } from '../src/kits';
 import { arenaItems, releasedUniques, isUnique, YEREN_ID, YEREN_RELEASED } from '../src/arenaShop';
 import { heroForms } from '../src/heroForms';
 import { ultFxStyle } from '../src/ultFx';
+import { HERO_ANIMS } from '../src/heroAnims';
 
 const yeren = HEROES.find((h) => h.id === 'yeren')!;
 
@@ -22,14 +23,20 @@ describe('Yeren, the titan shifter', () => {
     expect(ultFxStyle(yeren)).toBe('rise');
   });
 
-  it('stays hidden (no shop, no drops, no pools) until his art is in', () => {
-    expect(YEREN_RELEASED).toBe(false);
-    expect(HIDDEN_HEROES).toContain('yeren');
-    expect(RELEASED_HEROES).not.toContain('yeren');
+  it('is released with his art: sold in the Arena Shop, never in random pools', () => {
+    expect(YEREN_RELEASED).toBe(true);
+    expect(HIDDEN_HEROES).not.toContain('yeren');
+    expect(RELEASED_HEROES).toContain('yeren');
     expect(POOL_HEROES.some((h) => h.id === 'yeren')).toBe(false);
     expect(isUnique(YEREN_ID)).toBe(true);
-    expect(releasedUniques()).not.toContain(YEREN_ID);
-    expect(arenaItems().some((i) => i.hero === YEREN_ID)).toBe(false);
+    expect(releasedUniques()).toContain(YEREN_ID);
+    expect(arenaItems().some((i) => i.hero === YEREN_ID)).toBe(true);
+  });
+
+  it('has his run and attack sprites, bundled into the game code', () => {
+    expect(HERO_ANIMS.yeren).toMatchObject({ run: 6, attack: 5 });
+    const files = new Set(Object.keys(import.meta.glob('../src/assets/heroes/*.png')).map((f) => f.split('/').pop()));
+    for (const f of ['yeren.png', 'yeren_run.png', 'yeren_attack.png']) expect(files.has(f), f).toBe(true);
   });
 
   it('is sold like Gogu once released, and never in random pools', () => {

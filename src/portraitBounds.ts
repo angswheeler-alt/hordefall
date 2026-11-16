@@ -145,6 +145,7 @@ export const HERO_BOUNDS: Record<string, ArtBounds> = {
   weaver: [168, 85, 1, 3, 95, 84, 38.5],
   wraith: [62, 57, 12, 4, 47, 56, 28.9],
   wyrmling: [48, 52, 1, 9, 42, 50, 22.3],
+  yeren: [55, 57, 8, 2, 44, 56, 27.6],
 };
 
 /** First idle frame of public/bosses/<id>_idle.png. */
