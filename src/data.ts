@@ -2,6 +2,7 @@ import { VS, ULT, ultX, HEAL_BASIC } from './heroText';
 import { ROSTER_HEROES } from './heroes';
 import { PASTA } from './heroes/pasta';
 import { KAIRO } from './heroes/kairo';
+import { YEREN } from './heroes/yeren';
 import { HAMLET } from './heroes/hamlet';
 
 export type Element = 'water' | 'fire' | 'earth' | 'light' | 'dark';
@@ -87,7 +88,14 @@ export type Signature =
   // From stage `drainFrom` (Overdrive) he loses `drain` of max HP a second, never below `drainFloor` of it.
   | { kind: 'surge'; every: number; atk: number[]; haste: number; hasteFrom: number; drainFrom: number; drain: number; drainFloor: number }
   /** Squire's Banner (Hamlet): every `every` s, allies within `radius` px get +atk ATK for `seconds` s and heal `heal` of max HP; 6★ whole team, SIG_PLUS.bannerAtk. */
-  | { kind: 'banner'; every: number; radius: number; atk: number; heal: number; seconds: number };
+  | { kind: 'banner'; every: number; radius: number; atk: number; heal: number; seconds: number }
+  /**
+   * Titan Shift (Yeren): Rage builds `perHit` per attack he lands and `perHpLost` per 1% of max HP he loses; at `rage`
+   * he turns into a giant titan for `seconds` s. The titan has its own body (`body` x his max HP) that soaks every hit,
+   * hits `atk` x as hard at `cooldown` x his attack time, stomps every enemy within `stomp` px of the target and reaches
+   * `reach` px further. If the body breaks he is cut out early and stunned for `brokenStun` s; either way Rage starts over.
+   */
+  | { kind: 'titan'; rage: number; perHit: number; perHpLost: number; seconds: number; body: number; atk: number; cooldown: number; stomp: number; reach: number; brokenStun: number };
 
 /** What a standard hero's Ultimate does on top of the big hit (or full heal), and its 5★ twist. */
 export type UltEffect =
@@ -107,6 +115,8 @@ export type UltEffect =
   | { kind: 'boil'; mult: number; plusMult: number; extend: number; plusSeconds: number }
   // Sky Cannon (Kairo): bosses ahead in the lane take mult x the Ultimate hit, everything else `lane` x it; 5★ Spirit Sphere adds perAlly per living teammate (up to maxAllies).
   | { kind: 'cannon'; mult: number; lane: number; perAlly: number; maxAllies: number }
+  /** Earthshatter Roar (Yeren): shifts into the titan at once (already one: +`extend` s), and the quake hits every enemy within `radius` px ahead for `mult` x the hit and stuns regular ones for `stun` s. 5★: they take `vuln` damage for `vulnSeconds`. */
+  | { kind: 'roar'; mult: number; radius: number; stun: number; extend: number; vuln: number; vulnSeconds: number }
   /** After the hit, every non-Fire hero deals Earth damage for `seconds` (5★: plusSeconds). */
   | { kind: 'earthen'; seconds: number; plusSeconds: number }
   /** Healers: on top of the full heal, shields every living hero for `share` of the caster's max HP (5★: plusShare). */
@@ -226,7 +236,10 @@ export type EffectKind =
   // afterimage: adds `value` dodge; a dodge makes him blink up to the attacker (if it is in AFTERIMAGE_BLINK) and strike back
   // at once with a sure crit (Kairo). surgeRally: team ATK +value per
   // Power Surge stage of the highest-surging hero (Kairo's aura).
-  | 'afterimage' | 'surgeRally';
+  | 'afterimage' | 'surgeRally'
+  // Yeren: rageGain multiplies the Rage he builds; titanBody multiplies his titan's body; titanGuard multiplies the
+  // damage his teammates take while he is a titan (aura).
+  | 'rageGain' | 'titanBody' | 'titanGuard';
 
 export interface Effect {
   kind: EffectKind;
@@ -541,6 +554,8 @@ export const HEROES: HeroDef[] = [
   KAIRO,
   // Samuel (2026-11-16): Hamlet the pig squire, from Samuel's own picture.
   HAMLET,
+  // Samuel (2026-11-16): Yeren, the titan shifter (third unique), hidden until his art is in.
+  YEREN,
 ];
 
 /** Old hero ids from saves before the 20-hero roster, and who replaced them. */
@@ -562,13 +577,13 @@ export const RELEASED_HEROES: readonly string[] = [
   'hamlet',
 ];
 /** Coded heroes still waiting for their art: kept out of every list until they are released (move the id up). */
-export const HIDDEN_HEROES: readonly string[] = [];
+export const HIDDEN_HEROES: readonly string[] = ['yeren'];
 export const PLAYABLE_HEROES: HeroDef[] = HEROES.filter((h) => RELEASED_HEROES.includes(h.id));
 /**
  * Released heroes that random pools may hand out (chests, Trials, shops, Wild Crests, lenders, made-up foes).
  * Pasta is left out: his crests come only from his own rare drops and the Arena Shop (src/arenaShop.ts).
  */
-export const POOL_HEROES: HeroDef[] = PLAYABLE_HEROES.filter((h) => h.id !== 'pasta' && h.id !== 'kairo');
+export const POOL_HEROES: HeroDef[] = PLAYABLE_HEROES.filter((h) => !h.unique);
 
 export const RENAMED_HEROES: Record<string, string> = { marin: 'brine', tide: 'brine', bramble: 'thorn', pyra: 'ember', nox: 'shade', solenne: 'lumen' };
 

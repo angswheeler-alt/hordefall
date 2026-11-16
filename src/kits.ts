@@ -24,6 +24,9 @@ export const SIG_PLUS = {
   surgeHeal: 0.3,
   /** Squire's Banner+ (Hamlet 6★): ATK bonus, and it reaches the whole team. */
   bannerAtk: 0.3,
+  /** Hardened Hide (Yeren 6★): damage his titan's body takes, and extra seconds as the titan. */
+  titanHide: 0.7,
+  titanExtra: 4,
 };
 
 /**
@@ -194,3 +197,27 @@ export function bannerStep(sig: Signature | undefined, since: number, plus = fal
   if (sig?.kind !== 'banner') return { raise: false, atk: 1, radius: 0 };
   return { raise: since >= sig.every, atk: 1 + (plus ? SIG_PLUS.bannerAtk : sig.atk), radius: plus ? Infinity : sig.radius };
 }
+
+/**
+ * Titan Shift (Yeren): Rage after `hits` attacks landed and `hpLost` (share of max HP, 0.1 = 10%) taken, from `rage`,
+ * with `gain` x build-up (Grapple Rig). Capped at the full bar. Returns the new Rage and whether he shifts now.
+ */
+export function rageStep(sig: Signature | undefined, rage: number, hits: number, hpLost: number, gain = 1): { rage: number; shift: boolean } {
+  if (sig?.kind !== 'titan') return { rage: 0, shift: false };
+  const next = Math.min(sig.rage, rage + (hits * sig.perHit + Math.max(0, hpLost) * 100 * sig.perHpLost) * gain);
+  return { rage: next, shift: next >= sig.rage };
+}
+
+/**
+ * The titan Yeren becomes: how long it lasts, its body (x his max HP, `bulk` = Titan Bulk), the damage its body takes
+ * (6★ Hardened Hide) and its hit and attack-time multipliers.
+ */
+export function titanForm(sig: Signature | undefined, plus = false, bulk = 1): { seconds: number; body: number; hide: number; dmg: number; cooldown: number } {
+  if (sig?.kind !== 'titan') return { seconds: 0, body: 0, hide: 1, dmg: 1, cooldown: 1 };
+  return { seconds: sig.seconds + (plus ? SIG_PLUS.titanExtra : 0), body: sig.body * bulk, hide: plus ? SIG_PLUS.titanHide : 1, dmg: sig.atk, cooldown: sig.cooldown };
+}
+
+/** The titan's own sprite (art/heroes/<id>_titan) when it has landed; until then his normal one, drawn big. */
+export const titanArtKey = (id: string): string => `${id}_titan`;
+/** How much bigger his normal sprite is drawn as the titan while the titan art is missing. */
+export const TITAN_STAND_IN_SCALE = 1.8;
