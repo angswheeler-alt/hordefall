@@ -85,7 +85,7 @@ export const HERO_ANIMS: Record<string, HeroAnim> = {
   grumm: { frame: [69,64], feet: [30,63], headTop: 4, run: 5, attack: 5, hitFrame: 3 },
   halden: { frame: [79,59], feet: [34,58], headTop: 5, run: 5, attack: 5, hitFrame: 3 },
   halo: { frame: [42,43], feet: [20,42], headTop: 2, run: 5, attack: 5, hitFrame: 1 },
-  hamlet: { frame: [49,58], feet: [25,57], headTop: 2, run: 6, attack: 5, hitFrame: 3 },
+  hamlet: { frame: [44,51], feet: [22,50], headTop: 2, run: 6, attack: 5, hitFrame: 3 },
   hex: { frame: [78,56], feet: [36,55], headTop: 5, run: 5, attack: 5, hitFrame: 3 },
   hibachi: { frame: [77,60], feet: [36,59], headTop: 13, run: 5, attack: 5, hitFrame: 3 },
   howl: { frame: [81,62], feet: [37,61], headTop: 11, run: 5, attack: 5, hitFrame: 3 },
