@@ -219,8 +219,6 @@ export function titanForm(sig: Signature | undefined, plus = false, bulk = 1): {
 
 /** The titan's own sprite (art/heroes/<id>_titan) when it has landed; until then his normal one, drawn big. */
 export const titanArtKey = (id: string): string => `${id}_titan`;
-/** How much bigger his normal sprite is drawn as the titan while the titan art is missing. */
-export const TITAN_STAND_IN_SCALE = 1.8;
 
 /**
  * Missile Salvo (Ferro): one attack with `charge` attacks already built up. Every `every`th attack fires the Salvo

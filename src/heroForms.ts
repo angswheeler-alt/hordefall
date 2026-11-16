@@ -48,7 +48,7 @@ export function heroForms(id: string, has: (art: string) => boolean): HeroForm[]
   if (sig?.kind === 'titan' && has(titanArtKey(id))) {
     return [
       { name: def.name, art: id, how: 'His normal look' },
-      { name: 'Titan', art: titanArtKey(id), how: `At full Rage or with his Ultimate, for ${sig.seconds} s` },
+      { name: 'Colossus', art: titanArtKey(id), how: `At full Rage or with his Ultimate, for ${sig.seconds} s` },
     ];
   }
   return null;
