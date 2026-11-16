@@ -68,12 +68,18 @@ describe('Rush foes fight with their own kit', () => {
     const body = ui.slice(ui.indexOf('  fightRush('), ui.indexOf('  expeditionLenders('));
     expect(body).toContain('owner: f.owner');
     expect(body).toContain('fair: true');
-    // Colosseum fights are fair too (user, 2026-11-15); Expeditions keep their old rules for now.
+    // Colosseum fights (user, 2026-11-15) and Expeditions (user, 2026-11-16) are fair too.
     const arena = ui.slice(ui.indexOf('  private fightPvp('), ui.indexOf('  private renderPvpMeter('));
     expect(arena).toContain('owner: f.owner');
     expect(arena).toContain('{ fair: true }');
-    const col = ui.slice(ui.indexOf('  fightExpedition('), ui.indexOf('  fightExpedition(') + 1500);
-    expect(col).not.toContain('fair: true');
+    const exp = ui.slice(ui.indexOf('  fightExpedition('), ui.indexOf('  fightExpedition(') + 2000);
+    expect(exp).toContain('owner: f.owner');
+    expect(exp).toContain('fair: true');
+    // Borrowed heroes keep their owner's stars for their own skills.
+    expect(exp).toContain('owner: u.owner');
+    expect(scene).toContain('u.owner = a.owner;');
+    expect(scene).toContain('this.pvp.allyFx = (opts.allies ?? []).flatMap((a) => a.owner?.effects() ?? []);');
+    expect(method('fxOf')).toContain('this.pvp?.allyFx');
   });
 
   it('a fair-duel foe rolls its own crits and runs the hero step (Signature, surge, form)', () => {

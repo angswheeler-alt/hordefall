@@ -2894,9 +2894,10 @@ export class UI {
     $('trial-leave').textContent = 'Leave';
     const allies = r.hires.map((h) => {
       const u = s.expHireUnit(h);
-      return { def: u.def, stats: u.stats };
+      return { def: u.def, stats: u.stats, owner: u.owner };
     });
-    const units = s.pvpFoeUnits(foe).map((f) => ({ def: f.def, stats: f.stats }));
+    // Fair fight: the stop's foes fight with their full kits and DEF, like Rush and the Colosseum (user, 2026-11-16).
+    const units = s.pvpFoeUnits(foe).map((f) => ({ def: f.def, stats: f.stats, owner: f.owner }));
     scene.startPvp([...r.party], units, 0, (won) => {
       $('trial-leave').textContent = 'Back';
       const res = s.expFightEnd(won);
@@ -2905,7 +2906,7 @@ export class UI {
         if (scene.inPvp()) this.showModal('Expedition', html, 'Okay', () => this.endPvpScreen());
       }, 1200);
       this.render();
-    }, { label: 'Expedition', allies, boost: (def) => s.expBoost(def) });
+    }, { label: 'Expedition', allies, boost: (def) => s.expBoost(def), fair: true });
   }
 
   /** The Rekindle rewards page: what this Rekindle pays and what it moves forward. */

@@ -3368,12 +3368,12 @@ export class GameState {
   }
 
   /** A borrowed hero's fighter, Boons included. */
-  expHireUnit(h: ExpHire): { def: HeroDef; unit: PvpUnit; stats: HeroStats } {
+  expHireUnit(h: ExpHire): { def: HeroDef; unit: PvpUnit; stats: HeroStats; owner: GameState } {
     const r = this.expedition.run;
     const [base] = this.pvpFoeUnits({ name: h.owner, ghost: true, heroes: [{ id: h.id, stars: h.stars }], ember: h.ember, power: h.power, cp: h.cp });
     const m = boonMults(r?.boons ?? [], this.expTarget(base.def, true));
     const stats = scaleStatsBy(base.stats, m);
-    return { def: base.def, unit: { ...base.unit, atk: stats.atk.value, hp: stats.hp.value, def: stats.def.value }, stats };
+    return { def: base.def, unit: { ...base.unit, atk: stats.atk.value, hp: stats.hp.value, def: stats.def.value }, stats, owner: base.owner };
   }
 
   /** The player's side as the no-luck fight sees it. */

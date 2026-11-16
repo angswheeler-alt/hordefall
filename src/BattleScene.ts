@@ -447,8 +447,10 @@ interface PvpLive {
   label: string;
   /** Rush: one hero a side, so melee heroes can hit flyers too (otherwise a melee hero could never beat a flyer). */
   anyReach: boolean;
-  /** Rush and Colosseum: foes fight with their full hero kits (Signature, star skills, DEF), so even fights are even. */
+  /** Rush, Colosseum and Expeditions: foes fight with their full hero kits (Signature, star skills, DEF), so even fights are even. */
   fair: boolean;
+  /** Star-skill effects the borrowed heroes bring from their owners' saves (Expedition). */
+  allyFx?: ActiveEffect[];
   /** Frames run so far (a fair fight alternates which side moves first). */
   frame?: number;
   /** Expedition Boons: stat multipliers for each of the player's own heroes. */
@@ -1357,7 +1359,10 @@ export class BattleScene extends Phaser.Scene {
 
   /** The star-skill effects that reach a unit's side: a Rush duelist's own, otherwise the player's. */
   private fxOf(u: Unit | null | undefined): ActiveEffect[] {
-    return u?.ownerFx ?? this.state.effects();
+    if (u?.ownerFx) return u.ownerFx;
+    // Borrowed heroes' own star skills and auras count on the player's side too (Expedition).
+    const lent = this.pvp?.allyFx;
+    return lent?.length && (!u || u.side === 'hero') ? [...this.state.effects(), ...lent] : this.state.effects();
   }
 
   /** A unit that fights with a full hero kit: the player's heroes, and a Rush duelist. */
@@ -1801,6 +1806,7 @@ export class BattleScene extends Phaser.Scene {
     this.syncHeroes();
     for (const h of this.heroes) h.ultReadyAt = ults.get(h.def?.id) ?? 0;
     // Borrowed heroes (Expedition) join the player's side with their owner's stats.
+    this.pvp.allyFx = (opts.allies ?? []).flatMap((a) => a.owner?.effects() ?? []);
     for (const a of opts.allies ?? []) {
       const u = this.makeUnit({
         side: 'hero',
@@ -1817,6 +1823,8 @@ export class BattleScene extends Phaser.Scene {
         flying: a.def.flying,
       });
       u.ally = true;
+      // A borrowed hero's own stars decide its 6★ and 7★ skills (its owner's save), not the player's.
+      u.owner = a.owner;
       u.defense = a.stats.def.value;
       u.stats = a.stats;
       this.giveKnightShield(u);
@@ -2827,7 +2835,7 @@ export class BattleScene extends Phaser.Scene {
       h.riposte = false;
       // Samurai Mastery: crits take time off the Ultimate cooldown.
       if (crit && this.mastery(h, 'Samurai')) h.ultReadyAt -= 0.5;
-      let atk = (crit ? h.atk.times(critMult) : h.atk).times(beacon * rage * (h.owner ? 1 : this.state.boostMult('horn')));
+      let atk = (crit ? h.atk.times(critMult) : h.atk).times(beacon * rage * (h.kit ? 1 : this.state.boostMult('horn')));
       const procced = !!(nth && nth.every && h.attacks % nth.every === 0);
       if (procced) atk = atk.times(nth!.value);
       // Slam: every Nth attack slams every enemy near the target.
