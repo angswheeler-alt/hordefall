@@ -22,6 +22,8 @@ export const SIG_PLUS = {
   /** Power Surge+ (Kairo): HP share that triggers it, and the heal it gives. */
   surgeBelow: 0.2,
   surgeHeal: 0.3,
+  /** Squire's Banner+ (Hamlet 6★): ATK bonus, and it reaches the whole team. */
+  bannerAtk: 0.3,
 };
 
 /**
@@ -182,4 +184,13 @@ export const SURGE_FORMS: Record<number, string[]> = {
 export function surgeArt(stage: number, has: (id: string) => boolean): string | null {
   for (let s = stage; s >= 1; s--) for (const id of SURGE_FORMS[s] ?? []) if (has(id)) return id;
   return null;
+}
+
+/**
+ * Squire's Banner (Hamlet): whether the banner goes up now (`since` seconds after the last one), and the ATK
+ * multiplier and reach it gives (6★: whole team, SIG_PLUS.bannerAtk).
+ */
+export function bannerStep(sig: Signature | undefined, since: number, plus = false): { raise: boolean; atk: number; radius: number } {
+  if (sig?.kind !== 'banner') return { raise: false, atk: 1, radius: 0 };
+  return { raise: since >= sig.every, atk: 1 + (plus ? SIG_PLUS.bannerAtk : sig.atk), radius: plus ? Infinity : sig.radius };
 }
