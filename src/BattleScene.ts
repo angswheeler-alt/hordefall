@@ -106,7 +106,7 @@ import { MUTANT_GOLD, rollMutation, type Mutation } from './mutations';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES, type BossAnim } from './bossAnims';
 import type { EffectKind } from './data';
 import { surgeArt } from './kits';
-import { gritStep, comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets, drenchVuln, heatStep, quarryMult, quarryCarry, surgeStage, surgeMults, surgeDrain, cannonMult, bannerStep, rageStep, titanForm, titanArtKey, TITAN_STAND_IN_SCALE } from './kits';
+import { gritStep, comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets, drenchVuln, heatStep, quarryMult, quarryCarry, surgeStage, surgeMults, surgeDrain, cannonMult, bannerStep, rageStep, titanForm, titanArtKey, TITAN_STAND_IN_SCALE, reactorStep, salvoSize, salvoTargets, thrustersGrounded } from './kits';
 import { STAT_BASE, FREEZE_BLAST_RADIUS, BOSS_STUN_CHANCE, BOSS_STUN_SECONDS, type HeroStats } from './stats';
 import { heroProfile } from './profiles';
 import { canReach, enemyGoal, flyerVictim, isMelee, pickVictim } from './reach';
@@ -302,6 +302,10 @@ interface Unit {
   ownerFx?: ActiveEffect[];
   /** Rising Heat (Signature 'heat'): Heat built toward the next Eruption. */
   heat: number;
+  /** Missile Salvo (Signature 'reactor', Ferro): shots built toward the next Salvo; landed after his thrusters cut out, and his sky y. */
+  reactor: number;
+  grounded?: boolean;
+  skyY?: number;
   /** Drench (Signature 'drench'): takes drenchMult damage from Water heroes until drenchUntil. */
   drenchUntil: number;
   drenchMult: number;
@@ -844,6 +848,7 @@ export class BattleScene extends Phaser.Scene {
       grit: 0,
       gritAt: -99,
       heat: 0,
+      reactor: 0,
       drenchUntil: 0,
       drenchMult: 1,
       guardUntil: 0,
@@ -1113,6 +1118,7 @@ export class BattleScene extends Phaser.Scene {
     if (u.def?.signature?.kind === 'surge') this.stepSurge(u, dt);
     if (u.def?.signature?.kind === 'banner') this.stepBanner(u);
     if (u.titanUntil && this.clock >= u.titanUntil) this.endTitan(u);
+    if (u.def?.signature?.kind === 'reactor') this.stepThrusters(u);
   }
 
   /** Yeren is a titan right now. */
@@ -1222,6 +1228,88 @@ export class BattleScene extends Phaser.Scene {
     const foot = t.view.y + FOOT_Y;
     const ring = this.add.ellipse(t.x, foot, 10, 4, 0xb89a74, 0.7).setDepth(t.view.depth - 0.5);
     this.tweens.add({ targets: ring, scaleX: 8, scaleY: 3, alpha: 0, duration: 320, onComplete: () => ring.destroy() });
+  }
+
+  /** Ferro's thrusters: badly hurt, he lands where ground melee can hit him; healed back up, he lifts off again. */
+  private stepThrusters(u: Unit) {
+    if (!u.alive) return;
+    const grounded = thrustersGrounded(u.def?.signature, !!u.grounded, this.hpRatio(u));
+    if (grounded === !!u.grounded) return;
+    if (grounded) {
+      u.skyY ??= u.y;
+      u.grounded = true;
+      u.flying = false;
+      u.y = u.shadow ? u.shadow.y - FOOT_Y : LANE_TOP + 35;
+      this.floatText(u.x, u.skyY - 30, 'THRUSTERS DOWN', '#ff9a6b', 9);
+      this.sparks(u.x, u.skyY, 0xff8a3a, 8);
+    } else {
+      this.liftOff(u);
+      this.floatText(u.x, u.y - 30, 'LIFT OFF', '#ffd18a', 9);
+    }
+    this.tweens.add({ targets: u.view, y: u.y, duration: 260, ease: grounded ? 'Quad.in' : 'Quad.out' });
+    u.view.setDepth(u.flying ? SKY_DEPTH + u.y : u.y);
+  }
+
+  /** Back in the air (healed up, or back from a fall). */
+  private liftOff(u: Unit) {
+    if (!u.grounded) return;
+    u.grounded = false;
+    u.flying = true;
+    u.y = u.skyY ?? SKY_TOP;
+    u.view.setDepth(SKY_DEPTH + u.y);
+  }
+
+  /**
+   * Missile Salvo (Ferro): `missiles` shoulder missiles at different enemies ahead (spares hit the toughest), each
+   * `mult` x ATK and setting them Burning. Returns the damage dealt.
+   */
+  private fireSalvo(h: Unit, missiles: number): Decimal {
+    const sig = h.def?.signature;
+    let dealt = new Decimal(0);
+    if (sig?.kind !== 'reactor' || missiles <= 0) return dealt;
+    const foes = this.foesOf(h).filter((e) => e.alive && ahead(h.x, e.x, h.side) >= -30 && ahead(h.x, e.x, h.side) <= sig.reach && this.reaches(h, e));
+    const picks = salvoTargets(foes.map((e) => ({ dist: Math.abs(e.x - h.x), hp: e.hp.toNumber() })), missiles);
+    if (!picks.length) return dealt;
+    this.floatText(h.x, h.y - 34, 'SALVO!', '#ffb36b', 10);
+    const st = h.stats!;
+    const element = this.dealsAs(h);
+    const vsBurning = this.mul('vsBurning', h);
+    const bossMult = this.mul('bossDamage', h);
+    picks.forEach((i, k) => {
+      const t = foes[i];
+      this.missile(h, t, k);
+      if (!t.alive) return;
+      const crit = Math.random() < st.critRate;
+      const amount = h.atk.times(sig.mult * (crit ? 1 + st.critDmg : 1) * this.elem(element, t) * (t.isBoss ? bossMult : 1) * (t.burnUntil > this.clock ? vsBurning : 1));
+      if (this.kitted(t)) dealt = dealt.plus(this.takeHit(h, t, amount, crit) ?? 0);
+      else {
+        dealt = dealt.plus(t.lockStage === undefined ? amount : amount.times(elementBossShare(t.lockStage, element)));
+        this.damageUnit(t, amount, h, crit);
+      }
+      if (t.alive) this.ignite(t, h.atk.times(STAT_BASE.burnDps * (1 + st.burnDmg)), STAT_BASE.burnSeconds * (1 + st.burnTime), h);
+    });
+    return dealt;
+  }
+
+  /** One Salvo missile: a little shell that arcs up from his shoulders and comes down on the target. */
+  private missile(h: Unit, t: Unit, k: number) {
+    const m = this.add.rectangle(h.x, h.y - 10, 6, 3, 0xffd18a).setStrokeStyle(1, 0x7a2a10).setDepth(951);
+    const peak = Math.min(h.y, t.y) - 26 - (k % 3) * 8;
+    const x0 = h.x, y0 = h.y - 10, x1 = t.x, y1 = t.y - 6;
+    this.tweens.addCounter({
+      from: 0, to: 1, duration: 260 + k * 45, ease: 'Sine.in',
+      onUpdate: (tw) => {
+        const p = tw.getValue() ?? 0;
+        const x = x0 + (x1 - x0) * p;
+        const y = (1 - p) * (1 - p) * y0 + 2 * (1 - p) * p * peak + p * p * y1;
+        m.setRotation(Math.atan2(y - m.y, x - m.x));
+        m.setPosition(x, y);
+      },
+      onComplete: () => {
+        m.destroy();
+        this.sparks(x1, y1, 0xff8a3a, 5);
+      },
+    });
   }
 
   /** Squire's Banner (Hamlet): every few seconds, heroes near him get an ATK boost and a small heal. */
@@ -1799,6 +1887,8 @@ export class BattleScene extends Phaser.Scene {
     h.surgeFrom = this.clock;
     h.surgeBonus = 0;
     h.surge = 0;
+    h.reactor = 0;
+    this.liftOff(h);
     this.giveKnightShield(h);
     h.x = x;
     h.view.setPosition(h.x, h.y).setAlpha(1).setVisible(true);
@@ -2107,6 +2197,9 @@ export class BattleScene extends Phaser.Scene {
       e.surgeFrom = this.clock;
       e.surgeBonus = 0;
       e.surge = 0;
+      e.reactor = 0;
+      this.liftOff(e);
+      e.view.y = e.y;
       e.shield = new Decimal(0);
       this.giveKnightShield(e);
     }
@@ -2967,6 +3060,9 @@ export class BattleScene extends Phaser.Scene {
     const titanMult = titan ? titanForm(sig).dmg : 1;
     const stomp = titan ? sig.stomp : 0;
     if (titan) this.stompFx(target);
+    // Missile Salvo (Ferro): every few shots his shoulder missiles fire too.
+    const reactor = reactorStep(sig, h.reactor, this.sigPlus(h));
+    h.reactor = reactor.charge;
     let dealt = new Decimal(0);
     for (let i = 0; i < strikes; i++) {
       // Hawkeye: shots at an enemy at full HP always crit. Owl Eyes: shots at flyers always crit.
@@ -3037,6 +3133,7 @@ export class BattleScene extends Phaser.Scene {
         }
       }
     }
+    if (reactor.missiles > 0) dealt = dealt.plus(this.fireSalvo(h, reactor.missiles));
     // Spirit: every Nth attack the hero's spirit also hits other enemies in reach.
     const spirits = spiritTargets(sig, h.attacks, this.sigPlus(h));
     if (spirits > 0 && sig?.kind === 'spirit') {
@@ -3657,6 +3754,32 @@ export class BattleScene extends Phaser.Scene {
         this.damageUnit(e, dmg.times(mult * (e.isBoss ? 1 : ult.lane / ult.mult) * this.elem(this.dealsAs(h), e)), h, e.isBoss);
       }
       if (!this.bossAlive()) this.damageCrystal(dmg.times(mult * ult.lane / ult.mult), h);
+      return true;
+    }
+    if (ult?.kind === 'solar') {
+      // Sun-Forge Lance (Ferro): a beam at the toughest enemy in reach; everyone else along it takes part of the hit.
+      // His forge fills, so the next shot fires a Salvo (5★ Full Payload: the Salvo fires at once).
+      const inReach = this.enemies.filter((e) => e.alive && e.x >= h.x - 30 && e.x <= h.x + ult.reach);
+      const target = inReach.slice().sort((a, b) => b.hp.cmp(a.hp))[0];
+      if (target) {
+        if (!this.ultFx(h, h.x + 10, target.x, target)) {
+          const beam = this.add.rectangle(h.x + 8, h.y - 6, 10, 8, 0xfff0b0, 0.9).setOrigin(0, 0.5).setDepth(999);
+          beam.setRotation(Math.atan2(target.y - h.y, target.x - h.x));
+          this.tweens.add({ targets: beam, width: Math.hypot(target.x - h.x, target.y - h.y), alpha: 0.25, duration: 360, onComplete: () => beam.destroy() });
+        }
+        this.sparks(target.x, target.y - 6, 0xffd18a, 12);
+        for (const e of inReach) {
+          if (!e.alive || (e !== target && e.x > target.x + 20)) continue;
+          this.damageUnit(e, dmg.times((e === target ? ult.mult : ult.line) * this.elem(this.dealsAs(h), e)), h, e === target);
+        }
+      }
+      const sig = def.signature;
+      if (sig?.kind === 'reactor') {
+        if (plus) {
+          h.reactor = 0;
+          this.fireSalvo(h, salvoSize(sig, this.sigPlus(h)));
+        } else h.reactor = sig.every - 1;
+      }
       return true;
     }
     if (ult?.kind === 'crescent') {

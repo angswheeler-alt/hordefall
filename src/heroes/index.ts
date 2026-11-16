@@ -19,6 +19,7 @@ export const ROSTER_PROFILES: Record<string, HeroProfile> = { ...WATER_PROFILES,
   asc_earth: { aoeDmg: 0.15, atkMult: 0.95, specialty: 'Wind magic: +15% splash damage, a little less ATK' },
   hamlet: { hpMult: 1.05, effectRes: 0.15, specialty: 'Borrowed helmet: +5% HP and 15% Effect Resistance' },
   yeren: { hpMult: 1.05, effectRes: 0.35, specialty: 'Stubborn will: +5% HP and 35% Effect Resistance' },
+  ferro: { defMult: 1.3, burnChance: 0.05, specialty: 'Brass plating: +30% Defense and a 5% chance for blasts to set enemies Burning' },
   kairo: { critDmg: 1.4, dodge: 0.05, specialty: 'Martial arts: +40% crit damage and dodges 5% of attacks' },
   pasta: { hpMult: 1.05, effectRes: 0.25, specialty: 'No magic to break: +5% HP and 25% Effect Resistance' },
 };
