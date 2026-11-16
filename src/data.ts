@@ -4,6 +4,7 @@ import { PASTA } from './heroes/pasta';
 import { KAIRO } from './heroes/kairo';
 import { YEREN } from './heroes/yeren';
 import { HAMLET } from './heroes/hamlet';
+import { FERRO } from './heroes/ferro';
 
 export type Element = 'water' | 'fire' | 'earth' | 'light' | 'dark';
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
@@ -95,7 +96,13 @@ export type Signature =
    * hits `atk` x as hard at `cooldown` x his attack time, stomps every enemy within `stomp` px of the target and reaches
    * `reach` px further. If the body breaks he is cut out early and stunned for `brokenStun` s; either way Rage starts over.
    */
-  | { kind: 'titan'; rage: number; perHit: number; perHpLost: number; seconds: number; body: number; atk: number; cooldown: number; stomp: number; reach: number; brokenStun: number };
+  | { kind: 'titan'; rage: number; perHit: number; perHpLost: number; seconds: number; body: number; atk: number; cooldown: number; stomp: number; reach: number; brokenStun: number }
+  /**
+   * Missile Salvo (Ferro): every `every`th attack also fires `missiles` missiles (6★: + plusMissiles) at different enemies up to
+   * `reach` px ahead, `mult` x ATK each, setting them Burning; spare missiles hit the toughest. He flies, but under `landBelow`
+   * of max HP he lands (ground melee can reach him) until healed back to `liftAt`, or he falls and comes back.
+   */
+  | { kind: 'reactor'; every: number; missiles: number; plusMissiles: number; mult: number; reach: number; landBelow: number; liftAt: number };
 
 /** What a standard hero's Ultimate does on top of the big hit (or full heal), and its 5★ twist. */
 export type UltEffect =
@@ -123,6 +130,8 @@ export type UltEffect =
   | { kind: 'teamShield'; share: number; plusShare: number }
   /** Rally the Herd (Hamlet): full team heal (healer Ult) plus a shield of `shield` of each hero's own max HP; 5★ also cleanses. */
   | { kind: 'rally'; shield: number }
+  /** Sun-Forge Lance (Ferro): a beam at the toughest enemy within `reach` for `mult` x the hit, `line` x to the others along it; his forge fills (next shot fires a Salvo). 5★: the Salvo fires at once. */
+  | { kind: 'solar'; mult: number; line: number; reach: number }
   /** Enemies hit deal `mult` damage for `seconds` (5★: plusSeconds). */
   | { kind: 'weaken'; mult: number; seconds: number; plusSeconds: number }
   // Ascendant heroes' own Ultimates.
@@ -556,6 +565,8 @@ export const HEROES: HeroDef[] = [
   HAMLET,
   // Samuel (2026-11-16): Yeren, the titan shifter (third unique), hidden until his art is in.
   YEREN,
+  // Samuel (2026-11-16): Ferro, the flying armored Fire hero; hidden until his art is in.
+  FERRO,
 ];
 
 /** Old hero ids from saves before the 20-hero roster, and who replaced them. */
@@ -577,7 +588,7 @@ export const RELEASED_HEROES: readonly string[] = [
   'hamlet',
 ];
 /** Coded heroes still waiting for their art: kept out of every list until they are released (move the id up). */
-export const HIDDEN_HEROES: readonly string[] = ['yeren'];
+export const HIDDEN_HEROES: readonly string[] = ['yeren', 'ferro'];
 export const PLAYABLE_HEROES: HeroDef[] = HEROES.filter((h) => RELEASED_HEROES.includes(h.id));
 /**
  * Released heroes that random pools may hand out (chests, Trials, shops, Wild Crests, lenders, made-up foes).

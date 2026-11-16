@@ -221,3 +221,40 @@ export function titanForm(sig: Signature | undefined, plus = false, bulk = 1): {
 export const titanArtKey = (id: string): string => `${id}_titan`;
 /** How much bigger his normal sprite is drawn as the titan while the titan art is missing. */
 export const TITAN_STAND_IN_SCALE = 1.8;
+
+/**
+ * Missile Salvo (Ferro): one attack with `charge` attacks already built up. Every `every`th attack fires the Salvo
+ * (`missiles`, 6★: + plusMissiles) and the charge starts over. His Ultimate fills the forge (charge every - 1), so his
+ * next attack fires.
+ */
+export function reactorStep(sig: Signature | undefined, charge: number, plus = false): { charge: number; missiles: number } {
+  if (sig?.kind !== 'reactor') return { charge: 0, missiles: 0 };
+  const next = charge + 1;
+  if (next >= sig.every) return { charge: 0, missiles: salvoSize(sig, plus) };
+  return { charge: next, missiles: 0 };
+}
+
+/** Missiles in one Salvo. */
+export function salvoSize(sig: Signature | undefined, plus = false): number {
+  return sig?.kind === 'reactor' ? sig.missiles + (plus ? sig.plusMissiles : 0) : 0;
+}
+
+/**
+ * Where each Salvo missile flies: one per enemy, nearest first; when there are fewer enemies than missiles, the spare
+ * ones all hit the toughest. `foes` are the enemies in reach ({ dist ahead, hp }); returns an index into `foes` per missile.
+ */
+export function salvoTargets(foes: ReadonlyArray<{ dist: number; hp: number }>, missiles: number): number[] {
+  if (!foes.length || missiles <= 0) return [];
+  const order = foes.map((_, i) => i).sort((a, b) => foes[a].dist - foes[b].dist);
+  const toughest = foes.reduce((b, f, i) => (f.hp > foes[b].hp ? i : b), 0);
+  return Array.from({ length: missiles }, (_, k) => (k < order.length ? order[k] : toughest));
+}
+
+/**
+ * Ferro's thrusters: whether he is on the ground now. In the air he lands once his HP share drops under landBelow;
+ * on the ground he lifts off again once healed to liftAt.
+ */
+export function thrustersGrounded(sig: Signature | undefined, grounded: boolean, hpShare: number): boolean {
+  if (sig?.kind !== 'reactor') return false;
+  return grounded ? hpShare < sig.liftAt : hpShare < sig.landBelow;
+}
