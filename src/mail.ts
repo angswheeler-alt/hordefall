@@ -30,6 +30,21 @@ export const MAIL_GIFTS: MailGift[] = [
     hero: 'kairo',
     existingOnly: true,
   },
+  {
+    // Samuel (2026-11-16): Ferro and Yeren get the same ways in as Pasta and Gogu, launch gift included.
+    id: 'ferro-launch',
+    title: 'Ferro has arrived!',
+    text: 'A gift for everyone playing today: Ferro, the flying armored Fire hero, at 1★.',
+    hero: 'ferro',
+    existingOnly: true,
+  },
+  {
+    id: 'yeren-launch',
+    title: 'Yeren has arrived!',
+    text: 'A gift for everyone playing today: Yeren, the Earth titan shifter, at 1★.',
+    hero: 'yeren',
+    existingOnly: true,
+  },
 ];
 
 /** Mail states for a brand-new save: gifts for existing players are not theirs. */

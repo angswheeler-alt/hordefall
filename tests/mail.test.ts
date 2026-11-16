@@ -56,3 +56,18 @@ describe('Mailbox: Gogu gift for current players', () => {
     expect(s.claimMail('gogu-launch')).toBeNull();
   });
 });
+
+describe('Mailbox: Ferro and Yeren gifts, like Gogu', () => {
+  for (const [gift, id] of [['ferro-launch', 'ferro'], ['yeren-launch', 'yeren']] as const) {
+    it(`${gift} opens for older saves, not new ones, and gives ${id} at 1★ once`, () => {
+      expect(loadedMail(undefined)[gift]).toBe('open');
+      expect(newSaveMail()[gift]).toBe('none');
+      const s = new GameState() as any;
+      s.mail[gift] = 'open';
+      const drop = s.claimMail(gift);
+      expect(drop?.joined).toBe(true);
+      expect(s.levels[id]).toBe(1);
+      expect(s.claimMail(gift)).toBeNull();
+    });
+  }
+});
