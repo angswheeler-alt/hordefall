@@ -95,8 +95,10 @@ export type Signature =
    * he turns into a giant titan for `seconds` s. The titan has its own body (`body` x his max HP) that soaks every hit,
    * hits `atk` x as hard at `cooldown` x his attack time, stomps every enemy within `stomp` px of the target and reaches
    * `reach` px further. If the body breaks he is cut out early and stunned for `brokenStun` s; either way Rage starts over.
+   * Samuel (2026-11-16) made it a colossal tank: enemies that can hit him within `taunt` px past their reach attack him
+   * instead, enemies within `heat` px of him burn for heatDps x his ATK a second, and the stand-in sprite is drawn `scale` x.
    */
-  | { kind: 'titan'; rage: number; perHit: number; perHpLost: number; seconds: number; body: number; atk: number; cooldown: number; stomp: number; reach: number; brokenStun: number }
+  | { kind: 'titan'; rage: number; perHit: number; perHpLost: number; seconds: number; body: number; atk: number; cooldown: number; stomp: number; reach: number; brokenStun: number; taunt: number; heat: number; heatDps: number; scale: number }
   /**
    * Missile Salvo (Ferro): every `every`th attack also fires `missiles` missiles (6★: + plusMissiles) at different enemies up to
    * `reach` px ahead, `mult` x ATK each, setting them Burning; spare missiles hit the toughest. He flies, but under `landBelow`

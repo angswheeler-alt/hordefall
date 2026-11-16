@@ -106,7 +106,7 @@ import { MUTANT_GOLD, rollMutation, type Mutation } from './mutations';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES, type BossAnim } from './bossAnims';
 import type { EffectKind } from './data';
 import { surgeArt } from './kits';
-import { gritStep, comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets, drenchVuln, heatStep, quarryMult, quarryCarry, surgeStage, surgeMults, surgeDrain, cannonMult, bannerStep, rageStep, titanForm, titanArtKey, TITAN_STAND_IN_SCALE, reactorStep, salvoSize, salvoTargets, thrustersGrounded } from './kits';
+import { gritStep, comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets, drenchVuln, heatStep, quarryMult, quarryCarry, surgeStage, surgeMults, surgeDrain, cannonMult, bannerStep, rageStep, titanForm, titanArtKey, reactorStep, salvoSize, salvoTargets, thrustersGrounded } from './kits';
 import { STAT_BASE, FREEZE_BLAST_RADIUS, BOSS_STUN_CHANCE, BOSS_STUN_SECONDS, type HeroStats } from './stats';
 import { heroProfile } from './profiles';
 import { canReach, enemyGoal, flyerVictim, isMelee, pickVictim } from './reach';
@@ -282,6 +282,8 @@ interface Unit {
    */
   rage: number;
   titanUntil: number;
+  /** Seconds since the colossus's heat last scorched the enemies around him. */
+  heatTick?: number;
   titanHp?: Decimal;
   titanMax?: Decimal;
   titanFrom?: string;
@@ -1119,6 +1121,31 @@ export class BattleScene extends Phaser.Scene {
     if (u.def?.signature?.kind === 'banner') this.stepBanner(u);
     if (u.titanUntil && this.clock >= u.titanUntil) this.endTitan(u);
     if (u.def?.signature?.kind === 'reactor') this.stepThrusters(u);
+    if (this.inTitan(u)) this.titanHeat(u, dt);
+  }
+
+  /** The colossus's glowing cracks scorch every enemy around his feet (ticks twice a second). */
+  private titanHeat(u: Unit, dt: number) {
+    const sig = u.def?.signature;
+    if (sig?.kind !== 'titan' || !u.alive || dt <= 0) return;
+    u.heatTick = (u.heatTick ?? 0) + dt;
+    if (u.heatTick < 0.5) return;
+    const secs = u.heatTick;
+    u.heatTick = 0;
+    for (const e of this.oppsOf(u)) {
+      if (!e.alive || Math.abs(e.x - u.x) > sig.heat || !this.reaches(u, e)) continue;
+      const amount = u.atk.times(sig.heatDps * secs * this.elem(this.dealsAs(u), e));
+      if (this.kitted(e)) this.takeHit(u, e, amount);
+      else this.damageUnit(e, amount, u);
+    }
+  }
+
+  /** A colossus on the enemy's way pulls its attack: the titan hero it can hit (within `taunt` px past its reach), if any. */
+  private taunter(e: Unit): Unit | undefined {
+    return this.heroes.find((h) => {
+      const sig = h.def?.signature;
+      return h.alive && sig?.kind === 'titan' && this.inTitan(h) && canReach(e, h) && Math.abs(h.x - e.x) <= e.range + sig.taunt;
+    });
   }
 
   /** Yeren is a titan right now. */
@@ -1135,7 +1162,7 @@ export class BattleScene extends Phaser.Scene {
     if (sig?.kind !== 'titan' || !u.alive || this.inTitan(u)) return;
     const r = rageStep(sig, u.rage, hits, hpLost, this.mul('rageGain', u));
     u.rage = r.rage;
-    if (r.shift) this.startTitan(u, 'TITAN SHIFT!');
+    if (r.shift) this.startTitan(u, 'COLOSSAL SHIFT!');
     else this.drawHpBar(u);
   }
 
@@ -1160,8 +1187,8 @@ export class BattleScene extends Phaser.Scene {
       this.swapArt(u, art);
       u.bodyScale = 1;
     } else {
-      u.bodyScale = TITAN_STAND_IN_SCALE;
-      if (u.body.active) this.tweens.add({ targets: u.body, scaleX: TITAN_STAND_IN_SCALE, scaleY: TITAN_STAND_IN_SCALE, duration: 220, ease: 'Back.out' });
+      u.bodyScale = sig.scale;
+      if (u.body.active) this.tweens.add({ targets: u.body, scaleX: sig.scale, scaleY: sig.scale, duration: 320, ease: 'Back.out' });
     }
     this.titanTint(u);
     this.cameras.main.shake(160, 0.006);
@@ -2654,8 +2681,11 @@ export class BattleScene extends Phaser.Scene {
     const pick = pickVictim(e, placed);
     // Flyers never turn back toward their own crystal: they hit whoever is in reach, even a hero already past
     // them, from where they hover, and otherwise fly on toward the heroes' crystal (src/reach.ts).
-    const target = e.flying ? flyerVictim(e, placed)?.u : pick.target?.u;
-    const dist = target ? Math.abs(e.x - target.x) : Infinity;
+    // A colossus (Yeren) pulls the attack of every enemy that can hit him; his body is so big it reaches a bit further.
+    const titan = this.taunter(e);
+    const target = titan ?? (e.flying ? flyerVictim(e, placed)?.u : pick.target?.u);
+    const reachBonus = target && target === titan && titan.def?.signature?.kind === 'titan' ? titan.def.signature.taunt : 0;
+    const dist = target ? Math.abs(e.x - target.x) - reachBonus : Infinity;
     if (target && dist <= e.range) {
       if (e.flying) this.faceEnemy(e, target.x > e.x ? 1 : -1);
       // A Bomber blows up on the first hero it reaches (a shiny one's fuse is a dud).
@@ -3722,7 +3752,7 @@ export class BattleScene extends Phaser.Scene {
       if (this.inTitan(h)) {
         h.titanUntil += ult.extend;
         this.floatText(h.x, h.y - 60, 'ROAR!', '#ffb347', 12);
-      } else this.startTitan(h, 'TITAN SHIFT!');
+      } else this.startTitan(h, 'COLOSSAL RISING!');
       const hit = this.enemies.filter((e) => e.alive && e.x >= h.x - 30 && e.x <= h.x + ult.radius);
       if (!this.ultFx(h, h.x + 20, h.x + ult.radius)) {
         const ring = this.add.ellipse(h.x + 30, h.y + FOOT_Y, 20, 8, 0xb89a74, 0.6).setDepth(999);
