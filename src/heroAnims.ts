@@ -154,5 +154,5 @@ export const HERO_ANIMS: Record<string, HeroAnim> = {
   wraith: { frame: [62,57], feet: [27,56], headTop: 4, run: 5, attack: 5, hitFrame: 3 },
   wyrmling: { frame: [48,52], feet: [25,51], headTop: 9, run: 5, attack: 5, hitFrame: 1 },
   yeren: { frame: [55,57], feet: [29,56], headTop: 2, run: 6, attack: 5, hitFrame: 3 },
-  yeren_titan: { frame: [103,158], feet: [51,157], headTop: 32, run: 6, attack: 5, hitFrame: 1 },
+  yeren_titan: { frame: [119,184], feet: [59,183], headTop: 37, run: 6, attack: 5, hitFrame: 1 },
 };
