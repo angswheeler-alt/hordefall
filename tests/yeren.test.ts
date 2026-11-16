@@ -5,6 +5,7 @@ import { arenaItems, releasedUniques, isUnique, YEREN_ID, YEREN_RELEASED } from 
 import { heroForms } from '../src/heroForms';
 import { ultFxStyle } from '../src/ultFx';
 import { HERO_ANIMS } from '../src/heroAnims';
+import { BOSS_ANIMS } from '../src/bossAnims';
 
 const yeren = HEROES.find((h) => h.id === 'yeren')!;
 
@@ -37,6 +38,17 @@ describe('Yeren, the titan shifter', () => {
     expect(HERO_ANIMS.yeren).toMatchObject({ run: 6, attack: 5 });
     const files = new Set(Object.keys(import.meta.glob('../src/assets/heroes/*.png')).map((f) => f.split('/').pop()));
     for (const f of ['yeren.png', 'yeren_run.png', 'yeren_attack.png']) expect(files.has(f), f).toBe(true);
+  });
+
+  it('has his own colossus sprites (Samuel 2026-11-16), drawn colossal next to his normal form', () => {
+    const files = new Set(Object.keys(import.meta.glob('../src/assets/heroes/*.png')).map((f) => f.split('/').pop()));
+    for (const f of ['yeren_titan.png', 'yeren_titan_run.png', 'yeren_titan_attack.png']) expect(files.has(f), f).toBe(true);
+    const t = HERO_ANIMS[titanArtKey('yeren')], y = HERO_ANIMS.yeren;
+    expect(t).toMatchObject({ run: 6, attack: 5 });
+    // The colossus stands at least twice as tall as Yeren himself, and (Samuel) as tall as a lane boss.
+    expect(t.feet[1] - t.headTop).toBeGreaterThan(2 * (y.feet[1] - y.headTop));
+    const bossTall = Math.max(...Object.values(BOSS_ANIMS).map((b) => (b.feet[1] - b.headTop) * 1.5)); // BattleScene BOSS_SCALE
+    expect(t.feet[1] - t.headTop).toBeGreaterThanOrEqual(bossTall * 0.85);
   });
 
   it('is sold like Gogu once released, and never in random pools', () => {

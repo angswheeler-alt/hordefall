@@ -8,13 +8,13 @@ import type { HeroDef } from '../data';
  * body that soaks the damage, pulls every enemy that can reach him onto himself, scorches enemies around his feet
  * with the heat of its glowing cracks, and slow, crushing stomps. Counters: flyers (the titan is ground melee),
  * burst damage that breaks the titan's body early (he is cut out and stunned), and fights where nobody hits him.
- * Released 2026-11-16 with Samuel's sprites (art/heroes/yeren); his colossus is his own sprite scaled up and
- * stone-tinted until the titan art (yeren_titan) lands.
+ * Released 2026-11-16 with Samuel's sprites (art/heroes/yeren); his colossus has its own sprites too
+ * (art/heroes/yeren_titan, drawn 2.8x, boss height).
  */
 export const YEREN: HeroDef = {
   id: 'yeren', rarity: 'epic', unique: true, statRarity: 'legendary', name: 'Yeren', element: 'earth',
   type: 'Knight', baseAtk: 3.4, baseHp: 165, range: 30, attackCooldown: 1.15, moveSpeed: 95, unlockCost: 50, upgradeBaseCost: 15, goldMult: 1, steadfast: true,
-  signature: { kind: 'titan', rage: 100, perHit: 5, perHpLost: 3, seconds: 15, body: 4, atk: 1.8, cooldown: 1.25, stomp: 60, reach: 25, brokenStun: 2, taunt: 40, heat: 70, heatDps: 0.35, scale: 2.4 },
+  signature: { kind: 'titan', rage: 100, perHit: 5, perHpLost: 3, seconds: 15, body: 4, atk: 1.8, cooldown: 1.25, stomp: 60, reach: 25, brokenStun: 2, taunt: 40, heat: 70, heatDps: 0.35, scale: 2.8 },
   sigPlus: 'Hardened Hide: his colossus takes 30% less damage and stands 4 seconds longer.',
   ult: { kind: 'roar', mult: 1.5, radius: 160, stun: 2, extend: 5, vuln: 1.2, vulnSeconds: 6 },
   ultPlus: 'The blast cracks their guard: every enemy it hits takes 20% more damage for 6 seconds.',
