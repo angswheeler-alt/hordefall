@@ -156,3 +156,21 @@ describe('Kairo in the Arena Shop', () => {
     }
   });
 });
+
+describe('Unique heroes are all obtained the same way as Pasta', () => {
+  it('every unique hero has the same Arena Shop deal, is released, out of random pools and has a launch gift', async () => {
+    const { ARENA_ITEMS, UNIQUE_HEROES, releasedUniques } = await import('../src/arenaShop');
+    const { POOL_HEROES, RELEASED_HEROES } = await import('../src/data');
+    const { MAIL_GIFTS } = await import('../src/mail');
+    const pasta = ARENA_ITEMS.find((i) => i.hero === 'pasta')!;
+    expect(UNIQUE_HEROES).toEqual(expect.arrayContaining(['pasta', 'kairo', 'ferro', 'yeren']));
+    for (const id of UNIQUE_HEROES) {
+      const item = ARENA_ITEMS.find((i) => i.hero === id)!;
+      expect([item.amount, item.price, item.perWeek]).toEqual([pasta.amount, pasta.price, pasta.perWeek]);
+      expect(releasedUniques()).toContain(id);
+      expect(RELEASED_HEROES).toContain(id);
+      expect(POOL_HEROES.some((h) => h.id === id)).toBe(false);
+      expect(MAIL_GIFTS.some((g) => g.hero === id && g.existingOnly)).toBe(true);
+    }
+  });
+});
