@@ -106,7 +106,7 @@ import { MUTANT_GOLD, rollMutation, type Mutation } from './mutations';
 import { BOSS_ANIMS, BOSS_ANIM_FRAMES, type BossAnim } from './bossAnims';
 import type { EffectKind } from './data';
 import { surgeArt } from './kits';
-import { gritStep, comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets, drenchVuln, heatStep, quarryMult, quarryCarry, surgeStage, surgeMults, surgeDrain, cannonMult } from './kits';
+import { gritStep, comboMult, executeMult, signatureReflect, splitHeal, controlEnd, SIG_PLUS, maskTriggers, barrageHits, zealState, torrentMults, spiritTargets, drenchVuln, heatStep, quarryMult, quarryCarry, surgeStage, surgeMults, surgeDrain, cannonMult, bannerStep } from './kits';
 import { STAT_BASE, FREEZE_BLAST_RADIUS, BOSS_STUN_CHANCE, BOSS_STUN_SECONDS, type HeroStats } from './stats';
 import { heroProfile } from './profiles';
 import { canReach, enemyGoal, flyerVictim, isMelee, pickVictim } from './reach';
@@ -273,6 +273,8 @@ interface Unit {
   surgeFrom: number;
   surgeBonus: number;
   surge: number;
+  /** Squire's Banner (Signature 'banner', Hamlet): when the banner last went up. */
+  bannerAt: number;
   grit: number;
   gritAt: number;
   formUntil?: number;
@@ -821,6 +823,7 @@ export class BattleScene extends Phaser.Scene {
       surgeFrom: this.clock,
       surgeBonus: 0,
       surge: 0,
+      bannerAt: this.clock,
       grit: 0,
       gritAt: -99,
       heat: 0,
@@ -1084,6 +1087,24 @@ export class BattleScene extends Phaser.Scene {
   private stepSignatureClock(u: Unit, dt: number) {
     if (u.formUntil && this.clock >= u.formUntil) this.endForm(u);
     if (u.def?.signature?.kind === 'surge') this.stepSurge(u, dt);
+    if (u.def?.signature?.kind === 'banner') this.stepBanner(u);
+  }
+
+  /** Squire's Banner (Hamlet): every few seconds, heroes near him get an ATK boost and a small heal. */
+  private stepBanner(h: Unit) {
+    const sig = h.def?.signature;
+    if (!h.alive || sig?.kind !== 'banner') return;
+    const b = bannerStep(sig, this.clock - h.bannerAt, this.sigPlus(h));
+    if (!b.raise) return;
+    h.bannerAt = this.clock;
+    this.floatText(h.x, h.y - 38, 'RALLY!', '#9fdcff', 10);
+    this.sparks(h.x, h.y - 24, 0x3fa9f5, 8);
+    for (const a of this.alliesOf(h)) {
+      if (!a.alive || Math.abs(a.x - h.x) > b.radius) continue;
+      a.beaconMult = Math.max(a.beaconUntil > this.clock ? a.beaconMult : 1, b.atk);
+      a.beaconUntil = Math.max(a.beaconUntil, this.clock + sig.seconds);
+      this.heal(a, a.maxHp.times(sig.heal), h);
+    }
   }
 
   /** Power Surge (Kairo): climb a stage every few seconds alive; each new stage flares his aura. */
@@ -3258,6 +3279,19 @@ export class BattleScene extends Phaser.Scene {
         for (const a of this.heroes) {
           if (!a.alive) continue;
           a.shield = Decimal.max(a.shield, shield);
+          this.drawHpBar(a);
+        }
+      }
+      // Rally the Herd (Hamlet): a shield from each hero's own max HP; 5★ also clears every debuff.
+      if (def.ult?.kind === 'rally') {
+        for (const a of this.heroes) {
+          if (!a.alive) continue;
+          a.shield = Decimal.max(a.shield, a.maxHp.times(def.ult.shield));
+          if (plus) {
+            a.frozenUntil = a.rootedUntil = a.slowUntil = a.poisonUntil = a.burnUntil = a.weakUntil = a.blindUntil = a.charmUntil = 0;
+            a.poisonStacks = 0;
+            a.slowMult = 1;
+          }
           this.drawHpBar(a);
         }
       }
