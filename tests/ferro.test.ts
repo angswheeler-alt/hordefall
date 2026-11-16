@@ -83,3 +83,10 @@ describe('Ferro', () => {
     expect(canReach({ range: 150 }, { flying: true })).toBe(true);
   });
 });
+
+describe('Ferro art', () => {
+  it('shows his Ult picture as a sweep along the beam', async () => {
+    const { ultFxStyle } = await import('../src/ultFx');
+    expect(ultFxStyle(ferro)).toBe('sweep');
+  });
+});
