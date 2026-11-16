@@ -6,7 +6,7 @@ import type { HeroDef } from '../data';
  * suit of brass-and-crimson armor around a little sun-forge in its chest. Ground melee can't reach him in the air, but
  * his armor is thin (Gunner HP), bosses, shooters and flyers hit him as usual, and once he is badly hurt his thrusters
  * cut out and he lands, where anything can hit him until he is healed back up.
- * Hidden until Samuel's art is in (HIDDEN_HEROES, arenaShop FERRO_RELEASED).
+ * Released 2026-11-16 with Samuel's sprites (art/heroes/ferro).
  */
 export const FERRO: HeroDef = {
   id: 'ferro', rarity: 'epic', unique: true, statRarity: 'legendary', name: 'Ferro', element: 'fire',
