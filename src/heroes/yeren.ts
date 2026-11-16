@@ -8,8 +8,8 @@ import type { HeroDef } from '../data';
  * body that soaks the damage, pulls every enemy that can reach him onto himself, scorches enemies around his feet
  * with the heat of its glowing cracks, and slow, crushing stomps. Counters: flyers (the titan is ground melee),
  * burst damage that breaks the titan's body early (he is cut out and stunned), and fights where nobody hits him.
- * Released 2026-11-16 with Samuel's sprites (art/heroes/yeren); his colossus is his own sprite scaled up and
- * stone-tinted until the titan art (yeren_titan) lands.
+ * Released 2026-11-16 with Samuel's sprites (art/heroes/yeren); his colossus has its own sprites too
+ * (art/heroes/yeren_titan, drawn 2.4x).
  */
 export const YEREN: HeroDef = {
   id: 'yeren', rarity: 'epic', unique: true, statRarity: 'legendary', name: 'Yeren', element: 'earth',

@@ -39,6 +39,15 @@ describe('Yeren, the titan shifter', () => {
     for (const f of ['yeren.png', 'yeren_run.png', 'yeren_attack.png']) expect(files.has(f), f).toBe(true);
   });
 
+  it('has his own colossus sprites (Samuel 2026-11-16), drawn colossal next to his normal form', () => {
+    const files = new Set(Object.keys(import.meta.glob('../src/assets/heroes/*.png')).map((f) => f.split('/').pop()));
+    for (const f of ['yeren_titan.png', 'yeren_titan_run.png', 'yeren_titan_attack.png']) expect(files.has(f), f).toBe(true);
+    const t = HERO_ANIMS[titanArtKey('yeren')], y = HERO_ANIMS.yeren;
+    expect(t).toMatchObject({ run: 6, attack: 5 });
+    // The colossus stands at least twice as tall as Yeren himself.
+    expect(t.feet[1] - t.headTop).toBeGreaterThan(2 * (y.feet[1] - y.headTop));
+  });
+
   it('is sold like Gogu once released, and never in random pools', () => {
     const items = arenaItems(true, true, true);
     const y = items.find((i) => i.hero === YEREN_ID)!;
