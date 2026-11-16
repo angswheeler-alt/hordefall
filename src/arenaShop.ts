@@ -29,9 +29,9 @@ export const KAIRO_ID = 'kairo';
 /**
  * Yeren (src/heroes/yeren.ts), the third one (Samuel 2026-11-16, the Earth titan shifter): same deal as Gogu, his own
  * rare drops and 5 crests for 100 Glory, 7 a week. Glory is not raised: the uniques compete for the same Glory.
- * Off until his art is in (then flip this and move 'yeren' from HIDDEN_HEROES to RELEASED_HEROES in data.ts).
+ * Released 2026-11-16 with Samuel's sprites (art/heroes/yeren).
  */
-export const YEREN_RELEASED = false;
+export const YEREN_RELEASED = true;
 export const YEREN_ID = 'yeren';
 /**
  * Ferro (src/heroes/ferro.ts), the flying armored Fire hero (Samuel 2026-11-16): the third one-of-a-kind hero, sold the
