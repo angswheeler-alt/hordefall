@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { HEROES, POOL_HEROES, RELEASED_HEROES, HIDDEN_HEROES } from '../src/data';
+import { HERO_ANIMS } from '../src/heroAnims';
 import { bannerStep, SIG_PLUS } from '../src/kits';
 
 const hamlet = HEROES.find((h) => h.id === 'hamlet')!;
@@ -20,10 +21,16 @@ describe('Hamlet', () => {
     }
   });
 
-  it('stays hidden until his art arrives', () => {
-    expect(HIDDEN_HEROES).toContain('hamlet');
-    expect(RELEASED_HEROES).not.toContain('hamlet');
-    expect(POOL_HEROES.some((h) => h.id === 'hamlet')).toBe(false);
+  it('is released into the normal random pools', () => {
+    expect(HIDDEN_HEROES).not.toContain('hamlet');
+    expect(RELEASED_HEROES).toContain('hamlet');
+    expect(POOL_HEROES.some((h) => h.id === 'hamlet')).toBe(true);
+  });
+
+  it('has his animated sprites', () => {
+    expect(HERO_ANIMS.hamlet).toBeTruthy();
+    expect(HERO_ANIMS.hamlet.run).toBe(6);
+    expect(HERO_ANIMS.hamlet.attack).toBe(5);
   });
 
   it('raises the banner every 12 seconds for +20% ATK nearby, +30% team-wide at 6★', () => {

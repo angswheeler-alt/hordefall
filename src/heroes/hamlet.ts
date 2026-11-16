@@ -4,7 +4,7 @@ import type { HeroDef } from '../data';
  * Hamlet (2026-11-16, Samuel): a cheerful pig squire who carries his knight's banner and pack into every fight.
  * From Samuel's own picture (art/hamlet in the project files). Water Support, Rare: heals from the back row, and
  * every few seconds raises his banner to cheer on the heroes around him.
- * HIDDEN until his pixel art arrives: not in RELEASED_HEROES (release = add 'hamlet' there).
+ * Released 2026-11-16 with Samuel's sprites (art/heroes/hamlet).
  */
 export const HAMLET: HeroDef = {
   id: 'hamlet', rarity: 'rare', name: 'Hamlet', element: 'water', type: 'Support',
