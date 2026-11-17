@@ -1662,3 +1662,39 @@ body.arena-open:not(.in-trial) #app > :not(#panels), body.arena-open:not(.in-tri
 .form-card b { font-size: 12px; line-height: 1.15; }
 .form-card small { font-size: 10px; line-height: 1.2; opacity: .8; }
 .ct-evo { position: absolute; right: 3px; top: 3px; padding: 0 4px; border-radius: 6px; font-size: 8px; font-weight: 900; letter-spacing: .5px; color: #fff; background: linear-gradient(135deg, #ff6b5e, #8a5cff); box-shadow: 0 1px 2px rgba(0,0,0,.6); pointer-events: none; }
+
+/* Today card (top of Home): everything worth doing right now, each row with a Go button. */
+.today-card h3 small { color: var(--orange); }
+.today-card.all-done h3 { margin-bottom: 0; }
+.today-card.all-done h3 small { color: #7fd58a; }
+.today-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.today-list li { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 2px 4px 2px 8px; border-radius: 8px; background: rgba(10, 14, 26, 0.35); }
+.today-list li b { font-size: 13px; color: #e4eaf8; white-space: nowrap; }
+.today-list li small { flex: 1; min-width: 0; text-align: right; font-size: 12px; color: #b0c1e8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.today-list li.done { opacity: 0.5; }
+.today-go { flex: none; min-width: 52px; padding: 5px 10px; font-size: 12px; border-radius: 8px; }
+.today-tick { flex: none; width: 52px; text-align: center; font-style: normal; color: #7fd58a; font-weight: 700; }
+.today-week { margin: 8px 2px 0 !important; font-size: 12px; color: #c9b27a !important; }
+.today-card.all-done .today-week { margin-top: 4px !important; }
+
+/* Home cards fold to their header once today's reward is claimed. */
+.rw-card.folded h3 { margin-bottom: 0; }
+.rw-card.folded .login-days, .rw-card.folded #login-claim,
+.rw-card.folded #daily-list, .rw-card.folded .claim-all,
+.rw-card.folded > p, .rw-card.folded #bundle-heroes, .rw-card.folded #bundle-claim { display: none; }
+.rw-card.flash { animation: card-flash 1.2s ease-out; }
+@keyframes card-flash { 0%, 30% { box-shadow: 0 0 0 3px var(--orange); } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+/* Offline card: full width, with the Element wheel as a small button in its corner. */
+.home-offline { position: relative; }
+.home-offline[hidden] { display: none; }
+.home-wheel-btn { position: absolute; top: 8px; right: 8px; }
+.home-offline h3 { padding: 0 70px; }
+
+/* Run stats fold behind a button at the bottom of Home. */
+.runstats-btn { display: flex; align-items: center; gap: 6px; margin: 4px 4px 10px; padding: 4px 2px; background: none; border: 0; color: #d0daf3; font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
+.runstats-btn span { transition: transform 0.15s; }
+.runstats-btn[aria-expanded="true"] span { transform: rotate(90deg); }
+.battle-stats[hidden] { display: none; }
+.spin-card[hidden] { display: none; }
+.battle-stats dt { white-space: nowrap; }

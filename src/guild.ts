@@ -751,6 +751,7 @@ export class Guild {
     const locked = this.locked();
     const mode = locked || (!this.me && this.error && !this.list.length) ? 'off' : this.me ? 'home' : this.lastFetch ? 'browse' : 'off';
     this.ui.inGuild = mode === 'home';
+    this.ui.guildBossFights = this.fightsLeft();
     if (mode !== this.mode) {
       this.mode = mode;
       root.innerHTML = mode === 'home' ? this.homeShell() : mode === 'browse' ? this.browseShell() : '<div class="soon-card" id="g-off"></div>';

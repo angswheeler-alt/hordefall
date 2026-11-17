@@ -28,6 +28,8 @@ import { meterTops, type PvpMeterRow } from './battleMeter';
 
 /** The note under the battle screen's title during a Trial (the HTML default). */
 const TRIAL_HUD_NOTE = 'Your team fights at its Ember levels. Fallen heroes stay down until the Trial ends. Beat the boss before time runs out.';
+/** Below this best stage Home hides the offline card: a brand-new save has never been away. */
+const HOME_OFFLINE_FROM_STAGE = 20;
 import type { ColosseumLink } from './colosseumLink';
 import { OBSERVATORY, OBSERVATORY_RESPEC_GEMS, SIGIL_COST_STEP, SIGIL_LEVEL_STEP, sigilsEarned, sigilCost, type ObsBranch } from './observatory';
 import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_QUICK_CP, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies, ultsAllowed } from './colosseum';
@@ -42,6 +44,7 @@ import { arenaItems, ARENA_ICON, ARENA_NAME, GLORY_DAILY, GLORY_WIN, GLORY_LOSS 
 import { JournalUI, journalRulesText } from './journalUi';
 import { bossPicHtml, heroFaceCss, heroWholeCss } from './portrait';
 import { heroForms } from './heroForms';
+import { todayRows, todayLeft, weekLine, type TodayGo } from './today';
 import { RushUI, rushResultHtml } from './rushUi';
 import { ExpeditionUI, expEndHtml } from './expeditionUi';
 import type { ExpLender } from './expedition';
@@ -323,6 +326,8 @@ export class UI {
   private teamScrollKey = '';
   /** Set by the guild panel while the player is in a guild, so the Guild Boss team gets its tab. */
   inGuild = false;
+  /** Guild Boss fights left, set by Guild when it knows (null: not in a guild, or unknown). For the Today card. */
+  guildBossFights: number | null = null;
 
   /** Open Manage Team on one team (the Colosseum and Guild panels use this for their Edit buttons). */
   openTeamOn(tab: TeamTab) {
@@ -1680,7 +1685,16 @@ export class UI {
     }
     $('home-btn').addEventListener('click', () => this.setTab('home'));
     $('home-wheel').addEventListener('click', () => this.showModal('Element wheel', `${elementWheelSvg()}<p class="ew-note">${ELEMENT_WHEEL_NOTE}</p>`, 'Got it'));
-    setHtml($('home-wheel'), `${elementWheelSvg()}<small>Elements</small>`);
+    $('today-list').addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-today]');
+      if (btn) this.goToday(btn.dataset.today as TodayGo);
+    });
+    $('runstats-btn').addEventListener('click', () => {
+      const open = $('run-stats').hidden;
+      $('run-stats').hidden = !open;
+      $('runstats-btn').setAttribute('aria-expanded', String(open));
+      if (open) $('run-stats').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
     this.setTab('home');
     $('freegems').addEventListener('click', () => {
       if (!devToolsOn()) return;
@@ -3361,6 +3375,73 @@ export class UI {
     });
   }
 
+  /** A Today card Go button: open the place that row points to. */
+  private goToday(go: TodayGo) {
+    const homeCard: Partial<Record<TodayGo, string>> = { login: 'home-login', spin: 'home-spin', daily: 'home-daily', bundle: 'home-bundle' };
+    const card = homeCard[go];
+    if (card) {
+      const el = $(card);
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      el.classList.remove('flash');
+      void el.offsetWidth;
+      el.classList.add('flash');
+      return;
+    }
+    if (go === 'guild') {
+      this.setTab('guild');
+      return;
+    }
+    this.setTab('battle');
+    document.querySelector<HTMLButtonElement>(`.mode-card[data-battle-go="${go}"]`)?.click();
+  }
+
+  /** The Today card: everything worth doing right now, each with a Go button. */
+  private renderToday(now: number) {
+    const s = this.state;
+    const login = s.loginState(now);
+    const daily = s.dailies(now);
+    const bundle = s.medalBundleState(now);
+    const open = s.openTrials(now);
+    const w = s.rushWindow(now);
+    const rows = todayRows({
+      login: { ready: login.ready, day: login.day },
+      spinReady: s.spinReady(now),
+      dailies: {
+        claimed: daily.filter((r) => r.claimed).length,
+        claimable: daily.filter((r) => !r.claimed && r.progress >= r.def.goal).length,
+        total: daily.length,
+      },
+      bundle: { claimed: bundle.claimed, ready: bundle.ready },
+      trials: { unlocked: s.trialsUnlocked(), open, allOpen: open.length === TRIAL_ROTATION.length, tickets: s.trialTickets(), cap: s.ticketCap(), double: s.trialEventOn(now) },
+      pvp: { open: s.pvpOpen(), tickets: s.pvp.tickets, cap: PVP_TICKET_CAP },
+      scout: { open: s.scoutOpen(), ready: s.scoutReadyCount(now), running: s.scout.slots.filter((x) => x.mission?.startedAt).length },
+      guildFights: this.inGuild ? this.guildBossFights : null,
+      rush: { open: s.rushOpen(), on: s.rushOn(now), endsIn: fmtDuration(Math.max(0, Math.ceil((w.end - now) / 1000))) },
+    });
+    const left = todayLeft(rows);
+    const allDone = left === 0;
+    $('today').classList.toggle('all-done', allDone);
+    $('today-note').textContent = allDone ? 'All done for today ✓' : `${left} to do · ${rows.length - left} done`;
+    setHtml(
+      $('today-list'),
+      allDone
+        ? ''
+        : rows
+            // Done rows drop off so the card stays short; the header counts what's left.
+            .filter((r) => !r.done)
+            .map(
+              (r) =>
+                `<li class="${r.done ? 'done' : ''}"><b>${r.label}</b><small>${r.status}</small>${r.done ? '<i class="today-tick" aria-label="Done">✓</i>' : `<button type="button" class="${r.hot ? 'hot' : 'wood-btn'} small today-go" data-today="${r.id}">Go</button>`}</li>`,
+            )
+            .join(''),
+    );
+    // Only events the player can join: x2 Trials once Trials are open, Rush once Rush is.
+    const days = s.calendar(7, now).map((d) => ({ date: d.date, double: d.double && s.trialsUnlocked(), rush: d.rush && s.rushOpen() }));
+    const week = weekLine(days, s.dealState(now));
+    $('today-week').hidden = !week;
+    $('today-week').textContent = week ? `This week: ${week}` : '';
+  }
+
   /** When the offline reach was last worked out (it runs the boss checks, so not every frame). */
   private offlineAt = 0;
 
@@ -3368,6 +3449,9 @@ export class UI {
   private renderHome() {
     const s = this.state;
     const now = Date.now();
+    this.renderToday(now);
+    // A brand-new save has never been away, so its offline reach means nothing yet.
+    $('home-offline-card').hidden = s.bestStage < HOME_OFFLINE_FROM_STAGE;
     if (now - this.offlineAt > 3000) {
       this.offlineAt = now;
       const max = s.maxOffline();
@@ -3411,10 +3495,16 @@ export class UI {
         return `<div class="${cls}${r.gems ? ' big' : ''}${(i + 1) % 7 === 0 || i >= LOGIN_CYCLE.length - 2 ? ' week' : ''}"><small>Day ${i + 1}</small><b>${i < doneDays ? '✓' : sliceLabel(r)}</b></div>`;
       }).join(''),
     );
+    // Claimed today: the 30-day grid folds to one line until tomorrow.
+    $('home-login').classList.toggle('folded', !login.ready);
+    const nextDay = LOGIN_CYCLE[Math.min(login.day, LOGIN_CYCLE.length - 1)];
+    $('login-note').textContent = login.ready ? '30 days · missed days never reset' : `Done today · tomorrow: ${sliceLabel(nextDay)}`;
     $<HTMLButtonElement>('login-claim').disabled = !login.ready;
     $('login-claim').textContent = login.ready ? `Claim day ${login.day + 1}` : 'Come back tomorrow';
 
     const spinReady = s.spinReady(now) && !this.spinning;
+    // The wheel only shows while there's a free spin (or one is turning).
+    $('home-spin').hidden = !s.spinReady(now) && !this.spinning;
     $<HTMLButtonElement>('spin-btn').disabled = !spinReady;
     $('spin-btn').textContent = this.spinning ? 'Spinning...' : spinReady ? 'Free spin' : 'Next spin tomorrow';
 
@@ -3425,6 +3515,7 @@ export class UI {
     }
     const earned = daily.filter((r) => r.claimed).length * DAILY_GEMS;
     $('daily-note').textContent = `${earned}/${DAILIES.length * DAILY_GEMS} Gems today`;
+    $('home-daily').classList.toggle('folded', daily.every((r) => r.claimed));
 
     const bundle = s.medalBundleState(now);
     setHtml(
@@ -3436,7 +3527,8 @@ export class UI {
         })
         .join(''),
     );
-    $('bundle-note').textContent = bundle.claimed ? 'Claimed' : `${Math.min(bundle.done, bundle.need)}/${bundle.need} challenges`;
+    $('bundle-note').textContent = bundle.claimed ? 'Claimed · new bundle tomorrow' : `${Math.min(bundle.done, bundle.need)}/${bundle.need} challenges`;
+    $('home-bundle').classList.toggle('folded', bundle.claimed);
     $<HTMLButtonElement>('bundle-claim').disabled = !bundle.ready;
     $('bundle-claim').textContent = bundle.claimed ? 'New bundle tomorrow' : bundle.ready ? 'Claim free' : `Finish ${bundle.need} daily challenges`;
 
