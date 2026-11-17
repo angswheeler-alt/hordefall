@@ -9,7 +9,7 @@ describe('hero forms gallery', () => {
     const f = heroForms('kairo', all)!;
     expect(f.map((x) => x.art)).toEqual(['kairo', 'kairo_surge1', 'kairo_surge', 'kairo_ascend3', 'kairo_overdrive']);
     expect(f[4].name).toBe('Overdrive');
-    expect(f[1].how).toContain('8 s');
+    expect(f[1].how).toContain('7 s');
   });
 
   it('skips surge stages whose art is missing', () => {

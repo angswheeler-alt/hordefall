@@ -22,19 +22,19 @@ describe('Kairo', () => {
     expect(POOL_HEROES.some((h) => h.id === 'kairo')).toBe(false);
   });
 
-  it('climbs a surge stage every 8 seconds, up to Overdrive (stage 4)', () => {
+  it('climbs a surge stage every 7 seconds, up to Overdrive (stage 4) at 28 s', () => {
     const sig = kairo.signature;
     expect(surgeStage(sig, 0)).toBe(0);
-    expect(surgeStage(sig, 7.9)).toBe(0);
-    expect(surgeStage(sig, 8)).toBe(1);
-    expect(surgeStage(sig, 16)).toBe(2);
-    expect(surgeStage(sig, 24)).toBe(3);
-    expect(surgeStage(sig, 32)).toBe(4);
+    expect(surgeStage(sig, 6.9)).toBe(0);
+    expect(surgeStage(sig, 7)).toBe(1);
+    expect(surgeStage(sig, 14)).toBe(2);
+    expect(surgeStage(sig, 21)).toBe(3);
+    expect(surgeStage(sig, 28)).toBe(4);
     expect(surgeStage(sig, 999)).toBe(4);
     // 6★ jump adds a stage but never past the top.
     expect(surgeStage(sig, 0, 1)).toBe(1);
-    expect(surgeStage(sig, 24, 1)).toBe(4);
-    expect(surgeStage(sig, 32, 1)).toBe(4);
+    expect(surgeStage(sig, 21, 1)).toBe(4);
+    expect(surgeStage(sig, 28, 1)).toBe(4);
     expect(surgeStage(undefined, 99)).toBe(0);
   });
 
