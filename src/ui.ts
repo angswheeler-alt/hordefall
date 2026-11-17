@@ -7,7 +7,7 @@ import { testAdjust, testMaxAll, testMaxHero, testRange, testRecruit, testValue,
 import Decimal from 'break_infinity.js';
 import { type HeroStats, type BigStat, type StatPair } from './stats';
 import { heroProfile, heroBuildEffects, buildBonus } from './profiles';
-import { heroAffinity, heroElementColor, STAR_EMBER_BONUS, GUILD_BOSS_NAMES, GOLD_CHEST_GEMS_PER_DAY, GUILD_BOSS_SECONDS, HEROES, byRarity, heroRank, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_SLIDER_MAX, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_SET_START_SHARE, RELIC_STORED_SHARE, RELIC_SET_OWNED_SHARE, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, trialFirstWin, ESSENCE_NAMES, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, elementMultiplier, nextBossInfo, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
+import { heroAffinity, heroElementColor, STAR_EMBER_BONUS, GUILD_BOSS_NAMES, GOLD_CHEST_GEMS_PER_DAY, GUILD_BOSS_SECONDS, HEROES, byRarity, heroRank, AWAKEN_STARMOTES, AWAKEN_STAT_MULT, RELEASED_HEROES, HERO_TYPES, ELEMENT_COLORS, ULT_UNLOCK_LEVEL, SPEED_UNLOCK_STAGE, REKINDLE_STAGE, HEAD_START_MIN_PUSH, REKINDLE_BOOSTS, ROAD_START, ROAD_STEP, ROAD_LENGTH, KEEPER_BONUS_PER_LEVEL, LEVEL_GIFT_STONES, STAR_CRESTS, CHEST_COST, CHEST_SLIDER_MAX, CHEST_DROPS, CREST_ROLLS, CHEST_RARITY_WEIGHTS, ULT_STAR_BONUS, AURA_EVOLUTIONS, ULT_PLUS_EVOLUTIONS, SIG_PLUS_EVOLUTIONS, MASTERY_EVOLUTIONS, ASCENDED_EVOLUTIONS, ASCENDED_ULT_COOLDOWN, TYPE_MASTERY, LEGENDARY_MEDAL_RATE, LEGENDARY_UNLOCK_MEDALS, ULT_MULTIPLIER, ULT_COOLDOWN, TEAM_SLOTS_MAX, HOURGLASS_GEMS, HOURGLASS_MINUTES, HOURGLASS_PER_DAY, GOLD_BOOST_GEMS, GOLD_BOOST_MINUTES, GOLD_BOOST_MAX_MINUTES, GOLD_BOOST_MULT, MEDAL_PACK, HERO_SHOP_REFRESH_GEMS, FEATURED_BUNDLE, FEATURED_BIG_BUNDLE, TICKET_GEMS, TICKETS_PER_DAY, BOUGHT_TICKET_CAP, TICKET_CRATE, HERO_VOUCHER, TRIAL_EVENT_MEDAL_MULT, RELICS, RELIC_SETS, RELIC_SET_START_SHARE, RELIC_STORED_SHARE, RELIC_SET_OWNED_SHARE, RELIC_BASE_MAX, RELIC_MAX_STARS, RELIC_SHOP_REFRESH_MINUTES, TRIAL_ROTATION, DAY_NAMES, TRIAL_TIERS, TRIAL_LEVELS, TRIAL_TIME, TRIAL_QUICK_TIME, TRIAL_BOSS_NAMES, TRIAL_BOSS_ART, TRIAL_RARITY_WEIGHTS, trialFirstWin, ESSENCE_NAMES, STALLS, STALL_AUTO_LEVEL, STALL_MILESTONE, STALL_REKINDLE_REVENUE, STALL_REKINDLE_LEVELS, STALL_REKINDLE_LEVELS_CAP, TRIAL_UNLOCK_STAGE, elementMultiplier, nextBossInfo, type HeroDef, type StallDef, type Element, type RelicDef } from './data';
 import { GUILD_RELICS, GUILD_RELIC_MAX_LEVEL, GUILD_RELIC_SLOTS, GUILD_RELIC_TIER2_LEVEL, guildRelicEffect, guildRelicItemCost, BOSS_RELICS, BOSS_RELIC_SLOTS, BOSS_RELIC_MAX_LEVEL, BOSS_ITEM_NAMES, BOSS_ITEM_CHANCE, type GuildRelicEffect, type BossItemCounts } from './guildRelics';
 import { play } from './sfx';
 import { elementWheelSvg, ELEMENT_WHEEL_NOTE } from './elementWheel';
@@ -30,6 +30,8 @@ import { meterTops, type PvpMeterRow } from './battleMeter';
 const TRIAL_HUD_NOTE = 'Your team fights at its Ember levels. Fallen heroes stay down until the Trial ends. Beat the boss before time runs out.';
 /** Below this best stage Home hides the offline card: a brand-new save has never been away. */
 const HOME_OFFLINE_FROM_STAGE = 20;
+/** A locked button for something far off shows once the player has come this share of the way to it. */
+const NEAR_UNLOCK_SHARE = 0.8;
 import type { ColosseumLink } from './colosseumLink';
 import { OBSERVATORY, OBSERVATORY_RESPEC_GEMS, SIGIL_COST_STEP, SIGIL_LEVEL_STEP, sigilsEarned, sigilCost, type ObsBranch } from './observatory';
 import { PVP_TICKET_CAP, PVP_TICKET_GEMS, PVP_WIN_TROPHIES, PVP_WIN_MOTES, PVP_LOSS_TROPHIES, PVP_LOSS_MOTES, PVP_QUICK_CP, RANK_WEEKLY, RANK_TROPHIES, LEGEND, rankIndex, rankName, droppedTrophies, ultsAllowed } from './colosseum';
@@ -44,6 +46,7 @@ import { arenaItems, ARENA_ICON, ARENA_NAME, GLORY_DAILY, GLORY_WIN, GLORY_LOSS 
 import { JournalUI, journalRulesText } from './journalUi';
 import { bossPicHtml, heroFaceCss, heroWholeCss } from './portrait';
 import { heroForms } from './heroForms';
+import type { IntroGo } from './featureIntros';
 import { todayRows, todayLeft, todayShown, weekLine, type TodayGo } from './today';
 import { RushUI, rushResultHtml } from './rushUi';
 import { ExpeditionUI, expEndHtml } from './expeditionUi';
@@ -1022,6 +1025,8 @@ export class UI {
     }
     const alcBtn = document.querySelector<HTMLButtonElement>('[data-relic-go="alchemy"]')!;
     alcBtn.disabled = !s.alchemyOpen();
+    // Far-off things stay out of sight: the Alchemist button only shows once the player is most of the way there.
+    alcBtn.hidden = !s.alchemyOpen() && s.bestStage < ALCHEMY_UNLOCK_STAGE * NEAR_UNLOCK_SHARE;
     alcBtn.textContent = s.alchemyOpen() ? 'Alchemist' : `Alchemist · stage ${ALCHEMY_UNLOCK_STAGE.toLocaleString()}`;
     const a = s.alchemyNow();
     const from = $<HTMLSelectElement>('alc-from').value as Element;
@@ -1685,6 +1690,8 @@ export class UI {
     }
     $('home-btn').addEventListener('click', () => this.setTab('home'));
     $('home-wheel').addEventListener('click', () => this.showModal('Element wheel', `${elementWheelSvg()}<p class="ew-note">${ELEMENT_WHEEL_NOTE}</p>`, 'Got it'));
+    // Long explainers show their first sentence; More opens the rest (Samuel 2026-11-17).
+    for (const el of document.querySelectorAll<HTMLElement>('.fold')) foldNote(el);
     $('today-list').addEventListener('click', (e) => {
       const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-today]');
       if (btn) this.goToday(btn.dataset.today as TodayGo);
@@ -2288,6 +2295,16 @@ export class UI {
     this.trialEntered = false;
   }
 
+  /** A padlock on a tab that isn't open yet, with the stage it opens at ('' when open). */
+  private tabLock(tab: Tab, stage: string) {
+    const b = $('tabbar').querySelector<HTMLElement>(`button[data-tab="${tab}"]`);
+    if (!b) return;
+    b.classList.toggle('tab-locked', !!stage);
+    if (stage) b.dataset.lock = stage;
+    else delete b.dataset.lock;
+    b.title = stage ? `Opens after the stage ${stage} boss` : '';
+  }
+
   private badge(tab: Tab, on: boolean) {
     const b = $('tabbar').querySelector<HTMLElement>(`button[data-tab="${tab}"] .badge`);
     if (b) b.hidden = !on;
@@ -2631,7 +2648,7 @@ export class UI {
       `${notes}
       <div class="pvp-rank"><div style="flex:1"><div class="badge-rank">${rankName(r)}</div><small>${p.trophies} trophies${next === null ? '' : ` · ${next - p.trophies} to ${rankName(r + 1)}`}</small><div class="pvp-bar"><div style="width:${fill}%"></div></div></div>
         <div class="pvp-pay">${s.glory} Glory · ${s.starmotes} Starmotes<br><small>${p.wins}W ${p.losses}L${p.streak ? ` · streak ${p.streak} (+${Math.round(s.pvpStreakBonus() * 100)}% dmg)` : ''}</small></div></div>
-      <small>Daily ${GLORY_DAILY[r]} Glory at this rank. Starmotes saved this season: <b>${p.season}</b>. On Monday the season ends: you get them plus ${RANK_WEEKLY[r]} for your rank, then drop to ${rankName(rankIndex(droppedTrophies(p.trophies)))}.</small>
+      <small>Season ends Monday: <b>${(p.season + RANK_WEEKLY[r]).toLocaleString()}</b> Starmotes for you, then you drop to ${rankName(rankIndex(droppedTrophies(p.trophies)))}. +${GLORY_DAILY[r]} Glory a day.</small>
       ${this.arenaBannerHtml()}
       ${foes}
       <div class="pvp-row"><button class="wood-btn small" data-pvp="board">Leaderboard &amp; log</button><button class="wood-btn small" data-pvp="refresh" ${refreshIn ? 'disabled' : ''}>${refreshIn ? `New opponents in ${Math.floor(refreshIn / 60)}:${String(refreshIn % 60).padStart(2, '0')}` : 'New opponents'}</button>${ticketBtn}</div>
@@ -3394,6 +3411,21 @@ export class UI {
     });
   }
 
+  /** A "New:" card's Take me there button (src/featureIntros.ts). */
+  goFeature(go: IntroGo) {
+    if (go === 'market' || go === 'relics') return this.setTab(go);
+    if (go === 'observatory') return this.openObservatory();
+    if (go === 'journal') return this.journalUi.open();
+    if (go === 'rekindle') return $('rk-emblem').click();
+    if (go === 'alchemy') {
+      this.setTab('relics');
+      document.querySelector<HTMLButtonElement>('[data-relic-go="alchemy"]')?.click();
+      return;
+    }
+    this.setTab('battle');
+    document.querySelector<HTMLButtonElement>(`.mode-card[data-battle-go="${go}"]`)?.click();
+  }
+
   /** A Today card Go button: open the place that row points to. */
   private goToday(go: TodayGo) {
     const homeCard: Partial<Record<TodayGo, string>> = { login: 'home-login', spin: 'home-spin', daily: 'home-daily', bundle: 'home-bundle' };
@@ -3817,6 +3849,10 @@ export class UI {
     this.renderRelics(); // no red dot for relic upgrades or free slots (user 2026-10-31)
     this.badge('relics', false);
     this.badge('battle', (s.rekindles > 0 && s.tickets >= s.ticketCap()) || s.scoutReadyCount() > 0);
+    // Tabs with nothing to do yet show a padlock and when they open; they still open, and the page explains.
+    const battleOpen = s.trialsUnlocked() || s.pvpOpen() || s.scoutOpen() || s.rushOpen();
+    this.tabLock('battle', battleOpen ? '' : `${TRIAL_UNLOCK_STAGE - 1}`);
+    this.tabLock('relics', s.trialsUnlocked() ? '' : `${TRIAL_UNLOCK_STAGE - 1}`);
     this.badge('heroes', heroesBadge || teamReady);
     $('collection-btn').classList.toggle('ready', teamReady);
     if (this.tab === 'shop') s.seeHeroShop();
@@ -3852,7 +3888,7 @@ export class UI {
       u.button.classList.toggle('locked', locked);
       u.button.classList.toggle('ready', ready);
       // A fallen hero's button counts down to their revive, even before the Ultimate unlocks.
-      u.cd.textContent = !st.alive ? `${Math.ceil(st.reviveIn)}s` : !st.unlocked ? `Lv${ULT_UNLOCK_LEVEL}` : st.remaining > 0 ? `${Math.ceil(st.remaining)}` : '';
+      u.cd.textContent = !st.alive ? `${Math.ceil(st.reviveIn)}s` : !st.unlocked ? `${ULT_UNLOCK_LEVEL}` : st.remaining > 0 ? `${Math.ceil(st.remaining)}` : '';
       u.cd.style.display = ready ? 'none' : 'flex';
       // Cooldown shade drains from the top as the ultimate recharges.
       u.button.style.setProperty('--cd', !st.unlocked || !st.alive ? '1' : String(Math.min(1, st.remaining / st.total)));
@@ -4012,4 +4048,26 @@ function screenInfo(): string {
   probe.remove();
   fixed.remove();
   return text;
+}
+
+/** Show only the first sentence of a plain-text note, with a More button for the rest. */
+function foldNote(el: HTMLElement) {
+  const text = el.textContent ?? '';
+  const cut = text.search(/[.!?]\s/);
+  if (cut < 0 || cut > text.length - 12) return;
+  const first = document.createElement('span');
+  first.textContent = text.slice(0, cut + 1);
+  const rest = document.createElement('span');
+  rest.textContent = ' ' + text.slice(cut + 2);
+  rest.hidden = true;
+  const more = document.createElement('button');
+  more.type = 'button';
+  more.className = 'more-btn';
+  more.textContent = 'More';
+  more.addEventListener('click', (e) => {
+    e.stopPropagation();
+    rest.hidden = !rest.hidden;
+    more.textContent = rest.hidden ? 'More' : 'Less';
+  });
+  el.replaceChildren(first, rest, ' ', more);
 }

@@ -69,18 +69,16 @@ export const INTRO: GuideStep[] = [
     done: (v) => !v.firstChest,
   },
   {
+    // "Back home" and "Bosses" were two steps; one is enough (Samuel 2026-11-17, fewer pop-ups at the start).
     target: '#home-btn',
     title: 'Back home',
-    text: 'Tap the arrow (or the open tab again) to close it and go back home.',
+    text: `Tap the arrow to go back home. A boss waits every ${BOSS_EVERY} stages: beat them for the rewards on Home. Good luck!`,
     done: (v) => v.tab === 'home',
   },
-  {
-    target: '.objective',
-    title: 'Bosses',
-    text: `A boss waits every ${BOSS_EVERY} stages. Beat them to claim the rewards here. Good luck!`,
-    button: "Let's go!",
-  },
 ];
+
+/** A brand-new game lets the first fight run this long before the guide starts talking. */
+export const INTRO_DELAY_SECONDS = 20;
 
 /** The intro step a finished (or skipped) guide sits on. */
 export const TUTORIAL_DONE = INTRO.length;

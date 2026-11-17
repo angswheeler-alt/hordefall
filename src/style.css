@@ -1721,3 +1721,15 @@ body.arena-open:not(.in-trial) #app > :not(#panels), body.arena-open:not(.in-tri
 .sheet-levels .level-row button.gold-up, .sheet-levels .level-row button.ember-up { min-width: 0; width: 100%; padding-top: 4px; padding-bottom: 4px; }
 .sheet-levels .level-row .meta { font-size: 11px; }
 .today-card[hidden] { display: none; }
+
+/* A locked Ultimate shows a small padlock and the level it opens at, so it reads as "later", not a level number. */
+#ults .ult.locked .cd { align-items: center; padding-bottom: 0; gap: 2px; }
+#ults .ult.locked .cd::before { content: ''; width: 10px; height: 12px; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 12'%3E%3Cpath d='M2 5V3.5a3 3 0 0 1 6 0V5h1v7H1V5zm1.5 0h3V3.5a1.5 1.5 0 0 0-3 0z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 12'%3E%3Cpath d='M2 5V3.5a3 3 0 0 1 6 0V5h1v7H1V5zm1.5 0h3V3.5a1.5 1.5 0 0 0-3 0z'/%3E%3C/svg%3E") center / contain no-repeat; }
+.relic-nav [hidden] { display: none !important; }
+
+/* A tab that isn't open yet: dimmed, with a small padlock and the stage it opens at. */
+#tabbar button.tab-locked { filter: saturate(0.35) brightness(0.75); }
+#tabbar button.tab-locked::after { content: '🔒 ' attr(data-lock); position: absolute; top: 3px; left: 50%; transform: translateX(-50%); padding: 1px 5px; border-radius: 6px; background: rgba(8, 10, 20, 0.85); color: #e4eaf8; font-size: 9px; font-weight: 800; white-space: nowrap; text-shadow: none; }
+
+/* "More" on folded explainers. */
+.more-btn { display: inline; min-height: 0; min-width: 0; margin: 0; padding: 0 2px; border: 0; background: none; color: var(--orange); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }

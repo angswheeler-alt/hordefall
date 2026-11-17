@@ -4,7 +4,7 @@
  */
 import type { GameState } from './state';
 import { HEROES, CHEST_COST } from './data';
-import { INTRO, TUTORIAL_DONE, advanceIntro, pendingTip, type GuideStep, type GuideTip, type GuideView } from './tutorialSteps';
+import { INTRO, INTRO_DELAY_SECONDS, TUTORIAL_DONE, advanceIntro, pendingTip, type GuideStep, type GuideTip, type GuideView } from './tutorialSteps';
 
 /** Full-screen pages and dialogs; the guide waits while one is open. */
 const COVERS = ['#modal', '#sheet', '#rk', '#coll', '#settings', '#social', '#acct-dialog', '#trial-hud'];
@@ -77,6 +77,8 @@ export class Tutorial {
     const s = this.state;
     if (COVERS.some((sel) => document.querySelector<HTMLElement>(sel)?.hidden === false)) return this.show(null);
     if (s.tutorialStep < TUTORIAL_DONE) {
+      // Let a brand-new player watch the first fight for a moment before the guide starts.
+      if (s.tutorialStep === 0 && s.bestStage <= 2 && (Date.now() - this.openedAt) / 1000 < INTRO_DELAY_SECONDS) return this.show(null);
       if (this.stepMark !== s.tutorialStep) {
         this.stepMark = s.tutorialStep;
         this.levelMark = this.levelSum();
