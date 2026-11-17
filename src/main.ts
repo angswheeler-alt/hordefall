@@ -18,6 +18,8 @@ import { watchErrors } from './errorReport';
 import { TEST_MODE } from './config';
 import { WHATS_NEW_TITLE, whatsNewLines } from './whatsNew';
 import { colosseumNews, eventNews, defenseNews, type WelcomeSection } from './welcome';
+import { nudgeDue, NUDGE_TEXT, NUDGE_TITLE } from './accountNudge';
+import { TUTORIAL_DONE } from './tutorialSteps';
 
 // iOS Safari ignores user-scalable=no, so stop pinch zoom here (double-tap zoom is off via touch-action in the CSS).
 for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
@@ -149,3 +151,29 @@ initAutoUpdate(save);
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
+
+// Guests get a friendly nudge to make an account: once after the stage 50 boss, once more on a later day.
+let authKnown = false;
+account.listeners.push(() => (authKnown = true));
+setInterval(() => {
+  if (!authKnown || TEST_MODE) return;
+  const quiet =
+    document.visibilityState === 'visible' &&
+    document.getElementById('modal')!.hidden &&
+    document.getElementById('acct-dialog')!.hidden &&
+    !document.body.classList.contains('in-trial') &&
+    !document.querySelector('.overlay:not([hidden])');
+  if (!quiet) return;
+  const due = nudgeDue({
+    signedIn: !!account.userId,
+    online: !!account.client,
+    tutorialDone: state.tutorialStep >= TUTORIAL_DONE,
+    bestStage: state.bestStage,
+    loginDays: state.login.count,
+    seen: state.tipsSeen,
+  });
+  if (!due) return;
+  state.tipsSeen.push(due);
+  state.save();
+  ui.showModal(NUDGE_TITLE, NUDGE_TEXT, 'Make an account', () => account.signIn(), true, 'Not now');
+}, 20_000);

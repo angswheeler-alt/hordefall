@@ -713,7 +713,7 @@ export class Account {
     const signedIn = !!this.user;
     let status = message ? escape(message) : undefined;
     if (!status) {
-      if (!signedIn) status = 'Playing as a guest. Progress saves on this device only.';
+      if (!signedIn) status = '<b class="acct-warn">Not backed up.</b> Playing as a guest: progress is only on this device. Make a free account to keep it safe.';
       else if (this.lastUpload) status = `Signed in as ${escape(usernameOf(this.user!))}. Saved to the cloud at ${new Date(this.lastUpload).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`;
       else status = `Signed in as ${escape(usernameOf(this.user!))}.`;
     }

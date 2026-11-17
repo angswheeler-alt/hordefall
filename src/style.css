@@ -1698,3 +1698,4 @@ body.arena-open:not(.in-trial) #app > :not(#panels), body.arena-open:not(.in-tri
 .battle-stats[hidden] { display: none; }
 .spin-card[hidden] { display: none; }
 .battle-stats dt { white-space: nowrap; }
+.acct-warn { color: var(--orange); }
