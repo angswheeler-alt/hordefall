@@ -31,6 +31,14 @@ export interface TodayView {
   rush: { open: boolean; on: boolean; endsIn: string };
 }
 
+/** The card is for new players: it goes away for good once they've claimed this many daily logins (Samuel 2026-11-17). */
+export const TODAY_LOGIN_DAYS = 7;
+
+/** Whether the Today card shows: only while the player is new. */
+export function todayShown(loginDays: number): boolean {
+  return loginDays < TODAY_LOGIN_DAYS;
+}
+
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export function todayRows(v: TodayView): TodayRow[] {

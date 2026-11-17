@@ -44,7 +44,7 @@ import { arenaItems, ARENA_ICON, ARENA_NAME, GLORY_DAILY, GLORY_WIN, GLORY_LOSS 
 import { JournalUI, journalRulesText } from './journalUi';
 import { bossPicHtml, heroFaceCss, heroWholeCss } from './portrait';
 import { heroForms } from './heroForms';
-import { todayRows, todayLeft, weekLine, type TodayGo } from './today';
+import { todayRows, todayLeft, todayShown, weekLine, type TodayGo } from './today';
 import { RushUI, rushResultHtml } from './rushUi';
 import { ExpeditionUI, expEndHtml } from './expeditionUi';
 import type { ExpLender } from './expedition';
@@ -3417,6 +3417,9 @@ export class UI {
   /** The Today card: everything worth doing right now, each with a Go button. */
   private renderToday(now: number) {
     const s = this.state;
+    // Only for new players; once they know the game it gets out of the way.
+    $('today').hidden = !todayShown(s.login.count);
+    if ($('today').hidden) return;
     const login = s.loginState(now);
     const daily = s.dailies(now);
     const bundle = s.medalBundleState(now);

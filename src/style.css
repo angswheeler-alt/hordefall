@@ -1720,3 +1720,4 @@ body.arena-open:not(.in-trial) #app > :not(#panels), body.arena-open:not(.in-tri
 .sheet-levels .level-row { flex-direction: column; align-items: stretch; justify-content: space-between; gap: 6px; padding: 6px 0 2px; }
 .sheet-levels .level-row button.gold-up, .sheet-levels .level-row button.ember-up { min-width: 0; width: 100%; padding-top: 4px; padding-bottom: 4px; }
 .sheet-levels .level-row .meta { font-size: 11px; }
+.today-card[hidden] { display: none; }

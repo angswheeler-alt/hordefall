@@ -72,3 +72,13 @@ describe('This week line', () => {
     expect(weekLine(days, { kind: 'crate', bought: true })).toBe('Rush now–Wed');
   });
 });
+
+describe('Today card for new players only', () => {
+  it('shows until 7 daily logins are claimed', async () => {
+    const { todayShown } = await import('../src/today');
+    expect(todayShown(0)).toBe(true);
+    expect(todayShown(6)).toBe(true);
+    expect(todayShown(7)).toBe(false);
+    expect(todayShown(30)).toBe(false);
+  });
+});
