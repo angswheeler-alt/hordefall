@@ -1699,3 +1699,24 @@ body.arena-open:not(.in-trial) #app > :not(#panels), body.arena-open:not(.in-tri
 .spin-card[hidden] { display: none; }
 .battle-stats dt { white-space: nowrap; }
 .acct-warn { color: var(--orange); }
+
+/* Hero page: one clear level under the stars, with a gold/Ember split bar. */
+.sheet-level { margin-top: 4px; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 2px 8px; }
+.sheet-level[hidden] { display: none; }
+.sheet-level b { font-size: 15px; color: #fff; }
+.sheet-level small { grid-column: 1 / -1; font-size: 11px; }
+.sheet-level .gold-text { color: var(--gold); }
+.lvl-bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: #2a2450; min-width: 40px; }
+.lvl-bar i { display: block; height: 100%; }
+.lvl-bar .g { background: var(--gold); }
+.lvl-bar .e { flex: 1; background: var(--ember); }
+.stars.pink:not([hidden])::before { content: 'Awakening'; font-size: 10px; letter-spacing: 0; color: #ff9fe0; margin-right: 6px; vertical-align: 2px; }
+.level-row .ember-info { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; min-height: 0; min-width: 0 !important; padding: 0; border-radius: 50%; border: 1px solid var(--ember); background: transparent; color: var(--ember); font-size: 11px; font-weight: 700; vertical-align: 1px; cursor: pointer; }
+.level-row .ember-info { height: 18px !important; min-height: 0 !important; flex: none; }
+
+/* Levels block: gold and Ember side by side, so the tab above gets more room to scroll. */
+.sheet-levels { display: grid; grid-template-columns: 1fr 1fr; column-gap: 10px; }
+.sheet-levels > .levels-head, .sheet-levels > .bench-note { grid-column: 1 / -1; }
+.sheet-levels .level-row { flex-direction: column; align-items: stretch; justify-content: space-between; gap: 6px; padding: 6px 0 2px; }
+.sheet-levels .level-row button.gold-up, .sheet-levels .level-row button.ember-up { min-width: 0; width: 100%; padding-top: 4px; padding-bottom: 4px; }
+.sheet-levels .level-row .meta { font-size: 11px; }

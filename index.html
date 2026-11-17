@@ -316,6 +316,7 @@
             <div id="sheet-sub" class="meta"></div>
             <div id="sheet-stars" class="stars"></div>
             <div id="sheet-pink" class="stars pink" hidden></div>
+            <div id="sheet-level" class="sheet-level" hidden></div>
           </div>
           <button id="sheet-next" class="icon" aria-label="Next hero">›</button>
           <button id="sheet-close" class="icon close" aria-label="Close">✕</button>
@@ -378,11 +379,11 @@
           <h3 class="levels-head">Levels <button id="sheet-buyamt" class="buyamt-mini">Buy x1</button></h3>
           <p id="sheet-bench-note" class="bench-note" hidden></p>
           <div class="level-row">
-            <div><b>Gold level</b> <span id="sheet-gold-lvl"></span><div class="meta">Resets when you Rekindle.</div></div>
+            <div><b>Gold level</b> <span id="sheet-gold-lvl"></span><div class="meta">Resets on Rekindle.</div></div>
             <button id="sheet-gold-up" class="gold-up"><span class="label"></span><span class="cost"></span></button>
           </div>
           <div class="level-row">
-            <div><b class="ember-text">Ember level</b> <span id="sheet-ember-lvl"></span><div class="meta">Stays through Rekindle. You have <b id="sheet-embers" class="ember-text"></b> Embers.</div><div id="sheet-ember-note" class="meta"></div><button id="sheet-ember-reset" class="ember-reset" hidden>Reset Embers</button></div>
+            <div><b class="ember-text">Ember level</b> <span id="sheet-ember-lvl"></span> <button id="sheet-ember-info" type="button" class="ember-info" aria-label="About Ember levels">?</button><div class="meta">Stays forever. You have <b id="sheet-embers" class="ember-text"></b>.</div><button id="sheet-ember-reset" class="ember-reset" hidden>Reset Embers</button></div>
             <button id="sheet-ember-up" class="ember-up"><span class="label">Ember +1</span><span class="cost"></span></button>
           </div>
         </section>

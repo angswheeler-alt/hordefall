@@ -1776,6 +1776,13 @@ export class UI {
       const def = HEROES.find((h) => h.id === this.sheetHero);
       return !!def && this.buyEmber(def);
     });
+    $('sheet-ember-info').addEventListener('click', () =>
+      this.showModal(
+        'Ember levels',
+        `<p>Ember levels stay on this hero through Rekindle and when they leave the team, and count on stages and in Trials. Each star above 1★ makes them count ${STAR_EMBER_BONUS * 100}% more. Only a reset takes them off.</p>`,
+        'Got it',
+      ),
+    );
     $('sheet-ember-reset').addEventListener('click', () => {
       const def = HEROES.find((h) => h.id === this.sheetHero);
       if (def) this.confirmEmberReset(def);
@@ -2056,7 +2063,7 @@ export class UI {
     });
     const top = `<b>${def.type}</b> · ${HERO_TYPES[def.type]}<br>${prof.specialty}${def.flying ? '<br><small>Flies: melee enemies can\'t hit it.</small>' : ''}${builds.length ? `<br><small>${builds.join(' · ')}. 2 heroes with the same effect: +25% time; 3: +50% damage too.</small>` : ''}`;
     const sheetStats = s.heroStats(def, shownLevel);
-    setHtml($('sheet-stats'), statPages(sheetStats, gold > 0 ? String(eff) : 'Locked', this.statPage, top, gold > 0 ? fmt(s.heroCombatPower(def)) : ''));
+    setHtml($('sheet-stats'), statPages(sheetStats, gold > 0 ? '' : 'Locked', this.statPage, top, gold > 0 ? fmt(s.heroCombatPower(def)) : ''));
 
     $('sheet-gold-lvl').textContent = gold > 0 ? String(gold) : '(locked)';
     // Only heroes on the team take gold or Ember levels (benched ones keep their Embers).
@@ -2080,7 +2087,20 @@ export class UI {
     }
 
     const starBonus = s.starEmberLevels(id) - ember;
-    $('sheet-ember-lvl').textContent = starBonus > 0 ? `+${ember} (+${starBonus} from stars)` : `+${ember}`;
+    $('sheet-ember-lvl').textContent = `+${(ember + Math.max(0, starBonus)).toLocaleString()}`;
+    $('sheet-ember-lvl').title = starBonus > 0 ? `${ember.toLocaleString()} bought + ${starBonus.toLocaleString()} from stars` : '';
+    // One clear level up top: the total, with a bar showing how much is gold (resets) and how much is Ember (stays).
+    const lvlBox = $('sheet-level');
+    lvlBox.hidden = gold <= 0;
+    if (gold > 0) {
+      const emberAll = Math.max(0, eff - gold);
+      const goldPct = Math.max(2, Math.min(100, (gold / Math.max(1, eff)) * 100));
+      setHtml(
+        lvlBox,
+        `<b>Level ${eff.toLocaleString()}</b><span class="lvl-bar"><i class="g" style="width:${goldPct.toFixed(1)}%"></i>${emberAll ? '<i class="e"></i>' : ''}</span>` +
+          `<small><span class="gold-text">${gold.toLocaleString()} gold</span>${emberAll ? ` · <span class="ember-text">${emberAll.toLocaleString()} Ember</span>` : ''}</small>`,
+      );
+    }
     $('sheet-embers').textContent = fmt(s.embers);
     const eb = emberBulk(ember, s.buyAmount, s.embers);
     const eShown = eb.levels > 0 ? eb : emberBulk(ember, 1, s.embers);
@@ -2089,7 +2109,6 @@ export class UI {
     (emberBtn.querySelector('.cost') as HTMLElement).textContent = `${fmt(eShown.cost)} Ember${eShown.cost.eq(1) ? '' : 's'}`;
     emberBtn.disabled = eShown.cost.gt(s.embers) || levelBlock !== null;
     $('sheet-buyamt').textContent = buyAmountLabel(s.buyAmount);
-    $('sheet-ember-note').textContent = `Ember levels stay on this hero through Rekindle and out of the team, and count on stages and in Trials. Each star above 1★ makes them count ${STAR_EMBER_BONUS * 100}% more. Only a reset takes them off.`;
     $('sheet-ember-reset').hidden = ember <= 0;
     emberBtn.title = s.rekindles === 0 ? `Earn Embers by Rekindling after stage ${REKINDLE_STAGE}` : '';
 
@@ -3965,7 +3984,9 @@ function statPages(st: HeroStats, level: string, page: number, top: string, cp =
   const rows = pages[page]
     .map(([label, [v, base, bonus], off]) => `<div class="sr${off ? ' off' : ''}"><span>${label}</span><b>${v}${base ? ` <i>${base}</i>` : ''}</b><em>${bonus}</em></div>`)
     .join('');
-  return `<div class="stat-top"><span>Level <b>${level}</b>${cp ? `<br>CP <b>${cp}</b>` : ''}</span><div class="stat-spec">${top}</div></div><div class="stat-page">${rows}</div>
+  // The level lives in the sheet header now; only a locked hero says so here.
+  const head = [level ? `Level <b>${level}</b>` : '', cp ? `CP <b>${cp}</b>` : ''].filter(Boolean).join('<br>');
+  return `<div class="stat-top"><span>${head}</span><div class="stat-spec">${top}</div></div><div class="stat-page">${rows}</div>
     <div class="stat-pager"><button data-statpage="-1" aria-label="Previous stats">‹</button><span>${page + 1}/3</span><button data-statpage="1" aria-label="More stats">›</button></div>`;
 }
 
