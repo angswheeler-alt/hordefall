@@ -27,6 +27,7 @@ export const WHATS_NEW_SHOWN = 8;
 
 /** Newest first. */
 export const WHATS_NEW: WhatsNewEntry[] = [
+  { id: 'today-card', date: '2026-11-17', text: '<b>Today</b>: a new card at the top of Home lists everything to do today, with a Go button for each. Hero pages show one clear Level.' },
   { id: 'ferro-yeren', date: '2026-11-16', text: '<b>Ferro</b> and <b>Yeren</b> have arrived: claim both free in your Mailbox, then find rare crests or buy them in the Arena Shop.' },
   { id: 'gogu', date: '2026-11-15', text: '<b>Gogu</b> has arrived: a Light Brawler whose aura surges as he fights. Claim him free in your Mailbox.' },
   { id: 'pasta', date: '2026-11-12', text: '<b>Pasta</b> has arrived: a Dark Brawler with no magic. Find his rare crests anywhere or buy them in the Arena Shop.' },

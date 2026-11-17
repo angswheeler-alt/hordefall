@@ -154,6 +154,35 @@ $('flags-load').addEventListener('click', async () => {
     .join('');
   $('flags').hidden = !flags.length;
 });
+interface PlayDayRow { day: string; players: number; new_players: number; avg_minutes: number | string | null; median_best: number | null; top_best: number | null; signed_in: number; back_next_day: number; back_day_7: number; tabs: string | null }
+interface PlayPlayerRow { player: string; last_day: string; first_day: string; days_played: number; best_stage: number; rekindles: number; signed_in: boolean }
+
+/** Play stats (supabase/play-stats.sql): anonymous daily totals and how far each device has got. */
+async function showPlay() {
+  note('play-note', 'Loading…');
+  const [days, players] = await Promise.all([db.rpc('admin_play_stats', { p_days: 30 }), db.rpc('admin_play_players', { p_limit: 200 })]);
+  const error = days.error ?? players.error;
+  if (error) {
+    note('play-note', /does not exist|Could not find/i.test(error.message) ? 'Run play-stats.sql in Supabase first.' : error.message, 'err');
+    return;
+  }
+  const d = (days.data ?? []) as PlayDayRow[];
+  const p = (players.data ?? []) as PlayPlayerRow[];
+  const pct = (a: number, b: number) => (b > 0 ? ` (${Math.round((a / b) * 100)}%)` : '');
+  note('play-note', d.length ? `${p.length} player${p.length === 1 ? '' : 's'} seen. Last 30 days below, newest first.` : 'No play stats yet.', d.length ? 'muted' : 'good');
+  $('play-days').querySelector('tbody')!.innerHTML = d
+    .map((r) => `<tr><td>${escape(String(r.day).slice(0, 10))}</td><td>${num(r.players)}</td><td>${num(r.new_players)}</td><td>${escape(String(r.avg_minutes ?? '-'))}</td><td>${num(r.median_best)}</td><td>${num(r.top_best)}</td><td>${num(r.signed_in)}</td><td>${num(r.back_next_day)}${pct(r.back_next_day, r.new_players)}</td><td>${num(r.back_day_7)}${pct(r.back_day_7, r.new_players)}</td></tr>`)
+    .join('');
+  $('play-days').hidden = !d.length;
+  $('play-tabs').textContent = d[0]?.tabs ? `Screens opened on ${String(d[0].day).slice(0, 10)} (players): ${d[0].tabs}` : '';
+  $('play-tabs').hidden = !d[0]?.tabs;
+  $('play-players').querySelector('tbody')!.innerHTML = p
+    .map((r) => `<tr><td>${escape(r.player.slice(0, 6))}</td><td>${escape(String(r.first_day).slice(0, 10))}</td><td>${escape(String(r.last_day).slice(0, 10))}</td><td>${num(r.days_played)}</td><td>${num(r.best_stage)}</td><td>${num(r.rekindles)}</td><td>${r.signed_in ? 'yes' : 'guest'}</td></tr>`)
+    .join('');
+  $('play-players').hidden = !p.length;
+}
+$('play-load').addEventListener('click', () => void showPlay());
+
 interface ErrorRow { fingerprint: string; message: string; stack: string; place: string; user_agent: string; stage: number | null; count: number; first_seen: string; last_seen: string }
 
 /** Error reports (supabase/errors.sql): crashes the game sent from players' phones. */

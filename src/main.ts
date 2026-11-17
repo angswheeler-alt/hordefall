@@ -15,6 +15,8 @@ import { Tutorial } from './tutorial';
 import { initInstall } from './install';
 import { watchTaps } from './taps';
 import { watchErrors } from './errorReport';
+import { watchPlay } from './playStats';
+import { DEV_BUILD } from './config';
 import { TEST_MODE } from './config';
 import { WHATS_NEW_TITLE, whatsNewLines } from './whatsNew';
 import { colosseumNews, eventNews, defenseNews, type WelcomeSection } from './welcome';
@@ -151,6 +153,13 @@ initAutoUpdate(save);
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
+
+// Anonymous play stats (supabase/play-stats.sql): one row per device per day. Not from dev builds or admin test mode.
+if (!TEST_MODE && !DEV_BUILD)
+  watchPlay(
+    () => account.client,
+    () => ({ bestStage: state.bestStage, stage: state.stage, rekindles: state.rekindles, daysPlayed: state.login.count, signedIn: !!account.userId }),
+  );
 
 // Guests get a friendly nudge to make an account: once after the stage 50 boss, once more on a later day.
 let authKnown = false;
