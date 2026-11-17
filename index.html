@@ -42,13 +42,16 @@
       <main id="panels">
         <section class="panel" data-tab="home">
           <div id="home">
-          <div class="home-top">
-            <div class="rw-card home-offline">
-              <h3>Max stage while offline</h3>
-              <b id="home-offline"></b>
-              <small id="home-offline-note"></small>
-            </div>
-            <button id="home-wheel" class="rw-card home-wheel" aria-label="Element wheel"></button>
+          <div id="today" class="rw-card today-card">
+            <h3>Today <small id="today-note"></small></h3>
+            <ul id="today-list" class="today-list"></ul>
+            <p id="today-week" class="today-week" hidden></p>
+          </div>
+          <div id="home-offline-card" class="rw-card home-offline">
+            <button id="home-wheel" class="wood-btn small home-wheel-btn" aria-label="Element wheel">Elements</button>
+            <h3>Max stage while offline</h3>
+            <b id="home-offline"></b>
+            <small id="home-offline-note"></small>
           </div>
           <div class="rw-card objective">
             <h3>Objective: <span id="ms-goal"></span> <small id="ms-note"></small></h3>
@@ -71,28 +74,28 @@
             <span class="obs-home-text"><b>Hunting Journal</b><small id="home-journal-note"></small></span>
             <span class="obs-home-count"><b id="home-journal-tiers"></b><small>tiers</small></span>
           </button>
-          <div class="rw-card">
+          <div id="home-daily" class="rw-card">
             <h3>Daily challenges <small id="daily-note"></small></h3>
             <ul id="daily-list" class="rw-list"></ul>
             <button class="hot rw-wide claim-all" hidden></button>
           </div>
-          <div class="rw-card">
-            <h3>Daily login <small>30 days · missed days never reset</small></h3>
+          <div id="home-login" class="rw-card">
+            <h3>Daily login <small id="login-note">30 days · missed days never reset</small></h3>
             <div id="login-days" class="login-days"></div>
             <button id="login-claim" class="hot rw-wide">Claim</button>
           </div>
-          <div class="rw-card spin-card">
+          <div id="home-spin" class="rw-card spin-card">
             <div class="spin-wrap"><div id="spin-wheel" class="spin-wheel"></div><i class="spin-pin" aria-hidden="true"></i></div>
             <div class="spin-side"><h3>Fortune Wheel</h3><p>One free spin every day.</p><button id="spin-btn" class="hot">Free spin</button></div>
           </div>
-          <div class="rw-card">
+          <div id="home-bundle" class="rw-card">
             <h3>Daily Crest Bundle <small id="bundle-note"></small></h3>
             <p>Free crests for today's daily challenges. A new bundle every day.</p>
             <div id="bundle-heroes" class="bundle-heroes"></div>
             <button id="bundle-claim" class="hot rw-wide">Claim</button>
           </div>
-          <div class="panel-head"><h2>Run stats</h2></div>
-            <dl class="battle-stats">
+          <button id="runstats-btn" type="button" class="runstats-btn" aria-expanded="false">Run stats <span aria-hidden="true">▸</span></button>
+            <dl id="run-stats" class="battle-stats" hidden>
               <dt>Stage</dt><dd id="bt-stage"></dd>
               <dt>Next boss</dt><dd id="bt-boss"></dd>
               <dt>Best stage ever</dt><dd id="bt-best"></dd>
@@ -313,6 +316,7 @@
             <div id="sheet-sub" class="meta"></div>
             <div id="sheet-stars" class="stars"></div>
             <div id="sheet-pink" class="stars pink" hidden></div>
+            <div id="sheet-level" class="sheet-level" hidden></div>
           </div>
           <button id="sheet-next" class="icon" aria-label="Next hero">›</button>
           <button id="sheet-close" class="icon close" aria-label="Close">✕</button>
@@ -375,11 +379,11 @@
           <h3 class="levels-head">Levels <button id="sheet-buyamt" class="buyamt-mini">Buy x1</button></h3>
           <p id="sheet-bench-note" class="bench-note" hidden></p>
           <div class="level-row">
-            <div><b>Gold level</b> <span id="sheet-gold-lvl"></span><div class="meta">Resets when you Rekindle.</div></div>
+            <div><b>Gold level</b> <span id="sheet-gold-lvl"></span><div class="meta">Resets on Rekindle.</div></div>
             <button id="sheet-gold-up" class="gold-up"><span class="label"></span><span class="cost"></span></button>
           </div>
           <div class="level-row">
-            <div><b class="ember-text">Ember level</b> <span id="sheet-ember-lvl"></span><div class="meta">Stays through Rekindle. You have <b id="sheet-embers" class="ember-text"></b> Embers.</div><div id="sheet-ember-note" class="meta"></div><button id="sheet-ember-reset" class="ember-reset" hidden>Reset Embers</button></div>
+            <div><b class="ember-text">Ember level</b> <span id="sheet-ember-lvl"></span> <button id="sheet-ember-info" type="button" class="ember-info" aria-label="About Ember levels">?</button><div class="meta">Stays forever. You have <b id="sheet-embers" class="ember-text"></b>.</div><button id="sheet-ember-reset" class="ember-reset" hidden>Reset Embers</button></div>
             <button id="sheet-ember-up" class="ember-up"><span class="label">Ember +1</span><span class="cost"></span></button>
           </div>
         </section>

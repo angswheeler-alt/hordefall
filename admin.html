@@ -77,6 +77,15 @@
           <div class="wide"><table id="flags" hidden><thead><tr><th>Player</th><th>What</th><th>Sent</th><th>Kept</th><th>When</th></tr></thead><tbody></tbody></table></div>
         </section>
         <section>
+          <h2>Play stats</h2>
+          <p class="note muted">Anonymous: each phone sends one row a day (no names). Per day: players, new players, average minutes, middle and top best stage, signed in, how many of that day's new players came back the next day and a week later, and which screens they opened.</p>
+          <button type="button" id="play-load">Show play stats</button>
+          <p id="play-note" class="note"></p>
+          <div class="wide"><table id="play-days" hidden><thead><tr><th>Day</th><th>Players</th><th>New</th><th>Avg min</th><th>Mid best</th><th>Top best</th><th>Signed in</th><th>Back next day</th><th>Back day 7</th></tr></thead><tbody></tbody></table></div>
+          <p id="play-tabs" class="note muted" hidden></p>
+          <div class="wide"><table id="play-players" hidden><thead><tr><th>Player</th><th>First day</th><th>Last day</th><th>Days</th><th>Best stage</th><th>Rekindles</th><th>Account</th></tr></thead><tbody></tbody></table></div>
+        </section>
+        <section>
           <h2>Error reports</h2>
           <p class="note muted">Errors the game hit on players' phones, newest first. The same error is one row with a count. Tap a row to see the details.</p>
           <button type="button" id="errors-load">Show errors</button>
