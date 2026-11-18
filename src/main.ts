@@ -20,6 +20,8 @@ import { DEV_BUILD } from './config';
 import { TEST_MODE } from './config';
 import { WHATS_NEW_TITLE, whatsNewLines } from './whatsNew';
 import { colosseumNews, eventNews, defenseNews, type WelcomeSection } from './welcome';
+import { dueIntro, introsAlreadyOpen, type IntroView } from './featureIntros';
+import { MUTATION_STAGE } from './mutations';
 import { nudgeDue, NUDGE_TEXT, NUDGE_TITLE } from './accountNudge';
 import { TUTORIAL_DONE } from './tutorialSteps';
 
@@ -161,11 +163,11 @@ if (!TEST_MODE && !DEV_BUILD)
     () => ({ bestStage: state.bestStage, stage: state.stage, rekindles: state.rekindles, daysPlayed: state.login.count, signedIn: !!account.userId }),
   );
 
-// Guests get a friendly nudge to make an account: once after the stage 50 boss, once more on a later day.
+// One pop-up at a time when the game is quiet: "New:" feature cards first, then the guest account nudge.
 let authKnown = false;
 account.listeners.push(() => (authKnown = true));
 setInterval(() => {
-  if (!authKnown || TEST_MODE) return;
+  if (TEST_MODE) return;
   const quiet =
     document.visibilityState === 'visible' &&
     document.getElementById('modal')!.hidden &&
@@ -173,6 +175,34 @@ setInterval(() => {
     !document.body.classList.contains('in-trial') &&
     !document.querySelector('.overlay:not([hidden])');
   if (!quiet) return;
+  // "New:" cards for features that just opened (src/featureIntros.ts), once the guide is done.
+  if (state.tutorialStep >= TUTORIAL_DONE) {
+    const view: IntroView = {
+      bestStage: state.bestStage,
+      gold: state.gold.gte(1e9) ? 1e9 : state.gold.toNumber(),
+      hasEssence: Object.values(state.essences).some((n) => Number(n) > 0),
+      pvpOpen: state.pvpOpen(),
+      scoutOpen: state.scoutOpen(),
+      rushOpen: state.rushOpen(),
+      observatoryOpen: state.observatoryOpen(),
+      alchemyOpen: state.alchemyOpen(),
+      ashfallReady: state.canRebirth(),
+      mutantsOpen: state.bestStage >= MUTATION_STAGE,
+    };
+    const already = introsAlreadyOpen(view, state.tipsSeen);
+    if (already.length) {
+      state.tipsSeen.push(...already);
+      state.save();
+    }
+    const intro = dueIntro(view, state.tipsSeen);
+    if (intro) {
+      state.tipsSeen.push(intro.id);
+      state.save();
+      ui.showModal(intro.title, `<p>${intro.text}</p>`, 'Take me there', () => ui.goFeature(intro.go), true, 'Later');
+      return;
+    }
+  }
+  if (!authKnown) return;
   const due = nudgeDue({
     signedIn: !!account.userId,
     online: !!account.client,
