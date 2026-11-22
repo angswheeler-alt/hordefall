@@ -24,14 +24,14 @@ export const WALL_WAVES = 30;
 /** Raiders in a wave. */
 export const WALL_FOE_SIZE = 5;
 /** Wave 1 needs this many times a 1-star Common's fixed power per hero; each wave WALL_GROWTH times the last. */
-export const WALL_BASE = 1;
-export const WALL_GROWTH = 1.22;
+export const WALL_BASE = 4.5;
+export const WALL_GROWTH = 1.55;
 /** Waves held in total (all three walls) for one Enhance Stone. */
 export const WALL_STONE_EVERY = 5;
 /** Waves held in total for one crest to a hero who stood on the walls. */
 export const WALL_CREST_EVERY = 10;
 /** Essence per wave held on a wall, as a share of one Trial win of the raiders' element at the player's best level. */
-export const WALL_ESSENCE_SHARE = 0.1;
+export const WALL_ESSENCE_SHARE = 0.02;
 /** The week's best total waves that pay a Glyph Chest (a Rare one at the last), once each a week. */
 export const WALL_WEEK_TIERS: Array<{ waves: number; chest: 'glyph' | 'grand' }> = [
   { waves: 30, chest: 'glyph' },
