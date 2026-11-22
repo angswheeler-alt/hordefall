@@ -23,6 +23,13 @@ export const CFG = {
   dojoWild: 5, // Wild Crests per first clear
   dojoGems10: 50, // Gems every 10th floor
   dojoOpenDay: 0, // opens at a player level; modelled as "after first Rekindle"
+  // towers (Element Towers: rewards only, foes = heroes of that element)
+  towerFloors: 100,
+  towerBase: 31.6, // floor 1 foe team = towerBase x (5 one-star Commons' fixed CP)
+  towerGrowth: 1.2, // each floor's foe team is this much stronger
+  towerWild: 2, // Wild Crests per floor
+  towerStones5: 5, // Enhance Stones every 5th floor
+  towerGems10: 40, // Gems every 10th floor
   // walls
   wallsWaves: 30,
   wallsBase: 1, // wave 1 needs wallsBase x (5 one-star Commons' fixed CP)
@@ -56,7 +63,8 @@ export function installBench(s: any, deps: { HEROES: any[]; elementMultiplier: (
     noBond: false,
     floors: {} as Record<string, number>,
     wallsBest: 0, wallsLast: 0, wallsDay: '', wallsWeek: '',
-    wildIn: { dojo: 0, walls: 0 }, stonesIn: { walls: 0 }, gemsIn: { dojo: 0 },
+    towers: {} as Record<string, number>,
+    wildIn: { dojo: 0, walls: 0, towers: 0 }, stonesIn: { walls: 0, towers: 0 }, gemsIn: { dojo: 0, towers: 0 },
   };
 
   const elOf = (h: any) => s.formDef(h).element;
@@ -176,6 +184,22 @@ export function installBench(s: any, deps: { HEROES: any[]; elementMultiplier: (
     }
   }
 
+  function towers() {
+    if (!ON.has('towers') || !s.rekindles) return;
+    const hs = owned();
+    for (const el of ['water', 'fire', 'earth', 'light', 'dark']) {
+      const p = top5(hs.filter((h: any) => elOf(h) === el), (h) => fcp(h).toNumber()) / (5 * yard());
+      let f = st.towers[el] ?? 0;
+      while (f < CFG.towerFloors && p >= CFG.towerBase * CFG.towerGrowth ** f) {
+        f++;
+        s.wildCrests += CFG.towerWild; st.wildIn.towers += CFG.towerWild;
+        if (f % 5 === 0) { s.enhanceStones += CFG.towerStones5; st.stonesIn.towers += CFG.towerStones5; }
+        if (f % 10 === 0) { s.gems += CFG.towerGems10; st.gemsIn.towers += CFG.towerGems10; }
+      }
+      st.towers[el] = f;
+    }
+  }
+
   function wallsResult(raid: string[]): number {
     const used = new Set<string>();
     let worst = Infinity;
@@ -216,6 +240,7 @@ export function installBench(s: any, deps: { HEROES: any[]; elementMultiplier: (
       commonStarsAvg: +(commons.filter((c: any) => (s.levels[c.id] ?? 0) > 0).reduce((a: number, c: any) => a + (s.stars[c.id] ?? 0) + 1, 0) / Math.max(1, commons.filter((c: any) => (s.levels[c.id] ?? 0) > 0).length)).toFixed(2),
       typePowLog: Object.fromEntries(Object.entries(tp).map(([k, v]) => [k, +Math.log10(Math.max(1e-9, v)).toFixed(2)])),
       elemPowLog: elp,
+      towers: { ...st.towers }, towersTotal: Object.values(st.towers).reduce((a, b) => a + b, 0),
       floors: { ...st.floors }, floorsTotal: Object.values(st.floors).reduce((a, b) => a + b, 0),
       wallsLast: st.wallsLast, wallsBest: st.wallsBest,
       wildIn: { ...st.wildIn }, stonesIn: { ...st.stonesIn }, gemsIn: { ...st.gemsIn },
@@ -223,5 +248,5 @@ export function installBench(s: any, deps: { HEROES: any[]; elementMultiplier: (
   }
 
   yard();
-  return { improveTeam, dojo, walls, snapshot, st };
+  return { improveTeam, dojo, towers, walls, snapshot, st };
 }

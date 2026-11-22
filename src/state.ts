@@ -29,6 +29,7 @@ import { SCOUT_KINDS, SCOUT_PRIORITY, SCOUT_UNLOCK_LEVEL, WILD_CREST_COST, clean
 import { allWhatsNewIds } from './whatsNew';
 import { ALCHEMY_ORE_CORE, ALCHEMY_ORE_CORES_PER_WEEK, ALCHEMY_ORE_DUST, ALCHEMY_ORE_DUST_GET, ALCHEMY_ORE_DUST_PER_WEEK, ALCHEMY_UNLOCK_STAGE, ALCHEMY_CORES_PER_WEEK, ALCHEMY_CORE_STONES, ALCHEMY_DUST, ALCHEMY_DUST_PER_WEEK, ALCHEMY_SWAP_RATE, RELIC_TEMPER_CAP, RELIC_TEMPER_LEVELS, attuneBonus, attuneBulk, attuneCost, clampAttune, clampTemper, cleanAlchemy, dustCost, newAlchemy, relicTemperCost, swapCap, type AlchemyState } from './sinks';
 import { EXP_CHARGE_CAP, EXP_HEARTS, EXP_MAX_LEVEL, EXP_PARTY_MAX, EXP_HIRE_MAX, EXP_STOPS, EXP_UNLOCK_LEVEL, autoReward, boonMults, cleanExpedition, daysBetween, foeShare, fullReward, levelMult, makeMap, mysteryOptions, newExpedition, partReward, rollBoons, type BoonTarget, type ExpHire, type ExpLender, type ExpNodeKind, type ExpReward, type ExpRun, type ExpState, type MysteryOption } from './expedition';
+import { TOWER_ELEMENTS, TOWER_FLOORS, TOWER_FOE, cleanTowers, newTowers, towerFoePower, towerFoeTeam, towerOpenOn, towerReward, type TowerMode, type TowerReward, type TowerState } from './towers';
 
 /** Test mode plays a copy of the save under its own key, so the real one is never written. */
 const SAVE_KEY = TEST_MODE ? TEST_SAVE_KEY : 'hordefall-save-v1';
@@ -459,6 +460,10 @@ export class GameState {
   rushCoins = 0;
   /** Expedition (src/expedition.ts): charges, best level and the run under way. */
   expedition: ExpState = newExpedition();
+  /** Element Towers (src/towers.ts): floors cleared and each tower's team. */
+  towers: TowerState = newTowers();
+  /** The tower floor being fought right now (not saved: a fight cut short just ends). */
+  towerFight: { el: Element; mode: TowerMode; floor: number } | null = null;
   /** Admin test mode runs a Rush every day, so it can be tried any time. Not saved. */
   rushForced = TEST_MODE;
   /** Earned by giving medals to guildmates; spent in the guild shop. */
@@ -3642,6 +3647,157 @@ export class GameState {
     return { cleared: true, level, reward, glyphs, newBest: false, auto: true };
   }
 
+  // ---------- Element Towers (src/towers.ts) ----------
+
+  /** Towers open after the first Rekindle. */
+  towersOpen(): boolean {
+    return this.rekindles > 0;
+  }
+
+  towerOpenToday(el: Element, now = Date.now()): boolean {
+    return towerOpenOn(el, now);
+  }
+
+  /** Floors cleared in a tower. */
+  towerCleared(el: Element, mode: TowerMode): number {
+    return (mode === 'hard' ? this.towers.hard[el] : this.towers.normal[el]) ?? 0;
+  }
+
+  /** Hard mode opens once all Normal floors of that tower are cleared. */
+  towerHardOpen(el: Element): boolean {
+    return this.towerCleared(el, 'normal') >= TOWER_FLOORS;
+  }
+
+  /** The next floor to fight, or null when the tower (in that mode) is done or locked. */
+  towerNext(el: Element, mode: TowerMode): number | null {
+    if (mode === 'hard' && !this.towerHardOpen(el)) return null;
+    const n = this.towerCleared(el, mode) + 1;
+    return n <= TOWER_FLOORS ? n : null;
+  }
+
+  /** Fixed CP of a 1-star Common with nothing else: the yardstick tower floors are sized by (same for everyone). */
+  static towerYard(): number {
+    if (!GameState.yardCache) {
+      const c = POOL_HEROES.find((h) => h.rarity === 'common')!;
+      GameState.yardCache = GameState.opponentCp({ name: 'yard', ghost: true, heroes: [{ id: c.id, stars: 0 }], ember: 1, power: 1, cp: '0' }).toNumber();
+    }
+    return GameState.yardCache;
+  }
+  private static yardCache = 0;
+  private static towerFoeCache = new Map<string, PvpOpponent>();
+
+  /** A floor's foe team, fitted to its power. Floors never change, so each is worked out once. */
+  towerFoe(el: Element, floor: number, mode: TowerMode): PvpOpponent {
+    const key = `${el}:${mode}:${floor}`;
+    let foe = GameState.towerFoeCache.get(key);
+    if (!foe) {
+      const heroes = towerFoeTeam(el, floor, mode);
+      foe = GameState.fitGhost({ name: `Floor ${floor}`, ghost: true, heroes, ember: 1, cp: '0' }, new Decimal(towerFoePower(el, floor, mode, GameState.towerYard())));
+      GameState.towerFoeCache.set(key, foe);
+    }
+    return foe;
+  }
+
+  /** Owned heroes of an element, strongest first (fixed level). */
+  private towerPool(el: Element): HeroDef[] {
+    return HEROES.filter((h) => h.element === el && (this.levels[h.id] ?? 0) > 0)
+      .map((h) => ({ h, cp: this.fixedCombatPower(h) }))
+      .sort((a, b) => b.cp.cmp(a.cp))
+      .map((x) => x.h);
+  }
+
+  /** The strongest team a tower allows: up to teamSlots heroes of its element. */
+  towerAutoTeam(el: Element): string[] {
+    return this.towerPool(el).slice(0, this.teamSlots).map((h) => h.id);
+  }
+
+  /** A tower's team: the saved one (still owned, right element), or the strongest when none is saved. */
+  towerTeam(el: Element): HeroDef[] {
+    const saved = (this.towers.teams[el] ?? []).map((id) => HEROES.find((h) => h.id === id)).filter((h): h is HeroDef => !!h && h.element === el && (this.levels[h.id] ?? 0) > 0);
+    const ids = saved.length ? saved.slice(0, this.teamSlots).map((h) => h.id) : this.towerAutoTeam(el);
+    return ids.map((id) => HEROES.find((h) => h.id === id)!);
+  }
+
+  /** Save a tower's team: only heroes of its element, 1 to teamSlots. */
+  setTowerTeam(el: Element, ids: string[]): boolean {
+    const clean = HEROES.filter((h) => ids.includes(h.id) && h.element === el && (this.levels[h.id] ?? 0) > 0).map((h) => h.id);
+    if (!clean.length || clean.length > this.teamSlots) return false;
+    this.towers.teams[el] = clean;
+    this.save();
+    return true;
+  }
+
+  /** The tower team's units, for the forecast. */
+  private towerUnits(el: Element): PvpUnit[] {
+    this.skillTeam = new Set(this.towerTeam(el).map((h) => h.id));
+    try {
+      return this.towerTeam(el).map((h) => this.pvpUnit(h));
+    } finally {
+      this.skillTeam = null;
+    }
+  }
+
+  /** A no-luck run of the next floor, for the "how it looks" line. */
+  towerForecast(el: Element, mode: TowerMode): PvpResult | null {
+    const floor = this.towerNext(el, mode);
+    if (floor === null || !this.towerTeam(el).length) return null;
+    return simulatePvp(this.towerUnits(el), this.pvpFoeUnits(this.towerFoe(el, floor, mode)).map((u) => u.unit));
+  }
+
+  /** Why the next floor can't be fought now, or '' when it can. */
+  towerBlock(el: Element, mode: TowerMode, now = Date.now()): string {
+    if (!this.towersOpen()) return 'Element Towers open after your first Rekindle';
+    if (!this.towerOpenToday(el, now)) return 'This tower is closed today';
+    if (mode === 'hard' && !this.towerHardOpen(el)) return `Clear all ${TOWER_FLOORS} Normal floors first`;
+    if (this.towerNext(el, mode) === null) return 'Every floor is cleared';
+    if (!this.towerTeam(el).length) return `You have no ${el} heroes yet`;
+    return '';
+  }
+
+  /** Start the next floor's fight: star skills follow the tower team while it runs. */
+  towerFightStart(el: Element, mode: TowerMode, now = Date.now()): PvpOpponent | null {
+    if (this.towerBlock(el, mode, now) || this.towerFight) return null;
+    const floor = this.towerNext(el, mode)!;
+    this.towerFight = { el, mode, floor };
+    this.skillTeam = new Set(this.towerTeam(el).map((h) => h.id));
+    return this.towerFoe(el, floor, mode);
+  }
+
+  /** Essence a floor pays: half a Trial win at the player's best level of that element (10 before any Trial win). */
+  towerEssence(el: Element, r: TowerReward): number {
+    const best = this.trialBest[el] ?? 0;
+    return Math.max(10, Math.round((best ? TRIAL_LEVELS[Math.min(best, TRIAL_LEVELS.length) - 1].essence : 0) * r.essenceShare));
+  }
+
+  /** End the fight. A win clears the floor and pays its reward. */
+  towerFightEnd(won: boolean): { won: boolean; el: Element; mode: TowerMode; floor: number; reward: TowerReward | null; essence: number; glyphs: Array<{ glyph?: Glyph; dust?: number }> } | null {
+    const f = this.towerFight;
+    if (!f) return null;
+    this.towerFight = null;
+    this.skillTeam = null;
+    if (!won) return { ...f, won, reward: null, essence: 0, glyphs: [] };
+    const reward = towerReward(f.floor, f.mode);
+    const essence = this.towerEssence(f.el, reward);
+    (f.mode === 'hard' ? this.towers.hard : this.towers.normal)[f.el] = f.floor;
+    this.wildCrests += reward.wild;
+    this.enhanceStones += reward.stones;
+    this.gems += reward.gems;
+    this.essences[f.el] = (this.essences[f.el] ?? 0) + essence;
+    const glyphs = reward.chest ? this.openGlyphChests(reward.chest, 1) : [];
+    this.save();
+    return { ...f, won, reward, essence, glyphs };
+  }
+
+  /** Floors cleared in every tower, Normal and Hard. */
+  towerFloorsTotal(): number {
+    return TOWER_ELEMENTS.reduce((t, el) => t + this.towerCleared(el, 'normal') + this.towerCleared(el, 'hard'), 0);
+  }
+
+  /** The foe element of a tower. */
+  towerFoeElement(el: Element): Element {
+    return TOWER_FOE[el];
+  }
+
   // ---------- Rush (src/rush.ts) ----------
 
   rushOpen(): boolean {
@@ -4937,6 +5093,7 @@ export class GameState {
       rush: this.rush,
       rushCoins: this.rushCoins,
       expedition: this.expedition,
+      towers: this.towers,
       enhanceStones: this.enhanceStones,
       equipped: this.equipped,
       relicSlots: this.relicSlots,
@@ -5174,6 +5331,7 @@ export class GameState {
       this.rush = cleanRush(d.rush, new Set(HEROES.map((h) => h.id)));
       this.rushCoins = int(d.rushCoins);
       this.expedition = cleanExpedition(d.expedition, new Set(HEROES.map((h) => h.id)));
+      this.towers = cleanTowers(d.towers, new Set(HEROES.map((h) => h.id)));
       // Older saves ran relics to level 50 across tiers I-V: keep those levels as Enhances.
       for (const def of RELICS) {
         const lv = this.relics[def.id] ?? 0;

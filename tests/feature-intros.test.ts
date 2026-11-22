@@ -9,6 +9,7 @@ const none = (): IntroView => ({
   scoutOpen: false,
   rushOpen: false,
   observatoryOpen: false,
+  towersOpen: false,
   alchemyOpen: false,
   ashfallReady: false,
   mutantsOpen: false,

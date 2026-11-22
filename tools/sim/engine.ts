@@ -456,6 +456,7 @@ export async function runSim(cfg: SimConfig) {
     spendGems(active);
     systems(active);
     BX.dojo(day());
+    BX.towers();
     BX.walls(NOW, R.dayKey(NOW));
     // unlock and evolve
     for (const h of HEROES) if (s.canUnlock(h)) s.unlockHero(h.id);

@@ -185,6 +185,7 @@ setInterval(() => {
       scoutOpen: state.scoutOpen(),
       rushOpen: state.rushOpen(),
       observatoryOpen: state.observatoryOpen(),
+      towersOpen: state.towersOpen(),
       alchemyOpen: state.alchemyOpen(),
       ashfallReady: state.canRebirth(),
       mutantsOpen: state.bestStage >= MUTATION_STAGE,
