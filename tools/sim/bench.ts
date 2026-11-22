@@ -24,12 +24,13 @@ export const CFG = {
   dojoGems10: 50, // Gems every 10th floor
   dojoOpenDay: 0, // opens at a player level; modelled as "after first Rekindle"
   // towers (Element Towers: rewards only, foes = heroes of that element)
-  towerFloors: 100,
+  towerFloors: 1e9,
   towerBase: 31.6, // floor 1 foe team = towerBase x (5 one-star Commons' fixed CP)
   towerGrowth: 1.2, // each floor's foe team is this much stronger
-  towerWild: 2, // Wild Crests per floor
+  towerCrests: 5, // crests of the element per floor
+  towerGems: 5, // Gems per floor
+  towerEpic10: 10, // Epic crests every 10th floor
   towerStones5: 5, // Enhance Stones every 5th floor
-  towerGems10: 40, // Gems every 10th floor
   // walls
   wallsWaves: 30,
   wallsBase: 1, // wave 1 needs wallsBase x (5 one-star Commons' fixed CP)
@@ -64,7 +65,7 @@ export function installBench(s: any, deps: { HEROES: any[]; elementMultiplier: (
     floors: {} as Record<string, number>,
     wallsBest: 0, wallsLast: 0, wallsDay: '', wallsWeek: '',
     towers: {} as Record<string, number>,
-    wildIn: { dojo: 0, walls: 0, towers: 0 }, stonesIn: { walls: 0, towers: 0 }, gemsIn: { dojo: 0, towers: 0 },
+    wildIn: { dojo: 0, walls: 0, towers: 0 }, stonesIn: { walls: 0, towers: 0 }, gemsIn: { dojo: 0, towers: 0 }, crestsIn: { towers: 0 },
   };
 
   const elOf = (h: any) => s.formDef(h).element;
@@ -184,17 +185,26 @@ export function installBench(s: any, deps: { HEROES: any[]; elementMultiplier: (
     }
   }
 
+  let pickN = 0;
   function towers() {
     if (!ON.has('towers') || !s.rekindles) return;
     const hs = owned();
     for (const el of ['water', 'fire', 'earth', 'light', 'dark']) {
       const p = top5(hs.filter((h: any) => elOf(h) === el), (h) => fcp(h).toNumber()) / (5 * yard());
       let f = st.towers[el] ?? 0;
+      // Endless towers (2026-11-22): 5 crests of the element + 5 Gems a floor, Stones every 5th, an Epic Element Chest every 10th.
       while (f < CFG.towerFloors && p >= CFG.towerBase * CFG.towerGrowth ** f) {
         f++;
-        s.wildCrests += CFG.towerWild; st.wildIn.towers += CFG.towerWild;
+        for (let i = 0; i < CFG.towerCrests; i++) { const pool = s.trialPool(el); s.addCrests(pool[pickN++ % pool.length].id, 1); }
+        st.crestsIn.towers += CFG.towerCrests;
+        s.gems += CFG.towerGems; st.gemsIn.towers += CFG.towerGems;
         if (f % 5 === 0) { s.enhanceStones += CFG.towerStones5; st.stonesIn.towers += CFG.towerStones5; }
-        if (f % 10 === 0) { s.gems += CFG.towerGems10; st.gemsIn.towers += CFG.towerGems10; }
+        if (f % 10 === 0) {
+          const epics = HEROES.filter((h: any) => h.element === el && h.rarity === 'epic' && !h.unique && !String(h.id).startsWith('asc_'));
+          const open = epics.filter((h: any) => !s.atTopStar(h.id));
+          const pool = open.length ? open : epics;
+          if (pool.length) { s.addCrests(pool[pickN++ % pool.length].id, CFG.towerEpic10); st.crestsIn.towers += CFG.towerEpic10; }
+        }
       }
       st.towers[el] = f;
     }
@@ -243,7 +253,7 @@ export function installBench(s: any, deps: { HEROES: any[]; elementMultiplier: (
       towers: { ...st.towers }, towersTotal: Object.values(st.towers).reduce((a, b) => a + b, 0),
       floors: { ...st.floors }, floorsTotal: Object.values(st.floors).reduce((a, b) => a + b, 0),
       wallsLast: st.wallsLast, wallsBest: st.wallsBest,
-      wildIn: { ...st.wildIn }, stonesIn: { ...st.stonesIn }, gemsIn: { ...st.gemsIn },
+      wildIn: { ...st.wildIn }, stonesIn: { ...st.stonesIn }, gemsIn: { ...st.gemsIn }, crestsIn: { ...st.crestsIn },
     };
   }
 
