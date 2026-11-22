@@ -249,10 +249,14 @@
             <div class="panel-head"><h2>Expedition</h2><button id="exp-help" class="wood-btn small">How it works</button></div>
             <div id="exp" class="exp"></div>
           </div>
-          <div data-battle-pane="towers" hidden>
-            <button class="wood-btn small trial-back" data-battle-go="hub">&#8592; Battle</button>
-            <div class="panel-head"><h2>Element Towers</h2><button id="tw-help" class="wood-btn small">How it works</button></div>
-            <div id="towers" class="towers"></div>
+          <div data-battle-pane="towers" class="arena-full tw-full" hidden>
+            <div class="arena-head">
+              <button id="tw-back" class="wood-btn arena-back" aria-label="Back">&#8249; Back</button>
+              <h2>Element Towers</h2>
+              <button id="tw-help" class="wood-btn small">How it works</button>
+              <button class="tw-hub-go" data-battle-go="hub" hidden></button>
+            </div>
+            <div class="arena-body"><div id="towers" class="towers"></div></div>
           </div>
           <div data-battle-pane="arena" class="arena-full" hidden>
             <div class="arena-head">

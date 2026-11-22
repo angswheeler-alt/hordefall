@@ -51,7 +51,7 @@ import { todayRows, todayLeft, todayShown, weekLine, type TodayGo } from './toda
 import { RushUI, rushResultHtml } from './rushUi';
 import { ExpeditionUI, expEndHtml } from './expeditionUi';
 import { TowersUI, towerResultHtml } from './towersUi';
-import { TOWER_NAMES, type TowerMode } from './towers';
+import { TOWER_NAMES } from './towers';
 import type { ExpLender } from './expedition';
 import { RESET_PHRASE, resetPhraseOk } from './resetPhrase';
 import { attachTeamDrag } from './teamDrag';
@@ -199,6 +199,7 @@ export class UI {
     $('exp-help').addEventListener('click', () => this.expUi.help());
     this.towersUi = new TowersUI(this.state, this);
     $('tw-help').addEventListener('click', () => this.towersUi.help());
+    $('tw-back').addEventListener('click', () => document.querySelector<HTMLButtonElement>('[data-battle-pane="towers"] [data-battle-go="hub"]')?.click());
     let last = performance.now();
     setInterval(() => {
       const now = performance.now();
@@ -2981,18 +2982,18 @@ export class UI {
   }
 
   /** Fight the next floor of a tower on the lane: the tower team against a team of the element it beats. */
-  fightTower(el: Element, mode: TowerMode) {
+  fightTower(el: Element) {
     const s = this.state;
     const scene = this.scene();
     if (!scene || scene.inTrial() || scene.inPvp()) return;
-    const foe = s.towerFightStart(el, mode);
+    const foe = s.towerFightStart(el);
     if (!foe) return;
     const floor = s.towerFight!.floor;
     const ids = s.towerTeam(el).map((h) => h.id);
     this.closeSheet();
     document.body.classList.add('in-trial');
     $('trial-hud').hidden = false;
-    $('trial-hud-name').textContent = `${TOWER_NAMES[el]}: floor ${floor}${mode === 'hard' ? ' (Hard)' : ''}`;
+    $('trial-hud-name').textContent = `${TOWER_NAMES[el]}: floor ${floor}`;
     $('trial-hud-note').textContent = `Only ${cap(el)} heroes fight here, at the fixed level, with no Ultimates. Destroy the red crystal before they destroy yours.`;
     $('trial-leave').textContent = 'Leave';
     const units = s.pvpFoeUnits(foe).map((f) => ({ def: f.def, stats: f.stats, owner: f.owner }));
@@ -3781,8 +3782,8 @@ export class UI {
    * the lane buttons (Rekindle, Auto boss, 2x, Settings) and the tab bar drew on top of it; CSS hides them.
    */
   private syncArenaOpen() {
-    const pane = document.querySelector<HTMLElement>('.arena-full');
-    document.body.classList.toggle('arena-open', this.tab === 'battle' && !!pane && !pane.hidden);
+    const open = [...document.querySelectorAll<HTMLElement>('.arena-full')].some((pane) => !pane.hidden);
+    document.body.classList.toggle('arena-open', this.tab === 'battle' && open);
   }
 
   render() {
