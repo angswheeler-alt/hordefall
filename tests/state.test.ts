@@ -152,13 +152,14 @@ describe('offline earnings', () => {
     expect(s.canBeatBoss(100).won).toBe(true);
     expect(s.canBeatBoss(150).won).toBe(false);
     // From stage 100 Shieldbearers show up (src/mobs.ts), which moves this team's wall back one stage.
-    expect(s.canClearStage(144)).toBe(true);
-    expect(s.canClearStage(145)).toBe(false);
+    // Five Types on the team: Variety bonus +20% ATK.
+    expect(s.canClearStage(147)).toBe(true);
+    expect(s.canClearStage(148)).toBe(false);
     const r = s.applyOffline(1e9)!;
     expect(r.bosses).toBe(2);
     // Past the stage 100 boss, it stops on the last normal stage the team can clear.
-    expect(s.stage).toBe(144);
-    expect(r.stages).toBe(141);
+    expect(s.stage).toBe(147);
+    expect(r.stages).toBe(144);
   });
 
   it('maxOfflineStage shows where a full offline stretch would stop, without moving', () => {
@@ -167,7 +168,7 @@ describe('offline earnings', () => {
     for (const h of HEROES) s.levels[h.id] = team.includes(h) ? 100 : 0;
     s.secondsPerStage = 1;
     s.stage = 3;
-    expect(s.maxOfflineStage()).toBe(144);
+    expect(s.maxOfflineStage()).toBe(147);
     expect(s.stage).toBe(3);
     s.autoAdvance = false;
     expect(s.maxOfflineStage()).toBe(3);
@@ -414,7 +415,8 @@ describe('medals, unlocks and evolution', () => {
     const a = s.heroPower(starter, 10).atk;
     const support = HEROES.find((h) => h.type === 'Support')!;
     s.levels[support.id] = 1;
-    expect(s.heroPower(starter, 10).atk.div(a).toNumber()).toBeCloseTo(1.15, 6);
+    // A second Type joins too: Variety bonus +8% instead of +4% (VARIETY_BONUS_PER_TYPE).
+    expect(s.heroPower(starter, 10).atk.div(a).toNumber()).toBeCloseTo(1.15 * (1.08 / 1.04), 6);
     s.benched[support.id] = true;
     expect(s.heroPower(starter, 10).atk.div(a).toNumber()).toBeCloseTo(1, 6);
   });
@@ -425,7 +427,8 @@ describe('medals, unlocks and evolution', () => {
     const supports = HEROES.filter((h) => h.type === 'Support').slice(0, 2);
     expect(supports).toHaveLength(2);
     for (const h of supports) s.levels[h.id] = 1;
-    expect(s.heroPower(starter, 10).atk.div(a).toNumber()).toBeCloseTo(1.3, 6);
+    // Both are Supports: one more Type for the Variety bonus (+8% instead of +4%).
+    expect(s.heroPower(starter, 10).atk.div(a).toNumber()).toBeCloseTo(1.3 * (1.08 / 1.04), 6);
   });
 
   it('opening a chest costs gems and gives crests', () => {

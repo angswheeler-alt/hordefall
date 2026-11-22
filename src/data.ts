@@ -40,6 +40,11 @@ export const HERO_TYPES: Record<HeroType, string> = {
 };
 /** Every Support in the lineup gives the whole team this, from 1★, so a healer is worth a lineup slot. */
 export const SUPPORT_RALLY: Effect = { kind: 'atk', value: 1.15, team: true };
+/**
+ * Variety bonus (user pick 2026-11-22, thread "Design a mode for unused heroes"): the whole team deals this much more
+ * damage for each different Type in the lineup (10 Types: up to +40%), so a mixed team beats ten copies of one kind.
+ */
+export const VARIETY_BONUS_PER_TYPE = 0.04;
 
 /** Signature passives. Numbers are fractions or multipliers. */
 export type Signature =

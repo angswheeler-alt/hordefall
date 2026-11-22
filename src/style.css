@@ -813,6 +813,7 @@ div.g-req { margin-bottom: 8px; }
 .tm-ult-badge { position: absolute; top: 2px; right: 2px; font-style: normal; font-size: 8px; font-weight: 800; background: var(--gold); color: #3a2a00; border-radius: 4px; padding: 0 3px; line-height: 1.4; }
 .tm-summary { display: flex; flex-wrap: wrap; gap: 2px 8px; margin: -2px 0 6px; font-size: 11px; color: var(--muted); flex: none; }
 .tm-summary span { display: inline-flex; align-items: center; gap: 3px; }
+.tm-summary .tm-variety { color: var(--gold); font-weight: 700; }
 .tm-summary i, .tm-type i { width: 8px; height: 8px; border-radius: 50%; background: var(--el, var(--muted)); display: inline-block; flex: none; }
 .tm-sep { width: 1px; height: 10px; background: rgba(255,255,255,.2); }
 .tm-ult-btns { display: flex; gap: 6px; margin-left: auto; }
