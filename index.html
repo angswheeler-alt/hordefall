@@ -207,6 +207,13 @@
               <b class="mode-title">Element Towers</b>
               <small id="hub-tw-note" class="mode-note"></small>
             </button>
+            <button class="mode-card walls" data-battle-go="walls">
+              <span class="mode-count"><svg class="tw-count-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M1 15V6h3v2h2V6h4v2h2V6h3v9z" fill="#ffd9a0" stroke="#3a2410" stroke-width="1.5"/></svg><b id="hub-wl-count"></b></span>
+              <svg class="mode-trophy wl-ico" viewBox="0 0 64 64" aria-hidden="true"><path d="M6 60V26h8v6h8v-6h8v6h4v-6h8v6h8v-6h8v34z" fill="#9a8a6a" stroke="#2a1d10" stroke-width="3" stroke-linejoin="round"/><path d="M6 42h52M6 51h52M18 32v10M34 42v9M46 32v10M22 51v9M42 51v9" stroke="#6a5a40" stroke-width="2"/><path d="M26 60V50a6 6 0 0 1 12 0v10z" fill="#2a1d10"/><path d="M32 4v18" stroke="#2a1d10" stroke-width="3"/><path d="M33 5h16l-4 5 4 5H33z" fill="#e03a2a" stroke="#2a1d10" stroke-width="2" stroke-linejoin="round"/></svg>
+              <b class="mode-title">Hold the Walls</b>
+              <small id="hub-wl-note" class="mode-note"></small>
+              <i id="hub-wl-alert" class="mode-alert" hidden>!</i>
+            </button>
             <button class="mode-card exp" data-battle-go="exp" hidden>
               <span class="mode-count"><i class="exp-charge-ico" aria-hidden="true"></i><b id="hub-exp-count"></b></span>
               <svg class="mode-trophy exp-compass" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="24" fill="#f0d9a0" stroke="#5a3a10" stroke-width="3"/><circle cx="32" cy="32" r="17" fill="none" stroke="#c9a868" stroke-width="2"/><path d="M32 12l6 20-6 20-6-20z" fill="#b3261c" stroke="#5a3a10" stroke-width="2" stroke-linejoin="round"/><path d="M32 32l6 0-6 20-6-20z" fill="#e8e0cc" stroke="#5a3a10" stroke-width="2" stroke-linejoin="round"/><circle cx="32" cy="32" r="3" fill="#5a3a10"/></svg>
@@ -257,6 +264,15 @@
               <button class="tw-hub-go" data-battle-go="hub" hidden></button>
             </div>
             <div class="arena-body"><div id="towers" class="towers"></div></div>
+          </div>
+          <div data-battle-pane="walls" class="arena-full tw-full wl-full" hidden>
+            <div class="arena-head">
+              <button id="wl-back" class="wood-btn arena-back" aria-label="Back">&#8249; Back</button>
+              <h2>Hold the Walls</h2>
+              <button id="wl-help" class="wood-btn small">How it works</button>
+              <button class="tw-hub-go" data-battle-go="hub" hidden></button>
+            </div>
+            <div class="arena-body"><div id="walls" class="towers walls"></div></div>
           </div>
           <div data-battle-pane="arena" class="arena-full" hidden>
             <div class="arena-head">

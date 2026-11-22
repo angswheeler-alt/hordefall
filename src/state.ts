@@ -29,9 +29,12 @@ import { SCOUT_KINDS, SCOUT_PRIORITY, SCOUT_UNLOCK_LEVEL, WILD_CREST_COST, clean
 import { allWhatsNewIds } from './whatsNew';
 import { ALCHEMY_ORE_CORE, ALCHEMY_ORE_CORES_PER_WEEK, ALCHEMY_ORE_DUST, ALCHEMY_ORE_DUST_GET, ALCHEMY_ORE_DUST_PER_WEEK, ALCHEMY_UNLOCK_STAGE, ALCHEMY_CORES_PER_WEEK, ALCHEMY_CORE_STONES, ALCHEMY_DUST, ALCHEMY_DUST_PER_WEEK, ALCHEMY_SWAP_RATE, RELIC_TEMPER_CAP, RELIC_TEMPER_LEVELS, attuneBonus, attuneBulk, attuneCost, clampAttune, clampTemper, cleanAlchemy, dustCost, newAlchemy, relicTemperCost, swapCap, type AlchemyState } from './sinks';
 import { EXP_CHARGE_CAP, EXP_HEARTS, EXP_MAX_LEVEL, EXP_PARTY_MAX, EXP_HIRE_MAX, EXP_STOPS, EXP_UNLOCK_LEVEL, autoReward, boonMults, cleanExpedition, daysBetween, foeShare, fullReward, levelMult, makeMap, mysteryOptions, newExpedition, partReward, rollBoons, type BoonTarget, type ExpHire, type ExpLender, type ExpNodeKind, type ExpReward, type ExpRun, type ExpState, type MysteryOption } from './expedition';
+import { WALL_COUNT, WALL_ESSENCE_SHARE, WALL_SIZE, WALL_WAVES, WALL_WEEK_TIERS, cleanWalls, newWalls, wallFit, wallFoePower, wallFoeTeam, wallRaids, wallReward, type WallsState } from './walls';
 import { TOWER_ELEMENTS, cleanTowers, newTowers, towerFoePower, towerFoeTeam, towerOpenOn, towerReward, type TowerReward, type TowerState } from './towers';
 
 /** What a tower fight ended with (towerFightEnd). */
+/** What a wall defense paid (wallsDefend). */
+export interface WallsResult { waves: number[]; total: number; stones: number; crests: string[]; essence: Partial<Record<Element, number>>; chests: Array<'glyph' | 'grand'>; glyphs: Array<{ glyph?: Glyph; dust?: number }> }
 export interface TowerResult { won: boolean; el: Element; floor: number; reward: TowerReward | null; essence: number; crests: string[]; epic: { id: string; amount: number } | null; glyphs: Array<{ glyph?: Glyph; dust?: number }> }
 
 /** Test mode plays a copy of the save under its own key, so the real one is never written. */
@@ -465,6 +468,8 @@ export class GameState {
   expedition: ExpState = newExpedition();
   /** Element Towers (src/towers.ts): floors cleared and each tower's team. */
   towers: TowerState = newTowers();
+  /** Hold the Walls (src/walls.ts): wall teams, today's defense and the week's best. */
+  walls: WallsState = newWalls();
   /** The tower floor being fought right now (not saved: a fight cut short just ends). */
   towerFight: { el: Element; floor: number } | null = null;
   /** Admin test mode runs a Rush every day, so it can be tried any time. Not saved. */
@@ -3803,6 +3808,216 @@ export class GameState {
     return TOWER_ELEMENTS.reduce((t, el) => t + this.towerCleared(el), 0);
   }
 
+  // ---------- Hold the Walls (src/walls.ts) ----------
+
+  /** The walls open after the first Rekindle, like the Element Towers. */
+  wallsOpen(): boolean {
+    return this.rekindles > 0;
+  }
+
+  /** This week's raider element on each wall. */
+  wallRaids(now = Date.now()): Element[] {
+    return wallRaids(weekIndex(now));
+  }
+
+  private static wallFoeCache = new Map<string, PvpOpponent>();
+
+  /** A wave's raiders on a wall this week, fitted to the wave's power. */
+  wallFoe(wall: number, wave: number, now = Date.now()): PvpOpponent {
+    const week = weekIndex(now);
+    const el = wallRaids(week)[wall];
+    const key = `${week}:${wall}:${wave}`;
+    let foe = GameState.wallFoeCache.get(key);
+    if (!foe) {
+      foe = GameState.fitGhost({ name: `Wave ${wave}`, ghost: true, heroes: wallFoeTeam(el, week, wall, wave), ember: 1, cp: '0' }, new Decimal(wallFoePower(wave, GameState.towerYard())));
+      if (GameState.wallFoeCache.size > 400) GameState.wallFoeCache.clear();
+      GameState.wallFoeCache.set(key, foe);
+    }
+    return foe;
+  }
+
+  /** Each wall's heroes: the saved ones still owned, a hero on one wall only. */
+  wallTeams(): HeroDef[][] {
+    const seen = new Set<string>();
+    return this.walls.teams.map((ids) =>
+      ids
+        .map((id) => HEROES.find((h) => h.id === id))
+        .filter((h): h is HeroDef => !!h && (this.levels[h.id] ?? 0) > 0 && !seen.has(h.id) && !!seen.add(h.id))
+        .slice(0, WALL_SIZE),
+    );
+  }
+
+  /** The strongest walls for this week's raiders: heroes picked a round at a time so no wall takes all the best. */
+  wallsAutoTeams(now = Date.now()): string[][] {
+    const raids = this.wallRaids(now);
+    const owned = HEROES.filter((h) => (this.levels[h.id] ?? 0) > 0).map((h) => ({ h, cp: this.fixedCombatPower(h).toNumber() }));
+    const used = new Set<string>();
+    const out: string[][] = raids.map(() => []);
+    for (let round = 0; round < WALL_SIZE; round++) {
+      for (let w = 0; w < WALL_COUNT; w++) {
+        let best: { h: HeroDef; v: number } | null = null;
+        for (const x of owned) {
+          if (used.has(x.h.id)) continue;
+          const v = x.cp * wallFit(x.h.element, raids[w]);
+          if (!best || v > best.v) best = { h: x.h, v };
+        }
+        if (!best) continue;
+        used.add(best.h.id);
+        out[w].push(best.h.id);
+      }
+    }
+    return out;
+  }
+
+  /** Save the walls: up to WALL_SIZE owned heroes each, a hero on one wall only. */
+  setWallTeams(teams: string[][]): boolean {
+    if (teams.length !== WALL_COUNT) return false;
+    const seen = new Set<string>();
+    for (const t of teams) {
+      if (t.length > WALL_SIZE) return false;
+      for (const id of t) {
+        if (seen.has(id) || !((this.levels[id] ?? 0) > 0)) return false;
+        seen.add(id);
+      }
+    }
+    this.walls.teams = teams.map((t) => [...t]);
+    this.save();
+    return true;
+  }
+
+  /** Save one wall: up to WALL_SIZE owned heroes; a hero already on another wall moves here. */
+  setWallTeam(wall: number, ids: string[]): boolean {
+    const clean = [...new Set(ids)].filter((id) => (this.levels[id] ?? 0) > 0);
+    if (wall < 0 || wall >= WALL_COUNT || clean.length !== ids.length || clean.length > WALL_SIZE) return false;
+    const teams = this.wallTeams().map((t, i) => (i === wall ? clean : t.map((h) => h.id).filter((id) => !clean.includes(id))));
+    return this.setWallTeams(teams);
+  }
+
+  /** The strongest heroes for one wall against its raiders, leaving heroes on the other walls where they are. */
+  wallAutoTeam(wall: number, now = Date.now()): string[] {
+    const raider = this.wallRaids(now)[wall];
+    const taken = new Set(this.wallTeams().flatMap((t, i) => (i === wall ? [] : t.map((h) => h.id))));
+    return HEROES.filter((h) => (this.levels[h.id] ?? 0) > 0 && !taken.has(h.id))
+      .map((h) => ({ id: h.id, v: this.fixedCombatPower(h).toNumber() * wallFit(h.element, raider) }))
+      .sort((a, b) => b.v - a.v)
+      .slice(0, WALL_SIZE)
+      .map((x) => x.id);
+  }
+
+  /** Whether a wall's heroes beat a wave (a no-luck run; star skills follow the wall's heroes). */
+  private wallHolds(team: HeroDef[], wall: number, wave: number, now: number): boolean {
+    return simulatePvp(team.map((h) => this.pvpUnit(h)), this.pvpFoeUnits(this.wallFoe(wall, wave, now)).map((u) => u.unit)).won;
+  }
+
+  /** Waves each wall holds with its heroes now: the highest wave its heroes beat, every wave below it too. */
+  wallsForecast(now = Date.now()): number[] {
+    const keep = this.skillTeam;
+    try {
+      return this.wallTeams().map((team, wall) => {
+        if (!team.length) return 0;
+        this.skillTeam = new Set(team.map((h) => h.id));
+        let lo = 0;
+        let hi = WALL_WAVES;
+        while (lo < hi) {
+          const mid = Math.ceil((lo + hi) / 2);
+          if (this.wallHolds(team, wall, mid, now)) lo = mid;
+          else hi = mid - 1;
+        }
+        return lo;
+      });
+    } finally {
+      this.skillTeam = keep;
+    }
+  }
+
+  /**
+   * Watch a wall's key wave live: the wave that broke it in the last defense (or would break it now), or the last
+   * wave when it held them all. It pays nothing; star skills follow the wall's heroes until wallWatchEnd.
+   */
+  wallWatchStart(wall: number, now = Date.now()): { wave: number; foe: PvpOpponent; ids: string[] } | null {
+    const team = this.wallTeams()[wall];
+    if (!this.wallsOpen() || !team?.length) return null;
+    const held = this.walls.day === dayKey(now) && this.walls.last.length === WALL_COUNT ? this.walls.last[wall] : this.wallsForecast(now)[wall];
+    const wave = Math.min(WALL_WAVES, held + 1);
+    this.skillTeam = new Set(team.map((h) => h.id));
+    return { wave, foe: this.wallFoe(wall, wave, now), ids: team.map((h) => h.id) };
+  }
+
+  wallWatchEnd() {
+    this.skillTeam = null;
+  }
+
+  /** The week's best total, from the saved week (0 once a new week starts). */
+  wallsWeekBest(now = Date.now()): number {
+    return this.walls.week === weekKey(now) ? this.walls.best : 0;
+  }
+
+  /** Week tiers already paid this week. */
+  wallsPaid(now = Date.now()): number[] {
+    return this.walls.week === weekKey(now) ? this.walls.paid : [];
+  }
+
+  /** Why the walls can't be defended now, or '' when they can. */
+  wallsBlock(now = Date.now()): string {
+    if (!this.wallsOpen()) return 'Hold the Walls opens after your first Rekindle';
+    if (this.walls.day === dayKey(now)) return 'The walls held today. Come back tomorrow';
+    if (!this.wallTeams().some((t) => t.length)) return 'Put heroes on the walls first';
+    return '';
+  }
+
+  /** Essence a wall pays: a share of one Trial win of the raiders' element per wave held (10 a wave before any Trial win). */
+  wallEssence(el: Element, waves: number): number {
+    if (!waves) return 0;
+    const best = this.trialBest[el] ?? 0;
+    const win = best ? TRIAL_LEVELS[Math.min(best, TRIAL_LEVELS.length) - 1].essence : 0;
+    return Math.max(10 * waves, Math.round(win * WALL_ESSENCE_SHARE * waves));
+  }
+
+  /**
+   * Today's defense: every wall fights its waves, and the waves held pay out. Crests go to the heroes who stood
+   * on the walls (not Legendaries or Ascendant heroes, and not heroes at their top star while others are left).
+   */
+  wallsDefend(now = Date.now()): WallsResult | null {
+    if (this.wallsBlock(now)) return null;
+    const waves = this.wallsForecast(now);
+    const total = waves.reduce((a, b) => a + b, 0);
+    const pay = wallReward(waves);
+    const raids = this.wallRaids(now);
+    const essence: Partial<Record<Element, number>> = {};
+    waves.forEach((n, i) => {
+      const e = this.wallEssence(raids[i], n);
+      if (e) essence[raids[i]] = (essence[raids[i]] ?? 0) + e;
+    });
+    for (const [el, n] of Object.entries(essence) as Array<[Element, number]>) this.essences[el] = (this.essences[el] ?? 0) + n;
+    this.enhanceStones += pay.stones;
+    const day = dayKey(now);
+    const rand = seededRandom(`walls:${day}:crests`);
+    const stood = this.wallTeams().flat().filter((h) => h.rarity !== 'legendary' && !isAscendant(h.id) && !h.unique);
+    const open = stood.filter((h) => !this.atTopStar(h.id));
+    const pool = open.length ? open : stood;
+    const crests: string[] = [];
+    for (let i = 0; i < pay.crests && pool.length; i++) {
+      const h = pool[Math.floor(rand() * pool.length)];
+      this.addCrests(h.id, 1);
+      crests.push(h.id);
+    }
+    const week = weekKey(now);
+    if (this.walls.week !== week) Object.assign(this.walls, { week, best: 0, paid: [] });
+    this.walls.best = Math.max(this.walls.best, total);
+    const chests: Array<'glyph' | 'grand'> = [];
+    WALL_WEEK_TIERS.forEach((t, i) => {
+      if (total >= t.waves && !this.walls.paid.includes(i)) {
+        this.walls.paid.push(i);
+        chests.push(t.chest);
+      }
+    });
+    const glyphs = chests.flatMap((c) => this.openGlyphChests(c, 1));
+    this.walls.day = day;
+    this.walls.last = waves;
+    this.save();
+    return { waves, total, stones: pay.stones, crests, essence, chests, glyphs };
+  }
+
   // ---------- Rush (src/rush.ts) ----------
 
   rushOpen(): boolean {
@@ -5099,6 +5314,7 @@ export class GameState {
       rushCoins: this.rushCoins,
       expedition: this.expedition,
       towers: this.towers,
+      walls: this.walls,
       enhanceStones: this.enhanceStones,
       equipped: this.equipped,
       relicSlots: this.relicSlots,
@@ -5337,6 +5553,7 @@ export class GameState {
       this.rushCoins = int(d.rushCoins);
       this.expedition = cleanExpedition(d.expedition, new Set(HEROES.map((h) => h.id)));
       this.towers = cleanTowers(d.towers, new Set(HEROES.map((h) => h.id)));
+      this.walls = cleanWalls(d.walls, new Set(HEROES.map((h) => h.id)));
       // Older saves ran relics to level 50 across tiers I-V: keep those levels as Enhances.
       for (const def of RELICS) {
         const lv = this.relics[def.id] ?? 0;
