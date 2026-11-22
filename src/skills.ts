@@ -1,4 +1,4 @@
-import { heroAffinity, HEROES, AURA_EVOLUTIONS, MASTERY_EVOLUTIONS, SUPPORT_RALLY, TYPE_MASTERY, type Effect, type EffectKind, type HeroDef } from './data';
+import { heroAffinity, HEROES, AURA_EVOLUTIONS, MASTERY_EVOLUTIONS, SUPPORT_RALLY, TYPE_MASTERY, VARIETY_BONUS_PER_TYPE, type Effect, type EffectKind, type HeroDef } from './data';
 
 /** A star skill that is switched on, with the hero who owns it. */
 export interface ActiveEffect {
@@ -10,7 +10,8 @@ export interface ActiveEffect {
  * Every star skill currently in force, for heroes in the lineup: SP1 at 2★ and SP2 at 3★ (1 and 2
  * evolutions; `stars` counts evolutions, so 0 = 1★), the Aura at 4★ (AURA_EVOLUTIONS) and, at 7★, the
  * hero's Type Mastery when it is a plain effect (TYPE_MASTERY). Every Support also gives the team
- * SUPPORT_RALLY from 1★; Rallies add up (+15% each) as one effect instead of multiplying.
+ * SUPPORT_RALLY from 1★; Rallies add up (+15% each) as one effect instead of multiplying. The team also gets the
+ * Variety bonus: ATK x(1 + VARIETY_BONUS_PER_TYPE per different Type in the lineup), see varietyTypes.
  * `hasStar` is GameState.hasStar (recruited, in the lineup, and evolved far enough). `resolve` gives a hero as it
  * is now (an Ascendant hero's current form, whose star skills can differ from its Common entry).
  */
@@ -20,6 +21,8 @@ export function activeEffects(hasStar: (id: string, star: number) => boolean, re
   if (rallies.length) {
     out.push({ owner: rallies[0].id, effect: { ...SUPPORT_RALLY, value: 1 + (SUPPORT_RALLY.value - 1) * rallies.length } });
   }
+  const types = varietyTypes(hasStar, resolve);
+  if (types.length) out.push({ owner: VARIETY_OWNER, effect: { kind: 'atk', value: 1 + VARIETY_BONUS_PER_TYPE * types.length, team: true } });
   for (const base of HEROES) {
     const h = resolve(base);
     if (hasStar(h.id, 1) && h.sp1.effect) out.push({ owner: h.id, effect: h.sp1.effect });
@@ -29,6 +32,16 @@ export function activeEffects(hasStar: (id: string, star: number) => boolean, re
     if (mastery && hasStar(h.id, MASTERY_EVOLUTIONS)) out.push({ owner: h.id, effect: mastery });
   }
   return out;
+}
+
+/** Owner id of the Variety bonus effect (not a hero). */
+export const VARIETY_OWNER = 'variety';
+
+/** The different Types in the lineup (heroes whose skills are on: GameState.hasStar(id, 0)), each Ascendant hero as its current form. */
+export function varietyTypes(hasStar: (id: string, star: number) => boolean, resolve: (h: HeroDef) => HeroDef = (h) => h): string[] {
+  const types = new Set<string>();
+  for (const base of HEROES) if (hasStar(base.id, 0)) types.add(resolve(base).type);
+  return [...types];
 }
 
 /**

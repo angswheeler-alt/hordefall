@@ -27,6 +27,7 @@ export const WHATS_NEW_SHOWN = 8;
 
 /** Newest first. */
 export const WHATS_NEW: WhatsNewEntry[] = [
+  { id: 'variety-bonus', date: '2026-11-22', text: '<b>Variety bonus</b>: your team deals 4% more damage for each different hero Type in it, up to +40%.' },
   { id: 'feature-intros', date: '2026-11-17', text: 'New features now say hello with a short <b>New:</b> card when they open, and long help texts fold behind <b>More</b>.' },
   { id: 'today-card', date: '2026-11-17', text: 'Hero pages show one clear <b>Level</b>, and Home folds away rewards once you claim them.' },
   { id: 'ferro-yeren', date: '2026-11-16', text: '<b>Ferro</b> and <b>Yeren</b> have arrived: claim both free in your Mailbox, then find rare crests or buy them in the Arena Shop.' },

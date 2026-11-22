@@ -61,7 +61,7 @@ describe('Rush foes fight with their own kit', () => {
     expect(f.owner.hasStar('pasta', 6)).toBe(true);
     expect(f.owner.hasStar('pasta', 7)).toBe(false);
     // The player's own heroes give the foe nothing.
-    expect(f.owner.effects().every((e) => e.owner === 'pasta')).toBe(true);
+    expect(f.owner.effects().every((e) => e.owner === 'pasta' || e.owner === 'variety')).toBe(true);
   });
 
   it('a Rush fight starts as a fair duel and hands the foe its save', () => {

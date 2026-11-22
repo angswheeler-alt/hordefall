@@ -7,6 +7,7 @@
 // What is modelled vs. what the real game does is listed in tools/sim/README.md ("Model limits").
 import Decimal from 'break_infinity.js';
 import { POLICIES, type Policy } from './policies';
+import { installBench } from './bench';
 
 // ---------- in-memory localStorage (GameState reads it on load) ----------
 const store = new Map<string, string>();
@@ -86,6 +87,7 @@ export async function runSim(cfg: SimConfig) {
   const s: any = new S.GameState();
   s.save = () => {};
   s.speed2x = true;
+  const BX = installBench(s, { HEROES, elementMultiplier, utcWeekStart: F.utcWeekStart });
 
   // ---------- memo: relic / skill / research bonuses only change during chores ----------
   let frozen = false;
@@ -297,7 +299,9 @@ export async function runSim(cfg: SimConfig) {
   let focusElement = '';
   function pickLineup() {
     const owned = HEROES.filter((h: Hero) => (s.levels[h.id] ?? 0) > 0);
+    BX.st.noBond = true;
     const score = new Map(owned.map((h: Hero) => [h.id, heroScore(h)]));
+    BX.st.noBond = false;
     const by = (a: Hero, b: Hero) => (score.get(b.id) ?? 0) - (score.get(a.id) ?? 0);
     let want: Hero[] = [];
     if (P.strategy === 'element') {
@@ -313,6 +317,7 @@ export async function runSim(cfg: SimConfig) {
       }
     }
     for (const h of owned.sort(by)) if (want.length < s.teamSlots && !want.includes(h)) want.push(h);
+    want = BX.improveTeam(want, owned, score);
     const now = lineup();
     if (now.length === want.length && now.every((h) => want.includes(h))) return;
     // Embers move off heroes leaving the team (Reset Embers refunds all), then the exact team is set.
@@ -450,6 +455,8 @@ export async function runSim(cfg: SimConfig) {
     if (P.paidGemsPerDay > 0) { /* paid Gems land once a day, see day loop */ }
     spendGems(active);
     systems(active);
+    BX.dojo(day());
+    BX.walls(NOW, R.dayKey(NOW));
     // unlock and evolve
     for (const h of HEROES) if (s.canUnlock(h)) s.unlockHero(h.id);
     s.evolveAll();
@@ -856,6 +863,7 @@ export async function runSim(cfg: SimConfig) {
       tickets: s.trialTickets(), wild: s.wildCrests, motes: s.starmotes, forge: { ...s.forge }, glyphDust: s.glyphDust, guildCoins: s.guildCredits, warsteel: s.warsteel, rushCoins: s.rushCoins,
       trialBest, trialMax: Math.max(...trialBest), legendaryMedals: s.legendaryMedals,
       trophies: s.pvp?.trophies ?? 0, rushLevel: s.rush?.level ?? 0, observatory: { ...s.observatory }, ascendant: ascForms,
+      bench: BX.snapshot(lu),
       cpLog: lg(s.totalCombatPower()), fixedTeamCpLog: lg(s.fixedTeamCp(lu)), guildBossTop: G.lastTop, guildBossLevel: G.level,
       modes: { trials: s.trialsUnlocked(), rekindle: s.rekindles > 0, observatory: s.observatoryOpen(), scouting: s.scoutOpen(), colosseum: s.pvpOpen(), rush: s.rushOpen(), guild: !!P.guild && s.rekindles > 0, awakening: s.awakenOpen() },
       ledger: {

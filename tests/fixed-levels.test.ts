@@ -66,7 +66,8 @@ describe('Ember and gold levels by mode', () => {
       expect(g.ember).toBe(1);
       const cp = GameState.opponentCp(g);
       expect(cp.lte(target.times(1.001))).toBe(true);
-      expect(cp.gte(target.times(0.99))).toBe(true);
+      // Combat Power is a whole number, so a small target can land one point lower.
+      expect(cp.gte(target.times(0.99).minus(1))).toBe(true);
     }
     void s;
   });
