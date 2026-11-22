@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import Decimal from 'break_infinity.js';
 import { GameState } from '../src/state';
 import { HEROES } from '../src/data';
+import uiSrc from '../src/ui.ts?raw';
 
 const starter = HEROES.find((h) => h.unlockCost === 0)!;
 const other = HEROES.find((h) => h.id !== starter.id && h.rarity !== 'legendary')!;
@@ -65,5 +66,13 @@ describe('only heroes on the team can be levelled', () => {
     expect(s.levelBlock(locked.id)).not.toBeNull();
     expect(s.buyGoldLevels(locked.id, 1)).toBe(0);
     expect(s.buyEmbers(locked.id, 1)).toBe(0);
+  });
+});
+
+describe('hero page level buttons', () => {
+  it('hides the gold and Ember buttons for a hero off the team', () => {
+    const ui = uiSrc as string;
+    expect(ui).toContain("$('sheet-gold-up').hidden = levelBlock !== null;");
+    expect(ui).toContain("$('sheet-ember-up').hidden = levelBlock !== null;");
   });
 });
