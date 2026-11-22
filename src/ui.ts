@@ -41,7 +41,7 @@ import { busyWhile, setHtml } from './taps';
 import { holdToRepeat } from './hold';
 import { ScoutUI } from './scoutUi';
 import { WILD_CREST_COST } from './scouting';
-import { GlyphUI, glyphCard } from './glyphUi';
+import { GlyphUI, glyphCard, glyphDrops } from './glyphUi';
 import { arenaItems, ARENA_ICON, ARENA_NAME, GLORY_DAILY, GLORY_WIN, GLORY_LOSS } from './arenaShop';
 import { JournalUI, journalRulesText } from './journalUi';
 import { bossPicHtml, heroFaceCss, heroWholeCss } from './portrait';
@@ -50,6 +50,8 @@ import type { IntroGo } from './featureIntros';
 import { todayRows, todayLeft, todayShown, weekLine, type TodayGo } from './today';
 import { RushUI, rushResultHtml } from './rushUi';
 import { ExpeditionUI, expEndHtml } from './expeditionUi';
+import { TowersUI, towerResultHtml } from './towersUi';
+import { TOWER_NAMES } from './towers';
 import type { ExpLender } from './expedition';
 import { RESET_PHRASE, resetPhraseOk } from './resetPhrase';
 import { attachTeamDrag } from './teamDrag';
@@ -57,9 +59,9 @@ import { ALCHEMY_ORE_CORE, ALCHEMY_ORE_CORES_PER_WEEK, ALCHEMY_ORE_DUST, ALCHEMY
 import { sortHeroes, nextTeamSort, TEAM_SORT_LABELS, type TeamSort } from './teamSort';
 
 /** The teams Manage Team edits: stages, Colosseum attack and defense, and the Guild Boss. */
-export type TeamTab = 'stage' | 'attack' | 'defense' | 'guild';
-const TEAM_TAB_SHORT: Record<TeamTab, string> = { stage: 'Stage', attack: 'Attack', defense: 'Defense', guild: 'Guild Boss' };
-const TEAM_TAB_TITLE: Record<TeamTab, string> = { stage: 'Team', attack: 'Attack team', defense: 'Defense team', guild: 'Guild Boss' };
+export type TeamTab = 'stage' | 'attack' | 'defense' | 'guild' | 'tower';
+const TEAM_TAB_SHORT: Record<TeamTab, string> = { stage: 'Stage', attack: 'Attack', defense: 'Defense', guild: 'Guild Boss', tower: 'Tower' };
+const TEAM_TAB_TITLE: Record<TeamTab, string> = { stage: 'Team', attack: 'Attack team', defense: 'Defense team', guild: 'Guild Boss', tower: 'Tower team' };
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
@@ -173,6 +175,9 @@ export class UI {
   private journalUi!: JournalUI;
   private rushUi!: RushUI;
   private expUi!: ExpeditionUI;
+  private towersUi!: TowersUI;
+  /** The tower whose team Manage Team edits on its Tower tab. */
+  private towerEl: Element = 'water';
 
   constructor(
     private state: GameState,
@@ -192,6 +197,9 @@ export class UI {
     $('rush-help').addEventListener('click', () => this.rushUi.help());
     this.expUi = new ExpeditionUI(this.state, this);
     $('exp-help').addEventListener('click', () => this.expUi.help());
+    this.towersUi = new TowersUI(this.state, this);
+    $('tw-help').addEventListener('click', () => this.towersUi.help());
+    $('tw-back').addEventListener('click', () => document.querySelector<HTMLButtonElement>('[data-battle-pane="towers"] [data-battle-go="hub"]')?.click());
     let last = performance.now();
     setInterval(() => {
       const now = performance.now();
@@ -344,20 +352,22 @@ export class UI {
   /** The teams Manage Team can edit right now. */
   private teamTabs(): TeamTab[] {
     const s = this.state;
+    // A tower team is edited on its own, from the tower page.
+    if (this.teamTab === 'tower') return ['tower'];
     return ['stage', ...(s.pvpOpen() ? (['attack', 'defense'] as const) : []), ...(this.inGuild || this.teamTab === 'guild' ? (['guild'] as const) : [])];
   }
 
   /** Hero ids in one of the teams. */
   private teamIdsOf(tab: TeamTab): string[] {
     const s = this.state;
-    const team = tab === 'attack' ? s.pvpAttackTeam() : tab === 'defense' ? s.pvpDefenseTeam() : tab === 'guild' ? s.guildBossHeroes() : s.lineupOrdered();
+    const team = tab === 'tower' ? s.towerTeam(this.towerEl) : tab === 'attack' ? s.pvpAttackTeam() : tab === 'defense' ? s.pvpDefenseTeam() : tab === 'guild' ? s.guildBossHeroes() : s.lineupOrdered();
     return team.map((h) => h.id);
   }
 
   /** Save a Colosseum or Guild Boss team (the stage team changes through the lineup instead). */
   private setTeamOf(tab: TeamTab, ids: string[]): boolean {
     const s = this.state;
-    const ok = tab === 'guild' ? s.setGuildBossTeam(ids) : tab === 'stage' ? false : s.setPvpTeam(tab, ids);
+    const ok = tab === 'tower' ? s.setTowerTeam(this.towerEl, ids) : tab === 'guild' ? s.setGuildBossTeam(ids) : tab === 'stage' ? false : s.setPvpTeam(tab, ids);
     if (ok && tab === 'defense') void this.pvpServer?.report(true);
     return ok;
   }
@@ -408,6 +418,8 @@ export class UI {
         ? 'You fight Colosseum battles with this team. Gold and Ember levels don\'t count here: stars, relics, weapons and Glyphs do. Your stage team stays as it is.'
         : tab === 'defense'
           ? 'Other players fight this team in the Colosseum. Losing on defense never costs trophies.'
+          : tab === 'tower'
+            ? `Only ${cap(this.towerEl)} heroes can climb the ${TOWER_NAMES[this.towerEl]}. Gold and Ember levels don't count here: stars, relics, weapons and Glyphs do. Your stage team stays as it is.`
           : tab === 'guild'
             ? `This week's Guild Boss is ${cap(boss)}: heroes marked Strong hit it extra hard. Gold and Ember levels don't count here: stars, relics, weapons and Glyphs do.`
             : '';
@@ -422,7 +434,7 @@ export class UI {
     } else {
       scrollKey = `${tab}:${this.teamFilter}:${this.teamSort}`;
       const shown = sortHeroes(
-        owned.filter((h) => !this.teamFilter || h.element === this.teamFilter),
+        owned.filter((h) => (tab === 'tower' ? h.element === this.towerEl : !this.teamFilter || h.element === this.teamFilter)),
         this.teamSort,
         s,
         !stage,
@@ -448,8 +460,8 @@ export class UI {
         .join('');
       const tools = swapping
         ? `<div class="tm-swapbar"><span>Tap a hero in the team above to swap <b>${swapping.name}</b> in.</span><button type="button" data-swap-cancel>Cancel</button></div>`
-        : `<div class="tm-tools"><button type="button" data-sort>Sort: ${TEAM_SORT_LABELS[this.teamSort]}</button><button type="button" data-best class="hot">Best team</button></div>`;
-      body = `${tools}<div class="tm-chips">${chips}</div><div class="tm-grid">${cards || '<p class="team-help">No heroes of this element yet.</p>'}</div>
+        : `<div class="tm-tools"><button type="button" data-sort>Sort: ${TEAM_SORT_LABELS[this.teamSort]}</button><button type="button" data-best class="hot">${tab === 'tower' ? 'Auto-set' : 'Best team'}</button></div>`;
+      body = `${tools}${tab === 'tower' ? '' : `<div class="tm-chips">${chips}</div>`}<div class="tm-grid">${cards || '<p class="team-help">No heroes of this element yet.</p>'}</div>
         <p class="team-help">${
           stage
             ? 'Tap a hero to see their stats and add, remove or swap them. Taking a hero out drops them to gold level 1 and gives that gold back. Their Ember levels stay. New heroes are unlocked in Collection.'
@@ -458,7 +470,7 @@ export class UI {
     }
     const prevScroll = $('modal').classList.contains('team-mode') && scrollKey && scrollKey === this.teamScrollKey ? ($('modal-body').querySelector<HTMLElement>('.tm-scroll')?.scrollTop ?? 0) : 0;
     this.teamScrollKey = scrollKey;
-    const title = stage ? `Team ${count}/${s.teamSlots}` : `${TEAM_TAB_TITLE[tab]} ${count}/${s.teamSlots}`;
+    const title = stage ? `Team ${count}/${s.teamSlots}` : tab === 'tower' ? `${TOWER_NAMES[this.towerEl]} team ${count}/${s.teamSlots}` : `${TEAM_TAB_TITLE[tab]} ${count}/${s.teamSlots}`;
     this.showModal(
       title,
       `<button type="button" class="tm-x" data-team-close aria-label="Close">✕</button>${tabBar}<p class="tm-total">${stage ? 'Total Combat Power' : 'Team Combat Power'} <b>${fmt(stage ? s.teamCpOf(team) : s.fixedTeamCp(team))}</b></p>${hint ? `<p class="tm-hint">${hint}</p>` : ''}${note ? `<p class="team-note">${note}</p>` : ''}<div class="tm-slots">${slots}</div>${stage && !swapping && count > 1 && !peek ? '<p class="tm-drag-tip">Hold and drag a hero to change the order. The Heroes tab lists them the same way.</p>' : ''}${this.teamSummaryHtml(team)}${stage ? this.ultSlotsHtml() : ''}<div class="tm-scroll">${body}</div>`,
@@ -730,7 +742,7 @@ export class UI {
     const bg = (f: string) => `url("${new URL(`bg/${f}`, document.baseURI).href}")`;
     const scene = (name: string, y = '40%') => `${bg(`${name}_far.png`)} center ${y} / cover, ${bg(`${name}_sky.png`)} center / cover`;
     // Every mode card shows a battle backdrop that suits it, like the Colosseum's.
-    const cardArt: Record<string, string> = { arena: scene('colosseum'), trials: scene('hollowmoon'), scout: scene('tidecoast'), rush: scene('stormcrag'), exp: scene('hollowmoon', '60%') };
+    const cardArt: Record<string, string> = { arena: scene('colosseum'), trials: scene('hollowmoon'), scout: scene('tidecoast'), rush: scene('stormcrag'), exp: scene('hollowmoon', '60%'), towers: scene('stormcrag', '20%') };
     for (const [mode, art] of Object.entries(cardArt)) document.querySelector<HTMLElement>(`.mode-card.${mode}`)?.style.setProperty('--art', art);
     // The Colosseum opens full screen over the lane; its backdrop is the arena itself.
     document.querySelector<HTMLElement>('.arena-full')?.style.setProperty('--art', scene('colosseum'));
@@ -1588,7 +1600,7 @@ export class UI {
         return;
       }
       if (t.closest('[data-best]')) {
-        const best = s.bestTeamIds(this.teamTab);
+        const best = this.teamTab === 'tower' ? s.towerAutoTeam(this.towerEl) : s.bestTeamIds(this.teamTab);
         const now = this.teamIdsOf(this.teamTab);
         if (best.length === now.length && best.every((id) => now.includes(id))) {
           this.openTeam('This is already your strongest team.');
@@ -1597,7 +1609,7 @@ export class UI {
           this.openTeam();
         } else {
           if (this.setTeamOf(this.teamTab, best)) play('unlock');
-          this.openTeam('Your strongest heroes are in.');
+          this.openTeam(this.teamTab === 'tower' ? `Your strongest ${cap(this.towerEl)} heroes are in.` : 'Your strongest heroes are in.');
         }
         return;
       }
@@ -2897,6 +2909,8 @@ export class UI {
     if (!document.querySelector<HTMLElement>('[data-battle-pane="rush"]')!.hidden) this.rushUi.render();
     this.expUi.renderHub();
     if (!document.querySelector<HTMLElement>('[data-battle-pane="exp"]')!.hidden) this.expUi.render();
+    this.towersUi.renderHub();
+    if (!document.querySelector<HTMLElement>('[data-battle-pane="towers"]')!.hidden) this.towersUi.render();
   }
 
   /** The Glyph bag (from the Rush page). */
@@ -2962,6 +2976,39 @@ export class UI {
       }, 1200);
       this.render();
     }, { label: 'Expedition', allies, boost: (def) => s.expBoost(def), fair: true });
+  }
+
+  /** Manage Team on a tower's team: only heroes of that element. */
+  openTowerTeam(el: Element) {
+    this.towerEl = el;
+    this.openTeamOn('tower');
+  }
+
+  /** Fight the next floor of a tower on the lane: the tower team against a team of the element it beats. */
+  fightTower(el: Element) {
+    const s = this.state;
+    const scene = this.scene();
+    if (!scene || scene.inTrial() || scene.inPvp()) return;
+    const foe = s.towerFightStart(el);
+    if (!foe) return;
+    const floor = s.towerFight!.floor;
+    const ids = s.towerTeam(el).map((h) => h.id);
+    this.closeSheet();
+    document.body.classList.add('in-trial');
+    $('trial-hud').hidden = false;
+    $('trial-hud-name').textContent = `${TOWER_NAMES[el]}: floor ${floor}`;
+    $('trial-hud-note').textContent = `Only ${cap(el)} heroes fight here, at the fixed level, with no Ultimates. Destroy the red crystal before they destroy yours.`;
+    $('trial-leave').textContent = 'Leave';
+    const units = s.pvpFoeUnits(foe).map((f) => ({ def: f.def, stats: f.stats, owner: f.owner }));
+    scene.startPvp(ids, units, 0, (won) => {
+      $('trial-leave').textContent = 'Back';
+      const res = s.towerFightEnd(won);
+      if (res?.won) play('unlock');
+      window.setTimeout(() => {
+        if (scene.inPvp()) this.showModal(TOWER_NAMES[el], res ? towerResultHtml(res) + glyphDrops(res.glyphs) : '', 'Okay', () => this.endPvpScreen());
+      }, 1200);
+      this.render();
+    }, { label: TOWER_NAMES[el], fair: true });
   }
 
   /** The Rekindle rewards page: what this Rekindle pays and what it moves forward. */
@@ -3738,8 +3785,8 @@ export class UI {
    * the lane buttons (Rekindle, Auto boss, 2x, Settings) and the tab bar drew on top of it; CSS hides them.
    */
   private syncArenaOpen() {
-    const pane = document.querySelector<HTMLElement>('.arena-full');
-    document.body.classList.toggle('arena-open', this.tab === 'battle' && !!pane && !pane.hidden);
+    const open = [...document.querySelectorAll<HTMLElement>('.arena-full')].some((pane) => !pane.hidden);
+    document.body.classList.toggle('arena-open', this.tab === 'battle' && open);
   }
 
   render() {

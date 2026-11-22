@@ -23,6 +23,14 @@ export const CFG = {
   dojoWild: 5, // Wild Crests per first clear
   dojoGems10: 50, // Gems every 10th floor
   dojoOpenDay: 0, // opens at a player level; modelled as "after first Rekindle"
+  // towers (Element Towers: rewards only, foes = heroes of that element)
+  towerFloors: 1e9,
+  towerBase: 31.6, // floor 1 foe team = towerBase x (5 one-star Commons' fixed CP)
+  towerGrowth: 1.2, // each floor's foe team is this much stronger
+  towerCrests: 5, // crests of the element per floor
+  towerGems: 5, // Gems per floor
+  towerEpic10: 10, // Epic crests every 10th floor
+  towerStones5: 5, // Enhance Stones every 5th floor
   // walls
   wallsWaves: 30,
   wallsBase: 1, // wave 1 needs wallsBase x (5 one-star Commons' fixed CP)
@@ -56,7 +64,8 @@ export function installBench(s: any, deps: { HEROES: any[]; elementMultiplier: (
     noBond: false,
     floors: {} as Record<string, number>,
     wallsBest: 0, wallsLast: 0, wallsDay: '', wallsWeek: '',
-    wildIn: { dojo: 0, walls: 0 }, stonesIn: { walls: 0 }, gemsIn: { dojo: 0 },
+    towers: {} as Record<string, number>,
+    wildIn: { dojo: 0, walls: 0, towers: 0 }, stonesIn: { walls: 0, towers: 0 }, gemsIn: { dojo: 0, towers: 0 }, crestsIn: { towers: 0 },
   };
 
   const elOf = (h: any) => s.formDef(h).element;
@@ -176,6 +185,31 @@ export function installBench(s: any, deps: { HEROES: any[]; elementMultiplier: (
     }
   }
 
+  let pickN = 0;
+  function towers() {
+    if (!ON.has('towers') || !s.rekindles) return;
+    const hs = owned();
+    for (const el of ['water', 'fire', 'earth', 'light', 'dark']) {
+      const p = top5(hs.filter((h: any) => elOf(h) === el), (h) => fcp(h).toNumber()) / (5 * yard());
+      let f = st.towers[el] ?? 0;
+      // Endless towers (2026-11-22): 5 crests of the element + 5 Gems a floor, Stones every 5th, an Epic Element Chest every 10th.
+      while (f < CFG.towerFloors && p >= CFG.towerBase * CFG.towerGrowth ** f) {
+        f++;
+        for (let i = 0; i < CFG.towerCrests; i++) { const pool = s.trialPool(el); s.addCrests(pool[pickN++ % pool.length].id, 1); }
+        st.crestsIn.towers += CFG.towerCrests;
+        s.gems += CFG.towerGems; st.gemsIn.towers += CFG.towerGems;
+        if (f % 5 === 0) { s.enhanceStones += CFG.towerStones5; st.stonesIn.towers += CFG.towerStones5; }
+        if (f % 10 === 0) {
+          const epics = HEROES.filter((h: any) => h.element === el && h.rarity === 'epic' && !h.unique && !String(h.id).startsWith('asc_'));
+          const open = epics.filter((h: any) => !s.atTopStar(h.id));
+          const pool = open.length ? open : epics;
+          if (pool.length) { s.addCrests(pool[pickN++ % pool.length].id, CFG.towerEpic10); st.crestsIn.towers += CFG.towerEpic10; }
+        }
+      }
+      st.towers[el] = f;
+    }
+  }
+
   function wallsResult(raid: string[]): number {
     const used = new Set<string>();
     let worst = Infinity;
@@ -216,12 +250,13 @@ export function installBench(s: any, deps: { HEROES: any[]; elementMultiplier: (
       commonStarsAvg: +(commons.filter((c: any) => (s.levels[c.id] ?? 0) > 0).reduce((a: number, c: any) => a + (s.stars[c.id] ?? 0) + 1, 0) / Math.max(1, commons.filter((c: any) => (s.levels[c.id] ?? 0) > 0).length)).toFixed(2),
       typePowLog: Object.fromEntries(Object.entries(tp).map(([k, v]) => [k, +Math.log10(Math.max(1e-9, v)).toFixed(2)])),
       elemPowLog: elp,
+      towers: { ...st.towers }, towersTotal: Object.values(st.towers).reduce((a, b) => a + b, 0),
       floors: { ...st.floors }, floorsTotal: Object.values(st.floors).reduce((a, b) => a + b, 0),
       wallsLast: st.wallsLast, wallsBest: st.wallsBest,
-      wildIn: { ...st.wildIn }, stonesIn: { ...st.stonesIn }, gemsIn: { ...st.gemsIn },
+      wildIn: { ...st.wildIn }, stonesIn: { ...st.stonesIn }, gemsIn: { ...st.gemsIn }, crestsIn: { ...st.crestsIn },
     };
   }
 
   yard();
-  return { improveTeam, dojo, walls, snapshot, st };
+  return { improveTeam, dojo, towers, walls, snapshot, st };
 }

@@ -27,6 +27,7 @@ export const WHATS_NEW_SHOWN = 8;
 
 /** Newest first. */
 export const WHATS_NEW: WhatsNewEntry[] = [
+  { id: 'element-towers', date: '2026-11-22', text: '<b>Element Towers</b> (Battle tab, after your first Rekindle): five endless towers, one element each, paying crests and Epic chests.' },
   { id: 'variety-bonus', date: '2026-11-22', text: '<b>Variety bonus</b>: your team deals 4% more damage for each different hero Type in it, up to +40%.' },
   { id: 'feature-intros', date: '2026-11-17', text: 'New features now say hello with a short <b>New:</b> card when they open, and long help texts fold behind <b>More</b>.' },
   { id: 'today-card', date: '2026-11-17', text: 'Hero pages show one clear <b>Level</b>, and Home folds away rewards once you claim them.' },

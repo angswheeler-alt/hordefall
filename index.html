@@ -201,6 +201,12 @@
               <b class="mode-title">Rush</b>
               <small id="hub-rush-note" class="mode-note"></small>
             </button>
+            <button class="mode-card towers" data-battle-go="towers">
+              <span class="mode-count"><svg class="tw-count-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 15V5l4-4 4 4v10z" fill="#c9b8ff" stroke="#2a1a4a" stroke-width="1.5"/></svg><b id="hub-tw-count"></b></span>
+              <svg class="mode-trophy tw-tower" viewBox="0 0 64 64" aria-hidden="true"><path d="M20 60V22l-4-6h32l-4 6v38z" fill="#6b7aa8" stroke="#131927" stroke-width="3" stroke-linejoin="round"/><path d="M16 16v-6h6v4h6v-4h8v4h6v-4h6v6z" fill="#8a9ad0" stroke="#131927" stroke-width="3" stroke-linejoin="round"/><path d="M20 34h24M20 48h24" stroke="#454f73" stroke-width="2"/><path d="M28 60V50a4 4 0 0 1 8 0v10z" fill="#131927"/><circle cx="25" cy="27" r="3" fill="#3fa8ff"/><circle cx="39" cy="27" r="3" fill="#ff5a3a"/><circle cx="25" cy="41" r="3" fill="#5fd04a"/><circle cx="39" cy="41" r="3" fill="#ffd84a"/><circle cx="32" cy="41" r="3" fill="#a24aff"/></svg>
+              <b class="mode-title">Element Towers</b>
+              <small id="hub-tw-note" class="mode-note"></small>
+            </button>
             <button class="mode-card exp" data-battle-go="exp" hidden>
               <span class="mode-count"><i class="exp-charge-ico" aria-hidden="true"></i><b id="hub-exp-count"></b></span>
               <svg class="mode-trophy exp-compass" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="24" fill="#f0d9a0" stroke="#5a3a10" stroke-width="3"/><circle cx="32" cy="32" r="17" fill="none" stroke="#c9a868" stroke-width="2"/><path d="M32 12l6 20-6 20-6-20z" fill="#b3261c" stroke="#5a3a10" stroke-width="2" stroke-linejoin="round"/><path d="M32 32l6 0-6 20-6-20z" fill="#e8e0cc" stroke="#5a3a10" stroke-width="2" stroke-linejoin="round"/><circle cx="32" cy="32" r="3" fill="#5a3a10"/></svg>
@@ -242,6 +248,15 @@
             <button class="wood-btn small trial-back" data-battle-go="hub">&#8592; Battle</button>
             <div class="panel-head"><h2>Expedition</h2><button id="exp-help" class="wood-btn small">How it works</button></div>
             <div id="exp" class="exp"></div>
+          </div>
+          <div data-battle-pane="towers" class="arena-full tw-full" hidden>
+            <div class="arena-head">
+              <button id="tw-back" class="wood-btn arena-back" aria-label="Back">&#8249; Back</button>
+              <h2>Element Towers</h2>
+              <button id="tw-help" class="wood-btn small">How it works</button>
+              <button class="tw-hub-go" data-battle-go="hub" hidden></button>
+            </div>
+            <div class="arena-body"><div id="towers" class="towers"></div></div>
           </div>
           <div data-battle-pane="arena" class="arena-full" hidden>
             <div class="arena-head">
