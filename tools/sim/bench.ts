@@ -26,7 +26,7 @@ export const CFG = {
   // towers (Element Towers: rewards only, foes = heroes of that element)
   towerFloors: 1e9,
   towerBase: 31.6, // floor 1 foe team = towerBase x (5 one-star Commons' fixed CP)
-  towerGrowth: 1.2, // each floor's foe team is this much stronger
+  towerGrowth: 1.15, // each floor's foe team is this much stronger
   towerCrests: 5, // crests of the element per floor
   towerGems: 5, // Gems per floor
   towerEpic10: 10, // Epic crests every 10th floor
