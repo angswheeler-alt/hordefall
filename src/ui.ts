@@ -2092,6 +2092,9 @@ export class UI {
     const benchNote = $('sheet-bench-note');
     benchNote.hidden = levelBlock === null;
     benchNote.textContent = levelBlock ? `${levelBlock}. Benched heroes keep their Ember levels.` : '';
+    // Benched heroes show no level buttons at all, so nothing looks buyable off the team (Samuel 2026-11-22).
+    $('sheet-gold-up').hidden = levelBlock !== null;
+    $('sheet-ember-up').hidden = levelBlock !== null;
     const { levels, cost } = bulkCost(def, gold, s.buyAmount, s.gold, s.levelCostMult());
     const shown = levels > 0 ? { levels, cost } : bulkCost(def, gold, 1, s.gold, s.levelCostMult());
     const goldBtn = $<HTMLButtonElement>('sheet-gold-up');
