@@ -9,8 +9,8 @@
  * - Fixed level like the Colosseum: stars, relics, weapons and Glyphs count, gold and Ember levels don't.
  * - Floor N needs about TOWER_BASE x TOWER_GROWTH^(N-1) times a 1-star Common's power per hero. The foe team
  *   is sized for that, times the tower's element edge (TOWER_EDGE), so every tower is about as hard.
- * - Year sim (tools/sim/bench.ts, SIM_BENCH=towers): about 50 floors a tower in the first year for a casual
- *   player, around 1,000 Gems a year, stage pace +1%.
+ * - Year sim (tools/sim/bench.ts, SIM_BENCH=towers, growth 1.15): about 67 floors a tower in the first year for a
+ *   casual player (83 active), around 1,700-2,100 Gems and 2,000-2,500 crests a year, stage pace within +-2%.
  */
 import { POOL_HEROES, type Element, type HeroDef } from './data';
 import { seededRandom } from './colosseum';
@@ -28,7 +28,8 @@ export const TOWER_FOE_SIZE = 5;
 export const TOWER_GEMS = 5;
 /** Floor 1 needs this many times a 1-star Common's fixed power per hero; each floor TOWER_GROWTH times the last. */
 export const TOWER_BASE = 31.6;
-export const TOWER_GROWTH = 1.2;
+/** Samuel (2026-11-22): 15% per floor (was 20%), so late-game climbing keeps moving. */
+export const TOWER_GROWTH = 1.15;
 /**
  * How much stronger the foes are than the player's team at an even fight, per tower: the tower's element hits
  * x4 and takes x0.5 (Light and Dark x2 both ways). Measured with simulatePvp on random teams (2026-11-22).
