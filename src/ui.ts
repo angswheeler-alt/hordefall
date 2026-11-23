@@ -52,6 +52,8 @@ import { RushUI, rushResultHtml } from './rushUi';
 import { ExpeditionUI, expEndHtml } from './expeditionUi';
 import { TowersUI, towerResultHtml } from './towersUi';
 import { TOWER_NAMES } from './towers';
+import { WallsUI, wallsResultHtml } from './wallsUi';
+import { WALL_NAMES, WALL_SIZE, wallFit } from './walls';
 import type { ExpLender } from './expedition';
 import { RESET_PHRASE, resetPhraseOk } from './resetPhrase';
 import { attachTeamDrag } from './teamDrag';
@@ -59,9 +61,9 @@ import { ALCHEMY_ORE_CORE, ALCHEMY_ORE_CORES_PER_WEEK, ALCHEMY_ORE_DUST, ALCHEMY
 import { sortHeroes, nextTeamSort, TEAM_SORT_LABELS, type TeamSort } from './teamSort';
 
 /** The teams Manage Team edits: stages, Colosseum attack and defense, and the Guild Boss. */
-export type TeamTab = 'stage' | 'attack' | 'defense' | 'guild' | 'tower';
-const TEAM_TAB_SHORT: Record<TeamTab, string> = { stage: 'Stage', attack: 'Attack', defense: 'Defense', guild: 'Guild Boss', tower: 'Tower' };
-const TEAM_TAB_TITLE: Record<TeamTab, string> = { stage: 'Team', attack: 'Attack team', defense: 'Defense team', guild: 'Guild Boss', tower: 'Tower team' };
+export type TeamTab = 'stage' | 'attack' | 'defense' | 'guild' | 'tower' | 'wall';
+const TEAM_TAB_SHORT: Record<TeamTab, string> = { stage: 'Stage', attack: 'Attack', defense: 'Defense', guild: 'Guild Boss', tower: 'Tower', wall: 'Wall' };
+const TEAM_TAB_TITLE: Record<TeamTab, string> = { stage: 'Team', attack: 'Attack team', defense: 'Defense team', guild: 'Guild Boss', tower: 'Tower team', wall: 'Wall' };
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
@@ -176,6 +178,9 @@ export class UI {
   private rushUi!: RushUI;
   private expUi!: ExpeditionUI;
   private towersUi!: TowersUI;
+  private wallsUi!: WallsUI;
+  /** The wall whose heroes Manage Team edits on its Wall tab. */
+  private wallIdx = 0;
   /** The tower whose team Manage Team edits on its Tower tab. */
   private towerEl: Element = 'water';
 
@@ -199,6 +204,9 @@ export class UI {
     $('exp-help').addEventListener('click', () => this.expUi.help());
     this.towersUi = new TowersUI(this.state, this);
     $('tw-help').addEventListener('click', () => this.towersUi.help());
+    this.wallsUi = new WallsUI(this.state, this);
+    $('wl-help').addEventListener('click', () => this.wallsUi.help());
+    $('wl-back').addEventListener('click', () => document.querySelector<HTMLButtonElement>('[data-battle-pane="walls"] [data-battle-go="hub"]')?.click());
     $('tw-back').addEventListener('click', () => document.querySelector<HTMLButtonElement>('[data-battle-pane="towers"] [data-battle-go="hub"]')?.click());
     let last = performance.now();
     setInterval(() => {
@@ -354,20 +362,21 @@ export class UI {
     const s = this.state;
     // A tower team is edited on its own, from the tower page.
     if (this.teamTab === 'tower') return ['tower'];
+    if (this.teamTab === 'wall') return ['wall'];
     return ['stage', ...(s.pvpOpen() ? (['attack', 'defense'] as const) : []), ...(this.inGuild || this.teamTab === 'guild' ? (['guild'] as const) : [])];
   }
 
   /** Hero ids in one of the teams. */
   private teamIdsOf(tab: TeamTab): string[] {
     const s = this.state;
-    const team = tab === 'tower' ? s.towerTeam(this.towerEl) : tab === 'attack' ? s.pvpAttackTeam() : tab === 'defense' ? s.pvpDefenseTeam() : tab === 'guild' ? s.guildBossHeroes() : s.lineupOrdered();
+    const team = tab === 'wall' ? s.wallTeams()[this.wallIdx] : tab === 'tower' ? s.towerTeam(this.towerEl) : tab === 'attack' ? s.pvpAttackTeam() : tab === 'defense' ? s.pvpDefenseTeam() : tab === 'guild' ? s.guildBossHeroes() : s.lineupOrdered();
     return team.map((h) => h.id);
   }
 
   /** Save a Colosseum or Guild Boss team (the stage team changes through the lineup instead). */
   private setTeamOf(tab: TeamTab, ids: string[]): boolean {
     const s = this.state;
-    const ok = tab === 'tower' ? s.setTowerTeam(this.towerEl, ids) : tab === 'guild' ? s.setGuildBossTeam(ids) : tab === 'stage' ? false : s.setPvpTeam(tab, ids);
+    const ok = tab === 'wall' ? s.setWallTeam(this.wallIdx, ids) : tab === 'tower' ? s.setTowerTeam(this.towerEl, ids) : tab === 'guild' ? s.setGuildBossTeam(ids) : tab === 'stage' ? false : s.setPvpTeam(tab, ids);
     if (ok && tab === 'defense') void this.pvpServer?.report(true);
     return ok;
   }
@@ -391,11 +400,15 @@ export class UI {
     const peek = this.teamPeek ? HEROES.find((h) => h.id === this.teamPeek) : undefined;
     const swapping = this.teamSwap ? HEROES.find((h) => h.id === this.teamSwap) : undefined;
     const boss = guildBossElement(utcWeekStart(Date.now()));
-    const edge = (h: HeroDef) => (tab === 'guild' ? elementMultiplier(heroAffinity(h), boss) : 1);
+    const raider = s.wallRaids()[this.wallIdx];
+    const edge = (h: HeroDef) => (tab === 'guild' ? elementMultiplier(heroAffinity(h), boss) : tab === 'wall' ? wallFit(h.element, raider) : 1);
+    // Heroes standing on another wall say so: adding one moves them here.
+    const wallOf = new Map(tab === 'wall' ? s.wallTeams().flatMap((t, i) => (i === this.wallIdx ? [] : t.map((h) => [h.id, WALL_NAMES[i]] as const))) : []);
+    const cap0 = tab === 'wall' ? WALL_SIZE : s.teamSlots;
     const starsOf = (h: HeroDef) => `<span class="tm-stars">${'★'.repeat(Math.max(1, (s.stars[h.id] ?? 0) + 1))}</span>`;
     const face = (h: HeroDef, cls = '') => `<span class="face art${cls}" style="${faceStyle(h)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span>`;
     const slotCost = s.nextTeamSlotCost();
-    const slots = Array.from({ length: TEAM_SLOTS_MAX }, (_, i) => {
+    const slots = Array.from({ length: tab === 'wall' ? WALL_SIZE : TEAM_SLOTS_MAX }, (_, i) => {
       const h = team[i];
       if (h) {
         const ult = stage && s.hasUltSlot(h.id) ? '<i class="tm-ult-badge" title="Ultimate on">ULT</i>' : '';
@@ -403,9 +416,9 @@ export class UI {
         const drag = stage && !swapping && count > 1 ? ` data-drag="${h.id}"` : '';
         return `<button type="button" class="tm-slot on${swapping ? ' swap' : ''}" ${act}${drag} aria-label="${swapping ? `Swap ${swapping.name} in for ${h.name}` : h.name}">${face(h)}${ult}<small>${h.name}</small></button>`;
       }
-      if (i < s.teamSlots) return '<span class="tm-slot empty"><span class="face"></span><small>Empty</small></span>';
+      if (i < cap0) return '<span class="tm-slot empty"><span class="face"></span><small>Empty</small></span>';
       // The next slot can be bought here; the ones after it show as locked.
-      if (i === s.teamSlots && slotCost !== null)
+      if (tab !== 'wall' && i === s.teamSlots && slotCost !== null)
         return `<button type="button" class="tm-slot buy" data-buy-slot ${s.gems < slotCost ? 'disabled' : ''} aria-label="Buy team slot ${i + 1} for ${slotCost} Gems"><span class="face">+</span><small>${slotCost} Gems</small></button>`;
       return '<span class="tm-slot locked" aria-hidden="true"><span class="face">🔒</span><small>Locked</small></span>';
     }).join('');
@@ -418,6 +431,8 @@ export class UI {
         ? 'You fight Colosseum battles with this team. Gold and Ember levels don\'t count here: stars, relics, weapons and Glyphs do. Your stage team stays as it is.'
         : tab === 'defense'
           ? 'Other players fight this team in the Colosseum. Losing on defense never costs trophies.'
+          : tab === 'wall'
+            ? `Raiders on the ${WALL_NAMES[this.wallIdx]} are ${cap(raider)} this week: heroes marked Strong hold far longer. A hero stands on one wall only; adding one from another wall moves them here.`
           : tab === 'tower'
             ? `Only ${cap(this.towerEl)} heroes can climb the ${TOWER_NAMES[this.towerEl]}. Gold and Ember levels don't count here: stars, relics, weapons and Glyphs do. Your stage team stays as it is.`
           : tab === 'guild'
@@ -455,12 +470,12 @@ export class UI {
       const cards = shown
         .map(
           (h) =>
-            `<button type="button" class="tm-card${ids.includes(h.id) ? ' on' : ''}" data-peek="${h.id}" style="--el:${hex(heroElementColor(h))}" title="${cap(heroRank(h))} ${h.type}">${edgeTag(h)}${face(h)}<b class="tm-name r-${heroRank(h)}">${h.name}</b><small>${level(h)}</small><small class="tm-cp">CP ${fmt(cps.get(h.id)!)}</small>${bar(cps.get(h.id)!)}${starsOf(h)}</button>`,
+            `<button type="button" class="tm-card${ids.includes(h.id) ? ' on' : ''}" data-peek="${h.id}" style="--el:${hex(heroElementColor(h))}" title="${cap(heroRank(h))} ${h.type}">${edgeTag(h)}${face(h)}<b class="tm-name r-${heroRank(h)}">${h.name}</b>${wallOf.has(h.id) ? `<small class="tm-onwall">On ${wallOf.get(h.id)}</small>` : `<small>${level(h)}</small>`}<small class="tm-cp">CP ${fmt(cps.get(h.id)!)}</small>${bar(cps.get(h.id)!)}${starsOf(h)}</button>`,
         )
         .join('');
       const tools = swapping
         ? `<div class="tm-swapbar"><span>Tap a hero in the team above to swap <b>${swapping.name}</b> in.</span><button type="button" data-swap-cancel>Cancel</button></div>`
-        : `<div class="tm-tools"><button type="button" data-sort>Sort: ${TEAM_SORT_LABELS[this.teamSort]}</button><button type="button" data-best class="hot">${tab === 'tower' ? 'Auto-set' : 'Best team'}</button></div>`;
+        : `<div class="tm-tools"><button type="button" data-sort>Sort: ${TEAM_SORT_LABELS[this.teamSort]}</button><button type="button" data-best class="hot">${tab === 'tower' || tab === 'wall' ? 'Auto-set' : 'Best team'}</button></div>`;
       body = `${tools}${tab === 'tower' ? '' : `<div class="tm-chips">${chips}</div>`}<div class="tm-grid">${cards || '<p class="team-help">No heroes of this element yet.</p>'}</div>
         <p class="team-help">${
           stage
@@ -470,7 +485,7 @@ export class UI {
     }
     const prevScroll = $('modal').classList.contains('team-mode') && scrollKey && scrollKey === this.teamScrollKey ? ($('modal-body').querySelector<HTMLElement>('.tm-scroll')?.scrollTop ?? 0) : 0;
     this.teamScrollKey = scrollKey;
-    const title = stage ? `Team ${count}/${s.teamSlots}` : tab === 'tower' ? `${TOWER_NAMES[this.towerEl]} team ${count}/${s.teamSlots}` : `${TEAM_TAB_TITLE[tab]} ${count}/${s.teamSlots}`;
+    const title = stage ? `Team ${count}/${s.teamSlots}` : tab === 'wall' ? `${WALL_NAMES[this.wallIdx]} ${count}/${WALL_SIZE}` : tab === 'tower' ? `${TOWER_NAMES[this.towerEl]} team ${count}/${s.teamSlots}` : `${TEAM_TAB_TITLE[tab]} ${count}/${s.teamSlots}`;
     this.showModal(
       title,
       `<button type="button" class="tm-x" data-team-close aria-label="Close">✕</button>${tabBar}<p class="tm-total">${stage ? 'Total Combat Power' : 'Team Combat Power'} <b>${fmt(stage ? s.teamCpOf(team) : s.fixedTeamCp(team))}</b></p>${hint ? `<p class="tm-hint">${hint}</p>` : ''}${note ? `<p class="team-note">${note}</p>` : ''}<div class="tm-slots">${slots}</div>${stage && !swapping && count > 1 && !peek ? '<p class="tm-drag-tip">Hold and drag a hero to change the order. The Heroes tab lists them the same way.</p>' : ''}${this.teamSummaryHtml(team)}${stage ? this.ultSlotsHtml() : ''}<div class="tm-scroll">${body}</div>`,
@@ -546,7 +561,8 @@ export class UI {
     const st = s.heroStats(h);
     const prof = heroProfile(h);
     const on = ids.includes(h.id);
-    const full = count >= s.teamSlots;
+    const slotsMax = tab === 'wall' ? WALL_SIZE : s.teamSlots;
+    const full = count >= slotsMax;
     const spent = s.goldSpent(h.id);
     const pct = (n: number) => `${(Math.round(n * 1000) / 10).toLocaleString()}%`;
     const num = (n: number) => (Math.round(n * 100) / 100).toLocaleString();
@@ -574,7 +590,7 @@ export class UI {
       : full
         ? `<button type="button" class="hot" data-swap="${h.id}">Swap in</button>`
         : `<button type="button" class="hot" data-lineup="${h.id}">Add to team</button>`;
-    const why = on && count <= 1 ? 'The team needs at least one hero.' : !on && full ? `The team is full (${s.teamSlots}). Tap Swap in, then pick who they replace.` : '';
+    const why = on && count <= 1 ? 'The team needs at least one hero.' : !on && full ? `The team is full (${slotsMax}). Tap Swap in, then pick who they replace.` : '';
     return `<div class="tm-peek" style="--el:${hex(heroElementColor(h))}">
       <div class="tm-peek-head"><span class="face art" style="${faceStyle(h)}">${HERO_ANIMS[heroArtKey(h.id)] ? '' : h.name[0]}</span>
         <div><b class="tm-peek-name">${h.name}</b> ${rarityTag(h)}<small>${heroTitle(h)} · ${'★'.repeat(Math.max(1, (s.stars[h.id] ?? 0) + 1))}</small>
@@ -742,10 +758,11 @@ export class UI {
     const bg = (f: string) => `url("${new URL(`bg/${f}`, document.baseURI).href}")`;
     const scene = (name: string, y = '40%') => `${bg(`${name}_far.png`)} center ${y} / cover, ${bg(`${name}_sky.png`)} center / cover`;
     // Every mode card shows a battle backdrop that suits it, like the Colosseum's.
-    const cardArt: Record<string, string> = { arena: scene('colosseum'), trials: scene('hollowmoon'), scout: scene('tidecoast'), rush: scene('stormcrag'), exp: scene('hollowmoon', '60%'), towers: scene('stormcrag', '20%') };
+    const cardArt: Record<string, string> = { arena: scene('colosseum'), trials: scene('hollowmoon'), scout: scene('tidecoast'), rush: scene('stormcrag'), exp: scene('hollowmoon', '60%'), towers: scene('stormcrag', '20%'), walls: scene('dunes', '30%') };
     for (const [mode, art] of Object.entries(cardArt)) document.querySelector<HTMLElement>(`.mode-card.${mode}`)?.style.setProperty('--art', art);
     // The Colosseum opens full screen over the lane; its backdrop is the arena itself.
     document.querySelector<HTMLElement>('.arena-full')?.style.setProperty('--art', scene('colosseum'));
+    document.querySelector<HTMLElement>('.wl-full')?.style.setProperty('--art', scene('dunes', '30%'));
     $('arena-back').addEventListener('click', () => {
       // From the shop or an opponent, Back returns to the Colosseum; from there, to the Battle hub.
       if (this.pvpView !== 'list') {
@@ -1600,7 +1617,7 @@ export class UI {
         return;
       }
       if (t.closest('[data-best]')) {
-        const best = this.teamTab === 'tower' ? s.towerAutoTeam(this.towerEl) : s.bestTeamIds(this.teamTab);
+        const best = this.teamTab === 'wall' ? s.wallAutoTeam(this.wallIdx) : this.teamTab === 'tower' ? s.towerAutoTeam(this.towerEl) : s.bestTeamIds(this.teamTab);
         const now = this.teamIdsOf(this.teamTab);
         if (best.length === now.length && best.every((id) => now.includes(id))) {
           this.openTeam('This is already your strongest team.');
@@ -1609,7 +1626,7 @@ export class UI {
           this.openTeam();
         } else {
           if (this.setTeamOf(this.teamTab, best)) play('unlock');
-          this.openTeam(this.teamTab === 'tower' ? `Your strongest ${cap(this.towerEl)} heroes are in.` : 'Your strongest heroes are in.');
+          this.openTeam(this.teamTab === 'wall' ? 'The strongest heroes for this wall are in.' : this.teamTab === 'tower' ? `Your strongest ${cap(this.towerEl)} heroes are in.` : 'Your strongest heroes are in.');
         }
         return;
       }
@@ -2911,6 +2928,8 @@ export class UI {
     if (!document.querySelector<HTMLElement>('[data-battle-pane="exp"]')!.hidden) this.expUi.render();
     this.towersUi.renderHub();
     if (!document.querySelector<HTMLElement>('[data-battle-pane="towers"]')!.hidden) this.towersUi.render();
+    this.wallsUi.renderHub();
+    if (!document.querySelector<HTMLElement>('[data-battle-pane="walls"]')!.hidden) this.wallsUi.render();
   }
 
   /** The Glyph bag (from the Rush page). */
@@ -2976,6 +2995,50 @@ export class UI {
       }, 1200);
       this.render();
     }, { label: 'Expedition', allies, boost: (def) => s.expBoost(def), fair: true });
+  }
+
+  /** Manage Team on one wall's heroes (Hold the Walls). */
+  openWallTeam(wall: number) {
+    this.wallIdx = wall;
+    this.openTeamOn('wall');
+  }
+
+  /** Today's defense: every wall fights its waves at once, then the result and what it paid. */
+  defendWalls() {
+    const s = this.state;
+    const raids = s.wallRaids();
+    const res = s.wallsDefend();
+    if (!res) return;
+    play('unlock');
+    // Offer to watch the wall that fell first: the wave that broke it, live in the lane.
+    const weak = res.waves.indexOf(Math.min(...res.waves));
+    this.showModal('Hold the Walls', wallsResultHtml(res, raids) + glyphDrops(res.glyphs), `Watch the ${WALL_NAMES[weak]}`, () => this.watchWall(weak), true, 'Okay');
+    this.render();
+  }
+
+  /** Watch one wall's key wave live in the lane (pays nothing). */
+  watchWall(wall: number) {
+    const s = this.state;
+    const scene = this.scene();
+    if (!scene || scene.inTrial() || scene.inPvp()) return;
+    const w = s.wallWatchStart(wall);
+    if (!w) return;
+    const raider = s.wallRaids()[wall];
+    this.closeSheet();
+    document.body.classList.add('in-trial');
+    $('trial-hud').hidden = false;
+    $('trial-hud-name').textContent = `${WALL_NAMES[wall]}: wave ${w.wave}`;
+    $('trial-hud-note').textContent = `${cap(raider)} raiders, wave ${w.wave}. A replay of the wave that ${w.wave >= 30 ? 'tested' : 'broke'} this wall: it pays nothing.`;
+    $('trial-leave').textContent = 'Leave';
+    const units = s.pvpFoeUnits(w.foe).map((f) => ({ def: f.def, stats: f.stats, owner: f.owner }));
+    scene.startPvp(w.ids, units, 0, (won) => {
+      $('trial-leave').textContent = 'Back';
+      s.wallWatchEnd();
+      window.setTimeout(() => {
+        if (scene.inPvp()) this.showModal(WALL_NAMES[wall], `<p class="tf-result ${won ? 'win' : 'lose'}">${won ? `Wave ${w.wave} was held this time.` : `Wave ${w.wave} broke through.`}</p><p>Put stronger heroes on this wall, or heroes marked Strong against ${cap(raider)}, to hold more waves.</p>`, 'Okay', () => this.endPvpScreen());
+      }, 1200);
+      this.render();
+    }, { label: WALL_NAMES[wall], fair: true });
   }
 
   /** Manage Team on a tower's team: only heroes of that element. */

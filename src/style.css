@@ -1812,3 +1812,56 @@ body.arena-open:not(.in-trial) #app > :not(#panels), body.arena-open:not(.in-tri
 .tw-crest { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .tw-crest .face { width: 40px; height: 40px; border-radius: 8px; border: 2px solid #000; }
 .tw-crest small { font-size: 11px; }
+/* Hold the Walls (src/wallsUi.ts): full screen like the Element Towers, three stone walls over a desert backdrop. */
+.mode-card.walls { background: linear-gradient(90deg, rgba(52,34,16,.88), rgba(52,34,16,.15) 55%), var(--art, none), #4a3520; image-rendering: pixelated; }
+.mode-card.walls .mode-trophy { filter: drop-shadow(0 0 8px rgba(255,200,120,.5)) drop-shadow(0 2px 0 #131927); }
+.wl-full:not([hidden]) { background: linear-gradient(180deg, rgba(30,20,12,.3), rgba(20,16,14,.9) 240px), var(--art, none), var(--wood-lo); }
+.wl-banner { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 12px 12px; border-radius: 12px; text-align: center; background: radial-gradient(ellipse at 50% 0%, rgba(255,170,80,.28), transparent 70%), rgba(20,16,14,.78); border: 2px solid #6a5232; }
+.wl-title { font-size: 20px; font-weight: 900; color: #fff; text-shadow: 0 2px 0 #131927, 0 0 12px rgba(255,170,80,.7); }
+.wl-raiders { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; }
+.wl-raider { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 6px; border-radius: 99px; font-size: 13px; font-weight: 800; background: color-mix(in srgb, var(--el) 30%, #1c1510); border: 2px solid color-mix(in srgb, var(--el) 70%, #000); }
+.wl-raider .mode-orb, .wl-vs .mode-orb, .wl-res-row .mode-orb { width: 14px; height: 14px; box-shadow: 0 0 6px 1px var(--c); }
+.wl-week { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; font-size: 12px; color: #e8dccb; }
+.wl-week b { color: #ffd84a; font-size: 15px; }
+.wl-track { height: 8px; border-radius: 99px; background: rgba(0,0,0,.5); overflow: hidden; border: 1px solid #000; }
+.wl-track i { display: block; height: 100%; background: linear-gradient(90deg, #d9a53a, #ffd84a); }
+.wl-tiers { display: flex; gap: 4px; }
+.wl-tier { position: relative; display: inline-flex; align-items: center; gap: 2px; padding: 2px 5px; border-radius: 7px; background: rgba(0,0,0,.45); border: 1px solid #6a5232; font-size: 11px; }
+.wl-tier.done { border-color: #5fd068; opacity: .7; }
+.wl-tier span { font-weight: 800; color: #ffd84a; }
+.wl-tier .mat-ico { width: 16px; height: 16px; }
+.wl-ok { position: absolute; top: -7px; right: -5px; color: #5fd068; font-size: 12px; font-weight: 900; text-shadow: 0 1px 0 #000; }
+.wl-walls { display: flex; flex-direction: column; gap: 10px; }
+.wl-wall { position: relative; display: flex; flex-direction: column; gap: 7px; padding: 0 10px 9px; border-radius: 4px 4px 12px 12px; border: 3px solid #2a1d10; background: repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0 18px, rgba(255,255,255,.04) 18px 20px), linear-gradient(180deg, #6e5d44, #4a3c2a); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--el) 35%, transparent), 0 6px 14px rgba(0,0,0,.45); }
+.wl-wall-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 -10px; padding: 14px 12px 6px; position: relative; background: linear-gradient(180deg, rgba(0,0,0,.35), transparent); }
+.wl-crenel { position: absolute; top: -3px; left: 0; right: 0; height: 9px; background: linear-gradient(90deg, #8a7656 0 12%, transparent 12% 20%, #8a7656 20% 32%, transparent 32% 40%, #8a7656 40% 52%, transparent 52% 60%, #8a7656 60% 72%, transparent 72% 80%, #8a7656 80% 92%, transparent 92%); border-bottom: 2px solid #2a1d10; }
+.wl-wall-head b { font-size: 16px; font-weight: 900; color: #fff; text-shadow: 0 2px 0 #000; }
+.wl-vs { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px 2px 6px; border-radius: 99px; font-size: 12px; font-weight: 800; color: #fff; background: color-mix(in srgb, var(--el) 40%, #1c1510); border: 2px solid var(--el); box-shadow: 0 0 10px color-mix(in srgb, var(--el) 50%, transparent); }
+.wl-slots { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.wl-slot { position: relative; display: flex; justify-content: center; }
+.wl-slot .face { width: 100%; max-width: 56px; aspect-ratio: 1; border-radius: 9px; border: 2px solid #000; background-color: color-mix(in srgb, var(--hel, #888) 28%, #1c1510); }
+.wl-slot.empty .face { border: 2px dashed rgba(255,255,255,.3); background: rgba(0,0,0,.3); }
+.wl-edge { position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%); padding: 0 4px; border-radius: 4px; font-style: normal; font-size: 9px; font-weight: 900; white-space: nowrap; }
+.wl-edge.strong { background: #2f8a3a; color: #fff; }
+.wl-edge.weak { background: #9a2a22; color: #fff; }
+.wl-hold { display: flex; align-items: center; gap: 8px; }
+.wl-segs { flex: 1; display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; }
+.wl-segs i { height: 10px; border-radius: 2px; background: rgba(0,0,0,.45); border: 1px solid rgba(0,0,0,.6); }
+.wl-segs i.part { background: color-mix(in srgb, var(--el) 40%, #2a1d10); }
+.wl-segs i.on { background: linear-gradient(180deg, #fff3, transparent), var(--el); box-shadow: 0 0 6px color-mix(in srgb, var(--el) 60%, transparent); }
+.wl-waves { font-size: 12px; color: #f0e4d0; white-space: nowrap; }
+.wl-waves b { font-size: 17px; color: #fff; }
+.wl-wall-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.wl-wall-foot small { font-size: 12px; color: #e8dccb; }
+.wl-bar { border-color: #8a6a3a; }
+.wl-foot-btns { display: flex; gap: 6px; }
+.wl-sum { margin: 0; text-align: center; font-size: 14px; }
+.wl-sum b { color: #ffd84a; font-size: 18px; }
+.wl-sumrow { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; }
+.wl-sumrow .wl-sum { text-align: left; }
+.wl-pay { margin: 0; max-width: none; }
+.wl-btns { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: stretch; }
+.wl-next { text-align: center; }
+.wl-res { display: flex; flex-direction: column; gap: 5px; margin: 6px 0; }
+.wl-res-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; background: color-mix(in srgb, var(--el) 18%, #1c2539); border: 1px solid color-mix(in srgb, var(--el) 60%, #000); }
+.tm-onwall { color: #ffb36a; }

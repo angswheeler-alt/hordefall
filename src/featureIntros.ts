@@ -5,7 +5,7 @@
  */
 
 /** Where Take me there goes. */
-export type IntroGo = 'market' | 'relics' | 'arena' | 'scout' | 'rush' | 'towers' | 'observatory' | 'journal' | 'alchemy' | 'rekindle';
+export type IntroGo = 'market' | 'relics' | 'arena' | 'scout' | 'rush' | 'towers' | 'walls' | 'observatory' | 'journal' | 'alchemy' | 'rekindle';
 
 export interface IntroView {
   bestStage: number;
@@ -40,6 +40,7 @@ export const FEATURE_INTROS: FeatureIntro[] = [
   { id: 'intro-rush', title: 'New: Rush', text: 'A weekend event of one-on-one hero fights on the Battle tab, for Glyphs and Gems.', go: 'rush', open: (v) => v.rushOpen },
   { id: 'intro-observatory', title: 'New: Observatory', text: 'Every Rekindle earns Sigils. Spend them on lasting boosts in the Observatory on Home.', go: 'observatory', open: (v) => v.observatoryOpen },
   { id: 'intro-towers', title: 'New: Element Towers', text: 'Five towers on the Battle tab, one per element. Climb floors with heroes of one element for crests, Stones and Epic chests.', go: 'towers', open: (v) => v.towersOpen },
+  { id: 'intro-walls', title: 'New: Hold the Walls', text: 'Raiders hit three walls each week. Put up to 5 heroes on each wall, using counters, and defend once a day.', go: 'walls', open: (v) => v.towersOpen },
   { id: 'intro-mutants', title: 'New: Mutants', text: 'From here on some enemies are mutants with a special trait. They pay extra gold; track them in the Hunting Journal.', go: 'journal', open: (v) => v.mutantsOpen },
   { id: 'intro-alchemist', title: "New: Alchemist's Table", text: 'Trade spare Essence, Stones, Ore and Crystal each week, on the Relics tab.', go: 'alchemy', open: (v) => v.alchemyOpen },
   { id: 'intro-ashfall', title: 'New: Ashfall', text: 'A bigger reset is ready on the Rekindle page: it trades your Ember levels for a lasting boost to every Rekindle.', go: 'rekindle', open: (v) => v.ashfallReady },

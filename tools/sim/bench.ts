@@ -63,9 +63,9 @@ export function installBench(s: any, deps: { HEROES: any[]; elementMultiplier: (
   const st = {
     noBond: false,
     floors: {} as Record<string, number>,
-    wallsBest: 0, wallsLast: 0, wallsDay: '', wallsWeek: '',
+    wallsBest: 0, wallsLast: 0, wallsDay: '', wallsWeek: '', wallsMin: 0, chestsIn: 0,
     towers: {} as Record<string, number>,
-    wildIn: { dojo: 0, walls: 0, towers: 0 }, stonesIn: { walls: 0, towers: 0 }, gemsIn: { dojo: 0, towers: 0 }, crestsIn: { towers: 0 },
+    wildIn: { dojo: 0, walls: 0, towers: 0 }, stonesIn: { walls: 0, towers: 0 }, gemsIn: { dojo: 0, towers: 0 }, crestsIn: { towers: 0, walls: 0 },
   };
 
   const elOf = (h: any) => s.formDef(h).element;
@@ -227,6 +227,21 @@ export function installBench(s: any, deps: { HEROES: any[]; elementMultiplier: (
 
   function walls(now: number, dayKey: string) {
     if (!s.rekindles) return;
+    if (ON.has('walls') && typeof s.wallsDefend === 'function') {
+      // The real rules (src/walls.ts): auto-set walls each day, one defense, rewards as the game pays them.
+      if (st.wallsDay === dayKey) return;
+      st.wallsDay = dayKey;
+      s.setWallTeams(s.wallsAutoTeams(now));
+      const stones = s.enhanceStones;
+      const r = s.wallsDefend(now);
+      if (!r) return;
+      st.wallsLast = r.total; st.wallsBest = Math.max(st.wallsBest, r.total);
+      st.wallsMin = Math.min(...r.waves);
+      st.stonesIn.walls += s.enhanceStones - stones;
+      st.crestsIn.walls += r.crests.length;
+      st.chestsIn += r.chests.length;
+      return;
+    }
     const w = wallsResult(raidOf(now));
     st.wallsLast = w; st.wallsBest = Math.max(st.wallsBest, w);
     if (!ON.has('walls') || st.wallsDay === dayKey) return;
@@ -252,7 +267,7 @@ export function installBench(s: any, deps: { HEROES: any[]; elementMultiplier: (
       elemPowLog: elp,
       towers: { ...st.towers }, towersTotal: Object.values(st.towers).reduce((a, b) => a + b, 0),
       floors: { ...st.floors }, floorsTotal: Object.values(st.floors).reduce((a, b) => a + b, 0),
-      wallsLast: st.wallsLast, wallsBest: st.wallsBest,
+      wallsLast: st.wallsLast, wallsBest: st.wallsBest, wallsMin: st.wallsMin, chestsIn: st.chestsIn,
       wildIn: { ...st.wildIn }, stonesIn: { ...st.stonesIn }, gemsIn: { ...st.gemsIn }, crestsIn: { ...st.crestsIn },
     };
   }
