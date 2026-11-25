@@ -51,7 +51,7 @@ import { todayRows, todayLeft, todayShown, weekLine, type TodayGo } from './toda
 import { RushUI, rushResultHtml } from './rushUi';
 import { ExpeditionUI, expEndHtml } from './expeditionUi';
 import { TowersUI, towerResultHtml } from './towersUi';
-import { TOWER_NAMES } from './towers';
+import { TOWER_NAMES, towerAllows } from './towers';
 import { WallsUI, wallsResultHtml } from './wallsUi';
 import { WALL_NAMES, WALL_SIZE, wallFit } from './walls';
 import type { ExpLender } from './expedition';
@@ -434,7 +434,7 @@ export class UI {
           : tab === 'wall'
             ? `Raiders on the ${WALL_NAMES[this.wallIdx]} are ${cap(raider)} this week: heroes marked Strong hold far longer. A hero stands on one wall only; adding one from another wall moves them here.`
           : tab === 'tower'
-            ? `Only ${cap(this.towerEl)} heroes can climb the ${TOWER_NAMES[this.towerEl]}. Gold and Ember levels don't count here: stars, relics, weapons and Glyphs do. Your stage team stays as it is.`
+            ? `Only ${cap(this.towerEl)} heroes and heroes with no element can climb the ${TOWER_NAMES[this.towerEl]}. Gold and Ember levels don't count here: stars, relics, weapons and Glyphs do. Your stage team stays as it is.`
           : tab === 'guild'
             ? `This week's Guild Boss is ${cap(boss)}: heroes marked Strong hit it extra hard. Gold and Ember levels don't count here: stars, relics, weapons and Glyphs do.`
             : '';
@@ -449,7 +449,7 @@ export class UI {
     } else {
       scrollKey = `${tab}:${this.teamFilter}:${this.teamSort}`;
       const shown = sortHeroes(
-        owned.filter((h) => (tab === 'tower' ? h.element === this.towerEl : !this.teamFilter || h.element === this.teamFilter)),
+        owned.filter((h) => (tab === 'tower' ? towerAllows(h, this.towerEl) : !this.teamFilter || h.element === this.teamFilter)),
         this.teamSort,
         s,
         !stage,
@@ -3041,7 +3041,7 @@ export class UI {
     }, { label: WALL_NAMES[wall], fair: true });
   }
 
-  /** Manage Team on a tower's team: only heroes of that element. */
+  /** Manage Team on a tower's team: only heroes of that element, plus heroes with no element. */
   openTowerTeam(el: Element) {
     this.towerEl = el;
     this.openTeamOn('tower');
@@ -3060,7 +3060,7 @@ export class UI {
     document.body.classList.add('in-trial');
     $('trial-hud').hidden = false;
     $('trial-hud-name').textContent = `${TOWER_NAMES[el]}: floor ${floor}`;
-    $('trial-hud-note').textContent = `Only ${cap(el)} heroes fight here, at the fixed level, with no Ultimates. Destroy the red crystal before they destroy yours.`;
+    $('trial-hud-note').textContent = `Only ${cap(el)} heroes and heroes with no element fight here, at the fixed level, with no Ultimates. Destroy the red crystal before they destroy yours.`;
     $('trial-leave').textContent = 'Leave';
     const units = s.pvpFoeUnits(foe).map((f) => ({ def: f.def, stats: f.stats, owner: f.owner }));
     scene.startPvp(ids, units, 0, (won) => {
