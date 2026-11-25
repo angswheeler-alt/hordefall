@@ -8,7 +8,7 @@ import Decimal from 'break_infinity.js';
 import { DAY_NAMES, ELEMENT_COLORS, ESSENCE_NAMES, HEROES, type Element } from './data';
 import { fmt } from './formulas';
 import type { GameState, TowerResult } from './state';
-import { TOWER_ELEMENTS, TOWER_FOE, TOWER_NAMES, towerDays, towerMilestone, towerReward, type TowerReward } from './towers';
+import { TOWER_ELEMENTS, TOWER_FOE, TOWER_NAMES, towerDays, towerMilestone, towerAllows, towerReward, type TowerReward } from './towers';
 import { faceStyle } from './ui';
 import { matIcon } from './scoutUi';
 import { play } from './sfx';
@@ -52,7 +52,7 @@ export class TowersUI {
   help() {
     this.ui.showModal(
       'Element Towers',
-      `<p>Five towers, one for each element. A tower only lets in heroes of its element, and every floor is a team of the element it beats: Water fights Fire, Fire fights Earth, Earth fights Water, Light fights Dark and Dark fights Light.</p>
+      `<p>Five towers, one for each element. A tower only lets in heroes of its element (heroes with no element, like Pasta, fit every tower), and every floor is a team of the element it beats: Water fights Fire, Fire fights Earth, Earth fights Water, Light fights Dark and Dark fights Light.</p>
       <p>Each tower opens on two weekdays, and all five are open on Saturday and Sunday. Fights are free, so a lost floor can be tried again right away.</p>
       <p>The towers never end: every floor is a little stronger than the one below. Floors give rewards only: Gems, crests for heroes of that element and Essence on every floor, Enhance Stones on every 5th, an Element Chest with Epic crests on every 10th and a Glyph Chest on every 25th.</p>
       <p>Heroes fight at the fixed level, like the Colosseum: stars, relics, weapons and Glyphs count, gold and Ember levels don't.</p>`,
@@ -82,7 +82,7 @@ export class TowersUI {
       return;
     }
     // The page re-renders with the game every 200 ms: only work it out again when something it shows can have changed.
-    const sig = [this.el, new Date(now).getDay(), Math.floor(now / 10_000), s.teamSlots, JSON.stringify(s.towers), Math.round(Number(s.trialBest[this.el] ?? 0)), ...HEROES.filter((h) => h.element === this.el).map((h) => `${s.levels[h.id] ? 1 : 0}${s.stars[h.id] ?? 0}`)].join('|');
+    const sig = [this.el, new Date(now).getDay(), Math.floor(now / 10_000), s.teamSlots, JSON.stringify(s.towers), Math.round(Number(s.trialBest[this.el] ?? 0)), ...HEROES.filter((h) => towerAllows(h, this.el)).map((h) => `${s.levels[h.id] ? 1 : 0}${s.stars[h.id] ?? 0}`)].join('|');
     if (sig === this.sig && $('towers').childElementCount) return;
     this.sig = sig;
     const el = this.el;

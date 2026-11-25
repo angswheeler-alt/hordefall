@@ -30,7 +30,7 @@ import { allWhatsNewIds } from './whatsNew';
 import { ALCHEMY_ORE_CORE, ALCHEMY_ORE_CORES_PER_WEEK, ALCHEMY_ORE_DUST, ALCHEMY_ORE_DUST_GET, ALCHEMY_ORE_DUST_PER_WEEK, ALCHEMY_UNLOCK_STAGE, ALCHEMY_CORES_PER_WEEK, ALCHEMY_CORE_STONES, ALCHEMY_DUST, ALCHEMY_DUST_PER_WEEK, ALCHEMY_SWAP_RATE, RELIC_TEMPER_CAP, RELIC_TEMPER_LEVELS, attuneBonus, attuneBulk, attuneCost, clampAttune, clampTemper, cleanAlchemy, dustCost, newAlchemy, relicTemperCost, swapCap, type AlchemyState } from './sinks';
 import { EXP_CHARGE_CAP, EXP_HEARTS, EXP_MAX_LEVEL, EXP_PARTY_MAX, EXP_HIRE_MAX, EXP_STOPS, EXP_UNLOCK_LEVEL, autoReward, boonMults, cleanExpedition, daysBetween, foeShare, fullReward, levelMult, makeMap, mysteryOptions, newExpedition, partReward, rollBoons, type BoonTarget, type ExpHire, type ExpLender, type ExpNodeKind, type ExpReward, type ExpRun, type ExpState, type MysteryOption } from './expedition';
 import { WALL_COUNT, WALL_ESSENCE_SHARE, WALL_SIZE, WALL_WAVES, WALL_WEEK_TIERS, cleanWalls, newWalls, wallFit, wallFoePower, wallFoeTeam, wallRaids, wallReward, type WallsState } from './walls';
-import { TOWER_ELEMENTS, cleanTowers, newTowers, towerFoePower, towerFoeTeam, towerOpenOn, towerReward, type TowerReward, type TowerState } from './towers';
+import { TOWER_ELEMENTS, cleanTowers, newTowers, towerFoePower, towerFoeTeam, towerOpenOn, towerAllows, towerReward, type TowerReward, type TowerState } from './towers';
 
 /** What a tower fight ended with (towerFightEnd). */
 /** What a wall defense paid (wallsDefend). */
@@ -3702,7 +3702,7 @@ export class GameState {
 
   /** Owned heroes of an element, strongest first (fixed level). */
   private towerPool(el: Element): HeroDef[] {
-    return HEROES.filter((h) => h.element === el && (this.levels[h.id] ?? 0) > 0)
+    return HEROES.filter((h) => towerAllows(h, el) && (this.levels[h.id] ?? 0) > 0)
       .map((h) => ({ h, cp: this.fixedCombatPower(h) }))
       .sort((a, b) => b.cp.cmp(a.cp))
       .map((x) => x.h);
@@ -3715,14 +3715,14 @@ export class GameState {
 
   /** A tower's team: the saved one (still owned, right element), or the strongest when none is saved. */
   towerTeam(el: Element): HeroDef[] {
-    const saved = (this.towers.teams[el] ?? []).map((id) => HEROES.find((h) => h.id === id)).filter((h): h is HeroDef => !!h && h.element === el && (this.levels[h.id] ?? 0) > 0);
+    const saved = (this.towers.teams[el] ?? []).map((id) => HEROES.find((h) => h.id === id)).filter((h): h is HeroDef => !!h && towerAllows(h, el) && (this.levels[h.id] ?? 0) > 0);
     const ids = saved.length ? saved.slice(0, this.teamSlots).map((h) => h.id) : this.towerAutoTeam(el);
     return ids.map((id) => HEROES.find((h) => h.id === id)!);
   }
 
   /** Save a tower's team: only heroes of its element, 1 to teamSlots. */
   setTowerTeam(el: Element, ids: string[]): boolean {
-    const clean = HEROES.filter((h) => ids.includes(h.id) && h.element === el && (this.levels[h.id] ?? 0) > 0).map((h) => h.id);
+    const clean = HEROES.filter((h) => ids.includes(h.id) && towerAllows(h, el) && (this.levels[h.id] ?? 0) > 0).map((h) => h.id);
     if (!clean.length || clean.length > this.teamSlots) return false;
     this.towers.teams[el] = clean;
     this.save();

@@ -1,5 +1,6 @@
 /**
- * Element Towers (Samuel, 2026-11-22): one tower per element. A tower only takes heroes of its element, and
+ * Element Towers (Samuel, 2026-11-22): one tower per element. A tower only takes heroes of its element (and
+ * heroes with no element, see towerAllows), and
  * every floor is a team of heroes of the element it beats (Water fights Fire, Fire fights Earth, Earth fights
  * Water, Light fights Dark, Dark fights Light). Floors give rewards only, never buffs: a little on every floor
  * and more on every 5th, 10th and 25th. Each tower opens on set days, and every tower is open on the weekend.
@@ -15,6 +16,12 @@
 import { POOL_HEROES, type Element, type HeroDef } from './data';
 import { seededRandom } from './colosseum';
 import { isAscendant } from './heroes/ascendant';
+
+/**
+ * Whether a hero may climb a tower: heroes of its element, plus heroes with no element (Pasta), who fit every
+ * tower (Samuel, 2026-11-25: Pasta has no element, so he must not be stuck in the Dusk Tower only).
+ */
+export const towerAllows = (h: { element: Element; noElement?: boolean }, el: Element): boolean => !!h.noElement || h.element === el;
 
 export const TOWER_ELEMENTS: Element[] = ['water', 'fire', 'earth', 'light', 'dark'];
 /** The element each tower fights: the one its own element beats. */

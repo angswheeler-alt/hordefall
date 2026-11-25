@@ -150,3 +150,24 @@ describe('Element Towers in the game', () => {
     expect(t.towers.teams.water?.length).toBe(1);
   });
 });
+
+describe('heroes with no element in the towers', () => {
+  it('Pasta (no element) can join every tower, not only the Dark one', () => {
+    for (const el of TOWER_ELEMENTS) {
+      const s = ready(el);
+      s.levels.pasta = 1;
+      s.stars.pasta = 7;
+      expect(s.towerAutoTeam(el)).toContain('pasta');
+      expect(s.setTowerTeam(el, ['pasta'])).toBe(true);
+      expect(s.towerTeam(el).map((h) => h.id)).toEqual(['pasta']);
+    }
+  });
+
+  it('other elements are still kept out', () => {
+    const s = ready('water');
+    const fire = POOL_HEROES.find((h) => h.element === 'fire')!;
+    s.levels[fire.id] = 1;
+    expect(s.setTowerTeam('water', [fire.id])).toBe(false);
+    expect(s.towerAutoTeam('water')).not.toContain(fire.id);
+  });
+});
